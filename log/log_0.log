@@ -57,3 +57,46 @@ I (1532) heap_init: At 40099F70 len 00006090 (24 KiB): IRAM
 I (1538) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator
 I (1546) spi_flash: detected chip: winbond
 I (1550) spi_flash: flash io: qio
+
+
+
+D (1907) intr_alloc: Connected src 50 to int 2 (cpu 0)
+D (1911) cpu_start: calling init function: 0x401cc5b0
+--- Error: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+--- Waiting for the device to reconnect--- 0x401cc5b0: _GLOBAL__sub_I__ZN14ctagMDAtalkboxC2Ev at /home/ubuntu/ctag-tbd/components/ctagSoundProcessor/fx/ctagMDAtalkbox.cpp:285
+
+D (2328) heap_init: New heap initialised at 0x3ffe0440
+D (2328) heap_init: New heap initialised at 0x3ffe4350
+D (2328) intr_alloc: Connected src 16 to int 8 (cpu 0)
+I (2338) main_task: Calling app_main()
+I (2338) ctagSPAllocator: AllocateInternalBuffer: allocating 114688 bytes
+I (4348) fs: Initializing LITTLEFS
+I (4708) fs: Partition size: total: 3145728, used: 1556480
+I (4708) RGBLed: RGB LED strip initialization
+D (4708) rmt: new group(0) at 0x3f801dfc, occupy=ffffff00
+D (4718) intr_alloc: Connected src 47 to int 2 (cpu 0)
+D (4718) rmt: group clock resolution:80000000
+E (4728) gpio: GPIO can only be used as input mode
+E (4728) rmt: rmt_new_tx_channel(300): config GPIO failed
+D (4738) rmt: del group(0)
+E (4738) led_strip_rmt: led_strip_new_rmt_device(134): create RMT TX channel failed
+ESP_ERROR_CHECK failed: esp_err_t 0x102 (ESP_ERR_INVALID_ARG) at 0x401d28c5
+--- 0x401d28c5: CTAG::DRIVERS::LedRGB::InitLedRGB() at /home/ubuntu/ctag-tbd/components/drivers/led_rgb_bba.cpp:52 (discriminator 1)
+
+file: "./components/drivers/led_rgb_bba.cpp" line 52
+func: static void CTAG::DRIVERS::LedRGB::InitLedRGB()
+expression: led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip)
+
+abort() was called at PC 0x4008d927 on core 0
+--- 0x4008d927: _esp_error_check_failed at /home/ubuntu/esp/esp-idf/components/esp_system/esp_err.c:50
+
+
+
+Backtrace: 0x4008207e:0x3ffbea70 0x4008d931:0x3ffbea90 0x4009426a:0x3ffbeab0 0x4008d927:0x3ffbeb20 0x401d28c5:0x3ffbeb50 0x400d9904:0x3ffbeba0 0x402d436b:0x3ffbebd0
+.--- 0x4008207e: panic_abort at /home/ubuntu/esp/esp-idf/components/esp_system/panic.c:466
+0x4008d931: esp_system_abort at /home/ubuntu/esp/esp-idf/components/esp_system/port/esp_system_chip.c:84
+0x4009426a: abort at /home/ubuntu/esp/esp-idf/components/newlib/abort.c:38
+0x4008d927: _esp_error_check_failed at /home/ubuntu/esp/esp-idf/components/esp_system/esp_err.c:50
+0x401d28c5: CTAG::DRIVERS::LedRGB::InitLedRGB() at /home/ubuntu/ctag-tbd/components/drivers/led_rgb_bba.cpp:52 (discriminator 1)
+0x400d9904: app_main at /home/ubuntu/ctag-tbd/main/main.cpp:66
+0x402d436b: main_task at /home/ubuntu/esp/esp-idf/components/freertos/app_startup.c:208 (discriminator 13)
