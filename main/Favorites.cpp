@@ -80,17 +80,16 @@ void CTAG::FAV::Favorites::StartUI() {
         gpio_set_direction(PIN_PUSH_BTN, (gpio_mode_t)GPIO_MODE_DEF_INPUT);
         xTaskCreatePinnedToCore(&CTAG::FAV::Favorites::ui_task, "ui_task", 4096, nullptr, tskIDLE_PRIORITY + 3, &uiTaskHandle, 0);
 #elif CONFIG_TBD_PLATFORM_BBA
+        uint16_t touch_value;
         touch_pad_init();
-        touch_pad_config(TOUCH_PAD);
-        touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
-        touch_pad_fsm_start();
+        touch_pad_config(TOUCH_PAD, 500);
+        touch_pad_sw_start();
         std::vector<std::string> vs;
         vs.emplace_back("Touch sensor");
         vs.emplace_back("calibration:");
         vs.emplace_back("Do not touch!");
         DRIVERS::Display::ShowUserString(vs);
         vTaskDelay(2000/ portTICK_PERIOD_MS);
-        uint32_t touch_value;
         for(int i=0;i<16;i++){
             touch_pad_read_raw_data(TOUCH_PAD, &touch_value);
             noTouch += touch_value;
@@ -127,7 +126,7 @@ void CTAG::FAV::Favorites::DeactivateFavorite() {
 #if CONFIG_TBD_PLATFORM_MK2
         if (!gpio_get_level(PIN_PUSH_BTN)) {
 #elif CONFIG_TBD_PLATFORM_BBA
-        uint32_t touch_value;
+        uint16_t touch_value;
         touch_pad_read_raw_data(TOUCH_PAD, &touch_value);    // read raw data.
         uint32_t pchgval = programChangeValue.load();
         if(pchgval != previousProgramChangeValue){

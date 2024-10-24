@@ -837,7 +837,7 @@ uint8_t *Midi::Update() {
             }
         }
         ================================================================== */
-        len2 =  CTAG::DRIVERS::midiuart::Read(&msgBuffer[missing_bytes_offset], MIDI_BUF_SZ - 32);
+        // len2 =  CTAG::DRIVERS::midiuart::Read(&msgBuffer[missing_bytes_offset], MIDI_BUF_SZ - 32);
 
         // get all available MIDI messages from UART
         if (missing_bytes_offset + len2 < (MIDI_BUF_SZ - 32)) // safety margin
