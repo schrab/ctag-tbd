@@ -26,10 +26,10 @@ respective component folders / files if different from this license.
 #include "esp_log.h"
 
 #if CONFIG_TBD_PLATFORM_MK2
-    #define SCL_GPIO 32
-    #define SDA_GPIO 33
+    #define SCL_GPIO 23
+    #define SDA_GPIO 5
 #elif CONFIG_TBD_PLATFORM_BBA
-    #define SCL_GPIO 4
+    #define SCL_GPIO 23
     #define SDA_GPIO 5
 #else
     #define SCL_GPIO 23
