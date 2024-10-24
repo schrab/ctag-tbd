@@ -39,7 +39,7 @@ midiuart::midiuart() {
 // Configure UART parameters
     ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
 
-    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, 8, 11, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, 18, 19, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
 // Install UART driver using an event queue here
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, RX_BUF_SIZE*2, \
