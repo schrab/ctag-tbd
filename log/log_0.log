@@ -1,0 +1,59 @@
+load:0x40080404,len:4284
+entry 0x40080668
+I (30) boot: ESP-IDF v5.1.4-972-g632e0c2a9f 2nd stage bootloader
+I (30) boot: compile time Oct 24 2024 15:08:29
+I (31) boot: Multicore bootloader
+I (35) boot: chip revision: v3.1
+I (39) qio_mode: Enabling QIO for flash chip WinBond
+I (45) boot.esp32: SPI Speed      : 80MHz
+I (49) boot.esp32: SPI Mode       : QIO
+I (54) boot.esp32: SPI Flash Size : 16MB
+I (59) boot: Enabling RNG early entropy source...
+I (64) boot: Partition Table:
+I (68) boot: ## Label            Usage          Type ST Offset   Length
+I (75) boot:  0 nvs              WiFi data        01 02 00009000 00004000
+I (82) boot:  1 otadata          OTA data         01 00 0000d000 00002000
+I (90) boot:  2 phy_init         RF data          01 01 0000f000 00001000
+I (97) boot:  3 ota_0            OTA app          00 10 00010000 00300000
+I (105) boot:  4 ota_1            OTA app          00 11 00310000 00300000
+I (112) boot:  5 storage          Unknown data     01 82 00610000 00300000
+I (120) boot: End of partition table
+I (124) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=8d834h (579636) map
+I (292) esp_image: segment 1: paddr=0009d85c vaddr=3ffb0000 size=027bch ( 10172) load
+I (295) esp_image: segment 2: paddr=000a0020 vaddr=400d0020 size=203014h (2109460) map
+I (877) esp_image: segment 3: paddr=002a303c vaddr=3ffb27bc size=025c4h (  9668) load
+I (880) esp_image: segment 4: paddr=002a5608 vaddr=40080000 size=19f70h (106352) load
+I (931) boot: Loaded app from partition at offset 0x10000
+I (931) boot: Disabling RNG early entropy source...
+I (943) cpu_start: Multicore app
+I (943) quad_psram: This chip is ESP32-D0WD
+I (943) esp_psram: Found 8MB PSRAM device
+I (945) esp_psram: Speed: 80MHz
+I (949) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.
+W (956) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped
+I (965) cpu_start: Pro cpu up.
+I (969) cpu_start: Starting app cpu, entry point is 0x4008175c
+--- 0x4008175c: call_start_cpu1 at /home/ubuntu/esp/esp-idf/components/esp_system/port/cpu_start.c:159
+
+I (0) cpu_start: App cpu up.
+I (1443) esp_psram: SPI SRAM memory test OK
+I (1451) cpu_start: Pro cpu start user code
+I (1451) cpu_start: cpu freq: 240000000 Hz
+I (1451) cpu_start: Application information:
+I (1454) cpu_start: Project name:     ctag-tbd
+I (1459) cpu_start: App version:      v1.0.0-A1S-6-ge223c6f-dirty
+I (1466) cpu_start: Compile time:     Oct 24 2024 15:08:19
+I (1472) cpu_start: ELF file SHA256:  1d8863c781e9cf68...
+I (1478) cpu_start: ESP-IDF:          v5.1.4-972-g632e0c2a9f
+I (1485) cpu_start: Min chip rev:     v0.0
+I (1489) cpu_start: Max chip rev:     v3.99 
+I (1494) cpu_start: Chip rev:         v3.1
+I (1499) heap_init: Initializing. RAM available for dynamic allocation:
+I (1506) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+I (1513) heap_init: At 3FFBB4A0 len 00024B60 (146 KiB): DRAM
+I (1519) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+I (1525) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+I (1532) heap_init: At 40099F70 len 00006090 (24 KiB): IRAM
+I (1538) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator
+I (1546) spi_flash: detected chip: winbond
+I (1550) spi_flash: flash io: qio
