@@ -68,11 +68,11 @@ void Codec::InitCodec() {
             .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
 #endif
             .gpio_cfg = {
-                    .mclk = GPIO_NUM_39,
-                    .bclk = GPIO_NUM_45,
-                    .ws   = GPIO_NUM_1,
-                    .dout = GPIO_NUM_2,
-                    .din  = GPIO_NUM_21,
+                    .mclk = GPIO_NUM_0,
+                    .bclk = GPIO_NUM_27,
+                    .ws   = GPIO_NUM_25,
+                    .dout = GPIO_NUM_26,
+                    .din  = GPIO_NUM_35,
                     .invert_flags = {
                             .mclk_inv = false,
                             .bclk_inv = false,
