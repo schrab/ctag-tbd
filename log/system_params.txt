@@ -1,0 +1,898 @@
+I (00:02:39.076) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:39.076) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:39.081) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:39.089) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:39.096) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:39.105) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:39.113) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:39.121) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:39.343) SPM: inSrc='line2'
+I (00:02:39.343) SPM: inGain='0'
+I (00:02:39.343) SPM: outSrc='amp'
+I (00:02:39.344) SPM: mixMode='mix'
+I (00:02:40.745) SYS: OK apply: id=output_source valInt=2 val=all
+I (00:02:40.746) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:40.749) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:40.756) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:40.764) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:40.772) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:40.781) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:40.789) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:40.797) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:40.805) SYS: apply: id=input_source deferred=1 valStr=line2 HasMember=1
+I (00:02:40.813) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:02:40.821) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:02:40.829) SYS: apply: id=mixer_mode deferred=1 valStr=mix HasMember=1
+I (00:02:40.836) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:02:41.053) SPM: inSrc='line2'
+I (00:02:41.053) SPM: inGain='0'
+I (00:02:41.053) SPM: outSrc='all'
+I (00:02:41.054) SPM: mixMode='mix'
+I (00:02:43.826) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:43.826) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:43.831) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:43.839) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:43.846) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:43.855) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:43.863) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:43.871) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:44.083) SPM: inSrc='line2'
+I (00:02:44.083) SPM: inGain='0'
+I (00:02:44.084) SPM: outSrc='all'
+I (00:02:44.084) SPM: mixMode='mix'
+I (00:02:44.726) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:44.726) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:44.731) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:44.738) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:44.746) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:44.755) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:44.763) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:44.771) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:44.993) SPM: inSrc='line2'
+I (00:02:44.994) SPM: inGain='0'
+I (00:02:44.994) SPM: outSrc='all'
+I (00:02:44.995) SPM: mixMode='mix'
+I (00:02:46.005) SYS: OK apply: id=mixer_mode valInt=1 val=bypass
+I (00:02:46.006) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:46.009) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:46.016) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:46.024) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:46.032) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:46.041) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:46.049) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:46.057) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:46.065) SYS: apply: id=input_source deferred=1 valStr=line2 HasMember=1
+I (00:02:46.073) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:02:46.081) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:02:46.089) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:02:46.097) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:02:46.313) SPM: inSrc='line2'
+I (00:02:46.313) SPM: inGain='0'
+I (00:02:46.314) SPM: outSrc='all'
+I (00:02:46.314) SPM: mixMode='bypass'
+I (00:02:48.306) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:48.306) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:48.311) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:48.319) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:48.326) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:48.335) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:48.343) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:48.351) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:48.563) SPM: inSrc='line2'
+I (00:02:48.563) SPM: inGain='0'
+I (00:02:48.563) SPM: outSrc='all'
+I (00:02:48.564) SPM: mixMode='bypass'
+I (00:02:49.715) SYS: OK apply: id=mixer_mode valInt=2 val=mix
+I (00:02:49.716) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:49.718) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:49.726) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:49.734) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:49.742) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:49.750) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:49.759) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:49.767) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:49.775) SYS: apply: id=input_source deferred=1 valStr=line2 HasMember=1
+I (00:02:49.783) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:02:49.790) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:02:49.798) SYS: apply: id=mixer_mode deferred=1 valStr=mix HasMember=1
+I (00:02:49.806) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:02:50.023) SPM: inSrc='line2'
+I (00:02:50.024) SPM: inGain='0'
+I (00:02:50.024) SPM: outSrc='all'
+I (00:02:50.025) SPM: mixMode='mix'
+I (00:02:52.226) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:52.227) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:52.231) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:52.239) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:52.247) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:52.255) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:52.263) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:52.272) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:52.603) SPM: inSrc='line2'
+I (00:02:52.603) SPM: inGain='0'
+I (00:02:52.603) SPM: outSrc='all'
+I (00:02:52.604) SPM: mixMode='mix'
+I (00:02:54.035) SYS: OK apply: id=mixer_mode valInt=1 val=bypass
+I (00:02:54.036) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:54.039) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:54.046) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:54.054) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:54.062) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:54.071) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:54.079) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:54.087) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:54.095) SYS: apply: id=input_source deferred=1 valStr=line2 HasMember=1
+I (00:02:54.103) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:02:54.111) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:02:54.119) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:02:54.127) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:02:54.343) SPM: inSrc='line2'
+I (00:02:54.343) SPM: inGain='0'
+I (00:02:54.343) SPM: outSrc='all'
+I (00:02:54.344) SPM: mixMode='bypass'
+I (00:02:59.216) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:02:59.217) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:02:59.221) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:59.229) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:02:59.236) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:59.245) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:02:59.253) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:59.261) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:02:59.493) SPM: inSrc='line2'
+I (00:02:59.493) SPM: inGain='0'
+I (00:02:59.493) SPM: outSrc='all'
+I (00:02:59.494) SPM: mixMode='bypass'
+I (00:03:00.555) SYS: OK apply: id=input_source valInt=0 val=line1
+I (00:03:00.556) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:00.559) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:00.566) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:00.574) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:00.582) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:00.591) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:00.599) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:00.607) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:00.615) SYS: apply: id=input_source deferred=1 valStr=line1 HasMember=1
+I (00:03:00.623) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:03:00.631) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:03:00.639) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:03:00.647) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:03:00.853) SPM: inSrc='line1'
+I (00:03:00.853) SPM: inGain='0'
+I (00:03:00.854) SPM: outSrc='all'
+I (00:03:00.854) SPM: mixMode='bypass'
+I (00:03:02.306) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:02.306) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:02.311) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:02.319) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:02.326) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:02.335) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:02.343) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:02.351) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:02.573) SPM: inSrc='line1'
+I (00:03:02.574) SPM: inGain='0'
+I (00:03:02.574) SPM: outSrc='all'
+I (00:03:02.575) SPM: mixMode='bypass'
+I (00:03:03.216) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:03.216) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:03.221) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:03.229) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:03.236) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:03.245) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:03.253) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:03.261) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:03.483) SPM: inSrc='line1'
+I (00:03:03.483) SPM: inGain='0'
+I (00:03:03.483) SPM: outSrc='all'
+I (00:03:03.484) SPM: mixMode='bypass'
+I (00:03:03.536) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:03.536) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:03.541) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:03.548) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:03.556) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:03.565) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:03.573) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:03.581) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:03.803) SPM: inSrc='line1'
+I (00:03:03.804) SPM: inGain='0'
+I (00:03:03.804) SPM: outSrc='all'
+I (00:03:03.805) SPM: mixMode='bypass'
+I (00:03:03.866) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:03.866) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:03.870) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:03.878) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:03.886) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:03.895) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:03.903) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:03.911) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:04.143) SPM: inSrc='line1'
+I (00:03:04.143) SPM: inGain='0'
+I (00:03:04.144) SPM: outSrc='all'
+I (00:03:04.144) SPM: mixMode='bypass'
+I (00:03:04.955) SYS: OK apply: id=input_source valInt=3 val=line2_diff
+I (00:03:04.956) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:04.959) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:04.967) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:04.975) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:04.983) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:04.991) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:04.999) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:05.008) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:05.016) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:03:05.024) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:03:05.032) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:03:05.040) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:03:05.048) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:03:05.273) SPM: inSrc='line2_diff'
+I (00:03:05.273) SPM: inGain='0'
+I (00:03:05.274) SPM: outSrc='all'
+I (00:03:05.275) SPM: mixMode='bypass'
+I (00:03:08.876) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:08.876) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:08.881) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:08.889) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:08.896) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:08.905) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:08.913) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:08.921) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:09.268) SPM: inSrc='line2_diff'
+I (00:03:09.269) SPM: inGain='0'
+I (00:03:09.269) SPM: outSrc='all'
+I (00:03:09.270) SPM: mixMode='bypass'
+I (00:03:10.015) SYS: OK apply: id=ch1_codecLvlOut valInt=28 val=28
+I (00:03:10.016) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:10.019) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:10.027) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:10.035) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:10.042) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:10.051) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:10.059) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=25 HasMember=1
+I (00:03:10.067) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:10.075) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:03:10.084) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:03:10.091) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:03:10.099) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:03:10.107) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:03:10.343) SPM: inSrc='line2_diff'
+I (00:03:10.344) SPM: inGain='0'
+I (00:03:10.344) SPM: outSrc='all'
+I (00:03:10.345) SPM: mixMode='bypass'
+I (00:03:11.886) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:11.886) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:11.891) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:11.899) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:11.906) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:11.915) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:11.923) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:11.931) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:12.153) SPM: inSrc='line2_diff'
+I (00:03:12.153) SPM: inGain='0'
+I (00:03:12.153) SPM: outSrc='all'
+I (00:03:12.155) SPM: mixMode='bypass'
+I (00:03:12.875) SYS: OK apply: id=ch0_codecLvlOut valInt=28 val=28
+I (00:03:12.876) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:12.879) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:12.887) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:12.894) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:12.902) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:12.911) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:12.919) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:12.927) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:12.935) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:03:12.944) SYS: apply: id=input_gain deferred=1 valStr=0 HasMember=1
+I (00:03:12.951) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:03:12.959) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:03:12.967) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:03:13.203) SPM: inSrc='line2_diff'
+I (00:03:13.203) SPM: inGain='0'
+I (00:03:13.203) SPM: outSrc='all'
+I (00:03:13.205) SPM: mixMode='bypass'
+I (00:03:18.126) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:18.126) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:18.131) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:18.139) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:18.146) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:18.155) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:18.163) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:18.171) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:18.393) SPM: inSrc='line2_diff'
+I (00:03:18.393) SPM: inGain='0'
+I (00:03:18.394) SPM: outSrc='all'
+I (00:03:18.395) SPM: mixMode='bypass'
+I (00:03:18.446) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:18.446) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:18.451) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:18.458) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:18.466) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:18.475) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:18.483) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:18.491) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:18.723) SPM: inSrc='line2_diff'
+I (00:03:18.723) SPM: inGain='0'
+I (00:03:18.724) SPM: outSrc='all'
+I (00:03:18.725) SPM: mixMode='bypass'
+I (00:03:18.776) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:18.776) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:18.781) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:18.788) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:18.796) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:18.805) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:18.813) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:18.821) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:19.043) SPM: inSrc='line2_diff'
+I (00:03:19.043) SPM: inGain='0'
+I (00:03:19.043) SPM: outSrc='all'
+I (00:03:19.045) SPM: mixMode='bypass'
+I (00:03:19.096) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:19.096) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:19.101) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:19.108) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:19.116) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:19.125) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:19.133) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:19.141) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:19.363) SPM: inSrc='line2_diff'
+I (00:03:19.364) SPM: inGain='0'
+I (00:03:19.364) SPM: outSrc='all'
+I (00:03:19.365) SPM: mixMode='bypass'
+I (00:03:19.416) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:19.416) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:19.420) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:19.428) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:19.436) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:19.445) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:19.453) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:19.461) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:19.683) SPM: inSrc='line2_diff'
+I (00:03:19.683) SPM: inGain='0'
+I (00:03:19.684) SPM: outSrc='all'
+I (00:03:19.685) SPM: mixMode='bypass'
+I (00:03:20.495) SYS: OK apply: id=input_gain valInt=5 val=5
+I (00:03:20.496) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:20.498) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:20.506) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:20.514) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:20.522) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:20.530) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:20.538) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:20.547) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:20.555) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:03:20.563) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:03:20.571) SYS: apply: id=output_source deferred=1 valStr=all HasMember=1
+I (00:03:20.579) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:03:20.587) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:03:20.813) SPM: inSrc='line2_diff'
+I (00:03:20.813) SPM: inGain='5'
+I (00:03:20.813) SPM: outSrc='all'
+I (00:03:20.815) SPM: mixMode='bypass'
+I (00:03:23.606) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:23.606) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:23.611) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:23.619) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:23.626) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:23.635) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:23.643) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:23.651) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:23.983) SPM: inSrc='line2_diff'
+I (00:03:23.984) SPM: inGain='5'
+I (00:03:23.984) SPM: outSrc='all'
+I (00:03:23.985) SPM: mixMode='bypass'
+I (00:03:24.506) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:24.506) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:24.511) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:24.518) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:24.526) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:24.535) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:24.543) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:24.551) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:24.783) SPM: inSrc='line2_diff'
+I (00:03:24.783) SPM: inGain='5'
+I (00:03:24.783) SPM: outSrc='all'
+I (00:03:24.785) SPM: mixMode='bypass'
+I (00:03:26.055) SYS: OK apply: id=output_source valInt=0 val=hp
+I (00:03:26.056) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:26.059) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:26.066) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:26.074) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:26.082) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:26.090) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:26.099) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:26.107) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:26.115) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:03:26.124) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:03:26.131) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:03:26.139) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:03:26.147) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:03:26.363) SPM: inSrc='line2_diff'
+I (00:03:26.364) SPM: inGain='5'
+I (00:03:26.364) SPM: outSrc='hp'
+I (00:03:26.365) SPM: mixMode='bypass'
+I (00:03:28.136) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:28.137) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:28.141) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:28.149) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:28.156) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:28.165) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:28.173) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:28.181) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:28.403) SPM: inSrc='line2_diff'
+I (00:03:28.403) SPM: inGain='5'
+I (00:03:28.404) SPM: outSrc='hp'
+I (00:03:28.405) SPM: mixMode='bypass'
+I (00:03:29.385) SYS: OK apply: id=mixer_mode valInt=0 val=dac
+I (00:03:29.386) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:03:29.388) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:03:29.396) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:29.404) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:03:29.412) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:29.420) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:03:29.429) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:29.437) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:03:29.445) SYS: apply: id=input_source deferred=1 valStr=line2_diff Ha3M) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:03:29.461) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:03:29.469) SYS: apply: id=mixer_mode deferred=1 valStr=dac HasMember=1
+I (00:03:29.476) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:03:29.703) SPM: inSrc='line2_diff'
+I (00:03:29.704) SPM: inGain='5'
+I (00:03:29.704) SPM: outSrc='hp'
+I (00:03:29.705) SPM: mixMode='dac'
+I (00:04:08.776) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:08.776) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:08.781) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:08.789) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:08.796) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:08.805) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:08.813) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:08.821) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:09.053) SPM: inSrc='line2_diff'
+I (00:04:09.054) SPM: inGain='5'
+I (00:04:09.054) SPM: outSrc='hp'
+I (00:04:09.055) SPM: mixMode='dac'
+I (00:04:09.875) SYS: OK apply: id=mixer_mode valInt=1 val=bypass
+I (00:04:09.876) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:09.879) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:09.886) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:09.894) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:09.902) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:09.911) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:09.919) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:09.927) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:09.935) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:04:09.944) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:09.951) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:09.959) SYS: apply: id=mixer_mode deferred=1 valStr=bypass HasMember=1
+I (00:04:09.967) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:10.203) SPM: inSrc='line2_diff'
+I (00:04:10.203) SPM: inGain='5'
+I (00:04:10.203) SPM: outSrc='hp'
+I (00:04:10.205) SPM: mixMode='bypass'
+I (00:04:12.056) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:12.056) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:12.061) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:12.069) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:12.076) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:12.085) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:12.093) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:12.101) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:12.333) SPM: inSrc='line2_diff'
+I (00:04:12.333) SPM: inGain='5'
+I (00:04:12.334) SPM: outSrc='hp'
+I (00:04:12.335) SPM: mixMode='bypass'
+I (00:04:13.235) SYS: OK apply: id=mixer_mode valInt=0 val=dac
+I (00:04:13.236) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:13.238) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:13.246) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:13.254) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:13.262) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:13.270) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:13.279) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:13.287) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:13.295) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:04:13.303) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:13.311) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:13.319) SYS: apply: id=mixer_mode deferred=1 valStr=dac HasMember=1
+I (00:04:13.326) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:13.563) SPM: inSrc='line2_diff'
+I (00:04:13.563) SPM: inGain='5'
+I (00:04:13.564) SPM: outSrc='hp'
+I (00:04:13.565) SPM: mixMode='dac'
+I (00:04:25.246) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:25.246) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:25.251) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:25.259) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:25.266) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:25.275) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:25.283) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:25.291) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:25.638) SPM: inSrc='line2_diff'
+I (00:04:25.639) SPM: inGain='5'
+I (00:04:25.639) SPM: outSrc='hp'
+I (00:04:25.640) SPM: mixMode='dac'
+I (00:04:26.915) SYS: OK apply: id=output_source valInt=1 val=amp
+I (00:04:26.916) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:26.919) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:26.927) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:26.934) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:26.942) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:26.951) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:26.959) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:26.967) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:26.975) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:04:26.984) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:26.991) SYS: apply: id=output_source deferred=1 valStr=amp HasMember=1
+I (00:04:26.999) SYS: apply: id=mixer_mode deferred=1 valStr=dac HasMember=1
+I (00:04:27.007) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:27.233) SPM: inSrc='line2_diff'
+I (00:04:27.233) SPM: inGain='5'
+I (00:04:27.233) SPM: outSrc='amp'
+I (00:04:27.235) SPM: mixMode='dac'
+I (00:04:29.656) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:29.656) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:29.661) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:29.669) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:29.676) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:29.685) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:29.693) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:29.701) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:29.923) SPM: inSrc='line2_diff'
+I (00:04:29.924) SPM: inGain='5'
+I (00:04:29.924) SPM: outSrc='amp'
+I (00:04:29.925) SPM: mixMode='dac'
+I (00:04:30.725) SYS: OK apply: id=output_source valInt=0 val=hp
+I (00:04:30.726) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:30.729) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:30.736) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:30.744) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:30.752) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:30.760) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:30.769) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:30.777) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:30.785) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:04:30.793) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:30.801) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:30.809) SYS: apply: id=mixer_mode deferred=1 valStr=dac HasMember=1
+I (00:04:30.817) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:31.043) SPM: inSrc='line2_diff'
+I (00:04:31.044) SPM: inGain='5'
+I (00:04:31.044) SPM: outSrc='hp'
+I (00:04:31.045) SPM: mixMode='dac'
+I (00:04:33.956) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:33.956) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:33.961) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:33.968) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:33.976) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:33.985) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:33.993) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:34.001) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:34.233) SPM: inSrc='line2_diff'
+I (00:04:34.233) SPM: inGain='5'
+I (00:04:34.233) SPM: outSrc='hp'
+I (00:04:34.235) SPM: mixMode='dac'
+I (00:04:34.666) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:34.666) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:34.671) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:34.678) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:34.686) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:34.695) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:34.703) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:34.711) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:34.933) SPM: inSrc='line2_diff'
+I (00:04:34.934) SPM: inGain='5'
+I (00:04:34.934) SPM: outSrc='hp'
+I (00:04:34.935) SPM: mixMode='dac'
+I (00:04:35.405) SYS: OK apply: id=input_gain valInt=5 val=5
+I (00:04:35.406) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:35.408) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:35.416) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:35.424) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:35.432) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:35.440) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:35.449) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:35.457) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:35.465) SYS: apply: id=input_source deferred=1 valStr=line2_diff HasMember=1
+I (00:04:35.473) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:35.481) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:35.489) SYS: apply: id=mixer_mode deme
+I (00:04:35.723) SPM: inSrc='line2_diff'
+I (00:04:35.723) SPM: inGain='5'
+I (00:04:35.723) SPM: outSrc='hp'
+I (00:04:35.725) SPM: mixMode='dac'
+I (00:04:37.636) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:37.636) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:37.641) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:37.649) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:37.656) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:37.665) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:37.673) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:37.681) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:37.913) SPM: inSrc='line2_diff'
+I (00:04:37.914) SPM: inGain='5'
+I (00:04:37.914) SPM: outSrc='hp'
+I (00:04:37.915) SPM: mixMode='dac'
+I (00:04:37.976) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:37.976) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:37.980) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:37.988) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:37.996) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:38.005) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:38.013) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:38.021) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:38.243) SPM: inSrc='line2_diff'
+I (00:04:38.244) SPM: inGain='5'
+I (00:04:38.244) SPM: outSrc='hp'
+I (00:04:38.245) SPM: mixMode='dac'
+I (00:04:38.296) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:38.296) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:38.300) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:38.308) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:38.316) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:38.325) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:38.333) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:38.341) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:38.573) SPM: inSrc='line2_diff'
+I (00:04:38.573) SPM: inGain='5'
+I (00:04:38.573) SPM: outSrc='hp'
+I (00:04:38.574) SPM: mixMode='dac'
+I (00:04:38.626) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:38.627) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:38.631) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:38.639) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:38.647) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:38.655) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:38.663) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:38.671) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:39.003) SPM: inSrc='line2_diff'
+I (00:04:39.004) SPM: inGain='5'
+I (00:04:39.004) SPM: outSrc='hp'
+I (00:04:39.005) SPM: mixMode='dac'
+I (00:04:39.056) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:39.056) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:39.061) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:39.068) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:39.076) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:39.085) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:39.093) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:39.101) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:39.313) SPM: inSrc='line2_diff'
+I (00:04:39.313) SPM: inGain='5'
+I (00:04:39.313) SPM: outSrc='hp'
+I (00:04:39.315) SPM: mixMode='dac'
+I (00:04:39.366) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:39.366) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:39.371) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:39.378) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:39.386) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:39.395) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:39.403) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:39.411) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:39.633) SPM: inSrc='line2_diff'
+I (00:04:39.633) SPM: inGain='5'
+I (00:04:39.634) SPM: outSrc='hp'
+I (00:04:39.635) SPM: mixMode='dac'
+I (00:04:39.696) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:39.697) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:39.701) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:39.709) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:39.717) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:39.725) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:39.733) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:39.741) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:39.973) SPM: inSrc='line2_diff'
+I (00:04:39.973) SPM: inGain='5'
+I (00:04:39.973) SPM: outSrc='hp'
+I (00:04:39.975) SPM: mixMode='dac'
+I (00:04:40.026) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:40.026) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:40.030) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:40.038) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:40.046) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:40.055) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:40.063) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:40.071) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:40.303) SPM: inSrc='line2_diff'
+I (00:04:40.303) SPM: inGain='5'
+I (00:04:40.303) SPM: outSrc='hp'
+I (00:04:40.305) SPM: mixMode='dac'
+I (00:04:40.356) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:40.356) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:40.360) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:40.368) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:40.376) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:40.385) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:40.393) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:40.401) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:40.633) SPM: inSrc='line2_diff'
+I (00:04:40.633) SPM: inGain='5'
+I (00:04:40.633) SPM: outSrc='hp'
+I (00:04:40.635) SPM: mixMode='dac'
+I (00:04:40.686) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:40.686) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:40.690) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:40.698) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:40.706) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:40.715) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:40.723) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:40.731) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:40.963) SPM: inSrc='line2_diff'
+I (00:04:40.963) SPM: inGain='5'
+I (00:04:40.964) SPM: outSrc='hp'
+I (00:04:40.965) SPM: mixMode='dac'
+I (00:04:41.016) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:41.016) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:41.021) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:41.028) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:41.036) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:41.045) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:41.053) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:41.061) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:41.293) SPM: inSrc='line2_diff'
+I (00:04:41.294) SPM: inGain='5'
+I (00:04:41.294) SPM: outSrc='hp'
+I (00:04:41.295) SPM: mixMode='dac'
+I (00:04:41.356) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:41.356) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:41.360) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:41.368) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:41.376) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:41.385) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:41.393) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:41.401) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:41.623) SPM: inSrc='line2_diff'
+I (00:04:41.623) SPM: inGain='5'
+I (00:04:41.624) SPM: outSrc='hp'
+I (00:04:41.625) SPM: mixMode='dac'
+I (00:04:41.676) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:41.676) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:41.680) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:41.688) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:41.696) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:41.705) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:41.713) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:41.721) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:42.058) SPM: inSrc='line2_diff'
+I (00:04:42.059) SPM: inGain='5'
+I (00:04:42.059) SPM: outSrc='hp'
+I (00:04:42.060) SPM: mixMode='dac'
+I (00:04:42.106) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:42.106) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:42.111) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:42.118) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:42.126) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:42.135) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:42.143) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:42.151) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:42.383) SPM: inSrc='line2_diff'
+I (00:04:42.383) SPM: inGain='5'
+I (00:04:42.383) SPM: outSrc='hp'
+I (00:04:42.385) SPM: mixMode='dac'
+I (00:04:42.435) SYS: OK apply: id=input_source valInt=0 val=line1
+I (00:04:42.436) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:42.439) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:42.446) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:42.454) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:42.462) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:42.471) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:42.479) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:42.487) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:42.495) SYS: apply: id=input_source deferred=1 valStr=line1 HasMember=1
+I (00:04:42.503) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:42.511) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:42.519) SYS: apply: id=mixer_mode deferred=1 valStr=dac HasMember=1
+I (00:04:42.526) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:42.753) SPM: inSrc='line1'
+I (00:04:42.753) SPM: inGain='5'
+I (00:04:42.754) SPM: outSrc='hp'
+I (00:04:42.754) SPM: mixMode='dac'
+I (00:04:46.276) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:46.276) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:46.281) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:46.289) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:46.296) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:46.305) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:46.313) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:46.321) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:46.543) SPM: inSrc='line1'
+I (00:04:46.543) SPM: inGain='5'
+I (00:04:46.543) SPM: outSrc='hp'
+I (00:04:46.544) SPM: mixMode='dac'
+I (00:04:47.435) SYS: OK apply: id=mixer_mode valInt=0 val=dac
+I (00:04:47.436) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:47.438) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:47.446) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:47.454) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:47.462) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:47.470) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:47.479) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:47.487) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:47.495) SYS: apply: id=input_source deferred=1 valStr=line1 HasMember=1
+I (00:04:47.503) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:47.510) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:47.518) SYS: apply: id=mixer_mode deferred=1 valStr=dac HasMember=1
+I (00:04:47.526) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:47.773) SPM: inSrc='line1'
+I (00:04:47.774) SPM: inGain='5'
+I (00:04:47.774) SPM: outSrc='hp'
+I (00:04:47.774) SPM: mixMode='dac'
+I (00:04:49.296) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:49.296) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:49.301) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:49.309) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:49.316) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:49.325) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:49.333) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:49.341) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:49.573) SPM: inSrc='line1'
+I (00:04:49.573) SPM: inGain='5'
+I (00:04:49.573) SPM: outSrc='hp'
+I (00:04:49.574) SPM: mixMode='dac'
+I (00:04:49.626) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:49.626) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:49.630) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:49.638) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:49.646) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:49.655) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:49.663) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:49.671) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:49.903) SPM: inSrc='line1'
+I (00:04:49.904) SPM: inGain='5'
+I (00:04:49.904) SPM: outSrc='hp'
+I (00:04:49.904) SPM: mixMode='dac'
+I (00:04:51.345) SYS: OK apply: id=mixer_mode valInt=2 val=mix
+I (00:04:51.346) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:51.348) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:51.356) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:51.364) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:51.372) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:51.380) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:51.389) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:51.397) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:51.405) SYS: apply: id=input_source deferred=1 valStr=line1 HasMember=1
+I (00:04:51.413) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:51.421) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:51.428) SYS: apply: id=mixer_mode deferred=1 valStr=mix HasMember=1
+I (00:04:51.436) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:51.673) SPM: inSrc='line1'
+I (00:04:51.673) SPM: inGain='5'
+I (00:04:51.674) SPM: outSrc='hp'
+I (00:04:51.674) SPM: mixMode='mix'
+I (00:04:54.176) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:54.176) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:54.181) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:54.189) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:54.196) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:54.205) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:54.213) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:54.221) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:54.453) SPM: inSrc='line1'
+I (00:04:54.453) SPM: inGain='5'
+I (00:04:54.454) SPM: outSrc='hp'
+I (00:04:54.454) SPM: mixMode='mix'
+I (00:04:54.506) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:54.506) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:54.511) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:54.518) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:54.526) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:54.535) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:54.543) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:54.551) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:54.783) SPM: inSrc='line1'
+I (00:04:54.783) SPM: inGain='5'
+I (00:04:54.783) SPM: outSrc='hp'
+I (00:04:54.784) SPM: mixMode='mix'
+I (00:04:56.565) SYS: OK apply: id=mixer_mode valInt=0 val=dac
+I (00:04:56.566) SYS: apply: id=ng_config deferred=0 valStr=off HasMember=1
+I (00:04:56.568) SYS: apply: id=ch01_daisy deferred=0 valStr=off HasMember=1
+I (00:04:56.576) SYS: apply: id=ch0_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:56.584) SYS: apply: id=ch1_toStereo deferred=0 valStr=off HasMember=1
+I (00:04:56.592) SYS: apply: id=ch0_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:56.600) SYS: apply: id=ch1_outputSoftClip deferred=0 valStr=on HasMember=1
+I (00:04:56.609) SYS: apply: id=ch0_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:56.617) SYS: apply: id=ch1_codecLvlOut deferred=0 valStr=28 HasMember=1
+I (00:04:56.625) SYS: apply: id=input_source deferred=1 valStr=line1 HasMember=1
+I (00:04:56.633) SYS: apply: id=input_gain deferred=1 valStr=5 HasMember=1
+I (00:04:56.640) SYS: apply: id=output_source deferred=1 valStr=hp HasMember=1
+I (00:04:56.648) SYS: apply: id=mixer_mode deferred=1 valStr=dac HasMember=1
+I (00:04:56.656) SYS: apply: id=oled_brightness deferred=1 valStr=30 HasMember=1
+I (00:04:56.993) SPM: inSrc='line1'
+I (00:04:56.993) SPM: inGain='5'
+I (00:04:56.993) SPM: outSrc='hp'
+I (00:04:56.994) SPM: mixMode='dac'

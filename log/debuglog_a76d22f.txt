@@ -1,0 +1,136 @@
+rst:0x1 (POWERON_RESET),boot:0x1f (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:6604
+ho 0 tail 12 room 4
+load:0x40078000,len:16764
+load:0x40080400,len:4348
+entry 0x40080664
+I (29) boot: ESP-IDF v5.5.4-dirty 2nd stage bootloader
+I (29) boot: compile time Jun  1 2026 18:10:21
+I (29) boot: Multicore bootloader
+I (31) boot: chip revision: v3.1
+I (34) qio_mode: Enabling QIO for flash chip WinBond
+I (39) boot.esp32: SPI Speed      : 80MHz
+I (42) boot.esp32: SPI Mode       : QIO
+I (46) boot.esp32: SPI Flash Size : 16MB
+I (50) boot: Enabling RNG early entropy source...
+I (54) boot: Partition Table:
+I (57) boot: ## Label            Usage          Type ST Offset   Length
+I (63) boot:  0 nvs              WiFi data        01 02 00009000 00004000
+I (69) boot:  1 otadata          OTA data         01 00 0000d000 00002000
+I (76) boot:  2 phy_init         RF data          01 01 0000f000 00001000
+I (82) boot:  3 ota_0            OTA app          00 10 00010000 00300000
+I (89) boot:  4 ota_1            OTA app          00 11 00310000 00300000
+I (96) boot:  5 storage          Unknown data     01 82 00610000 00300000
+I (102) boot: End of partition table
+I (106) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=8901ch (561180) map
+I (256) esp_image: segment 1: paddr=00099044 vaddr=3ffbdb60 size=06f58h ( 28504) load
+I (265) esp_image: segment 2: paddr=0009ffa4 vaddr=40080000 size=00074h (   116) load
+I (265) esp_image: segment 3: paddr=000a0020 vaddr=400d0020 size=1f3660h (2045536) map
+I (792) esp_image: segment 4: paddr=00293688 vaddr=40080074 size=1b8d8h (112856) load
+I (827) esp_image: segment 5: paddr=002aef68 vaddr=50000000 size=00020h (    32) load
+I (841) boot: Loaded app from partition at offset 0x10000
+I (841) boot: Disabling RNG early entropy source...
+I (851) quad_psram: This chip is ESP32-D0WD
+I (851) esp_psram: Found 8MB PSRAM device
+I (851) esp_psram: Speed: 80MHz
+I (855) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.
+W (862) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped
+I (872) cpu_start: Multicore app
+I (1365) esp_psram: SPI SRAM memory test OK
+I (1372) cpu_start: GPIO 3 and 1 are used as console UART I/O pins
+I (1373) cpu_start: Pro cpu start user code
+I (1373) cpu_start: cpu freq: 240000000 Hz
+I (1378) app_init: Application information:
+I (1383) app_init: Project name:     ctag-tbd
+I (1388) app_init: App version:      a76d22f-dirty
+I (1393) app_init: Compile time:     Jun  1 2026 18:28:13
+I (1399) app_init: ELF file SHA256:  d6f37f73a8dbb230...
+I (1405) app_init: ESP-IDF:          v5.5.4-dirty
+I (1410) efuse_init: Min chip rev:     v0.0
+I (1415) efuse_init: Max chip rev:     v3.99
+I (1420) efuse_init: Chip rev:         v3.1
+I (1425) heap_init: Initializing. RAM available for dynamic allocation:
+I (1433) heap_init: At 3FFAFF10 len 000000F0 (0 KiB): DRAM
+I (1439) heap_init: At 3FFB6388 len 00001C78 (7 KiB): DRAM
+I (1445) heap_init: At 3FFB9A20 len 00004108 (16 KiB): DRAM
+I (1451) heap_init: At 3FFCCC18 len 000133E8 (76 KiB): DRAM
+I (1457) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+I (1464) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+I (1470) heap_init: At 4009B94C len 000046B4 (17 KiB): IRAM
+I (1477) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator
+I (1485) spi_flash: detected chip: winbond
+I (1489) spi_flash: flash io: qio
+W (1493) pcnt(legacy): legacy driver is deprecated, please migrate to `driver/pulse_cnt.h`
+I (1502) uart: ESP_INTR_FLAG_IRAM flag not set while CONFIG_UART_ISR_IN_IRAM is enabled, flag updated
+I (1512) coexist: coex firmware version: 093e3d2
+I (00:00:00.145) main_task: Started on CPU0
+I (00:00:00.155) main_task: Calling app_main()
+I (00:00:00.156) ctagSPAllocator: AllocateInternalBuffer: allocating 114688 bytes
+W (00:00:00.163) ctagSPAllocator: Not enough internal DRAM, trying PSRAM...
+I (00:00:02.165) fs: Initializing LITTLEFS
+I (00:00:02.581) fs: Partition size: total: 3145728, used: 1572864
+I (00:00:02.582) SSD1309: OLED configured successfully
+I (00:00:04.625) fs: Initializing SD card via SDMMC
+I (00:00:04.665) fs: SD card: SD16G, size 29818MB | FAT mounted at /sd
+I (00:00:04.666) SPModel: Trying to read config file
+I (00:00:05.407) Control: Initializing control!
+W (00:00:05.409) MOD: LoadConfig: no config file /spiffs/data/mod-config.jsn, using defaults
+I (00:00:05.411) MOD: ModEngine initialized, slots 90-99
+I (00:00:05.434) SDA: SDAudio: 256 KB ring, 32768 frames
+I (00:00:05.434) BBA Codec: Starting i2s setup...
+I (00:00:05.437) BBA Codec: Found codec...
+I (00:00:05.457) BTDM_INIT: BT controller compile version [83df000]
+I (00:00:05.457) BTDM_INIT: Using main XTAL as clock source
+I (00:00:05.459) BTDM_INIT: Bluetooth MAC: 34:5f:45:25:b4:62
+I (00:00:05.466) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06
+I (00:00:05.705) BLE_MIDI: BLE MIDI initialized (central mode)
+I (00:00:05.711) Network: Starting with ssid ctag-tbd, pwd , mdns ctag-tbd, ip 192.178.3.1, is ap
+I (12664) wifi:wifi driver task: 3ffd59d0, prio:23, stack:3584, core=0
+I (12664) wifi:wifi firmware version: 0947e8b
+I (12664) wifi:wifi certification version: v7.0
+I (12664) wifi:config NVS flash: enabled
+I (12674) wifi:config nano formatting: disabled
+I (12674) wifi:Init data frame dynamic rx buffer num: 32
+I (12674) wifi:Init static rx mgmt buffer num: 5
+I (12684) wifi:Init management short buffer num: 32
+I (12684) wifi:Init static tx buffer num: 16
+I (12694) wifi:Init tx cache buffer num: 32
+I (12694) wifi:Init static rx buffer size: 1600
+I (12704) wifi:Init static rx buffer num: 10
+I (12704) wifi:Init dynamic rx buffer num: 32
+I (00:00:05.776) wifi_init: accept mbox: 6
+I (00:00:05.779) wifi_init: tcpip mbox: 32
+I (00:00:05.782) BLE_MIDI: NimBLE host synced with controller
+I (00:00:05.790) wifi_init: udp mbox: 6
+I (00:00:05.794) wifi_init: tcp mbox: 6
+I (00:00:05.799) wifi_init: tcp tx win: 5744
+I (00:00:05.804) wifi_init: tcp rx win: 5744
+I (00:00:05.809) wifi_init: tcp mss: 1440
+I (00:00:05.814) wifi_init: WiFi/LWIP prefer SPIRAM
+I (12754) wifi:Set ps type: 0, coexist: 0
+
+I (12764) wifi:mode : softAP (34:5f:45:25:b4:61)
+I (12764) wifi:Total power save buffer number: 8
+I (12764) wifi:Init max length of beacon: 752/752
+I (12774) wifi:Init max length of beacon: 752/752
+I (00:00:05.842) Network: Disabling wifi power save mode
+I (00:00:05.842) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: 192.168.4.1
+I (12794) wifi:Set ps type: 0, coexist: 0
+
+I (00:00:05.860) esp-rest: Starting HTTP Server
+E (00:00:06.081) SP: Network credentials reset requested!
+I (00:00:07.077) esp-rest: Starting HTTP Server
+E (00:00:07.078) httpd: httpd_server_init: error in listen (112)
+I (00:00:07.079) SPManager: Switching ch0 to plugin DLoop
+I (00:00:07.085) ctagSPAllocator: SetAllocationType: Stereo
+I (00:00:07.091) ctagSPAllocator: Allocate: allocating STEREO 344 bytes object size, 114344 bytes blockMem
+I (00:00:07.620) SPManager: Mem freesize internal 75576, largest block 73728, free SPIRAM 3640660, largest block SPIRAM 3604480!
+I (00:00:07.623) SPManager: Init: Mem freesize internal 75576, largest block 73728, free SPIRAM 3640660, largest block SPIRAM 3604480!
+I (00:00:07.635) UIMenu: Init: creating pages...
+I (00:00:07.641) UIMenu: Init: calling init on pages...
+I (00:00:07.666) UIMenu: Init: done
+I (00:00:07.666) UIMenu: TaskFunction: starting main loop
+I (00:00:07.668) main_task: Returned from app_main()
