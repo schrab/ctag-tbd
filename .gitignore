@@ -2,3 +2,4 @@ build/
 hw/
 tbd4vcv/
 simulator/
+.devcontainer/
