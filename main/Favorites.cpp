@@ -30,17 +30,18 @@ respective component folders / files if different from this license.
 #define TIMEOUT_PERIOD_MS 5000
 
 #if CONFIG_TBD_PLATFORM_AEM
-    #define PIN_PUSH_BTN GPIO_NUM_2
+    #define PIN_PUSH_BTN GPIO_NUM_14
 #elif CONFIG_TBD_PLATFORM_MK2
-    #define PIN_PUSH_BTN GPIO_NUM_34
+    #define PIN_PUSH_BTN GPIO_NUM_14
 #elif CONFIG_TBD_PLATFORM_BBA
-    #include "driver/touch_pad.h"
-    #define TOUCH_PAD TOUCH_PAD_NUM6 // is GPIO_NUM_6
-    static uint32_t noTouch {0}, previousProgramChangeValue {0xFF000000};
-    std::atomic<uint32_t> CTAG::FAV::Favorites::programChangeValue {0xFF000000};
-    void CTAG::FAV::Favorites::SetProgramChangeValue(uint32_t const &v) {
-        programChangeValue.store(v);
-    }
+    // #include "driver/touch_pad.h"
+    // #define TOUCH_PAD TOUCH_PAD_NUM6 // is GPIO_NUM_14
+    #define PIN_PUSH_BTN GPIO_NUM_14
+    // static uint32_t noTouch {0}, previousProgramChangeValue {0xFF000000};
+    // std::atomic<uint32_t> CTAG::FAV::Favorites::programChangeValue {0xFF000000};
+    // void CTAG::FAV::Favorites::SetProgramChangeValue(uint32_t const &v) {
+    //    programChangeValue.store(v);
+    // }
 #endif
 
 bool CTAG::FAV::Favorites::isUIEnabled {false};
@@ -80,21 +81,22 @@ void CTAG::FAV::Favorites::StartUI() {
         gpio_set_direction(PIN_PUSH_BTN, (gpio_mode_t)GPIO_MODE_DEF_INPUT);
         xTaskCreatePinnedToCore(&CTAG::FAV::Favorites::ui_task, "ui_task", 4096, nullptr, tskIDLE_PRIORITY + 3, &uiTaskHandle, 0);
 #elif CONFIG_TBD_PLATFORM_BBA
-        uint16_t touch_value;
-        touch_pad_init();
-        touch_pad_config(TOUCH_PAD, 500);
-        touch_pad_sw_start();
-        std::vector<std::string> vs;
-        vs.emplace_back("Touch sensor");
-        vs.emplace_back("calibration:");
-        vs.emplace_back("Do not touch!");
-        DRIVERS::Display::ShowUserString(vs);
-        vTaskDelay(2000/ portTICK_PERIOD_MS);
-        for(int i=0;i<16;i++){
-            touch_pad_read_raw_data(TOUCH_PAD, &touch_value);
-            noTouch += touch_value;
-        }
-        noTouch /= 16;
+        // uint16_t touch_value;
+        // touch_pad_init();
+        // touch_pad_config(TOUCH_PAD, 500);
+        // touch_pad_sw_start();
+        // std::vector<std::string> vs;
+        // vs.emplace_back("Touch sensor");
+        // vs.emplace_back("calibration:");
+        // vs.emplace_back("Do not touch!");
+        // DRIVERS::Display::ShowUserString(vs);
+        // vTaskDelay(2000/ portTICK_PERIOD_MS);
+        // for(int i=0;i<16;i++){
+        //     touch_pad_read_raw_data(TOUCH_PAD, &touch_value);
+        //     noTouch += touch_value;
+        // }
+        // noTouch /= 16;
+        gpio_set_direction(PIN_PUSH_BTN, (gpio_mode_t)GPIO_MODE_DEF_INPUT);
         xTaskCreatePinnedToCore(&CTAG::FAV::Favorites::ui_task, "ui_task", 4096, nullptr, tskIDLE_PRIORITY + 3, &uiTaskHandle, 0);
 #endif
     isUIEnabled = true;
@@ -126,17 +128,18 @@ void CTAG::FAV::Favorites::DeactivateFavorite() {
 #if CONFIG_TBD_PLATFORM_MK2
         if (!gpio_get_level(PIN_PUSH_BTN)) {
 #elif CONFIG_TBD_PLATFORM_BBA
-        uint16_t touch_value;
-        touch_pad_read_raw_data(TOUCH_PAD, &touch_value);    // read raw data.
-        uint32_t pchgval = programChangeValue.load();
-        if(pchgval != previousProgramChangeValue){
-            previousProgramChangeValue = pchgval;
-            int fav = previousProgramChangeValue & 0xFF;
-            fav++; // to match fav1 = 1, fav0 = 10
-            activeFav = favSel;
-            ActivateFavorite(fav % 10);
-        }
-        if(touch_value > noTouch + 1000) {
+        // uint16_t touch_value;
+        // touch_pad_read_raw_data(TOUCH_PAD, &touch_value);    // read raw data.
+        // uint32_t pchgval = programChangeValue.load();
+        // if(pchgval != previousProgramChangeValue){
+        //     previousProgramChangeValue = pchgval;
+        //     int fav = previousProgramChangeValue & 0xFF;
+        //     fav++; // to match fav1 = 1, fav0 = 10
+        //     activeFav = favSel;
+        //     ActivateFavorite(fav % 10);
+        // }
+        // if(touch_value > noTouch + 1000) {
+        if (!gpio_get_level(PIN_PUSH_BTN)) {
 #else
         if(gpio_get_level(PIN_PUSH_BTN)){
 #endif
