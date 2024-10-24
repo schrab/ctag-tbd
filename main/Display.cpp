@@ -26,14 +26,14 @@ respective component folders / files if different from this license.
 #include "esp_log.h"
 
 #if CONFIG_TBD_PLATFORM_MK2
-    #define SCL_GPIO 23
-    #define SDA_GPIO 5
+    #define SCL_GPIO 22
+    #define SDA_GPIO 21
 #elif CONFIG_TBD_PLATFORM_BBA
-    #define SCL_GPIO 23
-    #define SDA_GPIO 5
+    #define SCL_GPIO 22
+    #define SDA_GPIO 21
 #else
-    #define SCL_GPIO 23
-    #define SDA_GPIO 5
+    #define SCL_GPIO 22
+    #define SDA_GPIO 21
 #endif
 
 using namespace CTAG::DRIVERS;
