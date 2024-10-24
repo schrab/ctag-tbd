@@ -1,7 +1,7 @@
 menu "CTAG TBD Configuration"
         choice TBD_PLATFORM
             prompt "TBD Hardware Platform"
-            default TBD_PLATFORM_V2
+            default TBD_PLATFORM_BBA
             help
                 Determines which TBD platform, V1 WM8731 codec, V2 WM8978 codec, STR Strämpler, BBA Black Box Audio
 
@@ -19,7 +19,7 @@ menu "CTAG TBD Configuration"
                 bool "BBA (Midi)"
             choice TBD_BBA_CODEC
                 prompt "Codec selection"
-                default TBD_BBA_CODEC_AIC3254
+                default TBD_BBA_CODEC_ES8388
                 depends on TBD_PLATFORM_BBA
                 help
                     Which codec should be used?
