@@ -741,7 +741,7 @@ void Midi::noteOff(uint8_t* msg)
 }
 
 #include "midiuart.hpp"
-#include "tusbmidi.hpp"
+// #include "tusbmidi.hpp"
 
 // Provide methods and data for MIDI-message processing and communiction of detected events to audio-thread
 
@@ -813,7 +813,7 @@ void Midi::Init() {
     memset(midi_note_trig, 1,
            N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
     distribute.setCVandTriggerPointers(midi_data, midi_note_trig);    // Pass on pointer to CV and Trigger shared data
-    CTAG::DRIVERS::tusbmidi::Init();
+    // CTAG::DRIVERS::tusbmidi::Init();
 }
 
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
@@ -837,7 +837,7 @@ uint8_t *Midi::Update() {
             }
         }
         ================================================================== */
-        len2 =  CTAG::DRIVERS::tusbmidi::Read(&msgBuffer[missing_bytes_offset], MIDI_BUF_SZ - 32);
+        len2 =  CTAG::DRIVERS::midiuart::Read(&msgBuffer[missing_bytes_offset], MIDI_BUF_SZ - 32);
 
         // get all available MIDI messages from UART
         if (missing_bytes_offset + len2 < (MIDI_BUF_SZ - 32)) // safety margin
