@@ -188,7 +188,7 @@ bool es8388::init() {
     res &= write_reg(ES8388_ADCCONTROL2, 0b01010000);// is LIN2/RIN2 -> 0b01010000);
     //res &= write_reg(ES8388_ADCCONTROL3, 0x00);
     // PGA gain (0x88 - 24db) (0x77 - 21db)
-    res &= write_reg(ES8388_ADCCONTROL1, 0b00000000);//0x00); // mic amp
+    res &= write_reg(ES8388_ADCCONTROL1, 0b00000000);//0x77); // mic amp
     // SFI setting (i2s mode/16 bit)
     res &= write_reg(ES8388_ADCCONTROL4, 0b00001100);
     // ADC MCLK/LCRK ratio (256)
