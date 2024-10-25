@@ -36,7 +36,7 @@ respective component folders / files if different from this license.
 #elif CONFIG_TBD_PLATFORM_BBA
     // #include "driver/touch_pad.h"
     // #define TOUCH_PAD TOUCH_PAD_NUM6 // is GPIO_NUM_14
-    #define PIN_PUSH_BTN GPIO_NUM_14
+    #define PIN_PUSH_BTN GPIO_NUM_5
     // static uint32_t noTouch {0}, previousProgramChangeValue {0xFF000000};
     // std::atomic<uint32_t> CTAG::FAV::Favorites::programChangeValue {0xFF000000};
     // void CTAG::FAV::Favorites::SetProgramChangeValue(uint32_t const &v) {
