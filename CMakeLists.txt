@@ -47,9 +47,9 @@ endif()
 
 # generate include definitions for hw + fw version
 execute_process(
-        COMMAND bash -c "git describe --tags --abbrev=4"
+        COMMAND bash -c "git describe --tags --abbrev=4 2>/dev/null || git rev-parse --short HEAD"
         OUTPUT_VARIABLE TBD_FW)
-string(STRIP ${TBD_FW} TBD_FW)
+string(STRIP "${TBD_FW}" TBD_FW)
 configure_file(${CMAKE_SOURCE_DIR}/version.hpp.in ${CMAKE_BINARY_DIR}/gen_include/version.hpp @ONLY)
 idf_build_set_property(INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/gen_include APPEND)
 
