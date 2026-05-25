@@ -32,6 +32,7 @@ respective component folders / files if different from this license.
 
 #include "Calibration.hpp"
 #include "codec.hpp"
+#include "UIMenu.hpp"
 #include <vector>
 #include "SPManager.hpp"
 #include "ctagSPAllocator.hpp"
@@ -71,6 +72,8 @@ void app_main() {
     DRIVERS::Display::Init();
     DRIVERS::Display::ShowFWVersion();
     vTaskDelay(2000 / portTICK_PERIOD_MS);
+    CTRL::UIMenu::Init();
+    xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 2048, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
 #endif
 
 #if defined(CONFIG_SERIAL_UI)

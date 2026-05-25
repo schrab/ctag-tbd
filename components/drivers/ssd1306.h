@@ -25,6 +25,9 @@ SOFTWARE.
 #ifndef MAIN_SSD1306_H_
 #define MAIN_SSD1306_H_
 
+#include <stdint.h>
+#include <stddef.h>
+
 // Following definitions are bollowed from 
 // http://robotcantalk.blogspot.com/2015/03/interfacing-arduino-with-ssd1306-driven.html
 

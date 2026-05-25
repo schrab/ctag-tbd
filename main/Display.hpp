@@ -46,9 +46,10 @@ namespace CTAG {
             static bool dirtyPages[8];
 
             static void MarkDirty(int page);
-            static void Flush();
 
         public:
+            static void Flush();
+
             // Font selection
             enum Font { FONT_8X8, FONT_5X7 };
 
