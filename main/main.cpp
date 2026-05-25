@@ -72,6 +72,7 @@ void app_main() {
     DRIVERS::Display::Init();
     DRIVERS::Display::ShowFWVersion();
     vTaskDelay(2000 / portTICK_PERIOD_MS);
+    DRIVERS::FileSystem::InitSD(); // try SD card (fails silently if no card)
     CTRL::UIMenu::Init();
     xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 2048, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
 #endif

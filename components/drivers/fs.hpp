@@ -22,11 +22,15 @@ respective component folders / files if different from this license.
 
 #pragma once
 
+#include <cstdint>
+
 namespace CTAG {
     namespace DRIVERS {
         class FileSystem {
         public:
             static void InitFS();
+            static bool InitSD();
+            static bool IsSDMounted();
         };
     }
 }

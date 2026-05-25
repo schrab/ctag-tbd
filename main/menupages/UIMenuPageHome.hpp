@@ -30,6 +30,31 @@ namespace CTAG {
             void init() override;
             void deinit() override;
             void doRedraw() override;
+            void onEncoder(int delta) override;
+            void onButton(int btnId, bool longPress) override;
+
+        private:
+            // plugin browser items
+            struct PluginEntry {
+                char id[32];
+                char name[32];
+                bool isStereo;
+            };
+
+            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH };
+
+            SubPage subPage;
+            int cursor;
+            int scrollOffset;
+            int pluginCount;
+            static const int MAX_PLUGINS = 64;
+            PluginEntry plugins[MAX_PLUGINS];
+
+            int selChan; // 0 or 1 when choosing which channel
+
+            void parsePlugins();
+            void redrawMain();
+            void redrawSelect();
         };
     }
 }
