@@ -20,8 +20,11 @@ respective component folders / files if different from this license.
 ***************/
 
 #include <string>
+#include <cstring>
 
 #include "Display.hpp"
+#include "font5x7.h"
+#include "font8x8_basic.h"
 #include "version.hpp"
 #include "esp_log.h"
 
@@ -41,6 +44,8 @@ using namespace CTAG::DRIVERS;
 SSD1306_t Display::I2CDisplay;
 std::vector<std::string> Display::userString_v;
 int Display::currentUserStringRow {0};
+uint8_t Display::fb[1024];
+bool Display::dirtyPages[8] {false};
 
 void Display::Init() {
     i2c_master_init(&I2CDisplay, SDA_GPIO, SCL_GPIO, -1);
@@ -51,6 +56,8 @@ void Display::Init() {
 
 void Display::Clear() {
     ssd1306_clear_screen(&I2CDisplay, false);
+    std::memset(fb, 0, sizeof(fb));
+    for (int i = 0; i < 8; i++) dirtyPages[i] = false;
 }
 
 void Display::ShowFavorite(const int &id, const std::string &name) {
@@ -181,4 +188,131 @@ void Display::UpdateFavoriteUStringScroll() {
     if(currentUserStringRow >= userString_v.size()) currentUserStringRow = 0;
     ssd1306_scroll_text(&I2CDisplay, userString_v[currentUserStringRow].c_str(), 16, false);
     currentUserStringRow++;
+}
+
+// ---- framebuffer drawing primitives ----
+
+void Display::MarkDirty(int page) {
+    if (page >= 0 && page < 8) dirtyPages[page] = true;
+}
+
+void Display::Flush() {
+    for (int p = 0; p < 8; p++) {
+        if (!dirtyPages[p]) continue;
+        ssd1306_display_image(&I2CDisplay, p, 0, &fb[p * 128], 128);
+        dirtyPages[p] = false;
+    }
+}
+
+void Display::DrawPixel(int x, int y, bool on) {
+    if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
+    int page = y >> 3;
+    int bit = y & 7;
+    int idx = page * 128 + x;
+    if (on)
+        fb[idx] |= (1 << bit);
+    else
+        fb[idx] &= ~(1 << bit);
+    MarkDirty(page);
+}
+
+void Display::DrawHLine(int x, int y, int w, bool on) {
+    for (int i = 0; i < w; i++) DrawPixel(x + i, y, on);
+}
+
+void Display::DrawVLine(int x, int y, int h, bool on) {
+    for (int i = 0; i < h; i++) DrawPixel(x, y + i, on);
+}
+
+void Display::DrawRect(int x, int y, int w, int h, bool fill, bool on) {
+    if (fill) {
+        for (int row = 0; row < h; row++)
+            DrawHLine(x, y + row, w, on);
+    } else {
+        DrawHLine(x, y, w, on);
+        DrawHLine(x, y + h - 1, w, on);
+        DrawVLine(x, y, h, on);
+        DrawVLine(x + w - 1, y, h, on);
+    }
+}
+
+void Display::InvertRect(int x, int y, int w, int h) {
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            int px = x + col, py = y + row;
+            if (px < 0 || px >= 128 || py < 0 || py >= 64) continue;
+            int page = py >> 3;
+            int bit = py & 7;
+            int idx = page * 128 + px;
+            fb[idx] ^= (1 << bit);
+            MarkDirty(page);
+        }
+    }
+}
+
+void Display::DrawString(int x, int y, const char *str, Font font) {
+    if (!str) return;
+    int ox = x;
+    if (font == FONT_8X8) {
+        while (*str) {
+            if (*str < 32 || *str > 127) { str++; continue; }
+            int c = *str - 32;
+            const uint8_t *glyph = font8x8_basic_tr[c];
+            for (int col = 0; col < 8; col++) {
+                uint8_t byte = glyph[col];
+                for (int row = 0; row < 8; row++) {
+                    DrawPixel(x + col, y + row, (byte >> row) & 1);
+                }
+            }
+            x += 8;
+            if (x > 120) { x = ox; y += 8; }
+            str++;
+        }
+    } else {
+        while (*str) {
+            if (*str < 0 || *str > 127) { str++; continue; }
+            const uint8_t *glyph = font5x7[(uint8_t)*str];
+            for (int col = 0; col < 5; col++) {
+                uint8_t byte = glyph[col];
+                for (int row = 0; row < 7; row++) {
+                    DrawPixel(x + col, y + row, (byte >> (7 - row)) & 1);
+                }
+            }
+            x += 6; // 5 px glyph + 1 px spacing
+            if (x > 123) { x = ox; y += 8; }
+            str++;
+        }
+    }
+    Flush();
+}
+
+void Display::DrawStringRight(int x, int y, const char *str, Font font) {
+    if (!str) return;
+    int len = strlen(str);
+    int strWidth = (font == FONT_8X8) ? len * 8 : len * 6;
+    DrawString(x - strWidth, y, str, font);
+}
+
+void Display::DrawVUMeter(int x, int y, int w, int h, float level) {
+    if (level < 0.0f) level = 0.0f;
+    if (level > 1.0f) level = 1.0f;
+    int fillW = (int)(level * w);
+    if (fillW > w) fillW = w;
+    DrawRect(x, y, w, h, false, true);
+    if (fillW > 0) {
+        DrawRect(x + 1, y + 1, fillW, h - 2, true, true);
+    }
+    Flush();
+}
+
+void Display::DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos) {
+    if (totalItems <= 1) return;
+    int visibleItems = 6;
+    if (visibleItems >= totalItems) return;
+    int thumbH = h * visibleItems / totalItems;
+    if (thumbH < 4) thumbH = 4;
+    int thumbY = y + (h - thumbH) * cursorPos / (totalItems - visibleItems);
+    DrawRect(x, y, 2, h, false, true);
+    DrawRect(x, thumbY, 2, thumbH, true, true);
+    Flush();
 }

@@ -27,6 +27,8 @@ extern "C" {
 
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <cstddef>
 
 namespace CTAG {
     namespace DRIVERS {
@@ -38,7 +40,18 @@ namespace CTAG {
             static SSD1306_t I2CDisplay;
             static std::vector<std::string> userString_v;
             static int currentUserStringRow;
+
+            // framebuffer: page-major, column-minor
+            static uint8_t fb[1024];
+            static bool dirtyPages[8];
+
+            static void MarkDirty(int page);
+            static void Flush();
+
         public:
+            // Font selection
+            enum Font { FONT_8X8, FONT_5X7 };
+
             Display() = delete;
             static void Init();
             static void Clear();
@@ -51,6 +64,17 @@ namespace CTAG {
             static void LoadFavorite(int const &id, std::string const &name);
             static void Confirm(const int &id);
             static void UserMode();
+
+            // Framebuffer drawing primitives
+            static void DrawPixel(int x, int y, bool on = true);
+            static void DrawHLine(int x, int y, int w, bool on = true);
+            static void DrawVLine(int x, int y, int h, bool on = true);
+            static void DrawRect(int x, int y, int w, int h, bool fill = false, bool on = true);
+            static void InvertRect(int x, int y, int w, int h);
+            static void DrawString(int x, int y, const char *str, Font font = FONT_8X8);
+            static void DrawStringRight(int x, int y, const char *str, Font font = FONT_8X8);
+            static void DrawVUMeter(int x, int y, int w, int h, float level);
+            static void DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos);
         };
     }
 }
