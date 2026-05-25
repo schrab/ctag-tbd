@@ -39,10 +39,7 @@ namespace CTAG {
 
         static void IRAM_ATTR btnIsr(void *arg) {
             BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-            // record timestamp in a flag; timing handled in poll task
-            // simple approach: push raw event, poll task debounces
             uint32_t gpio = (uint32_t)arg;
-            uint32_t ts = xTaskGetTickCountFromISR();
             xQueueSendFromISR(evQueue, &gpio, &xHigherPriorityTaskWoken);
             if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
         }

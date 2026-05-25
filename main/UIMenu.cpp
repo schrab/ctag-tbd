@@ -73,7 +73,7 @@ namespace CTAG {
                     if (ev.type == InputEvent::BTN1_SHORT) {
                         inMenu = !inMenu;
                         alt = false;
-                        panelBarTimer = 20; // show bar for ~400ms
+                        panelBarTimer = 20;
                         if (inMenu) {
                             pages[currentPanel]->doRedraw();
                         } else {
@@ -81,21 +81,27 @@ namespace CTAG {
                         }
                     } else if (ev.type == InputEvent::BTN1_LONG) {
                         alt = true;
-                    } else if (ev.type == InputEvent::ENC_DELTA && inMenu) {
-                        int d = ev.delta;
-                        int prevPanel = currentPanel;
-                        if (d > 0) {
-                            currentPanel = (Panel)((currentPanel + d) % 4);
-                        } else if (d < 0) {
-                            currentPanel = (Panel)((currentPanel + d + 4) % 4);
+                    } else if (ev.type == InputEvent::BTN2_SHORT && inMenu) {
+                        pages[currentPanel]->onButton(2, false);
+                    } else if (ev.type == InputEvent::BTN2_LONG && inMenu) {
+                        pages[currentPanel]->onButton(2, true);
+                    } else if (ev.type == InputEvent::ENC_DELTA) {
+                        if (inMenu) {
+                            // small deltas → page, large deltas → panel switch
+                            int d = ev.delta;
+                            if (d < -1 || d > 1) {
+                                int prevPanel = currentPanel;
+                                int dir = (d > 0) ? 1 : -1;
+                                currentPanel = (Panel)((currentPanel + dir + 4) % 4);
+                                if (currentPanel != prevPanel) {
+                                    pages[prevPanel]->deinit();
+                                    pages[currentPanel]->init();
+                                }
+                                panelBarTimer = 20;
+                            } else {
+                                pages[currentPanel]->onEncoder(d);
+                            }
                         }
-                        if (currentPanel != prevPanel) {
-                            pages[prevPanel]->deinit();
-                            pages[currentPanel]->init();
-                            panelBarTimer = 20;
-                        }
-                        if (inMenu) pages[currentPanel]->doRedraw();
-                        panelBarTimer = 20;
                     }
                 }
 

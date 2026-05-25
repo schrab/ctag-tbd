@@ -270,7 +270,7 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
         }
     } else {
         while (*str) {
-            if (*str < 0 || *str > 127) { str++; continue; }
+            if ((unsigned char)*str > 127) { str++; continue; }
             const uint8_t *glyph = font5x7[(uint8_t)*str];
             for (int col = 0; col < 5; col++) {
                 uint8_t byte = glyph[col];

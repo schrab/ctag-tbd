@@ -30,6 +30,31 @@ namespace CTAG {
             void init() override;
             void deinit() override;
             void doRedraw() override;
+            void onEncoder(int delta) override;
+            void onButton(int btnId, bool longPress) override;
+
+        private:
+            struct ParamInfo {
+                char id[24];
+                char name[24];
+                char type[24];
+                int min;
+                int max;
+                int current;
+            };
+
+            enum Mode { MODE_SELECT, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_MAPEDIT };
+            int cursor;
+            int scrollOffset;
+            Mode mode;
+            int paramCount;
+            static const int MAX_PARAMS = 64;
+            ParamInfo params[MAX_PARAMS];
+
+            void parseParams();
+            void redrawSelect();
+            void redrawEdit();
+            int paramIndexToScreen(int idx) const;
         };
     }
 }

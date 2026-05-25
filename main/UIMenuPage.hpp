@@ -29,6 +29,8 @@ namespace CTAG {
             virtual void init() = 0;
             virtual void deinit() = 0;
             virtual void doRedraw() = 0;
+            virtual void onEncoder(int delta) {}
+            virtual void onButton(int btnId, bool longPress) {}
         };
     }
 }
