@@ -22,40 +22,26 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include "UIMenuPage.hpp"
-#include "Display.hpp"
-#include "UserInput.hpp"
-#include <array>
 
 namespace CTAG {
     namespace CTRL {
-        class UIMenu final {
+        class UIMenuPageBtMidi final : public UIMenuPage {
         public:
-            static void Init();
-            static void TaskFunction(void *);
+            void init() override;
+            void deinit() override;
+            void doRedraw() override;
+            void onEncoder(int delta) override;
+            void onButton(int btnId, bool longPress) override;
 
         private:
-            enum Panel : uint8_t {
-                PANEL_MIX = 0, PANEL_TAPE = 1, PANEL_HOME = 2, PANEL_PARAMS = 3
-#if CONFIG_BT_ENABLED
-                , PANEL_BT = 4
-#endif
-            };
-#if CONFIG_BT_ENABLED
-            static constexpr int PANEL_COUNT = 5;
-            static constexpr const char *panelNames[5] = {"MIX", "TAPE", "HOME", "PARAMS", "BT"};
-            static UIMenuPage *pages[5];
-#else
-            static constexpr int PANEL_COUNT = 4;
-            static constexpr const char *panelNames[4] = {"MIX", "TAPE", "HOME", "PARAMS"};
-            static UIMenuPage *pages[4];
-#endif
+            enum SubPage { SP_MAIN, SP_SCAN, SP_DETAIL };
+            SubPage subPage;
+            int cursor;
+            int scrollOffset;
 
-            static Panel currentPanel;
-            static bool inMenu;
-            static bool alt;
-            static int panelBarTimer;
-
-            static void drawPanelBar();
+            void redrawMain();
+            void redrawScan();
+            void redrawDetail();
         };
     }
 }

@@ -26,6 +26,9 @@ respective component folders / files if different from this license.
 #include "menupages/UIMenuPageMix.hpp"
 #include "menupages/UIMenuPageParams.hpp"
 #include "menupages/UIMenuPageTape.hpp"
+#if CONFIG_BT_ENABLED
+#include "menupages/UIMenuPageBtMidi.hpp"
+#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -34,7 +37,11 @@ using namespace CTAG::DRIVERS;
 namespace CTAG {
     namespace CTRL {
         UIMenu::Panel UIMenu::currentPanel = UIMenu::PANEL_HOME;
+#if CONFIG_BT_ENABLED
+        UIMenuPage *UIMenu::pages[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+#else
         UIMenuPage *UIMenu::pages[4] = {nullptr, nullptr, nullptr, nullptr};
+#endif
         bool UIMenu::inMenu = false;
         bool UIMenu::alt = false;
         int UIMenu::panelBarTimer = 0;
@@ -44,21 +51,24 @@ namespace CTAG {
             pages[PANEL_MIX] = new UIMenuPageMix();
             pages[PANEL_TAPE] = new UIMenuPageTape();
             pages[PANEL_PARAMS] = new UIMenuPageParams();
-            for (auto &p : pages) p->init();
+#if CONFIG_BT_ENABLED
+            pages[PANEL_BT] = new UIMenuPageBtMidi();
+#endif
+            for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();
             // task created in main.cpp
         }
 
         void UIMenu::drawPanelBar() {
             if (panelBarTimer <= 0) return;
-            for (int i = 0; i < 4; i++) {
-                int x = i * 32;
-                for (int px = 0; px < 31; px++)
+            for (int i = 0; i < PANEL_COUNT; i++) {
+                int x = i * (128 / PANEL_COUNT);
+                for (int px = 0; px < (128 / PANEL_COUNT) - 1; px++)
                     Display::DrawPixel(x + px, 0, true);
                 Display::DrawString(x + 2, 0, panelNames[i], Display::FONT_5X7);
             }
             // highlight active panel
-            int ax = currentPanel * 32;
-            Display::InvertRect(ax, 0, 32, 8);
+            int ax = currentPanel * (128 / PANEL_COUNT);
+            Display::InvertRect(ax, 0, 128 / PANEL_COUNT, 8);
             Display::Flush();
             panelBarTimer--;
         }
@@ -92,7 +102,7 @@ namespace CTAG {
                             if (d < -1 || d > 1) {
                                 int prevPanel = currentPanel;
                                 int dir = (d > 0) ? 1 : -1;
-                                currentPanel = (Panel)((currentPanel + dir + 4) % 4);
+                                currentPanel = (Panel)((currentPanel + dir + PANEL_COUNT) % PANEL_COUNT);
                                 if (currentPanel != prevPanel) {
                                     pages[prevPanel]->deinit();
                                     pages[currentPanel]->init();

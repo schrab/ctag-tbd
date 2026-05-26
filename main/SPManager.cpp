@@ -34,6 +34,7 @@ respective component folders / files if different from this license.
 #include "RestServer.hpp"
 #include "Control.hpp"
 #include "Favorites.hpp"
+#include "ModEngine.hpp"
 #include <math.h>
 #include "helpers/ctagFastMath.hpp"
 #include "helpers/ctagSampleRom.hpp"
@@ -97,6 +98,9 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 
         // update data from ADCs and GPIOs for real-time control
         CTAG::CTRL::Control::Update(&pd.trig, &pd.cv);
+
+        // run modulation engine at block rate
+        DRIVERS::ModEngine::Process(pd.cv);
 
         // get normalized raw data from CODEC
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);

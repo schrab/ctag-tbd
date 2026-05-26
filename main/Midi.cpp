@@ -22,6 +22,11 @@ respective component folders / files if different from this license.
 
 #include "Midi.hpp"
 #include "Favorites.hpp"
+#include "ModEngine.hpp"
+#if CONFIG_BT_ENABLED
+#include "BtMidiReceiver.hpp"
+#endif
+#include <cinttypes>
 
 using namespace CTAG::CTRL;
 
@@ -418,6 +423,10 @@ void Midi::controlChange(uint8_t* msg)
             midi_triggers[(uint8_t)trig_entry.element_trig_id] = (msg[2] < 64);  // Set Trigger according to value from Continuous controller (We get rid of the first "none"-entry to calculate the CV-index)Set Trig to 1 if off, 0 if on at given offset as just retrieved, rescale according to CV from CCs
         }
     }
+
+    // After fixed distributor, apply dynamic CC mapping (MIDI Learn + ModEngine)
+    CTAG::DRIVERS::ModEngine_MaybeCaptureCC(channel, cc_num, msg[2]);
+    CTAG::DRIVERS::ModEngine_ApplyDynamicCC(channel, cc_num, msg[2], midi_cvs);
 }
 
 // --- Process incoming Pressure events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
@@ -809,11 +818,14 @@ void Midi::Init() {
     debug_queue = xQueueCreate(10, sizeof(debug_msg));
         xTaskCreatePinnedToCore(debug_task, "debug", 4096, NULL, 5, NULL, 0);
 #endif
-    memset(buf0, 0, DATA_SZ);                       // Reset "virtual CV"-data at startup
-    memset(midi_note_trig, 1,
-           N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
-    distribute.setCVandTriggerPointers(midi_data, midi_note_trig);    // Pass on pointer to CV and Trigger shared data
+    memset(buf0, 0, DATA_SZ);
+    memset(midi_note_trig, 1, N_TRIGS);
+    distribute.setCVandTriggerPointers(midi_data, midi_note_trig);
     // CTAG::DRIVERS::tusbmidi::Init();
+    CTAG::DRIVERS::ModEngine::Init();
+#if CONFIG_BT_ENABLED
+    CTAG::DRIVERS::BtMidiReceiver::Init();
+#endif
 }
 
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
@@ -842,6 +854,20 @@ uint8_t *Midi::Update() {
         // get all available MIDI messages from UART
         if (missing_bytes_offset + len2 < (MIDI_BUF_SZ - 32)) // safety margin
             midiuart_instance.read(&msgBuffer[missing_bytes_offset + len2], &len);  // Read UART data into MIDI-buffer
+
+        // get all available MIDI messages from Bluetooth SPP
+#if CONFIG_BT_ENABLED
+        {
+            uint32_t bt_len = 0;
+            uint8_t *bt_pos = &msgBuffer[missing_bytes_offset + len2 + len];
+            CTAG::DRIVERS::BtMidiReceiver::Read(bt_pos, &bt_len);
+            if (bt_len > 0 && missing_bytes_offset + len + bt_len < (MIDI_BUF_SZ - 32)) {
+                len += bt_len;
+                ESP_LOGV("BTMIDI", "Read %" PRIu32 " BT MIDI bytes", bt_len);
+            }
+        }
+#endif
+
         len += len2;
 
         if (len == 0)                   // Nothing to process now, better luck next time?
