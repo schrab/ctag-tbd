@@ -29,17 +29,26 @@ See [workflow/taste.md](workflow/taste.md)
 - When capturing serial output from the ESP32 for debugging, capture the entire boot log in one shot (15-25s continuous read) instead of doing multiple small filtered captures — piecemeal captures waste time and miss context. Confidence: 0.70
 
 # debugging
-- Use `idf.py -p /dev/ttyUSB0 monitor` to read serial output from ESP32 — do not write custom Python serial scripts with DTR/RTS toggling for basic serial monitoring. Confidence: 0.65
+- Use `idf.py -p /dev/ttyUSB0 monitor` to read serial output from ESP32 — do not write custom Python serial scripts with DTR/RTS toggling for basic serial monitoring. Confidence: 0.70
 
 # i2c
 - On ESP-IDF v5.x with BT enabled, use the modern I2C master driver (`driver/i2c_master.h`) instead of the legacy I2C driver — the legacy driver's ISR conflicts with BT controller interrupts causing I2C FSM hangs. Confidence: 0.65
+- When migrating from legacy `driver/i2c.h` to modern `driver/i2c_master.h`, the legacy I2C address byte includes the R/W bit shift (e.g., `0x20` for write = `0x10` << 1). The modern API expects the raw 7-bit address (e.g., `0x10`), not the shifted byte. Verify this for each migrated device. Confidence: 0.80
+- When migrating from legacy I2C driver, the legacy `i2c_driver_install()` used `ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_LOWMED`. The modern `i2c_master.h` API's `i2c_master_bus_config_t.intr_priority` defaults to 0 (driver selects 1-3), which can be higher than LOWMED. Set `intr_priority = 1` to maintain low interrupt priority and avoid preempting spinlocks. Confidence: 0.75
+
+# display
+- Use FONT_5X7 consistently throughout the OLED UI menu — do not use 8x8 font except where explicitly required for a specific visual element. Confidence: 0.70
+- After the boot splash screen (ShowFWVersion), auto-show the menu by setting `inMenu = true` and calling `pages[currentPanel]->doRedraw()` in `UIMenu::Init()` — otherwise the OLED shows nothing until a button is pressed. Confidence: 0.70
 
 # git
 - When reverting component files to an older commit to test a regression, first verify the target commit's files are compatible with the current board hardware (e.g., GPIO pins, chip variant) — not all past commits target the same platform. Confidence: 0.70
 - Make regular git commits when debugging a crash so you can bisect and trace when the crash started — without commits, there is no history to revert to or bisect from. Confidence: 0.80
 # debugging
-- After a successful `idf.py build flash`, subsequent boot tests only need a hardware reset (DTR/RTS toggle) — do not re-flash just to check the boot log, as flashing is slow and unnecessary. Confidence: 0.65
+- After a successful `idf.py build flash`, subsequent boot tests only need a hardware reset (DTR/RTS toggle) — do not re-flash just to check the boot log, as flashing is slow and unnecessary. Confidence: 0.75
 - When a Kconfig option silently falls back to its default (e.g., INT_WDT_TIMEOUT_MS=15000 but max is 10000), check the generated `build/config/sdkconfig.h` to verify the actual value being used — don't assume the set value took effect. Confidence: 0.85
 - When debugging a complex crash, document each failed attempt and what was learned before moving to the next approach — prevents repeating the same failed experiments. Confidence: 0.75
 - To isolate a regression, test the known-good commit's code with current configs AND current code with the known-good commit's configs separately — this tells you whether the issue is in code changes or config changes. Confidence: 0.75
+
+# gpio
+- On ESP32 Rev3 with PSRAM, GPIO button ISRs (using `xQueueGenericSendFromISR`) must NOT be installed before I2S codec init — pin noise during the I2S MCLK spinlock (`clkout_mapping_alloc` → `i2s_check_set_mclk`) triggers the ISR, which tries to acquire the same spinlock, causing Interrupt WDT timeout. Fix: defer `gpio_install_isr_service()` + `gpio_isr_handler_add()` to after `Codec::InitCodec()` completes. Confidence: 0.85
 

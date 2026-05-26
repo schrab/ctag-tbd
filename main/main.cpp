@@ -83,4 +83,8 @@ void app_main() {
 #endif
 
     AUDIO::SoundProcessorManager::StartSoundProcessor();
+#if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_BBA)
+    // Enable GPIO button ISRs after audio init to avoid I2S MCLK spinlock deadlock
+    CTRL::UserInput::EnableISR();
+#endif
 }

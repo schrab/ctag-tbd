@@ -1,9 +1,9 @@
 # workflow
 - When a plan file exists and hardware/architecture changes are discussed, update the plan file directly — don't just summarize changes verbally. Confidence: 0.80
 - Before implementing new features or changes, first check that the project builds successfully. Confidence: 0.65
-- ESP-IDF is located at ~/esp-idf — use this path when building/flashing. Confidence: 0.70
+- ESP-IDF is located at `~/esp-idf` on native Linux or `/mnt/c/Users/schra/esp/v5.4.2` on WSL (Windows-side install) — activate the environment via `source $IDF_PATH/export.sh` before running idf.py build/flash/monitor. Confidence: 0.70
 - Follow the phased implementation plan sequentially — don't jump ahead or skip phases. Confidence: 0.65
-- Document exploration results (file reads, command outputs, project structure analysis) into .md files before implementing — this is a consistent habit, not optional. Confidence: 0.70
+- Document exploration results (file reads, command outputs, project structure analysis, Explore command results) into .md files before implementing — this is a consistent habit, not optional. Confidence: 0.88
 - Avoid clean rebuilds (`rm -rf build` or `idf.py fullclean`) — use `idf.py clean` for proper incremental rebuilds as they waste ~15 minutes, but `rm -rf build` is acceptable when there is no other way to resolve build metadata corruption. Confidence: 0.78
 - Check conversation history before re-trying an approach that was already attempted and failed — don't repeatedly change the same file with different approaches without verifying whether the approach has already been tried. Confidence: 0.85
 - When a fix keeps failing, investigate the root cause (e.g., stale build cache resolving to wrong paths, generated artifacts, or dependency graph issues) instead of trying surface-level workarounds repeatedly. Confidence: 0.75
@@ -11,3 +11,6 @@
 - After manually deleting the build directory (`rm -rf build`), run `idf.py reconfigure` before `idf.py build` — the build metadata must be regenerated first. Confidence: 0.60
 - The NimBLE host task callback must call `nimble_port_run()` instead of just logging — the NimBLE host task runs `nimble_port_run()` which blocks and handles BLE events, ESP_LOGI in the callback will crash because flash cache may be unavailable during BT init. Confidence: 0.70
 - After `rm -rf build` and rebuild, the `sdkconfig` is regenerated from scratch using defaults files — if board-specific settings were previously only in the generated sdkconfig, they will be lost. Always add all required board-specific settings to `sdkconfig.defaults.a1s`. Confidence: 0.75
+- When running `idf.py build` for an ESP-IDF project, first `cd` to the project root directory (e.g., `/home/ubuntu/ctag-tbd`) — sourcing `export.sh` and running `idf.py` from the ESP-IDF install directory fails because `idf.py` must be invoked from within the project directory. Confidence: 0.65
+- After a successful `idf.py build`, commit changes to git and flash the device — don't wait for the user to ask for these next steps. Confidence: 0.75
+- When sourcing ESP-IDF's `export.sh`, do not pipe its output through other commands (e.g., `| tail`) — the pipe creates a subshell and environment variable changes (IDF_PATH, PATH, etc.) are lost. Use `;` or `&&` command chaining to suppress output or redirect. Confidence: 0.75

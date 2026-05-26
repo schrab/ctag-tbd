@@ -206,7 +206,7 @@ void Display::Flush() {
 void Display::DrawPixel(int x, int y, bool on) {
     if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
     int page = y >> 3;
-    int bit = 7 - (y & 7); // SSD1306 with COM scan 0xC8 maps D7=top of page
+    int bit = y & 7;
     int idx = page * 128 + x;
     if (on)
         fb[idx] |= (1 << bit);
@@ -271,10 +271,11 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
         while (*str) {
             if ((unsigned char)*str > 127) { str++; continue; }
             const uint8_t *glyph = font5x7[(uint8_t)*str];
-            for (int col = 0; col < 5; col++) {
-                uint8_t byte = glyph[col];
-                for (int row = 0; row < 7; row++) {
-                    DrawPixel(x + col, y + row, (byte >> (7 - row)) & 1);
+            // row-major: glyph[row] = horizontal row, bit 0 = leftmost pixel
+            for (int row = 0; row < 5; row++) {
+                uint8_t byte = glyph[row];
+                for (int col = 0; col < 7; col++) {
+                    DrawPixel(x + col, y + row, (byte >> col) & 1);
                 }
             }
             x += 6; // 5 px glyph + 1 px spacing
