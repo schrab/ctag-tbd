@@ -170,6 +170,10 @@ void Network::wifi_init_softap(void) {
 }
 
 void Network::initialise_mdns(const string hostname, const string instance_name_set) {
+    static bool initialized = false;
+    if (initialized) return;
+    initialized = true;
+
     mdns_init();
     mdns_hostname_set(hostname.c_str());
     mdns_instance_name_set(instance_name_set.c_str());
@@ -184,6 +188,10 @@ void Network::initialise_mdns(const string hostname, const string instance_name_
 }
 
 void Network::Up() {
+    static bool initialized = false;
+    if (initialized) return;
+    initialized = true;
+
     ESP_LOGI("Network", "Starting with ssid %s, pwd %s, mdns %s, ip %s, is %s",
              _ssid.c_str(), _pwd.c_str(), _mdns.c_str(), _ip.c_str(), isAP ? "ap" : "sta");
     esp_err_t ret = nvs_flash_init();
@@ -192,8 +200,11 @@ void Network::Up() {
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    // ignore if already initialized (IDF v5.x may init these earlier)
+    esp_err_t err = esp_netif_init();
+    if (err != ESP_ERR_INVALID_STATE) ESP_ERROR_CHECK(err);
+    err = esp_event_loop_create_default();
+    if (err != ESP_ERR_INVALID_STATE) ESP_ERROR_CHECK(err);
     initialise_mdns(_mdns, _mdns_instance);
     netbiosns_init();
     netbiosns_set_name(_mdns.c_str());

@@ -26,7 +26,10 @@ See [workflow/taste.md](workflow/taste.md)
 # debugging
 - Never use `sudo` in non-interactive commands when flashing or reading serial from the device — it will hang waiting for password input. Instead, instruct the user to run the command or fix permissions themselves. Confidence: 0.88
 - When debugging an ESP32 crash (Guru Meditation / panic), decode the backtrace addresses via `xtensa-esp32-elf-addr2line` to confirm the root cause before implementing a fix — don't guess or apply workarounds blindly. Confidence: 0.65
-- When capturing serial output from the ESP32 for debugging, capture the entire boot log in one shot (15-25s continuous read) instead of doing multiple small filtered captures — piecemeal captures waste time and miss context. Confidence: 0.65
+- When capturing serial output from the ESP32 for debugging, capture the entire boot log in one shot (15-25s continuous read) instead of doing multiple small filtered captures — piecemeal captures waste time and miss context. Confidence: 0.70
+
+# debugging
+- Use `idf.py -p /dev/ttyUSB0 monitor` to read serial output from ESP32 — do not write custom Python serial scripts with DTR/RTS toggling for basic serial monitoring. Confidence: 0.65
 
 # i2c
 - On ESP-IDF v5.x with BT enabled, use the modern I2C master driver (`driver/i2c_master.h`) instead of the legacy I2C driver — the legacy driver's ISR conflicts with BT controller interrupts causing I2C FSM hangs. Confidence: 0.65
@@ -35,6 +38,7 @@ See [workflow/taste.md](workflow/taste.md)
 - When reverting component files to an older commit to test a regression, first verify the target commit's files are compatible with the current board hardware (e.g., GPIO pins, chip variant) — not all past commits target the same platform. Confidence: 0.70
 - Make regular git commits when debugging a crash so you can bisect and trace when the crash started — without commits, there is no history to revert to or bisect from. Confidence: 0.80
 # debugging
+- After a successful `idf.py build flash`, subsequent boot tests only need a hardware reset (DTR/RTS toggle) — do not re-flash just to check the boot log, as flashing is slow and unnecessary. Confidence: 0.65
 - When a Kconfig option silently falls back to its default (e.g., INT_WDT_TIMEOUT_MS=15000 but max is 10000), check the generated `build/config/sdkconfig.h` to verify the actual value being used — don't assume the set value took effect. Confidence: 0.85
 - When debugging a complex crash, document each failed attempt and what was learned before moving to the next approach — prevents repeating the same failed experiments. Confidence: 0.75
 - To isolate a regression, test the known-good commit's code with current configs AND current code with the known-good commit's configs separately — this tells you whether the issue is in code changes or config changes. Confidence: 0.75
