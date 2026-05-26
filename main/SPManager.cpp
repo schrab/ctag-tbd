@@ -35,6 +35,7 @@ respective component folders / files if different from this license.
 #include "Control.hpp"
 #include "Favorites.hpp"
 #include "ModEngine.hpp"
+#include "SDAudio.hpp"
 #include <math.h>
 #include "helpers/ctagFastMath.hpp"
 #include "helpers/ctagSampleRom.hpp"
@@ -281,6 +282,11 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         diff = esp_cpu_get_cycle_count() - start;
         if(diff > CPU_MAX_ALLOWED_CYCLES) ledData = 0xB39134; // orange code for cpu overflow
         ledStatus = ledData;
+
+        // SD audio: mix playback into output
+        CTAG::AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
+        // SD audio: capture output for recording
+        CTAG::AUDIO::SDAudio::RecordSamples(fbuf, BUF_SZ);
 
         // write raw float data back to CODEC
         DRIVERS::Codec::WriteBuffer(fbuf, BUF_SZ);

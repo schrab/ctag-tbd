@@ -30,6 +30,23 @@ namespace CTAG {
             void init() override;
             void deinit() override;
             void doRedraw() override;
+            void onEncoder(int delta) override;
+            void onButton(int btnId, bool longPress) override;
+
+        private:
+            enum SubPage { SP_MAIN, SP_FILELIST, SP_RECORD };
+
+            SubPage subPage;
+            int cursor;
+            int scrollOffset;
+            int fileCount;
+            static const int MAX_FILES = 32;
+            char fileNames[MAX_FILES][32];
+
+            void scanFiles();
+            void redrawMain();
+            void redrawFileList();
+            void redrawRecord();
         };
     }
 }

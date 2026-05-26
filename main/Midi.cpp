@@ -23,6 +23,7 @@ respective component folders / files if different from this license.
 #include "Midi.hpp"
 #include "Favorites.hpp"
 #include "ModEngine.hpp"
+#include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED
 #include "BtMidiReceiver.hpp"
 #endif
@@ -823,6 +824,7 @@ void Midi::Init() {
     distribute.setCVandTriggerPointers(midi_data, midi_note_trig);
     // CTAG::DRIVERS::tusbmidi::Init();
     CTAG::DRIVERS::ModEngine::Init();
+    CTAG::AUDIO::SDAudio::Init();
 #if CONFIG_BT_ENABLED
     CTAG::DRIVERS::BtMidiReceiver::Init();
 #endif
