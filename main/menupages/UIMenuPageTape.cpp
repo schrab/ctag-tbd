@@ -51,7 +51,9 @@ namespace CTAG {
                 const char *name = ent->d_name;
                 int len = strlen(name);
                 if (len > 4 && (strcasecmp(name + len - 4, ".wav") == 0)) {
-                    snprintf(fileNames[fileCount], sizeof(fileNames[0]), "%s", name);
+                    size_t copyLen = len < 31 ? len : 31;
+                    memcpy(fileNames[fileCount], name, copyLen);
+                    fileNames[fileCount][copyLen] = '\0';
                     fileCount++;
                 }
             }
