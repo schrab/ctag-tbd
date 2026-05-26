@@ -55,9 +55,8 @@ void Display::Init() {
 }
 
 void Display::Clear() {
-    ssd1306_clear_screen(&I2CDisplay, false);
     std::memset(fb, 0, sizeof(fb));
-    for (int i = 0; i < 8; i++) dirtyPages[i] = false;
+    for (int i = 0; i < 8; i++) dirtyPages[i] = true;
 }
 
 void Display::ShowFavorite(const int &id, const std::string &name) {
@@ -283,7 +282,6 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
             str++;
         }
     }
-    Flush();
 }
 
 void Display::DrawStringRight(int x, int y, const char *str, Font font) {
@@ -302,7 +300,6 @@ void Display::DrawVUMeter(int x, int y, int w, int h, float level) {
     if (fillW > 0) {
         DrawRect(x + 1, y + 1, fillW, h - 2, true, true);
     }
-    Flush();
 }
 
 void Display::DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos) {
@@ -314,5 +311,4 @@ void Display::DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos) 
     int thumbY = y + (h - thumbH) * cursorPos / (totalItems - visibleItems);
     DrawRect(x, y, 2, h, false, true);
     DrawRect(x, thumbY, 2, thumbH, true, true);
-    Flush();
 }

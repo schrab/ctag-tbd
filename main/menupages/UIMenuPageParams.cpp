@@ -145,10 +145,10 @@ namespace CTAG {
 
         void UIMenuPageParams::redrawSelect() {
             Display::Clear();
-            Display::DrawString(0, 16, "EDIT", Display::FONT_8X8);
-            Display::DrawString(0, 32, "MAP", Display::FONT_8X8);
-            Display::DrawString(0, 48, "PSET", Display::FONT_8X8);
-            Display::InvertRect(0, 16 + cursor * 16, 128, 16);
+            Display::DrawString(0, 12, "EDIT", Display::FONT_5X7);
+            Display::DrawString(0, 22, "MAP", Display::FONT_5X7);
+            Display::DrawString(0, 32, "PSET", Display::FONT_5X7);
+            Display::InvertRect(0, 12 + cursor * 10, 128, 8);
             Display::Flush();
         }
 

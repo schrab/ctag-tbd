@@ -36,6 +36,7 @@ namespace CTAG {
             Display::DrawVUMeter(0, 16, 60, 8, 0.0f);
             Display::DrawVUMeter(0, 28, 60, 8, 0.0f);
             Display::DrawString(0, 40, "VU meters", Display::FONT_5X7);
+            Display::Flush();
         }
     }
 }

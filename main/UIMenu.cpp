@@ -55,6 +55,8 @@ namespace CTAG {
             pages[PANEL_BT] = new UIMenuPageBtMidi();
 #endif
             for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();
+            inMenu = true;
+            pages[currentPanel]->doRedraw();
             // task created in main.cpp
         }
 
@@ -88,6 +90,7 @@ namespace CTAG {
                             pages[currentPanel]->doRedraw();
                         } else {
                             Display::Clear();
+                            Display::Flush();
                         }
                     } else if (ev.type == InputEvent::BTN1_LONG) {
                         alt = true;
