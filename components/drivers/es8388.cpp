@@ -92,12 +92,12 @@ static bool ensure_bus() {
     bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
     bus_config.glitch_ignore_cnt = 7;
     bus_config.intr_priority = 1;
-    bus_config.flags.enable_internal_pullup = 0;
+    bus_config.flags.enable_internal_pullup = 1;
     if (i2c_new_master_bus(&bus_config, &es8388_bus) != ESP_OK) return false;
 
     i2c_device_config_t dev_config = {};
     dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-    dev_config.device_address = ES8388_ADDR;
+    dev_config.device_address = ES8388_ADDR >> 1; // legacy API used shifted byte (0x20), modern API wants raw 7-bit (0x10)
     dev_config.scl_speed_hz = 400000;
     if (i2c_master_bus_add_device(es8388_bus, &dev_config, &es8388_dev) != ESP_OK) return false;
     return true;

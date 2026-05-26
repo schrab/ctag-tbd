@@ -26,6 +26,7 @@ See [workflow/taste.md](workflow/taste.md)
 # debugging
 - Never use `sudo` in non-interactive commands when flashing or reading serial from the device — it will hang waiting for password input. Instead, instruct the user to run the command or fix permissions themselves. Confidence: 0.88
 - When debugging an ESP32 crash (Guru Meditation / panic), decode the backtrace addresses via `xtensa-esp32-elf-addr2line` to confirm the root cause before implementing a fix — don't guess or apply workarounds blindly. Confidence: 0.65
+- When capturing serial output from the ESP32 for debugging, capture the entire boot log in one shot (15-25s continuous read) instead of doing multiple small filtered captures — piecemeal captures waste time and miss context. Confidence: 0.65
 
 # i2c
 - On ESP-IDF v5.x with BT enabled, use the modern I2C master driver (`driver/i2c_master.h`) instead of the legacy I2C driver — the legacy driver's ISR conflicts with BT controller interrupts causing I2C FSM hangs. Confidence: 0.65
