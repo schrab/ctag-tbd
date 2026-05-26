@@ -1,0 +1,13 @@
+# workflow
+- When a plan file exists and hardware/architecture changes are discussed, update the plan file directly — don't just summarize changes verbally. Confidence: 0.80
+- Before implementing new features or changes, first check that the project builds successfully. Confidence: 0.65
+- ESP-IDF is located at ~/esp-idf — use this path when building/flashing. Confidence: 0.70
+- Follow the phased implementation plan sequentially — don't jump ahead or skip phases. Confidence: 0.65
+- Document exploration results (file reads, command outputs, project structure analysis) into .md files before implementing — this is a consistent habit, not optional. Confidence: 0.70
+- Avoid clean rebuilds (`rm -rf build` or `idf.py fullclean`) — use `idf.py clean` for proper incremental rebuilds as they waste ~15 minutes, but `rm -rf build` is acceptable when there is no other way to resolve build metadata corruption. Confidence: 0.78
+- Check conversation history before re-trying an approach that was already attempted and failed — don't repeatedly change the same file with different approaches without verifying whether the approach has already been tried. Confidence: 0.85
+- When a fix keeps failing, investigate the root cause (e.g., stale build cache resolving to wrong paths, generated artifacts, or dependency graph issues) instead of trying surface-level workarounds repeatedly. Confidence: 0.75
+- When proposing an approach that has already been tried before, explicitly explain what is different this time before executing — don't just re-run it without justification. Confidence: 0.75
+- After manually deleting the build directory (`rm -rf build`), run `idf.py reconfigure` before `idf.py build` — the build metadata must be regenerated first. Confidence: 0.60
+- The NimBLE host task callback must call `nimble_port_run()` instead of just logging — the NimBLE host task runs `nimble_port_run()` which blocks and handles BLE events, ESP_LOGI in the callback will crash because flash cache may be unavailable during BT init. Confidence: 0.70
+- After `rm -rf build` and rebuild, the `sdkconfig` is regenerated from scratch using defaults files — if board-specific settings were previously only in the generated sdkconfig, they will be lost. Always add all required board-specific settings to `sdkconfig.defaults.a1s`. Confidence: 0.75

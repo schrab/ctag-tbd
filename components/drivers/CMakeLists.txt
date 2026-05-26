@@ -1,7 +1,8 @@
 if(CONFIG_TBD_PLATFORM_MK2)
     idf_component_register(SRCS fs.cpp led_rgb.cpp codec.cpp mk2.cpp ssd1306.c ssd1306_i2c.c
             INCLUDE_DIRS "."
-            REQUIRES driver )
+            REQUIRES driver esp_driver_i2c
+            PRIV_REQUIRES fatfs)
 elseif (CONFIG_TBD_PLATFORM_BBA)
     if(CONFIG_TBD_BBA_CODEC_ES8388)
         set(codec_src es8388.cpp)
@@ -11,11 +12,13 @@ elseif (CONFIG_TBD_PLATFORM_BBA)
 
     idf_component_register(SRCS fs.cpp led_rgb_bba.cpp codec_bba.cpp ${codec_src} midiuart.cpp encoder.cpp ssd1306.c ssd1306_i2c.c
             INCLUDE_DIRS "."
-            REQUIRES driver  esp-dsp)
+            REQUIRES driver esp-dsp esp_driver_i2c
+            PRIV_REQUIRES fatfs)
 else()
     idf_component_register(SRCS gpio.cpp adc.cpp fs.cpp led_rgb.cpp codec.cpp ssd1306.c ssd1306_i2c.c
             INCLUDE_DIRS "."
-            REQUIRES ulp driver )
+            REQUIRES ulp driver esp_driver_i2c
+            PRIV_REQUIRES fatfs)
 
     set(ulp_app_name ulp_${COMPONENT_NAME})
 

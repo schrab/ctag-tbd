@@ -99,8 +99,9 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     }
 }
 
-static void host_task_cb(void *param) {
-    ESP_LOGI(TAG, "NimBLE host task started");
+static void host_task(void *param) {
+    nimble_port_run();
+    nimble_port_freertos_deinit();
 }
 
 void BtMidiReceiver::Init() {
@@ -123,7 +124,7 @@ void BtMidiReceiver::Init() {
     ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
                       NULL, gap_event_cb, NULL);
 
-    nimble_port_freertos_init(host_task_cb);
+    nimble_port_freertos_init(host_task);
 
     ESP_LOGI(TAG, "BLE MIDI initialized — advertise as 'CTAG TBD'");
 }

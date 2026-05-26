@@ -31,7 +31,7 @@ respective component folders / files if different from this license.
 
 #define DEBOUNCE_MS 20
 #define LONG_PRESS_MS 500
-#define POLL_MS 1
+#define POLL_MS 10
 
 namespace CTAG {
     namespace CTRL {

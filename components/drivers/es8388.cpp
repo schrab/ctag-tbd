@@ -1,7 +1,7 @@
 #include "es8388.hpp"
 #include "esp_log.h"
 #include "esp_err.h"
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "driver/i2s_std.h"
 
 /* ES8388 address */
@@ -69,81 +69,47 @@
 #define ES8388_DACCONTROL29     0x33
 #define ES8388_DACCONTROL30     0x34
 
-es8388::es8388() : _pinsda{GPIO_NUM_33}, _pinscl{GPIO_NUM_32}, _i2cspeed{400000} {
-    esp_err_t err = ESP_OK;
-    i2c_config_t conf = {
-            .mode = I2C_MODE_MASTER,
-            .sda_io_num = _pinsda,
-            .scl_io_num = _pinscl,
-            .sda_pullup_en = false,
-            .scl_pullup_en = false,
-            .master = {
-                    .clk_speed = _i2cspeed,
-            },
-            .clk_flags = 0,
-    };
+static i2c_master_bus_handle_t es8388_bus = NULL;
+static i2c_master_dev_handle_t es8388_dev = NULL;
 
-    err |= i2c_param_config(I2C_NUM_1, &conf);
-    err |= i2c_driver_install(I2C_NUM_1, conf.mode, 0, 0, ESP_INTR_FLAG_SHARED|ESP_INTR_FLAG_LOWMED);
-    ESP_ERROR_CHECK(err);
+es8388::es8388() : _pinsda{GPIO_NUM_33}, _pinscl{GPIO_NUM_32}, _i2cspeed{400000} {
+    i2c_master_bus_config_t bus_config = {};
+    bus_config.i2c_port = -1;
+    bus_config.sda_io_num = (gpio_num_t)_pinsda;
+    bus_config.scl_io_num = (gpio_num_t)_pinscl;
+    bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+    bus_config.glitch_ignore_cnt = 7;
+    bus_config.flags.enable_internal_pullup = 0;
+    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &es8388_bus));
+
+    i2c_device_config_t dev_config = {};
+    dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+    dev_config.device_address = ES8388_ADDR;
+    dev_config.scl_speed_hz = _i2cspeed;
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(es8388_bus, &dev_config, &es8388_dev));
 }
 
 es8388::~es8388() {
-    // TODO destroy
-    i2c_driver_delete(I2C_NUM_1);
+    if (es8388_dev) {
+        i2c_master_bus_rm_device(es8388_dev);
+        es8388_dev = NULL;
+    }
 }
 
 bool es8388::write_reg(uint8_t reg_add, uint8_t data)
 {
-    esp_err_t ret = ESP_OK;
-    i2c_cmd_handle_t cmd;
-    do{ // try a couple of times, this should be fixed with smaller pull-ups
-        // TODO remove loop
-        cmd = i2c_cmd_link_create();
-        ret |= i2c_master_start(cmd);
-        ret |= i2c_master_write_byte(cmd, ES8388_ADDR, 1);
-        ret |= i2c_master_write_byte(cmd, reg_add, 1);
-        ret |= i2c_master_write_byte(cmd, data, 1);
-        ret |= i2c_master_stop(cmd);
-        ret |= i2c_master_cmd_begin(I2C_NUM_1, cmd, portMAX_DELAY);
-        i2c_cmd_link_delete(cmd);
-    }while(ret != ESP_OK);
-
-    //ESP_ERROR_CHECK(ret);
+    uint8_t buf[2] = { reg_add, data };
+    esp_err_t ret;
+    ret = i2c_master_transmit(es8388_dev, buf, 2, 100);
     if(ret != ESP_OK)
         ESP_LOGE("ES8388", "Error writing to register %d", reg_add);
-    uint8_t _data;
-    read_reg(reg_add, _data);
-    /*
-    // log register verification in hex
-    if(_data != data)
-        ESP_LOGE("ES8388", "Wrote %x to register %d, read %x", data, reg_add, _data);
-    else
-        ESP_LOGI("ES8388", "Wrote %x to register %x, read %x", data, reg_add, _data);
-
-    */
     return ret == ESP_OK;
 }
 
 bool es8388::read_reg(uint8_t reg_add, uint8_t &data)
 {
-    esp_err_t ret = ESP_OK;
-    i2c_cmd_handle_t cmd;
-    cmd = i2c_cmd_link_create();
-    ret |= i2c_master_start(cmd);
-    ret |= i2c_master_write_byte(cmd, ES8388_ADDR, 1);
-    ret |= i2c_master_write_byte(cmd, reg_add, 1);
-    ret |= i2c_master_stop(cmd);
-    ret |= i2c_master_cmd_begin(I2C_NUM_1, cmd, portMAX_DELAY);
-    i2c_cmd_link_delete(cmd);
-    cmd = i2c_cmd_link_create();
-    ret |= i2c_master_start(cmd);
-    ret |= i2c_master_write_byte(cmd, ES8388_ADDR | 0x01, 1);
-    ret |= i2c_master_read_byte(cmd, &data, i2c_ack_type_t (0));
-    ret |= i2c_master_stop(cmd);
-    ret |= i2c_master_cmd_begin(I2C_NUM_1, cmd, portMAX_DELAY);
-    i2c_cmd_link_delete(cmd);
-    //ESP_ERROR_CHECK(ret);
+    esp_err_t ret;
+    ret = i2c_master_transmit_receive(es8388_dev, &reg_add, 1, &data, 1, 100);
     if(ret != ESP_OK)
         ESP_LOGE("ES8388", "Error reading from register %d", reg_add);
     return ret == ESP_OK;

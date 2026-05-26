@@ -40,7 +40,11 @@ void ctagSPAllocator::AllocateInternalBuffer(std::size_t const &size) {
     ESP_LOGI("ctagSPAllocator", "AllocateInternalBuffer: allocating %d bytes", size);
     internalBuffer = heap_caps_malloc(size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     if(nullptr == internalBuffer){
-        ESP_LOGE("ctagSPAllocator", "AllocateInternalBuffer: could not allocate memory of size %d", size);
+        ESP_LOGW("ctagSPAllocator", "Not enough internal DRAM, trying PSRAM...");
+        internalBuffer = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+    }
+    if(nullptr == internalBuffer){
+        ESP_LOGE("ctagSPAllocator", "could not allocate memory of size %d in internal or PSRAM", size);
         assert(nullptr != internalBuffer);
     }
     totalSize = size;

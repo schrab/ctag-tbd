@@ -825,9 +825,6 @@ void Midi::Init() {
     // CTAG::DRIVERS::tusbmidi::Init();
     CTAG::DRIVERS::ModEngine::Init();
     CTAG::AUDIO::SDAudio::Init();
-#if CONFIG_BT_ENABLED
-    CTAG::DRIVERS::BtMidiReceiver::Init();
-#endif
 }
 
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===

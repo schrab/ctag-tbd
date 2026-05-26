@@ -36,6 +36,9 @@ respective component folders / files if different from this license.
 #include "Favorites.hpp"
 #include "ModEngine.hpp"
 #include "SDAudio.hpp"
+#if CONFIG_BT_ENABLED
+#include "BtMidiReceiver.hpp"
+#endif
 #include <math.h>
 #include "helpers/ctagFastMath.hpp"
 #include "helpers/ctagSampleRom.hpp"
@@ -359,28 +362,6 @@ void SoundProcessorManager::StartSoundProcessor() {
     ledBlink = 5;
     model = std::make_unique<SPManagerDataModel>();
 
-    // check for network reset at bootup
-#ifdef CONFIG_TBD_PLATFORM_BBA
-    // uses SW1 = BOOT of esp32-s3-devkitc to reset network credentials
-    gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
-    if(gpio_get_level(GPIO_NUM_0) == 0){
-        model->ResetNetworkConfiguration();
-        ESP_LOGE("SP", "Network credentials reset requested!");
-        DRIVERS::LedRGB::SetLedRGB(255, 255, 255);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-#endif
-
-    /* there should be an extra pin for this!
-    // check if network reset requested trig 1 pressed at startup
-    if(GPIO::GetTrig1() == 0){
-        DRIVERS::LedRGB::SetLedRGB(255, 255, 255);
-        model->ResetNetworkConfiguration();
-        ESP_LOGE("SP", "Network credentials reset requested!");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-    */
-
 #ifdef CONFIG_TBD_PLATFORM_STR
     // inverted here as some pins are used twice --> check for issues
     DRIVERS::Codec::InitCodec();
@@ -390,6 +371,36 @@ void SoundProcessorManager::StartSoundProcessor() {
     CTRL::Control::Init();
     // init codec
     DRIVERS::Codec::InitCodec();
+#if CONFIG_BT_ENABLED
+    // BT MIDI must init after I2S codec — BT coex calibration can lock I2C/I2S critical sections
+    CTAG::DRIVERS::BtMidiReceiver::Init();
+#endif
+#endif
+    // generate internal data
+    updateConfiguration();
+
+#ifdef CONFIG_WIFI_UI
+    // boot network
+    NET::Network::SetSSID(model->GetNetworkConfigurationData("ssid"));
+    NET::Network::SetPWD(model->GetNetworkConfigurationData("pwd"));
+    NET::Network::SetIsAccessPoint(model->GetNetworkConfigurationData("mode").compare("ap") == 0);
+    NET::Network::SetIP(model->GetNetworkConfigurationData("ip"));
+    NET::Network::SetMDNSName(model->GetNetworkConfigurationData("mdns_name"));
+    NET::Network::Up();
+    REST::RestServer::StartRestServer();
+#elif CONFIG_SERIAL_UI
+    SAPI::SerialAPI::StartSerialAPI();
+#endif
+
+    // check for network reset at bootup - after audio/codec init to avoid GPIO0 conflict with I2S MCLK
+#ifdef CONFIG_TBD_PLATFORM_BBA
+    gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
+    if(gpio_get_level(GPIO_NUM_0) == 0){
+        model->ResetNetworkConfiguration();
+        ESP_LOGE("SP", "Network credentials reset requested!");
+        DRIVERS::LedRGB::SetLedRGB(255, 255, 255);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 #endif
     // generate internal data
     updateConfiguration();
