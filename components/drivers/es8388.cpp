@@ -73,20 +73,7 @@ static i2c_master_bus_handle_t es8388_bus = NULL;
 static i2c_master_dev_handle_t es8388_dev = NULL;
 
 es8388::es8388() : _pinsda{GPIO_NUM_33}, _pinscl{GPIO_NUM_32}, _i2cspeed{400000} {
-    i2c_master_bus_config_t bus_config = {};
-    bus_config.i2c_port = -1;
-    bus_config.sda_io_num = (gpio_num_t)_pinsda;
-    bus_config.scl_io_num = (gpio_num_t)_pinscl;
-    bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
-    bus_config.glitch_ignore_cnt = 7;
-    bus_config.flags.enable_internal_pullup = 0;
-    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &es8388_bus));
-
-    i2c_device_config_t dev_config = {};
-    dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-    dev_config.device_address = ES8388_ADDR;
-    dev_config.scl_speed_hz = _i2cspeed;
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(es8388_bus, &dev_config, &es8388_dev));
+    // I2C bus is lazily initialized in ensure_bus() - called on first access
 }
 
 es8388::~es8388() {
@@ -96,11 +83,30 @@ es8388::~es8388() {
     }
 }
 
+static bool ensure_bus() {
+    if (es8388_bus != NULL) return true;
+    i2c_master_bus_config_t bus_config = {};
+    bus_config.i2c_port = -1;
+    bus_config.sda_io_num = (gpio_num_t)33;
+    bus_config.scl_io_num = (gpio_num_t)32;
+    bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+    bus_config.glitch_ignore_cnt = 7;
+    bus_config.flags.enable_internal_pullup = 0;
+    if (i2c_new_master_bus(&bus_config, &es8388_bus) != ESP_OK) return false;
+
+    i2c_device_config_t dev_config = {};
+    dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+    dev_config.device_address = ES8388_ADDR;
+    dev_config.scl_speed_hz = 400000;
+    if (i2c_master_bus_add_device(es8388_bus, &dev_config, &es8388_dev) != ESP_OK) return false;
+    return true;
+}
+
 bool es8388::write_reg(uint8_t reg_add, uint8_t data)
 {
+    if (!ensure_bus()) return false;
     uint8_t buf[2] = { reg_add, data };
-    esp_err_t ret;
-    ret = i2c_master_transmit(es8388_dev, buf, 2, 100);
+    esp_err_t ret = i2c_master_transmit(es8388_dev, buf, 2, 100);
     if(ret != ESP_OK)
         ESP_LOGE("ES8388", "Error writing to register %d", reg_add);
     return ret == ESP_OK;
@@ -108,6 +114,7 @@ bool es8388::write_reg(uint8_t reg_add, uint8_t data)
 
 bool es8388::read_reg(uint8_t reg_add, uint8_t &data)
 {
+    if (!ensure_bus()) return false;
     esp_err_t ret;
     ret = i2c_master_transmit_receive(es8388_dev, &reg_add, 1, &data, 1, 100);
     if(ret != ESP_OK)

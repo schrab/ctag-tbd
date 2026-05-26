@@ -25,6 +25,7 @@ respective component folders / files if different from this license.
 #include "esp_log.h"
 #include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
+#include "esp_mac.h"
 
 #define MAX(x, y) ((x)>(y)) ? (x) : (y)
 #define MIN(x, y) ((x)<(y)) ? (x) : (y)
@@ -42,6 +43,10 @@ aic3254 Codec::codec;
 
 void Codec::InitCodec() {
     ESP_LOGI("BBA Codec", "Starting i2s setup...");
+    // Warm up PHY coex before I2S init — esp_read_mac triggers lazy PHY calibration
+    // that must run outside the I2S DMA spinlock to avoid IWDG timeout
+    uint8_t mac[6];
+    esp_efuse_mac_get_default(mac);
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(i2s_port_t(0), I2S_ROLE_MASTER);
     chan_cfg.auto_clear = false;
     // TODO is 4 dma descriptors enough? -> any effect on latency, started with 4 but sometime there was noise

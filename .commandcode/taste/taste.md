@@ -30,3 +30,6 @@ See [workflow/taste.md](workflow/taste.md)
 # i2c
 - On ESP-IDF v5.x with BT enabled, use the modern I2C master driver (`driver/i2c_master.h`) instead of the legacy I2C driver — the legacy driver's ISR conflicts with BT controller interrupts causing I2C FSM hangs. Confidence: 0.65
 
+# git
+- When reverting component files to an older commit to test a regression, first verify the target commit's files are compatible with the current board hardware (e.g., GPIO pins, chip variant) — not all past commits target the same platform. Confidence: 0.70
+
