@@ -39,6 +39,7 @@ namespace CTAG {
         class UserInput {
         public:
             static void Init();
+            static void EnableISR();
             static bool GetEvent(InputEvent& ev, uint32_t timeoutMs = 10);
         };
     }

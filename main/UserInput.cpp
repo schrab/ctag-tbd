@@ -102,17 +102,21 @@ namespace CTAG {
             io_conf.mode = GPIO_MODE_INPUT;
             io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
             io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-            io_conf.intr_type = GPIO_INTR_ANYEDGE;
+            io_conf.intr_type = GPIO_INTR_DISABLE; // no ISR yet, installed after audio init
             gpio_config(&io_conf);
 
             // enable internal pull-up on GPIO0 (BOOT button has external pull but safe)
             gpio_set_pull_mode((gpio_num_t)BTN2_GPIO, GPIO_PULLUP_ONLY);
 
+            xTaskCreatePinnedToCore(inputTask, "input_task", 2048, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
+        }
+
+        void UserInput::EnableISR() {
+            // Install GPIO ISR service and handlers — must be done after audio init
+            // to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3
             gpio_install_isr_service(0);
             gpio_isr_handler_add((gpio_num_t)BTN1_GPIO, btnIsr, (void*)BTN1_GPIO);
             gpio_isr_handler_add((gpio_num_t)BTN2_GPIO, btnIsr, (void*)BTN2_GPIO);
-
-            xTaskCreatePinnedToCore(inputTask, "input_task", 2048, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
         }
 
         bool UserInput::GetEvent(InputEvent& ev, uint32_t timeoutMs) {

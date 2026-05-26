@@ -32,4 +32,9 @@ See [workflow/taste.md](workflow/taste.md)
 
 # git
 - When reverting component files to an older commit to test a regression, first verify the target commit's files are compatible with the current board hardware (e.g., GPIO pins, chip variant) — not all past commits target the same platform. Confidence: 0.70
+- Make regular git commits when debugging a crash so you can bisect and trace when the crash started — without commits, there is no history to revert to or bisect from. Confidence: 0.80
+# debugging
+- When a Kconfig option silently falls back to its default (e.g., INT_WDT_TIMEOUT_MS=15000 but max is 10000), check the generated `build/config/sdkconfig.h` to verify the actual value being used — don't assume the set value took effect. Confidence: 0.85
+- When debugging a complex crash, document each failed attempt and what was learned before moving to the next approach — prevents repeating the same failed experiments. Confidence: 0.75
+- To isolate a regression, test the known-good commit's code with current configs AND current code with the known-good commit's configs separately — this tells you whether the issue is in code changes or config changes. Confidence: 0.75
 

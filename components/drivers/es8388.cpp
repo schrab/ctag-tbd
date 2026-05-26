@@ -91,6 +91,7 @@ static bool ensure_bus() {
     bus_config.scl_io_num = (gpio_num_t)32;
     bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
     bus_config.glitch_ignore_cnt = 7;
+    bus_config.intr_priority = 1;
     bus_config.flags.enable_internal_pullup = 0;
     if (i2c_new_master_bus(&bus_config, &es8388_bus) != ESP_OK) return false;
 

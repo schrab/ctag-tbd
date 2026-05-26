@@ -47,6 +47,7 @@ void i2c_master_init(SSD1306_t * dev, int16_t sda, int16_t scl, int16_t reset)
         .scl_io_num = scl,
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = 7,
+        .intr_priority = 1,
         .flags.enable_internal_pullup = true,
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
