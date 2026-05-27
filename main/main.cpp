@@ -64,11 +64,6 @@ void app_main() {
     // init fs
     DRIVERS::FileSystem::InitFS();
 
-#ifndef CONFIG_TBD_PLATFORM_STR
-    DRIVERS::LedRGB::InitLedRGB();
-    DRIVERS::LedRGB::SetLedRGB(0, 0, 255);
-#endif
-
 #if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_BBA)
     DRIVERS::Display::Init();
     DRIVERS::Display::ShowFWVersion();

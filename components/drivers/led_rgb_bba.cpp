@@ -61,6 +61,7 @@ void LedRGB::GetLedRGB(int &r, int &g, int &b) {
 }
 
 void LedRGB::SetLedRGB(int r, int g, int b) {
+    if (!led_strip) return;
     r >>= 2;
     g >>= 3;
     b >>= 2;
