@@ -65,10 +65,9 @@ static int panelBarTimer;      // counts down from 50 (~1s) in ROOT
 
 ## Norns-Style Indicator Bar (`drawPanelBar()`)
 
-- Dashed horizontal line at y=0 (pixel every 3rd column)
-- Per-panel indicators centered in their zone:
-  - **active panel**: 4px wide solid bar (centered in 128/PANEL_COUNT px zone)
-  - **inactive panels**: single dot
+- 3px-tall rectangles at y=0, one per panel, centered in their zone
+  - **active panel**: filled 3×3 rectangle
+  - **inactive panels**: 3×3 rectangle with 1px border (unfilled)
 - Timer: decrements every 20ms tick from 50 to 0, then bar fades out
 - No text labels in the bar
 

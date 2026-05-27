@@ -64,22 +64,17 @@ namespace CTAG {
         void UIMenu::drawPanelBar() {
             if (panelBarTimer <= 0) return;
 
-            // Dashed horizontal line across top
-            for (int x = 0; x < 128; x += 3) {
-                Display::DrawPixel(x, 0, true);
-            }
-
-            // Segment indicators per panel
+            // Norns-style indicator bar at top: 3px tall rectangles
             int segWidth = 128 / PANEL_COUNT;
             for (int i = 0; i < PANEL_COUNT; i++) {
                 int cx = i * segWidth + segWidth / 2;
+                int rx = cx - 1; // 3px wide
                 if (i == currentPanel) {
-                    // Active: 4px bar
-                    for (int dx = -2; dx <= 2; dx++)
-                        Display::DrawPixel(cx + dx, 0, true);
+                    // Active: filled rectangle
+                    Display::DrawRect(rx, 0, 3, 3, true, true);
                 } else {
-                    // Inactive: single dot
-                    Display::DrawPixel(cx, 0, true);
+                    // Inactive: 1px border rectangle
+                    Display::DrawRect(rx, 0, 3, 3, false, true);
                 }
             }
 
