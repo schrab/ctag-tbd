@@ -68,23 +68,25 @@ namespace CTAG {
                 if (cursor < 0) cursor = 0;
                 if (cursor > 5) cursor = 5;
             } else if (subPage == SP_SELECT) {
-                // browse plugin list
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
                 if (newCursor >= pluginCount) newCursor = pluginCount - 1;
-                int oldScroll = scrollOffset;
                 cursor = newCursor;
                 if (cursor - scrollOffset < 0) scrollOffset = cursor;
                 if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
                 if (scrollOffset > pluginCount - 6) scrollOffset = pluginCount - 6;
                 if (scrollOffset < 0) scrollOffset = 0;
+            } else if (subPage == SP_SELECT_CH) {
+                cursor += delta;
+                if (cursor < 0) cursor = 0;
+                if (cursor > 2) cursor = 2;
             }
             doRedraw();
         }
 
         void UIMenuPageHome::onButton(int btnId, bool longPress) {
             if (subPage == SP_MAIN) {
-                if (btnId == 2 && longPress) {
+                if (btnId == 2 && !longPress) {
                     // enter subpage
                     if (cursor == 0) { // SELECT
                         subPage = SP_SELECT;
@@ -92,19 +94,38 @@ namespace CTAG {
                         scrollOffset = 0;
                         parsePlugins();
                     }
-                    // SLEEP, SYSTEM etc — future
-                } else if (btnId == 2 && !longPress) {
-                    // back — handled by UIMenu as panel switch
                 }
             } else if (subPage == SP_SELECT) {
                 if (btnId == 2 && !longPress) {
-                    // back to main menu
-                    subPage = SP_MAIN;
-                    cursor = 0;
-                } else if (btnId == 2 && longPress && pluginCount > 0 && cursor < pluginCount) {
-                    // load plugin on channel 0
-                    const PluginEntry &e = plugins[cursor];
-                    SoundProcessorManager::SetSoundProcessorChannel(0, e.id);
+                    // select plugin
+                    if (pluginCount > 0 && cursor < pluginCount) {
+                        const PluginEntry &e = plugins[cursor];
+                        if (e.isStereo) {
+                            // stereo: load to ch0 directly
+                            SoundProcessorManager::SetSoundProcessorChannel(0, e.id);
+                            subPage = SP_MAIN;
+                            cursor = 0;
+                        } else {
+                            // mono: show channel picker
+                            selectedPlugin = cursor;
+                            subPage = SP_SELECT_CH;
+                            cursor = 0;
+                        }
+                    }
+                } else if (btnId == 2 && longPress) {
+                    // future: long press action on plugin
+                }
+            } else if (subPage == SP_SELECT_CH) {
+                if (btnId == 2 && !longPress) {
+                    const PluginEntry &e = plugins[selectedPlugin];
+                    if (cursor == 0) {
+                        SoundProcessorManager::SetSoundProcessorChannel(0, e.id);
+                    } else if (cursor == 1) {
+                        SoundProcessorManager::SetSoundProcessorChannel(1, e.id);
+                    } else {
+                        SoundProcessorManager::SetSoundProcessorChannel(0, e.id);
+                        SoundProcessorManager::SetSoundProcessorChannel(1, e.id);
+                    }
                     subPage = SP_MAIN;
                     cursor = 0;
                 }
@@ -112,11 +133,31 @@ namespace CTAG {
             doRedraw();
         }
 
+        bool UIMenuPageHome::onBack() {
+            if (subPage == SP_SELECT_CH) {
+                subPage = SP_SELECT;
+                cursor = selectedPlugin;
+                scrollOffset = 0;
+                if (cursor > 5) scrollOffset = cursor - 5;
+                doRedraw();
+                return true;
+            }
+            if (subPage == SP_SELECT) {
+                subPage = SP_MAIN;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
+            return false;
+        }
+
         void UIMenuPageHome::doRedraw() {
             if (subPage == SP_MAIN) {
                 redrawMain();
             } else if (subPage == SP_SELECT) {
                 redrawSelect();
+            } else if (subPage == SP_SELECT_CH) {
+                redrawSelectCh();
             }
         }
 
@@ -143,13 +184,26 @@ namespace CTAG {
                 const PluginEntry &e = plugins[idx];
                 int y = 10 + i * 9;
                 Display::DrawString(0, y, e.name, Display::FONT_5X7);
-                if (e.isStereo)
-                    Display::DrawString(110, y, "S", Display::FONT_5X7);
+                // type indicator right-aligned
+                Display::DrawString(120, y, e.isStereo ? "S" : "M", Display::FONT_5X7);
             }
             int cy = 10 + (cursor - scrollOffset) * 9;
             Display::InvertRect(0, cy, 128, 8);
             if (pluginCount > 6)
                 Display::DrawScrollbar(126, 10, 54, pluginCount, cursor);
+            Display::Flush();
+        }
+
+        void UIMenuPageHome::redrawSelectCh() {
+            Display::Clear();
+            const PluginEntry &e = plugins[selectedPlugin];
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%s >", e.name);
+            Display::DrawString(0, 2, buf, Display::FONT_5X7);
+            const char *opts[] = {"Ch 0", "Ch 1", "Both"};
+            for (int i = 0; i < 3; i++)
+                Display::DrawString(0, 20 + i * 10, opts[i], Display::FONT_5X7);
+            Display::InvertRect(0, 20 + cursor * 10, 128, 8);
             Display::Flush();
         }
     }

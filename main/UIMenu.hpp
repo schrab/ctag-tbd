@@ -40,19 +40,19 @@ namespace CTAG {
                 , PANEL_BT = 4
 #endif
             };
+            enum NavState : uint8_t { ROOT, PANEL_IN };
+
 #if CONFIG_BT_ENABLED
             static constexpr int PANEL_COUNT = 5;
-            static constexpr const char *panelNames[5] = {"MIX", "TAPE", "HOME", "PARAMS", "BT"};
             static UIMenuPage *pages[5];
 #else
             static constexpr int PANEL_COUNT = 4;
-            static constexpr const char *panelNames[4] = {"MIX", "TAPE", "HOME", "PARAMS"};
             static UIMenuPage *pages[4];
 #endif
 
             static Panel currentPanel;
-            static bool inMenu;
-            static bool alt;
+            static NavState navState;
+            static bool redrawNeeded;
             static int panelBarTimer;
 
             static void drawPanelBar();

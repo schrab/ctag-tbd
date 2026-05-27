@@ -76,21 +76,12 @@ void Display::ShowFavorite(const int &id, const std::string &name) {
 }
 
 void Display::ShowFWVersion() {
-    ssd1306_clear_screen(&I2CDisplay, false);
-    std::string s {"TBD fw:"};
-    s.append(16-s.length(), ' ');
-    ssd1306_display_text(&I2CDisplay, 0, s.c_str(), s.length(), false);
-    s = std::string(TBD_FW_VERSION);
-    if(s.length()>16)s = s.substr(0, 16);
-    s.append(16-s.length(), ' ');
-    ssd1306_display_text(&I2CDisplay, 1, s.c_str(), s.length(), false);
-    s = std::string("TBD hw:");
-    s.append(16-s.length(), ' ');
-    ssd1306_display_text(&I2CDisplay, 2, s.c_str(), s.length(), false);
-    s = std::string(TBD_HW_VERSION);
-    if(s.length()>16)s = s.substr(0, 16);
-    s.append(16-s.length(), ' ');
-    ssd1306_display_text(&I2CDisplay, 3, s.c_str(), s.length(), false);
+    Clear();
+    DrawString(0, 10, "TBD fw:", FONT_5X7);
+    DrawString(0, 20, TBD_FW_VERSION.c_str(), FONT_5X7);
+    DrawString(0, 34, "TBD hw:", FONT_5X7);
+    DrawString(0, 44, TBD_HW_VERSION.c_str(), FONT_5X7);
+    Flush();
 }
 
 void Display::ShowUserString(std::string const &s) {

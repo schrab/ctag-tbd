@@ -85,7 +85,7 @@ namespace CTAG {
 
         void UIMenuPageTape::onButton(int btnId, bool longPress) {
             if (subPage == SP_MAIN) {
-                if (btnId == 2 && longPress) {
+                if (btnId == 2 && !longPress) {
                     if (cursor == 0) {
                         // Playback: browse files
                         scanFiles();
@@ -100,14 +100,9 @@ namespace CTAG {
                         // Stop
                         SDAudio::Stop();
                     }
-                } else if (btnId == 2 && !longPress) {
-                    // back handled by UIMenu
                 }
             } else if (subPage == SP_FILELIST) {
-                if (btnId == 2 && !longPress) {
-                    subPage = SP_MAIN;
-                    cursor = 0;
-                } else if (btnId == 2 && longPress && fileCount > 0 && cursor < fileCount) {
+                if (btnId == 2 && !longPress && fileCount > 0 && cursor < fileCount) {
                     char path[64];
                     snprintf(path, sizeof(path), "/sd/%s", fileNames[cursor]);
                     SDAudio::StartPlayback(path);
@@ -116,10 +111,6 @@ namespace CTAG {
                 }
             } else if (subPage == SP_RECORD) {
                 if (btnId == 2 && !longPress) {
-                    subPage = SP_MAIN;
-                    cursor = 0;
-                } else if (btnId == 2 && longPress) {
-                    char path[64];
                     if (cursor == 0) {
                         SDAudio::StartRecording("/sd/record.wav");
                     } else {
@@ -130,6 +121,22 @@ namespace CTAG {
                 }
             }
             doRedraw();
+        }
+
+        bool UIMenuPageTape::onBack() {
+            if (subPage == SP_RECORD) {
+                subPage = SP_MAIN;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
+            if (subPage == SP_FILELIST) {
+                subPage = SP_MAIN;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
+            return false;
         }
 
         void UIMenuPageTape::doRedraw() {

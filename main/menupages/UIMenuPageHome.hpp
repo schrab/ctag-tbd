@@ -32,6 +32,7 @@ namespace CTAG {
             void doRedraw() override;
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
+            bool onBack() override;
 
         private:
             // plugin browser items
@@ -50,11 +51,13 @@ namespace CTAG {
             static const int MAX_PLUGINS = 64;
             PluginEntry plugins[MAX_PLUGINS];
 
-            int selChan; // 0 or 1 when choosing which channel
+            int selChan;
+            int selectedPlugin; // index of plugin being channel-assigned
 
             void parsePlugins();
             void redrawMain();
             void redrawSelect();
+            void redrawSelectCh();
         };
     }
 }

@@ -32,6 +32,7 @@ namespace CTAG {
             void doRedraw() override;
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
+            bool onBack() override;
 
         private:
             struct ParamInfo {
@@ -43,7 +44,7 @@ namespace CTAG {
                 int current;
             };
 
-            enum Mode { MODE_SELECT, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_MAPEDIT };
+            enum Mode { MODE_SELECT, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_VALUEEDIT, MODE_MAPEDIT };
             int cursor;
             int scrollOffset;
             Mode mode;

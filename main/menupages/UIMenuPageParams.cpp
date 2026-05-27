@@ -79,14 +79,6 @@ namespace CTAG {
                 if (cursor > 2) cursor = 2;
             } else if (mode == MODE_EDIT) {
                 if (paramCount == 0) return;
-                // are we scrolling or editing?
-                // cursor <= paramCount-1 = scrolling, cursor == paramCount = editing value of last
-                // Simple: if alt is active, adjust value; otherwise scroll
-                // We get no alt flag here directly — but delta direction tells us what's intended
-                // Architecture: use onEncoder for both scroll and value adjust
-                // The context determines which: in edit mode, ENC scrolls cursor,
-                // BTN2 long enters value adjust sub-mode
-                // For now: cursor up/down only, value editing via long press
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
                 if (newCursor >= paramCount) newCursor = paramCount - 1;
@@ -98,36 +90,61 @@ namespace CTAG {
                 if (scr >= 6) scrollOffset += (scr - 5);
                 if (scrollOffset > paramCount - 6) scrollOffset = paramCount - 6;
                 if (scrollOffset < 0) scrollOffset = 0;
+            } else if (mode == MODE_VALUEEDIT) {
+                if (paramCount == 0 || cursor >= paramCount) return;
+                ParamInfo &pi = params[cursor];
+                int val = pi.current + delta;
+                if (val < pi.min) val = pi.min;
+                if (val > pi.max) val = pi.max;
+                pi.current = val;
+                SoundProcessorManager::SetChannelParamValue(0, pi.id, "current", val);
             }
             doRedraw();
         }
 
         void UIMenuPageParams::onButton(int btnId, bool longPress) {
             if (mode == MODE_SELECT) {
-                if (btnId == 2 && longPress) {
+                if (btnId == 2 && !longPress) {
                     // enter sub-mode
                     if (cursor == 0) { mode = MODE_EDIT; cursor = 0; scrollOffset = 0; }
                     else if (cursor == 1) { mode = MODE_MAP; }
                     else if (cursor == 2) { mode = MODE_PSET; }
-                } else if (btnId == 2 && !longPress) {
-                    // short = go back to panel level — UIMenu handles this as panel switch
                 }
             } else if (mode == MODE_EDIT) {
-                if (btnId == 2 && !longPress) {
-                    // back to SELECT
-                    mode = MODE_SELECT;
-                    cursor = 0;
+                if (btnId == 2 && !longPress && paramCount > 0) {
+                    // enter value edit for selected param
+                    mode = MODE_VALUEEDIT;
                 } else if (btnId == 2 && longPress && paramCount > 0) {
-                    // edit the selected param value
-                    ParamInfo &pi = params[cursor];
-                    // long press on a param: increment by 1
-                    int val = pi.current + 1;
-                    if (val > pi.max) val = pi.min;
-                    pi.current = val;
-                    SoundProcessorManager::SetChannelParamValue(0, pi.id, "current", val);
+                    // future: long press on param — mapping options
                 }
+            } else if (mode == MODE_VALUEEDIT) {
+                if (btnId == 2 && !longPress) {
+                    mode = MODE_EDIT;
+                }
+                // BTN2_LONG / BTN1 handled by UIMenu/TaskFunction
             }
             doRedraw();
+        }
+
+        bool UIMenuPageParams::onBack() {
+            if (mode == MODE_VALUEEDIT) {
+                mode = MODE_EDIT;
+                doRedraw();
+                return true;
+            }
+            if (mode == MODE_EDIT) {
+                mode = MODE_SELECT;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
+            if (mode == MODE_MAP || mode == MODE_PSET) {
+                mode = MODE_SELECT;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
+            return false;
         }
 
         void UIMenuPageParams::doRedraw() {
@@ -135,6 +152,8 @@ namespace CTAG {
                 redrawSelect();
             } else if (mode == MODE_EDIT) {
                 redrawEdit();
+            } else if (mode == MODE_VALUEEDIT) {
+                redrawEdit(); // same layout, cursor highlight acts as indicator
             } else {
                 // MAP / PSET — simple placeholder
                 Display::Clear();

@@ -32,6 +32,7 @@ namespace CTAG {
             void doRedraw() override;
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
+            bool onBack() override;
 
         private:
             enum SubPage { SP_MAIN, SP_FILELIST, SP_RECORD };

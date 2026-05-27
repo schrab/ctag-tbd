@@ -61,37 +61,38 @@ namespace CTAG {
             if (subPage == SP_MAIN) {
                 if (btnId == 2 && longPress) {
                     if (cursor == 0) {
-                        // Scan for devices
                         BtMidiReceiver::StartScan();
                         subPage = SP_SCAN;
                         cursor = 0;
                         scrollOffset = 0;
                     } else if (cursor == 1 && BtMidiReceiver::IsConnected()) {
                         BtMidiReceiver::Disconnect();
-                    } else if (cursor == 2) {
-                        // already scanning or no action
                     }
                 } else if (btnId == 2 && !longPress) {
-                    // back handled by UIMenu
+                    // handled by UIMenu as panel enter
                 }
             } else if (subPage == SP_SCAN) {
-                if (btnId == 2 && !longPress && BtMidiReceiver::IsScanning()) {
-                    BtMidiReceiver::StopScan();
-                    subPage = SP_MAIN;
-                    cursor = 0;
-                } else if (btnId == 2 && !longPress && !BtMidiReceiver::IsScanning()) {
-                    subPage = SP_MAIN;
-                    cursor = 0;
-                } else if (btnId == 2 && longPress) {
+                if (btnId == 2 && !longPress && !BtMidiReceiver::IsScanning()) {
                     int n = BtMidiReceiver::GetDeviceCount();
-                    if (cursor < n) {
+                    if (n > 0 && cursor < n) {
                         BtMidiReceiver::Connect(cursor);
-                        subPage = SP_MAIN;
-                        cursor = 0;
                     }
+                    subPage = SP_MAIN;
+                    cursor = 0;
                 }
             }
             doRedraw();
+        }
+
+        bool UIMenuPageBtMidi::onBack() {
+            if (subPage == SP_SCAN) {
+                if (BtMidiReceiver::IsScanning()) BtMidiReceiver::StopScan();
+                subPage = SP_MAIN;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
+            return false;
         }
 
         void UIMenuPageBtMidi::doRedraw() {
