@@ -186,29 +186,35 @@ namespace CTAG {
         }
 
         void UIMenuPageSystem::applyCurrent() {
-            // Build JSON with all config values from the parsed items
-            StringBuffer buf;
-            Writer<StringBuffer> writer(buf);
-            writer.StartObject();
+            // Read the full existing config, overlay only our managed keys
+            const char *fullJson = SoundProcessorManager::GetCStrJSONConfiguration();
+            if (!fullJson) return;
+            Document doc;
+            doc.Parse(fullJson);
+            if (!doc.IsObject()) return;
+
             for (int i = 0; i < itemCount; i++) {
                 const ConfigItem &it = items[i];
-                writer.Key(it.id);
+                Value key(it.id, doc.GetAllocator());
+                char valStr[16];
                 if (strcmp(it.type, "int") == 0) {
-                    char valStr[16];
                     snprintf(valStr, sizeof(valStr), "%d", it.valInt);
-                    writer.String(valStr);
+                    Value v(valStr, doc.GetAllocator());
+                    doc[it.id].Swap(v);
                 } else {
-                    // enum/bool: pick value from options based on valInt
                     char optCopy[64];
                     snprintf(optCopy, sizeof(optCopy), "%s", it.options);
-                    char *tok = optCopy;
+                    char *p = strtok(optCopy, ",");
                     int idx = it.valInt;
-                    char *p = strtok(tok, ",");
                     while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
-                    writer.String(p ? p : "off");
+                    Value v(p ? p : "off", doc.GetAllocator());
+                    doc[it.id].Swap(v);
                 }
             }
-            writer.EndObject();
+
+            StringBuffer buf;
+            Writer<StringBuffer> writer(buf);
+            doc.Accept(writer);
             SoundProcessorManager::SetConfigurationFromJSON(buf.GetString());
         }
 
@@ -283,7 +289,7 @@ namespace CTAG {
             int cy = 5 + (cursor - scrollOffset) * 9;
             if (editMode) {
                 // highlight only value area when editing
-                Display::InvertRect(70, cy, 58, 8);
+                Display::InvertRect(104, cy, 24, 8);
             } else {
                 Display::InvertRect(0, cy, 128, 8);
             }
