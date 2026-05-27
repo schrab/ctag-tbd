@@ -165,8 +165,8 @@ namespace CTAG {
             Display::Clear();
             const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP", ""};
             for (int i = 0; i < 6; i++)
-                Display::DrawString(0, 3 + i * 9, items[i], Display::FONT_5X7);
-            Display::InvertRect(0, 3 + cursor * 9, 128, 8);
+                Display::DrawString(0, 5 + i * 9, items[i], Display::FONT_5X7);
+            Display::InvertRect(0, 5 + cursor * 9, 128, 8);
             Display::Flush();
         }
 
@@ -182,15 +182,15 @@ namespace CTAG {
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const PluginEntry &e = plugins[idx];
-                int y = 3 + i * 9;
+                int y = 5 + i * 9;
                 Display::DrawString(0, y, e.name, Display::FONT_5X7);
                 // type indicator right-aligned
                 Display::DrawString(120, y, e.isStereo ? "S" : "M", Display::FONT_5X7);
             }
-            int cy = 3 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 9;
             Display::InvertRect(0, cy, 128, 8);
             if (pluginCount > 6)
-                Display::DrawScrollbar(126, 3, 54, pluginCount, cursor);
+                Display::DrawScrollbar(126, 5, 54, pluginCount, cursor);
             Display::Flush();
         }
 
@@ -199,7 +199,7 @@ namespace CTAG {
             const PluginEntry &e = plugins[selectedPlugin];
             char buf[64];
             snprintf(buf, sizeof(buf), "%s >", e.name);
-            Display::DrawString(0, 2, buf, Display::FONT_5X7);
+            Display::DrawString(0, 5, buf, Display::FONT_5X7);
             const char *opts[] = {"Ch 0", "Ch 1", "Both"};
             for (int i = 0; i < 3; i++)
                 Display::DrawString(0, 20 + i * 10, opts[i], Display::FONT_5X7);

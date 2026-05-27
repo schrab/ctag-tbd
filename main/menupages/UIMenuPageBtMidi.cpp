@@ -103,7 +103,7 @@ namespace CTAG {
         void UIMenuPageBtMidi::redrawMain() {
             Display::Clear();
             char buf[32];
-            int y = 3;
+            int y = 5;
 
             snprintf(buf, sizeof(buf), "SCAN%s",
                      BtMidiReceiver::IsScanning() ? " (running)" : "");
@@ -119,7 +119,7 @@ namespace CTAG {
                      BtMidiReceiver::IsConnected() ? "CONNECTED" : "IDLE");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
 
-            Display::InvertRect(0, 3 + cursor * 9, 128, 8);
+            Display::InvertRect(0, 5 + cursor * 9, 128, 8);
             Display::Flush();
         }
 
@@ -128,9 +128,9 @@ namespace CTAG {
             int n = BtMidiReceiver::GetDeviceCount();
 
             if (BtMidiReceiver::IsScanning()) {
-                Display::DrawString(0, 3, "Scanning...", Display::FONT_5X7);
+                Display::DrawString(0, 5, "Scanning...", Display::FONT_5X7);
             } else {
-                Display::DrawString(0, 3, "Scan complete", Display::FONT_5X7);
+                Display::DrawString(0, 5, "Scan complete", Display::FONT_5X7);
             }
 
             if (n == 0) {
@@ -142,13 +142,13 @@ namespace CTAG {
                     int idx = scrollOffset + i;
                     const BtDeviceInfo *d = BtMidiReceiver::GetDevice(idx);
                     if (!d) continue;
-                    int y = 3 + i * 9;
+                    int y = 5 + i * 9;
                     Display::DrawString(0, y, d->name[0] ? d->name : "(unnamed)", Display::FONT_5X7);
                 }
-                int cy = 3 + (cursor - scrollOffset) * 9;
+                int cy = 5 + (cursor - scrollOffset) * 9;
                 Display::InvertRect(0, cy, 128, 8);
                 if (n > 6)
-                    Display::DrawScrollbar(126, 3, 54, n, cursor);
+                    Display::DrawScrollbar(126, 5, 54, n, cursor);
             }
 
             Display::Flush();

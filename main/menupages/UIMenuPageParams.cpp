@@ -164,10 +164,10 @@ namespace CTAG {
 
         void UIMenuPageParams::redrawSelect() {
             Display::Clear();
-            Display::DrawString(0, 3, "EDIT", Display::FONT_5X7);
-            Display::DrawString(0, 12, "MAP", Display::FONT_5X7);
-            Display::DrawString(0, 21, "PSET", Display::FONT_5X7);
-            Display::InvertRect(0, 3 + cursor * 9, 128, 8);
+            Display::DrawString(0, 5, "EDIT", Display::FONT_5X7);
+            Display::DrawString(0, 14, "MAP", Display::FONT_5X7);
+            Display::DrawString(0, 23, "PSET", Display::FONT_5X7);
+            Display::InvertRect(0, 5 + cursor * 9, 128, 8);
             Display::Flush();
         }
 
@@ -185,7 +185,7 @@ namespace CTAG {
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const ParamInfo &pi = params[idx];
-                int y = 3 + i * 9;
+                int y = 5 + i * 9;
                 // name left
                 Display::DrawString(0, y, pi.name, Display::FONT_5X7);
                 // value right
@@ -200,11 +200,11 @@ namespace CTAG {
                 Display::DrawStringRight(127, y, valBuf, Display::FONT_5X7);
             }
             // highlight cursor row — full width
-            int cursorY = 3 + paramIndexToScreen(cursor) * 9;
+            int cursorY = 5 + paramIndexToScreen(cursor) * 9;
             Display::InvertRect(0, cursorY, 128, 8);
             // scrollbar
             if (paramCount > 6)
-                Display::DrawScrollbar(126, 3, 54, paramCount, cursor);
+                Display::DrawScrollbar(126, 5, 54, paramCount, cursor);
             Display::Flush();
         }
     }

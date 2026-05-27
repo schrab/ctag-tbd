@@ -147,7 +147,7 @@ namespace CTAG {
 
         void UIMenuPageTape::redrawMain() {
             Display::Clear();
-            int y = 3;
+            int y = 5;
             if (SDAudio::IsPlaying()) {
                 Display::DrawString(0, y, "PLAYING", Display::FONT_5X7);
                 if (SDAudio::GetTotalFrames() > 0) {
@@ -174,7 +174,7 @@ namespace CTAG {
                 Display::DrawString(0, y, "STOP", Display::FONT_5X7);
                 y += 9;
             }
-            int highlightY = 3 + cursor * 9;
+            int highlightY = 5 + cursor * 9;
             Display::InvertRect(0, highlightY, 128, 8);
             Display::Flush();
         }
@@ -195,19 +195,19 @@ namespace CTAG {
             if (visible > 6) visible = 6;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
-                Display::DrawString(0, 3 + i * 9, fileNames[idx], Display::FONT_5X7);
+                Display::DrawString(0, 5 + i * 9, fileNames[idx], Display::FONT_5X7);
             }
-            int cy = 3 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 9;
             Display::InvertRect(0, cy, 128, 8);
-            if (fileCount > 6) Display::DrawScrollbar(126, 3, 54, fileCount, cursor);
+            if (fileCount > 6) Display::DrawScrollbar(126, 5, 54, fileCount, cursor);
             Display::Flush();
         }
 
         void UIMenuPageTape::redrawRecord() {
             Display::Clear();
-            Display::DrawString(0, 3, "START REC", Display::FONT_5X7);
-            Display::DrawString(0, 12, "CANCEL", Display::FONT_5X7);
-            Display::InvertRect(0, 3 + cursor * 9, 128, 8);
+            Display::DrawString(0, 5, "START REC", Display::FONT_5X7);
+            Display::DrawString(0, 14, "CANCEL", Display::FONT_5X7);
+            Display::InvertRect(0, 5 + cursor * 9, 128, 8);
             Display::Flush();
         }
     }
