@@ -4,6 +4,9 @@
 
 # workflow
 See [workflow/taste.md](workflow/taste.md)
+
+# flash
+- When flashing an ESP32 with `idf.py flash` or `esptool.py`, let the flash command run to completion without terminating it via timeouts, fuser -k, or premature cancellation — the flash process must finish on its own. Do NOT set any explicit timeout parameter whatsoever on shell_command for flash operations; just run the command and let it finish naturally. Confidence: 0.98
 # sd-card
 - For Ai-Thinker ESP32-A1S SD card support, mount SD as FAT/VFAT filesystem using `esp_vfs_fat_sdmmc_mount()`, not LittleFS — users expect standard FAT32-formatted cards. Confidence: 0.75
 - Set `gpio_cd = GPIO_NUM_NC` (skip card detect) in the SDMMC slot config to avoid hangs; the card detect pin (GPIO34) polling can hang `esp_vfs_fat_sdmmc_mount()`. Confidence: 0.70
@@ -37,18 +40,32 @@ See [workflow/taste.md](workflow/taste.md)
 - When migrating from legacy I2C driver, the legacy `i2c_driver_install()` used `ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_LOWMED`. The modern `i2c_master.h` API's `i2c_master_bus_config_t.intr_priority` defaults to 0 (driver selects 1-3), which can be higher than LOWMED. Set `intr_priority = 1` to maintain low interrupt priority and avoid preempting spinlocks. Confidence: 0.75
 
 # display
-- Use FONT_5X7 consistently throughout the OLED UI menu — do not use 8x8 font except where explicitly required for a specific visual element. Confidence: 0.70
-- After the boot splash screen (ShowFWVersion), auto-show the menu by setting `inMenu = true` and calling `pages[currentPanel]->doRedraw()` in `UIMenu::Init()` — otherwise the OLED shows nothing until a button is pressed. Confidence: 0.70
+See [display/taste.md](display/taste.md)
+# navigation
+- Use Norns-style hierarchy navigation (ROOT/PANEL_IN) with encoder switching panels at root level, OK to enter a panel, BACK to go up one level — instead of the old toggle-inMenu model. Confidence: 0.75
+- Use BTN2_SHORT as the primary OK/enter action (not LONG), with LONG reserved for special/alternative actions. Confidence: 0.70
+- The `UIMenu::TaskFunction` needs 8192 bytes of task stack minimum — the deep call chains from redraw → DrawString → DrawPixel → MarkDirty plus rapidjson Document parsing in parsePlugins() overflow smaller stacks. Confidence: 0.80
+- In boot sequence, call `AUDIO::SoundProcessorManager::StartSoundProcessor()` BEFORE `UIMenu::Init()` and `xTaskCreatePinnedToCore(ui_menu)` — the UIMenu task accesses SPManager queues (parsePlugins via onButton), and creating the task before audio init completes causes `xQueueSemaphoreTake` assertions. Confidence: 0.80
+- Add an `onBack()` virtual method to UIMenuPage base class returning true if the page handled back (went to previous sub-page) or false if at top level (UIMenu returns to ROOT). Each page owns its own sub-page stack. Confidence: 0.75
+
+# plugin
+- For mono plugins, show a channel selection submenu (Ch0/Ch1/Both) after pressing OK — stereo plugins load directly to channel 0. Confidence: 0.70
+
+# debugging
+- Before guessing or theorizing about display/behavior issues, first check any photo evidence the user provided (referenced as `@log/photo_...`) — examine the actual visual output before reasoning about what might be wrong. Do not theorize or make code changes without first looking at available photo evidence. This is a hard rule: if a photo is referenced in recent context, read it before making any statements or changes about display appearance. The user will yell if you skip this. Confidence: 0.90
 
 # git
 - When reverting component files to an older commit to test a regression, first verify the target commit's files are compatible with the current board hardware (e.g., GPIO pins, chip variant) — not all past commits target the same platform. Confidence: 0.70
-- Make regular git commits when debugging a crash so you can bisect and trace when the crash started — without commits, there is no history to revert to or bisect from. Confidence: 0.80
+- Make regular git commits when debugging a crash so you can bisect and trace when the crash started — without commits, there is no history to revert to or bisect from. Confidence: 0.82
+- When iterating on display coordinate/rendering fixes (page and bit formulas for SSD1306), commit each attempted formula combination to git so the visual state at each commit is reproducible and recoverable — do not make multiple untracked edits flipping between formulas without committing. The user needs to see and compare visual output for each distinct formula combination, and without commits there is no way to revert to a previous visual state or track what produced it. Confidence: 0.88
 # debugging
 - After a successful `idf.py build flash`, subsequent boot tests only need a hardware reset (DTR/RTS toggle) — do not re-flash just to check the boot log, as flashing is slow and unnecessary. Confidence: 0.75
+- After applying a fix and flashing, use `idf.py monitor` to capture the boot log and verify the fix works before reporting to the user — don't assume the fix succeeded or ask the user to check the log. Confidence: 0.65
 - When a Kconfig option silently falls back to its default (e.g., INT_WDT_TIMEOUT_MS=15000 but max is 10000), check the generated `build/config/sdkconfig.h` to verify the actual value being used — don't assume the set value took effect. Confidence: 0.85
 - When debugging a complex crash, document each failed attempt and what was learned before moving to the next approach — prevents repeating the same failed experiments. Confidence: 0.75
 - To isolate a regression, test the known-good commit's code with current configs AND current code with the known-good commit's configs separately — this tells you whether the issue is in code changes or config changes. Confidence: 0.75
 
 # gpio
 - On ESP32 Rev3 with PSRAM, GPIO button ISRs (using `xQueueGenericSendFromISR`) must NOT be installed before I2S codec init — pin noise during the I2S MCLK spinlock (`clkout_mapping_alloc` → `i2s_check_set_mclk`) triggers the ISR, which tries to acquire the same spinlock, causing Interrupt WDT timeout. Fix: defer `gpio_install_isr_service()` + `gpio_isr_handler_add()` to after `Codec::InitCodec()` completes. Confidence: 0.85
+- GPIO5 (BBA) is used by both the encoder PCNT unit 0 (signal B) AND `Favorites.cpp` as button input (`PIN_PUSH_BTN`). This conflict means encoder rotation triggers the old Favorites UI state machine. When running the new UIMenu system, `Favorites::StartUI()` must be commented out/disbled in `SPManager::StartSoundProcessor()` to prevent the old task from writing to the display and misreading the encoder signal. The Favorites data model (StoreFavorite, ActivateFavorite via REST/MIDI API) still works without the UI task. Confidence: 0.85
 

@@ -196,8 +196,7 @@ void Display::Flush() {
 
 void Display::DrawPixel(int x, int y, bool on) {
     if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
-    // 0xC8 COM scan: page and bit both inverted
-    int page = 7 - (y >> 3);
+    int page = y >> 3;
     int bit = 7 - (y & 7);
     int idx = page * 128 + x;
     if (on)

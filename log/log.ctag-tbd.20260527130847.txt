@@ -1,0 +1,2066 @@
+[0;32mI (29) boot: ESP-IDF v5.5.4-dirty 2nd stage bootloader[0m
+[0;32mI (29) boot: compile time May 26 2026 20:28:32[0m
+[0;32mI (29) boot: Multicore bootloader[0m
+[0;32mI (31) boot: chip revision: v3.1[0m
+[0;32mI (34) qio_mode: Enabling QIO for flash chip WinBond[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 80MHz[0m
+[0;32mI (42) boot.esp32: SPI Mode       : QIO[0m
+[0;32mI (46) boot.esp32: SPI Flash Size : 16MB[0m
+[0;32mI (50) boot: Enabling RNG early entropy source...[0m
+[0;32mI (54) boot: Partition Table:[0m
+[0;32mI (57) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (63) boot:  0 nvs              WiFi data        01 02 00009000 00004000[0m
+[0;32mI (69) boot:  1 otadata          OTA data         01 00 0000d000 00002000[0m
+[0;32mI (76) boot:  2 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (82) boot:  3 ota_0            OTA app          00 10 00010000 00300000[0m
+[0;32mI (89) boot:  4 ota_1            OTA app          00 11 00310000 00300000[0m
+[0;32mI (96) boot:  5 storage          Unknown data     01 82 00610000 00300000[0m
+[0;32mI (102) boot: End of partition table[0m
+[0;32mI (106) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=84b48h (543560) map[0m
+[0;32mI (252) esp_image: segment 1: paddr=00094b70 vaddr=3ffb0000 size=05a48h ( 23112) load[0m
+[0;32mI (259) esp_image: segment 2: paddr=0009a5c0 vaddr=40080000 size=05a58h ( 23128) load[0m
+[0;32mI (266) esp_image: segment 3: paddr=000a0020 vaddr=400d0020 size=21a800h (2205696) map[0m
+[0;32mI (829) esp_image: segment 4: paddr=002ba828 vaddr=40085a58 size=16628h ( 91688) load[0m
+[0;32mI (857) esp_image: segment 5: paddr=002d0e58 vaddr=50000800 size=00020h (    32) load[0m
+[0;32mI (871) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (871) boot: Disabling RNG early entropy source...[0m
+[0;32mI (881) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (882) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (882) esp_psram: Speed: 80MHz[0m
+[0;32mI (882) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (889) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (897) cpu_start: Multicore app[0m
+D (900) cpu_start: Pro cpu up
+D (903) cpu_start: Starting app cpu, entry point is 0x4008167c
+--- 0x4008167c: call_start_cpu1 at /home/ubuntu/esp-idf/components/esp_system/port/cpu_start.c:219D (0) cpu_start: App cpu up
+[0;32mI (1375) esp_psram: SPI SRAM memory test OK[0m
+D (1382) clk: RTC_SLOW_CLK calibration value: 3206810
+[0;32mI (1387) cpu_start: GPIO 3 and 1 are used as console UART I/O pins[0m
+D (1388) cpu_start: calling init function: 0x400d3a7c on core: 0
+--- 0x400d3a7c: __esp_system_init_fn_init_efuse_check at /home/ubuntu/esp-idf/components/efuse/src/esp_efuse_startup.c:37D (1390) cpu_start: calling init function: 0x400d3f6c on core: 0
+--- 0x400d3f6c: __esp_system_init_fn_init_show_cpu_freq at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:64[0;32mI (1396) cpu_start: Pro cpu start user code[0m
+[0;32mI (1399) cpu_start: cpu freq: 240000000 Hz[0m
+D (1403) cpu_start: calling init function: 0x400d39b8 on core: 0
+--- 0x400d39b8: __esp_system_init_fn_init_show_app_info at /home/ubuntu/esp-idf/components/esp_app_format/esp_app_desc.c:123[0;32mI (1409) app_init: Application information:[0m
+[0;32mI (1413) app_init: Project name:     ctag-tbd[0m
+[0;32mI (1417) app_init: App version:      489c48d-dirty[0m
+[0;32mI (1421) app_init: Compile time:     May 27 2026 12:39:52[0m
+[0;32mI (1427) app_init: ELF file SHA256:  dc7d4a47a...[0m
+[0;32mI (1431) app_init: ESP-IDF:          v5.5.4-dirty[0m
+D (1435) cpu_start: calling init function: 0x400d3a8c on core: 0
+--- 0x400d3a8c: __esp_system_init_fn_init_efuse_show_app_info at /home/ubuntu/esp-idf/components/efuse/src/esp_efuse_startup.c:47[0;32mI (1441) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1445) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1449) efuse_init: Chip rev:         v3.1[0m
+D (1453) cpu_start: calling init function: 0x400d5874 on core: 0
+--- 0x400d5874: __esp_system_init_fn_init_heap at /home/ubuntu/esp-idf/components/heap/heap_caps_init.c:26D (1459) memory_layout: Checking 10 reserved memory ranges:
+D (1464) memory_layout: Reserved memory range 0x3f800000 - 0x3fc00000
+D (1470) memory_layout: Reserved memory range 0x3ff82000 - 0x3ff82000
+D (1476) memory_layout: Reserved memory range 0x3ffae000 - 0x3ffae6e0
+D (1483) memory_layout: Reserved memory range 0x3ffb0000 - 0x3ffbc450
+D (1489) memory_layout: Reserved memory range 0x3ffe0000 - 0x3ffe0440
+D (1495) memory_layout: Reserved memory range 0x3ffe3f20 - 0x3ffe4350
+D (1501) memory_layout: Reserved memory range 0x40070000 - 0x40078000
+D (1507) memory_layout: Reserved memory range 0x40078000 - 0x40080000
+--- 0x40080000: _WindowOverflow4 at /home/ubuntu/esp-idf/components/xtensa/xtensa_vectors.S:2027D (1513) memory_layout: Reserved memory range 0x40080000 - 0x4009c080
+--- 0x40080000: _WindowOverflow4 at /home/ubuntu/esp-idf/components/xtensa/xtensa_vectors.S:2027D (1520) memory_layout: Reserved memory range 0x50001fe8 - 0x50002000
+D (1526) memory_layout: Building list of available memory regions:
+D (1532) memory_layout: Available memory region 0x3ffae6e0 - 0x3ffb0000
+D (1538) memory_layout: Available memory region 0x3ffbc450 - 0x3ffc0000
+D (1544) memory_layout: Available memory region 0x3ffc0000 - 0x3ffc2000
+D (1551) memory_layout: Available memory region 0x3ffc2000 - 0x3ffc4000
+D (1557) memory_layout: Available memory region 0x3ffc4000 - 0x3ffc6000
+D (1563) memory_layout: Available memory region 0x3ffc6000 - 0x3ffc8000
+D (1570) memory_layout: Available memory region 0x3ffc8000 - 0x3ffca000
+D (1576) memory_layout: Available memory region 0x3ffca000 - 0x3ffcc000
+D (1582) memory_layout: Available memory region 0x3ffcc000 - 0x3ffce000
+D (1589) memory_layout: Available memory region 0x3ffce000 - 0x3ffd0000
+D (1595) memory_layout: Available memory region 0x3ffd0000 - 0x3ffd2000
+D (1601) memory_layout: Available memory region 0x3ffd2000 - 0x3ffd4000
+D (1608) memory_layout: Available memory region 0x3ffd4000 - 0x3ffd6000
+D (1614) memory_layout: Available memory region 0x3ffd6000 - 0x3ffd8000
+D (1620) memory_layout: Available memory region 0x3ffd8000 - 0x3ffda000
+D (1627) memory_layout: Available memory region 0x3ffda000 - 0x3ffdc000
+D (1633) memory_layout: Available memory region 0x3ffdc000 - 0x3ffde000
+D (1639) memory_layout: Available memory region 0x3ffde000 - 0x3ffe0000
+D (1646) memory_layout: Available memory region 0x3ffe0440 - 0x3ffe3f20
+D (1652) memory_layout: Available memory region 0x3ffe4350 - 0x3ffe8000
+D (1658) memory_layout: Available memory region 0x3ffe8000 - 0x3fff0000
+D (1665) memory_layout: Available memory region 0x3fff0000 - 0x3fff8000
+D (1671) memory_layout: Available memory region 0x3fff8000 - 0x3fffc000
+D (1677) memory_layout: Available memory region 0x3fffc000 - 0x40000000
+--- 0x40000000: _WindowOverflow4 in ROMD (1684) memory_layout: Available memory region 0x4009c080 - 0x4009e000
+D (1690) memory_layout: Available memory region 0x4009e000 - 0x400a0000
+[0;32mI (1696) heap_init: Initializing. RAM available for dynamic allocation:[0m
+D (1703) heap_init: New heap initialised at 0x3ffae6e0
+[0;32mI (1708) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+D (1713) heap_init: New heap initialised at 0x3ffbc450
+[0;32mI (1718) heap_init: At 3FFBC450 len 00023BB0 (142 KiB): DRAM[0m
+[0;32mI (1723) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1728) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+D (1734) heap_init: New heap initialised at 0x4009c080
+[0;32mI (1739) heap_init: At 4009C080 len 00003F80 (15 KiB): IRAM[0m
+D (1744) cpu_start: calling init function: 0x400d7a30 on core: 0
+--- 0x400d7a30: __esp_system_init_fn_esp_timer_init_nonos at /home/ubuntu/esp-idf/components/esp_timer/src/esp_timer_init.c:27D (1750) cpu_start: calling init function: 0x400d6e54 on core: 0
+--- 0x400d6e54: __esp_system_init_fn_init_libc at /home/ubuntu/esp-idf/components/newlib/src/init.c:12D (1756) cpu_start: calling init function: 0x400d7f88 on core: 0
+--- 0x400d7f88: __esp_system_init_fn_add_psram_to_heap at /home/ubuntu/esp-idf/components/esp_psram/system_layer/esp_psram.c:117[0;32mI (1762) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+D (1768) cpu_start: calling init function: 0x400d3fac on core: 0
+--- 0x400d3fac: __esp_system_init_fn_init_brownout at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:79D (1774) intr_alloc: Connected src 46 to int 1 (cpu 0)
+D (1779) cpu_start: calling init function: 0x400d3fbc on core: 0
+--- 0x400d3fbc: __esp_system_init_fn_init_newlib_time at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:104D (1784) cpu_start: calling init function: 0x400d9144 on core: 0
+--- 0x400d9144: __esp_system_init_fn_init_vfs_uart at /home/ubuntu/esp-idf/components/esp_driver_uart/src/uart_vfs.c:1148D (1790) cpu_start: calling init function: 0x400dd150 on core: 0
+--- 0x400dd150: __esp_system_init_fn_init_vfs_nullfs at /home/ubuntu/esp-idf/components/vfs/nullfs.c:322D (1796) cpu_start: calling init function: 0x400db86c on core: 0
+--- 0x400db86c: __esp_system_init_fn_init_vfs_console at /home/ubuntu/esp-idf/components/esp_vfs_console/vfs_console.c:271D (1802) cpu_start: calling init function: 0x400d6e60 on core: 0
+--- 0x400d6e60: __esp_system_init_fn_init_libc_stdio at /home/ubuntu/esp-idf/components/newlib/src/init.c:18D (1807) cpu_start: calling init function: 0x400d3fe8 on core: 0
+--- 0x400d3fe8: __esp_system_init_fn_init_flash at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:111D (1813) spi_flash: trying chip: winbond
+[0;32mI (1817) spi_flash: detected chip: winbond[0m
+[0;32mI (1820) spi_flash: flash io: qio[0m
+D (1823) chip_generic: set_io_mode: status before 0x200
+D (1828) cpu_start: calling init function: 0x402b3de8 on core: 0
+--- 0x402b3de8: __esp_system_init_fn_init_efuse at /home/ubuntu/esp-idf/components/efuse/src/esp_efuse_startup.c:158D (1834) cpu_start: calling init function: 0x40290ccc
+--- 0x40290ccc: _GLOBAL__sub_I__ZN17__eh_globals_init7_S_initE at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/libsupc++/eh_globals.cc:162D (1839) cpu_start: calling init function: 0x40290a58
+--- 0x40290a58: _GLOBAL__sub_I__ZN9__gnu_cxx9__freeresEv at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/libsupc++/eh_alloc.cc:462D (1844) C++ init: Setting C++ exception emergency pool to 0.
+D (1849) cpu_start: calling init function: 0x402901e4
+--- 0x402901e4: _GLOBAL__sub_I__ZNSt12ctype_bynameIwEC2ERKSsj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1854) cpu_start: calling init function: 0x402883e4
+--- 0x402883e4: _GLOBAL__sub_I__ZNSt12ctype_bynameIcEC2ERKSsj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1859) cpu_start: calling init function: 0x40281598
+--- 0x40281598: _GLOBAL__sub_I__ZNSt12ctype_bynameIwEC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1864) cpu_start: calling init function: 0x4027c8e0
+--- 0x4027c8e0: _GLOBAL__sub_I__ZNSt12ctype_bynameIcEC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1868) cpu_start: calling init function: 0x402e7d68
+--- 0x402e7d68: esp_reset_reason_init at /home/ubuntu/esp-idf/components/esp_system/port/soc/esp32/reset_reason.c:60D (1873) cpu_start: calling init function: 0x40269e78
+--- 0x40269e78: esp_clock_output_pin_ctrl_init at /home/ubuntu/esp-idf/components/esp_hw_support/esp_clock_output.c:245D (1878) cpu_start: calling init function: 0x4022efd4
+--- 0x4022efd4: check_pcnt_driver_conflict at /home/ubuntu/esp-idf/components/driver/deprecated/pcnt_legacy.c:564[0;33mW (1883) pcnt(legacy): legacy driver is deprecated, please migrate to `driver/pulse_cnt.h`[0m
+D (1891) cpu_start: calling init function: 0x40224ed0
+--- 0x40224ed0: s_set_default_wifi_log_level at /home/ubuntu/esp-idf/components/esp_wifi/src/wifi_init.c:114D (1895) cpu_start: calling init function: 0x402096f4
+--- 0x402096f4: spi_bus_lock_init_main_bus at /home/ubuntu/esp-idf/components/esp_driver_spi/src/gpspi/spi_common.c:78D (1900) cpu_start: calling init function: 0x401dd630
+--- 0x401dd630: _GLOBAL__sub_I__ZN4CTAG3NET7Network17event_handler_staEPvPKclS2_ at /home/ubuntu/ctag-tbd/components/network/network.cpp:248D (1905) cpu_start: calling init function: 0x401dbfe8
+--- 0x401dbfe8: _GLOBAL__sub_I__ZN4CTAG7DRIVERS5Codec5codecE at /home/ubuntu/ctag-tbd/components/drivers/codec_bba.cpp:187D (1910) cpu_start: calling init function: 0x400f6654
+--- 0x400f6654: _GLOBAL__sub_I__ZN4CTAG3CAL11Calibration13ledTaskHandleE at /home/ubuntu/ctag-tbd/main/Calibration.cpp:284D (1915) cpu_start: calling init function: 0x400f3678
+--- 0x400f3678: _GLOBAL__sub_I__ZN4CTAG4CTRL4Midi13ccToCVid_abcdEh at /home/ubuntu/ctag-tbd/main/Midi.cpp:1171D (1920) intr_alloc: Connected src 35 to int 2 (cpu 0)
+D (1924) cpu_start: calling init function: 0x400f20c4
+--- 0x400f20c4: _GLOBAL__sub_I__ZN4CTAG3FAV9Favorites11isUIEnabledE at /home/ubuntu/ctag-tbd/main/Favorites.cpp:246D (1929) cpu_start: calling init function: 0x400e7cb8
+--- 0x400e7cb8: _GLOBAL__sub_I__ZN4CTAG9RESOURCES10spiffsRootB5cxx11E at /home/ubuntu/ctag-tbd/main/SPManager.cpp:604D (1934) cpu_start: calling init function: 0x400dd964
+--- 0x400dd964: _GLOBAL__sub_I__ZN4CTAG7DRIVERS7Display10I2CDisplayE at /home/ubuntu/ctag-tbd/main/Display.cpp:306D (1938) cpu_start: calling init function: 0x4008bd00
+--- 0x4008bd00: enable_timer_group0_for_calibration at /home/ubuntu/esp-idf/components/esp_hw_support/port/esp32/rtc_time.c:199D (1943) cpu_start: calling init function: 0x400d4e0c
+--- 0x400d4e0c: esp_ipc_init at /home/ubuntu/esp-idf/components/esp_system/esp_ipc.c:107D (1948) cpu_start: calling init function: 0x402096e8 on core: 0
+--- 0x402096e8: __esp_system_init_fn_esp_timer_init_os at /home/ubuntu/esp-idf/components/esp_timer/src/esp_timer.c:566D (1954) intr_alloc: Connected src 17 to int 3 (cpu 0)
+D (1959) cpu_start: calling init function: 0x402b3ea0 on core: 0
+--- 0x402b3ea0: __esp_system_init_fn_esp_security_init at /home/ubuntu/esp-idf/components/esp_security/src/init.c:57D (1964) cpu_start: calling init function: 0x400d3fc8 on core: 0
+D (1970) intr_alloc: Connected src 24 to int 5 (cpu 0)
+D (1975) app_start: Starting scheduler on CPU0
+ID (1979) intr_alloc: Connected src 25 to int 1 (cpu 1)
+D (1979) app_start: Starting scheduler on CPU1
+ (1979) main_task: Started on CPU0
+D (1989) heap_init: New heap initialised at 0x3ffe0440
+D (1989) heap_init: New heap initialised at 0x3ffe4350
+D (1999) intr_alloc: Connected src 16 to int 8 (cpu 0)
+[0;32mI (1999) main_task: Calling app_main()[0m
+[0;32mI (2009) ctagSPAllocator: AllocateInternalBuffer: allocating 114688 bytes[0m
+[0;32mI (4009) fs: Initializing LITTLEFS[0m
+[0;32mI (4469) fs: Partition size: total: 3145728, used: 1564672[0m
+[0;32mI (4469) RGBLed: RGB LED strip initialization[0m
+D (4469) rmt: new group(0) at 0x3ffdd22c, occupy=ffffff00
+D (4469) intr_alloc: Connected src 47 to int 2 (cpu 0)
+D (4479) rmt: group clock resolution:80000000
+D (4479) rmt: new tx channel(0,0) at 0x3ffdcfa8, gpio=23, res=10000000Hz, hw_mem_base=0x3ff56800, dma_mem_base=0x0, dma_nodes=0x0, ping_pong_size=32, queue_depth=4
+D (4499) rmt: new bytes encoder @0x3ffdd2d0
+D (4499) rmt: new copy encoder @0x3ffdd2f4
+D (4499) i2c.common: new bus(0) at 0x3f8022e0
+D (4509) i2c.common: bus clock source frequency: 80000000hz
+D (4509) intr_alloc: Connected src 49 to int 2 (cpu 0)
+[0;32mI (4519) SSD1306: OLED configured successfully[0m
+[0;32mI (6569) fs: Initializing SD card via SDMMC[0m
+D (6569) sdmmc_periph: peripheral version 5342270a, hardware config 03c44c83
+D (6569) intr_alloc: Connected src 37 to int 9 (cpu 0)
+D (6569) gpio: GPIO[13]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 
+D (6579) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6589) sdmmc_periph: clk_src_freq_hz: 160000000 hz
+D (6589) sdmmc_periph: slot=1 clk_src=6 host_div=10 card_div=20 freq=400kHz (max 400kHz)
+D (6599) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6609) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6609) sdmmc_periph: slot=1 width=1
+D (6619) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6639) sdmmc_sd: SDHC/SDXC card
+D (6639) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6639) sdmmc_io: sdmmc_init_io: io_send_op_cond (1) returned 0x107; not IO card
+D (6649) sdmmc_common: host_ocr=0xff8000 card_ocr=0xc0ff8000
+D (6649) sdmmc_common: sdmmc_card_init: host_ocr=00ff8000, card_ocr=c0ff8000
+D (6659) sdmmc_init: sdmmc_card_init: card type is SD
+D (6659) sdmmc_common: sdmmc_init_host_bus_width: using 4-bit bus
+D (6669) sdmmc_periph: slot=1 width=4
+D (6669) sdmmc_periph: clk_src_freq_hz: 160000000 hz
+D (6669) sdmmc_periph: slot=1 clk_src=6 host_div=8 card_div=0 freq=20000kHz (max 20000kHz)
+D (6679) vfs_fat_sdmmc: using pdrv=0
+[0;32mI (6689) fs: SD card: SD16G, size 29818MB | FAT mounted at /sd[0m
+[0;32mI (6689) SPModel: Trying to read config file[0m
+D (6689) JSON: read buffer
+[0;32mI (7459) Control: Initializing control![0m
+[0;32mI (7459) MOD: ModEngine initialized, slots 80-89[0m
+[0;32mI (7479) SDA: SDAudio: 256 KB ring, 32768 frames[0m
+[0;32mI (7479) BBA Codec: Starting i2s setup...[0m
+D (7479) efuse: BLK0 REG2 [8-15], len=8 bits
+D (7479) efuse: BLK0 REG2 [0-7], len=8 bits
+D (7479) efuse: BLK0 REG1 [24-31], len=8 bits
+D (7489) efuse: BLK0 REG1 [16-23], len=8 bits
+D (7489) efuse: BLK0 REG1 [8-15], len=8 bits
+D (7499) efuse: BLK0 REG1 [0-7], len=8 bits
+D (7499) efuse: BLK0 REG2 [16-23], len=8 bits
+D (7499) i2s_common: tx channel is registered on I2S0 successfully
+D (7509) i2s_common: rx channel is registered on I2S0 successfully
+D (7519) i2s_common: DMA malloc info: dma_desc_num = 4, dma_desc_buf_size = dma_frame_num * slot_num * data_bit_width = 128
+D (7529) i2s_std: Clock division info: [sclk] 160000000 Hz [mdiv] 9 13/29 [mclk] 16934306 Hz [bdiv] 12 [bclk] 1411200 Hz
+D (7539) i2s_common: MCLK is pinned to GPIO0 on I2S0
+D (7539) intr_alloc: Connected src 32 to int 2 (cpu 0)
+D (7549) i2s_std: The tx channel on I2S0 has been initialized to STD mode successfully
+D (7549) i2s_common: DMA malloc info: dma_desc_num = 4, dma_desc_buf_size = dma_frame_num * slot_num * data_bit_width = 128
+D (7569) i2s_std: Clock division info: [sclk] 160000000 Hz [mdiv] 9 13/29 [mclk] 16934306 Hz [bdiv] 12 [bclk] 1411200 Hz
+D (7579) i2s_common: MCLK is pinned to GPIO0 on I2S0
+D (7579) intr_alloc: Connected src 32 to int 2 (cpu 0)
+D (7589) i2s_std: The rx channel on I2S0 has been initialized to STD mode successfully
+D (7589) i2s_common: i2s tx channel enabled
+D (7599) i2s_common: i2s rx channel enabled
+D (7599) i2c.common: new bus(1) at 0x3f80aa70
+D (7599) i2c.common: bus clock source frequency: 80000000hz
+D (7609) intr_alloc: Connected src 50 to int 2 (cpu 0)
+[0;32mI (7619) BBA Codec: Found codec...[0m
+[0;32mI (7619) Network: Starting with ssid ctag-tbd, pwd , mdns ctag-tbd, ip 192.178.3.1, is ap[0m
+D (7639) esp_netif_lwip: LwIP stack has been initialized
+D (7639) esp_netif_lwip: esp-netif has been successfully initialized
+D (7639) event: running task for loop 0x3ffdfb78
+D (7649) event: created task for loop 0x3ffdfb78
+D (7649) event: created event loop 0x3ffdfb78
+D (7659) esp_netif_lwip: check: remote, if=0x3ffbf774 fn=0x40222140
+--- 0x40222140: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7659) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7669) esp_netif_lwip: check: remote, if=0x3ffbf774 fn=0x40222140
+--- 0x40222140: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7669) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7679) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7679) esp_netif_lwip: check: remote, if=0x3ffbf774 fn=0x40222140
+--- 0x40222140: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7689) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7689) esp_netif_lwip: check: remote, if=0x3ffbf774 fn=0x40222140
+--- 0x40222140: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7699) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7709) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7709) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7719) esp_netif_lwip: check: remote, if=0x3ffbf694 fn=0x402225e0
+--- 0x402225e0: esp_netif_new_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:769D (7719) esp_netif_objects: esp_netif_add_to_list_unsafe netif added successfully (total netifs: 1)
+D (7729) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7739) nvs: nvs_open_from_partition misc 1
+[0;32mI (7749) wifi:wifi driver task: 3ffe3950, prio:23, stack:3584, core=0[0m
+D (7749) efuse: BLK0 REG2 [8-15], len=8 bits
+D (7749) efuse: BLK0 REG2 [0-7], len=8 bits
+D (7749) efuse: BLK0 REG1 [24-31], len=8 bits
+D (7759) efuse: BLK0 REG1 [16-23], len=8 bits
+D (7759) efuse: BLK0 REG1 [8-15], len=8 bits
+D (7769) efuse: BLK0 REG1 [0-7], len=8 bits
+D (7769) efuse: BLK0 REG2 [16-23], len=8 bits
+D (7779) nvs: nvs_open_from_partition nvs.net80211 1
+D (7779) nvs: nvs_get opmode 1
+D (7779) nvs: nvs_get_str_or_blob sta.ssid
+D (7789) nvs: nvs_get sta.authmode 1
+D (7789) nvs: nvs_get_str_or_blob sta.pswd
+D (7789) nvs: nvs_get_str_or_blob sta.pmk
+D (7799) nvs: nvs_get sta.chan 1
+D (7799) nvs: nvs_get auto.conn 1
+D (7799) nvs: nvs_get bssid.set 1
+D (7809) nvs: nvs_get_str_or_blob sta.bssid
+D (7809) nvs: nvs_get sta.lis_intval 2
+D (7809) nvs: nvs_get sta.phym 1
+D (7819) nvs: nvs_get sta.phybw 1
+D (7819) nvs: nvs_get_str_or_blob sta.apsw
+D (7819) nvs: nvs_get_str_or_blob sta.apinfo
+D (7829) nvs: nvs_get sta.scan_method 1
+D (7829) nvs: nvs_get sta.sort_method 1
+D (7829) nvs: nvs_get sta.minrssi 1
+D (7839) nvs: nvs_get sta.minauth 1
+D (7839) nvs: nvs_get sta.pmf_e 1
+D (7839) nvs: nvs_get sta.pmf_r 1
+D (7849) nvs: nvs_get sta.btm_e 1
+D (7849) nvs: nvs_get sta.rrm_e 1
+D (7849) nvs: nvs_get sta.mbo_e 1
+D (7859) nvs: nvs_get_str_or_blob ap.ssid
+D (7859) nvs: nvs_get_str_or_blob ap.passwd
+D (7859) nvs: nvs_get_str_or_blob ap.pmk
+D (7869) nvs: nvs_get ap.chan 1
+D (7869) nvs: nvs_get ap.authmode 1
+D (7869) nvs: nvs_get ap.hidden 1
+D (7879) nvs: nvs_get ap.max.conn 1
+D (7879) nvs: nvs_get bcn.interval 2
+D (7879) nvs: nvs_get ap.phym 1
+D (7889) nvs: nvs_get ap.phybw 1
+D (7889) nvs: nvs_get ap.sndchan 1
+D (7889) nvs: nvs_get ap.pmf_e 1
+D (7899) nvs: nvs_get ap.pmf_r 1
+D (7899) nvs: nvs_get ap.p_cipher 1
+D (7899) nvs: nvs_get lorate 1
+D (7899) nvs: nvs_get_str_or_blob country
+D (7909) nvs: nvs_get ap.ftm_r 1
+D (7909) nvs: nvs_get sta.ft 1
+D (7909) nvs: nvs_get sta.owe 1
+D (7919) nvs: nvs_get sta.trans_d 1
+D (7919) nvs: nvs_get sta.sae_h2e 1
+D (7919) nvs: nvs_get sta.sae_pk_mode 1
+D (7929) nvs: nvs_get sta.bss_retry 1
+D (7929) nvs: nvs_get_str_or_blob sta.owe_data
+D (7929) nvs: nvs_get sta.he_dcm 1
+D (7939) nvs: nvs_get sta.he_dcm_c_tx 1
+D (7939) nvs: nvs_get sta.he_dcm_c_rx 1
+D (7939) nvs: nvs_get sta.he_mcs9_d 1
+D (7949) nvs: nvs_get sta.he_su_b_d 1
+D (7949) nvs: nvs_get sta.he_su_b_f_d 1
+D (7949) nvs: nvs_get sta.he_mu_b_f_d 1
+D (7959) nvs: nvs_get sta.he_cqi_f_d 1
+D (7959) nvs: nvs_get_str_or_blob sta.sae_h2e_id
+D (7969) nvs: nvs_get ap.sae_h2e 1
+D (7969) nvs: nvs_get_str_or_blob ap.pmk_info
+D (7969) nvs: nvs_get nan.phym 1
+D (7979) nvs: nvs_get sta.pwr_reset 1
+D (7979) nvs: nvs_get band_mode 1
+D (7979) nvs: nvs_get sta.phym5g 1
+D (7989) nvs: nvs_get ap.phym5g 1
+D (7989) nvs: nvs_get sta.phybw5g 1
+D (7989) nvs: nvs_get ap.phybw5g 1
+D (7989) nvs: nvs_get ap.sndchan5g 1
+D (7999) nvs: nvs_get ap.chan5g 1
+D (7999) nvs: nvs_get ap.chanisset 1
+D (7999) nvs: nvs_get ap.chan5gisset 1
+D (8009) nvs: nvs_get sta.lowrate 1
+D (8009) nvs: nvs_get ap.lowrate 1
+D (8009) nvs: nvs_get sta.rssi_5g_adj 1
+D (8019) nvs: nvs_get ap.csa_count 1
+D (8019) nvs: nvs_get ap.dtim_period 1
+D (8019) nvs: nvs_get ap.trans_d 1
+D (8029) nvs: nvs_get ap.sae_ext 1
+D (8029) nvs: nvs_get ap.bssmaxidle 2
+D (8029) nvs: nvs_get ap.pro_keep_a 1
+D (8039) nvs: nvs_get ap.gtk_rekey 2
+D (8039) nvs: nvs_get sta.vht_su_b_d 1
+D (8039) nvs: nvs_get sta.vht_mu_b_d 1
+D (8049) nvs: nvs_get sta.vht_mcs8_e 1
+D (8049) nvs: nvs_get sta.ina_time 2
+D (8049) nvs: nvs_get ap.ina_time 2
+D (8059) nvs: nvs_set ap.sndchan 1 1
+[0;32mI (8059) wifi:wifi firmware version: 0947e8b[0m
+[0;32mI (8069) wifi:wifi certification version: v7.0[0m
+[0;32mI (8069) wifi:config NVS flash: enabled[0m
+[0;32mI (8069) wifi:config nano formatting: disabled[0m
+[0;32mI (8079) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (8079) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (8089) wifi:Init management short buffer num: 32[0m
+[0;32mI (8089) wifi:Init static tx buffer num: 16[0m
+[0;32mI (8099) wifi:Init tx cache buffer num: 32[0m
+[0;32mI (8099) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (8099) wifi:Init static rx buffer num: 10[0m
+[0;32mI (8109) wifi:Init dynamic rx buffer num: 32[0m
+D (8109) wifi:Reset scan defaults in ms : min,max,passive,chan_dwell :(0,120,360,30)
+[0;32mI (8119) wifi_init: accept mbox: 6[0m
+[0;32mI (8119) wifi_init: tcpip mbox: 32[0m
+[0;32mI (8119) wifi_init: udp mbox: 6[0m
+[0;32mI (8129) wifi_init: tcp mbox: 6[0m
+[0;32mI (8129) wifi_init: tcp tx win: 5744[0m
+[0;32mI (8129) wifi_init: tcp rx win: 5744[0m
+[0;32mI (8139) wifi_init: tcp mss: 1440[0m
+[0;32mI (8139) wifi_init: WiFi/LWIP prefer SPIRAM[0m
+[0;32mI (8139) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (8149) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (8149) wifi:Set ps type: 0, coexist: 0[0m
+
+D (8159) nvs: nvs_get opmode 1
+D (8159) nvs: nvs_set ap.authmode 1 0
+D (8159) nvs: nvs_set ap.sae_h2e 1 4
+D (8159) nvs: nvs_set ap.chanisset 1 0
+D (8169) nvs: nvs_set ap.chan 1 1
+D (8169) nvs: nvs_set ap.sndchan 1 1
+D (8169) nvs: nvs_set_blob ap.ssid 36
+D (8179) nvs: nvs_set_blob ap.passwd 65
+D (8179) nvs: nvs_set ap.hidden 1 0
+D (8179) nvs: nvs_set ap.max.conn 1 5
+D (8189) nvs: nvs_set bcn.interval 2 100
+D (8189) nvs: nvs_set ap.sae_ext 1 0
+D (8189) nvs: nvs_set ap.gtk_rekey 2 0
+D (8199) nvs: nvs_set ap.p_cipher 1 0
+D (8199) nvs: nvs_set ap.trans_d 1 0
+D (8199) nvs: nvs_set ap.ftm_r 1 0
+D (8209) nvs: nvs_set ap.pmf_e 1 0
+D (8209) nvs: nvs_set ap.pmf_r 1 0
+D (8209) nvs: nvs_set ap.csa_count 1 3
+D (8219) nvs: nvs_set ap.dtim_period 1 1
+D (8219) nvs: nvs_set ap.bssmaxidle 2 0
+D (8229) nvs: nvs_set ap.pro_keep_a 1 0
+[0;32mI (8229) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+D (8229) phy_init: loading PHY init data from application binary
+D (8289) wifi:filter: set rx policy=0
+[0;32mI (8299) wifi:mode : softAP (34:5f:45:25:b4:61)[0m
+D (8299) wifi:filter: set rx policy=9
+[0;32mI (8299) wifi:Total power save buffer number: 8[0m
+[0;32mI (8299) wifi:Init max length of beacon: 752/752[0m
+[0;32mI (8299) wifi:Init max length of beacon: 752/752[0m
+D (8309) event: running post WIFI_EVENT:43 with handler 0x401fe0dc and context 0x3ffde5a0 on loop 0x3ffdfb78
+--- 0x401fe0dc: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410D (8319) event: running post WIFI_EVENT:43 with handler 0x401dc8a4 and context 0x3ffe3e5c on loop 0x3ffdfb78
+--- 0x401dc8a4: CTAG::NET::Network::wifi_event_handler_ap(void*, char const*, long, void*) at /home/ubuntu/ctag-tbd/components/network/network.cpp:110D (8329) event: running post WIFI_EVENT:12 with handler 0x401fe0dc and context 0x3ffde5a0 on loop 0x3ffdfb78
+--- 0x401fe0dc: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410D (8339) event: running post WIFI_EVENT:12 with handler 0x402251f4 and context 0x3ffe20fc on loop 0x3ffdfb78
+--- 0x402251f4: wifi_default_action_ap_start at /home/ubuntu/esp-idf/components/esp_wifi/src/wifi_default.c:147D (8349) wifi_init_default: wifi_start esp-netif:0x3ffde8f8 event-id12
+D (8349) wifi_init_default: WIFI mac address: 34 5f 45 25 b4 61
+D (8359) esp_netif_lwip: check: remote, if=0x3ffde8f8 fn=0x40222154
+--- 0x40222154: esp_netif_set_mac_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:1086D (8359) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+[0;32mI (8359) Network: Disabling wifi power save mode[0m
+D (8369) esp_netif_handlers: esp_netif action has started with netif0x3ffde8f8 from event_id=12
+D (8369) esp_netif_lwip: check: local, if=0x3ffdf874 fn=0x40222140
+--- 0x40222140: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873[0;32mI (8379) wifi:Set ps type: 0, coexist: 0[0m
+
+D (8379) esp_netif_lwip: check: remote, if=0x3ffde8f8 fn=0x402230d4
+--- 0x402230d4: esp_netif_start_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:1161D (8399) esp_netif_lwip: esp_netif_start_api 0x3ffde8f8
+[0;32mI (8399) esp-rest: Starting HTTP Server[0m
+D (8399) esp_netif_lwip: esp_netif_internal_dhcpc_cb lwip-netif:0x3ffde968
+D (8409) esp_netif_lwip: if0x3ffde8f8 ip unchanged
+D (8419) esp_netif_lwip: esp_netif_get_hostname esp_netif:0x3ffde8f8
+D (8419) esp_netif_lwip: esp_netif_start_api Setting the lwip netif0x3ffde968 UP
+[0;32mI (8429) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: 192.168.4.1[0m
+D (8439) esp_netif_lwip: check: local, if=0x3ffde8f8 fn=0x402239f4
+--- 0x402239f4: esp_netif_update_default_netif_lwip at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:313D (8439) esp_netif_lwip: esp_netif_update_default_netif_lwip 0x3ffde8f8
+D (8449) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (8459) event: running post WIFI_EVENT:12 with handler 0x401dc8a4 and context 0x3ffe3e5c on loop 0x3ffdfb78
+--- 0x401dc8a4: CTAG::NET::Network::wifi_event_handler_ap(void*, char const*, long, void*) at /home/ubuntu/ctag-tbd/components/network/network.cpp:110D (8469) httpd: httpd_thread: web server started
+D (8469) httpd: httpd_server: doing select maxfd+1 = 56
+D (8479) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:1 posted to loop 0x3ffdfb78
+D (8479) httpd_uri: httpd_register_uri_handler: [0] installed /api/v1/getPlugins
+D (8489) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8499) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8499) httpd_uri: httpd_register_uri_handler: [1] installed /api/v1/getActivePlugin*
+D (8509) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8519) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8529) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8529) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8539) httpd_uri: httpd_register_uri_handler: [2] installed /api/v1/getPluginParams*
+D (8549) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8549) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8559) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8569) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8569) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8579) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8589) httpd_uri: httpd_register_uri_handler: [3] installed /api/v1/setActivePlugin*
+D (8599) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8599) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8609) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8609) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8619) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8629) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8639) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8639) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8649) httpd_uri: httpd_register_uri_handler: [4] installed /api/v1/setPluginParam*
+D (8659) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8659) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8669) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8679) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8679) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8689) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8699) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8699) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8709) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8719) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8729) httpd_uri: httpd_register_uri_handler: [5] installed /api/v1/getPresets*
+D (8729) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8739) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8749) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8749) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8759) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8769) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (8769) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8779) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8789) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8789) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8799) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8809) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (8819) httpd_uri: httpd_register_uri_handler: [6] installed /api/v1/getPresetData*
+D (8819) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8829) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8839) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8839) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8849) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8859) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (8859) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (8869) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8869) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8879) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8889) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8899) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8899) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (8909) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (8919) httpd_uri: httpd_register_uri_handler: [7] installed /api/v1/savePreset*
+D (8929) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8929) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8939) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8939) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8949) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8959) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (8959) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (8969) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (8979) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8979) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8989) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8999) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9009) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9009) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9019) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9029) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9029) httpd_uri: httpd_register_uri_handler: [8] installed /api/v1/loadPreset*
+D (9039) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9049) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9049) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9059) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9069) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9069) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9079) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9089) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9089) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9099) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9109) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9109) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9119) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9129) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9129) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9139) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9149) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9159) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9159) httpd_uri: httpd_register_uri_handler: [9] installed /api/v1/getConfiguration
+D (9169) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9179) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9179) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9189) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9199) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9199) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9209) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9219) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9219) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9229) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9229) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9239) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9249) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9259) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9259) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9269) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9279) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9279) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9289) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9299) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9309) httpd_uri: httpd_register_uri_handler: [10] installed /api/v1/getCalibration
+D (9309) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9319) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9329) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9329) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9339) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9349) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9349) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9359) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9359) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9369) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9379) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9379) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9389) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9399) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9409) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9409) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9419) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9429) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9429) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9439) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9449) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9459) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9459) httpd_uri: httpd_register_uri_handler: [11] installed /api/v1/reboot
+D (9469) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9479) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9479) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9489) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9499) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9499) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9509) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9509) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9519) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9529) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9529) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9539) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (9549) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9549) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9559) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9569) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9579) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9579) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9589) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9599) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9599) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9609) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9619) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9629) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (9629) httpd_uri: httpd_register_uri_handler: [12] installed /api/v1/getIOCaps
+D (9639) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9639) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9649) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9659) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9659) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9669) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9679) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9679) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9689) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9699) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9699) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9709) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (9719) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (9719) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9729) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9739) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9739) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9749) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9759) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9759) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9769) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9779) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9789) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9789) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9799) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (9809) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (9809) httpd_uri: httpd_register_uri_handler: [13] installed /api/v1/setConfiguration
+D (9819) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9829) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9829) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9839) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9849) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9849) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9859) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9869) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9869) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9879) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9889) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9889) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (9899) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (9899) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (9909) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9919) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9919) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9929) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9939) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9949) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9949) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9959) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9969) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9969) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9979) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9989) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (9999) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (9999) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10009) httpd_uri: httpd_register_uri_handler: [14] installed /api/v1/setCalibration*
+D (10019) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10019) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10029) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10039) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10039) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10049) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10059) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10059) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10069) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10079) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10079) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10089) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10099) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10099) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10109) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10109) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10119) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10129) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10139) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10139) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10149) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10159) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10169) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10169) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10179) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10189) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10189) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10199) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10209) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10219) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10219) httpd_uri: httpd_register_uri_handler: [15] installed /api/v1/setPresetData*
+D (10229) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10239) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10239) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10249) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10259) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10259) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10269) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10279) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10279) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10289) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10299) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10299) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10309) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10309) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10319) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10329) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (10329) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10339) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10349) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10359) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10359) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10369) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10379) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10389) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10389) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10399) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10409) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10409) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10419) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10429) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10439) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10439) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (10449) httpd_uri: httpd_register_uri_handler: [16] installed /api/v1/otaAPI*
+D (10459) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10459) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10469) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10479) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10479) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10489) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10499) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10499) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10509) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10519) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10519) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10529) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10529) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10539) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10549) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10549) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (10559) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (10569) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10569) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10579) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10589) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10599) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10599) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10609) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10619) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10629) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10629) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10639) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10649) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10649) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10659) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10669) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10679) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (10679) httpd_uri: httpd_register_uri_handler: [16] exists /api/v1/otaAPI*
+D (10689) httpd_uri: httpd_register_uri_handler: [17] installed /api/v1/favorite*
+D (10699) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10699) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10709) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10719) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10719) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10729) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10739) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10739) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10749) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10759) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10759) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10769) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10769) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10779) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10789) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10789) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (10799) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (10809) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (10809) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10819) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10829) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10829) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10839) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10849) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10859) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10859) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10869) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10879) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10889) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10889) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10899) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10909) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10909) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10919) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (10929) httpd_uri: httpd_register_uri_handler: [16] exists /api/v1/otaAPI*
+D (10939) httpd_uri: httpd_register_uri_handler: [17] exists /api/v1/favorite*
+D (10939) httpd_uri: httpd_register_uri_handler: [18] installed /api/v1/srom*
+D (10949) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10959) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10959) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10969) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10979) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10979) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10989) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10989) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10999) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (11009) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (11009) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (11019) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (11029) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (11029) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (11039) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (11049) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (11049) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (11059) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (11059) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (11069) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (11079) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (11079) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (11089) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (11099) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (11109) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (11109) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (11119) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (11129) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (11139) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (11139) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (11149) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (11159) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (11159) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (11169) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (11179) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (11189) httpd_uri: httpd_register_uri_handler: [16] exists /api/v1/otaAPI*
+D (11189) httpd_uri: httpd_register_uri_handler: [17] exists /api/v1/favorite*
+D (11199) httpd_uri: httpd_register_uri_handler: [18] exists /api/v1/srom*
+D (11209) httpd_uri: httpd_register_uri_handler: [19] installed /*
+[0;32mI (11209) esp-rest: Starting HTTP Server[0m
+[1;31mE (11219) httpd: httpd_server_init: error in listen (112)[0m
+[0;32mI (11219) SPManager: Switching ch0 to plugin TDelay[0m
+[0;32mI (11229) ctagSPAllocator: SetAllocationType: Single Channel CH0[0m
+[0;32mI (11229) ctagSPAllocator: Allocate: allocating CH0 248 bytes object size, ch0 57096 bytes blockMem[0m
+D (11259) ctagSPAllocator: GetRemainingBuffer: CH0 or STEREO 57096 bytes free
+D (11269) JSON: read buffer
+D (11299) JSON: read buffer
+D (11319) Model: Loading patch number 0
+D (11319) JSON: read buffer
+D (11339) Model: Preset Name is Default number 0
+D (11719) JSON: read buffer
+D (11739) Model: Preset Name is Default number 0
+D (11979) JSON: read buffer
+D (12009) Model: Preset Name is Default number 0
+[0;32mI (12049) SPManager: Mem freesize internal 22328, largest block 17408, free SPIRAM 3419132, largest block SPIRAM 3407872![0m
+[0;32mI (12049) SPManager: Switching ch1 to plugin TDelay[0m
+[0;32mI (12049) ctagSPAllocator: SetAllocationType: Single Channel CH1[0m
+[0;32mI (12059) ctagSPAllocator: Allocate: allocating CH1 248 bytes object size, ch1 57096 bytes blockMem[0m
+D (12089) ctagSPAllocator: GetRemainingBuffer: CH1 57096 bytes free
+D (12089) JSON: read buffer
+D (12119) JSON: read buffer
+D (12149) Model: Loading patch number 0
+D (12149) JSON: read buffer
+D (12169) Model: Preset Name is Default number 0
+D (12219) JSON: read buffer
+D (12239) Model: Preset Name is Default number 0
+D (12799) JSON: read buffer
+D (12829) Model: Preset Name is Default number 0
+[0;32mI (12869) SPManager: Mem freesize internal 20952, largest block 17408, free SPIRAM 3041508, largest block SPIRAM 3014656![0m
+[0;32mI (12869) SPManager: Init: Mem freesize internal 20952, largest block 17408, free SPIRAM 3041508, largest block SPIRAM 3014656![0m
+D (12879) intr_alloc: Connected src 22 to int 12 (cpu 0)
+[0;32mI (12879) main_task: Returned from app_main()[0m
+D (49639) wifi:ap recv assoc/reassoc request
+[0;32mI (49639) wifi:new:<1,1>, old:<1,1>, ap:<1,1>, sta:<255,255>, prof:1, snd_ch_cfg:0x0[0m
+D (49639) wifi:hostap_ht_operation_update current operation mode=0x0
+D (49649) wifi:bss=0x3f919d24, resp=16 join
+[0;32mI (49649) wifi:station: fc:77:74:91:08:43 join, AID=1, bgn, 40U[0m
+D (49649) wifi:join success, ap send assoc response
+D (49659) event: running post WIFI_EVENT:14 with handler 0x401fe0dc and context 0x3ffde5a0 on loop 0x3ffdfb78
+--- 0x401fe0dc: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410D (49669) event: running post WIFI_EVENT:14 with handler 0x401dc8a4 and context 0x3ffe3e5c on loop 0x3ffdfb78
+--- 0x401dc8a4: CTAG::NET::Network::wifi_event_handler_ap(void*, char const*, long, void*) at /home/ubuntu/ctag-tbd/components/network/network.cpp:110[0;32mI (49679) Network: station fc:77:74:91:08:43 join, AID=1[0m
+D (49779) wifi:eb is dhcp or dns sport = 68, dport = 67
+D (49779) wifi:eb is dhcp or dns sport = 67, dport = 68
+D (49789) esp_netif_lwip: esp_netif_dhcps_cb esp_netif:0x3ffde8f8
+[0;32mI (49789) esp_netif_lwip: DHCP server assigned IP to a client, IP is: 192.168.4.2[0m
+D (49799) esp_netif_lwip: Client's MAC: fc:77:74:91:8:43
+D (49799) event: running post IP_EVENT:2 with handler 0x401fe0dc and context 0x3ffde5d4 on loop 0x3ffdfb78
+--- 0x401fe0dc: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410D (52429) wifi:eb is dhcp or dns sport = 68, dport = 67
+D (52429) wifi:eb is dhcp or dns sport = 67, dport = 68
+D (52429) esp_netif_lwip: esp_netif_dhcps_cb esp_netif:0x3ffde8f8
+[0;32mI (52429) esp_netif_lwip: DHCP server assigned IP to a client, IP is: 192.168.4.2[0m
+D (52439) esp_netif_lwip: Client's MAC: fc:77:74:91:8:43
+D (52439) event: running post IP_EVENT:2 with handler 0x401fe0dc and context 0x3ffde5d4 on loop 0x3ffdfb78
+--- 0x401fe0dc: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410[0;32mI (64349) wifi:[ADDBA]RX DELBA, reason:37, delete tid:0, initiator:1(originator)[0m
+D (83519) httpd: httpd_server: processing listen socket 54
+D (83519) httpd: httpd_accept_conn: newfd = 57
+D (83519) httpd_sess: httpd_sess_new: fd = 57
+D (83519) httpd_sess: httpd_sess_new: active sockets: 1
+D (83529) httpd: httpd_accept_conn: complete
+D (83529) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:2 posted to loop 0x3ffdfb78
+D (83539) httpd: httpd_server: doing select maxfd+1 = 58
+D (83549) httpd: httpd_process_session: processing socket 57
+D (83549) httpd_sess: httpd_sess_process: httpd_req_new
+D (83559) httpd_parse: scratch buf qsize = 128
+D (83559) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (83569) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (83569) httpd_parse: read_block: received HTTP request block size = 128
+D (83579) httpd_parse: cb_url: message begin
+D (83589) httpd_parse: cb_url: processing url = /
+D (83589) httpd_parse: verify_url: received URI = /
+D (83589) httpd_parse: cb_header_field: headers begin
+D (83599) httpd_txrx: httpd_unrecv: length = 112
+D (83599) httpd_parse: pause_parsing: paused
+D (83609) httpd_parse: cb_header_field: processing field = Host
+D (83609) httpd_parse: scratch buf qsize = 128
+D (83619) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (83619) httpd_txrx: httpd_recv_with_opt: pending length = 112
+D (83629) httpd_parse: read_block: received HTTP request block size = 112
+D (83629) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (83639) httpd_parse: continue_parsing: un-paused
+D (83649) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (83649) httpd_parse: cb_header_field: processing field = Connection
+D (83659) httpd_parse: cb_header_value: processing value = keep-alive
+D (83659) httpd_parse: cb_header_field: processing field = Cache-Control
+D (83669) httpd_parse: cb_header_value: processing value = max-age=0
+D (83679) httpd_parse: cb_header_field: processing field = Upgrade-Insecure-Requests
+D (83679) httpd_parse: cb_header_value: processing value = 1
+D (83689) httpd_parse: cb_header_field: processing field = User-Agent
+D (83699) httpd_parse: cb_header_value: processing value = M
+D (83699) httpd_parse: parse_block: parsed block size = 112
+D (83709) httpd_parse: scratch buf qsize = 240
+D (83709) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (83719) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (83719) httpd_parse: read_block: received HTTP request block size = 128
+D (83729) httpd_parse: cb_header_value: processing value = ozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (83739) httpd_parse: cb_header_field: processing field = Accept
+D (83749) httpd_parse: cb_header_value: processing value = text/htm
+D (83759) httpd_parse: parse_block: parsed block size = 240
+D (83759) httpd_parse: scratch buf qsize = 368
+D (83769) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (83769) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (83779) httpd_parse: read_block: received HTTP request block size = 128
+D (83779) httpd_parse: cb_header_value: processing value = l,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+D (83799) httpd_parse: parse_block: parsed block size = 368
+D (83799) httpd_parse: scratch buf qsize = 496
+D (83809) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (83819) httpd_txrx: httpd_recv_with_opt: received length = 110
+D (83819) httpd_parse: read_block: received HTTP request block size = 110
+D (83829) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (83829) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (83839) httpd_parse: cb_header_field: processing field = Accept-Language
+D (83849) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (83859) httpd_parse: cb_headers_complete: bytes read     = 495
+D (83859) httpd_parse: cb_headers_complete: content length = 0
+D (83869) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (83879) httpd_parse: pause_parsing: paused
+D (83879) httpd_parse: cb_no_body: message complete
+D (83889) httpd_parse: httpd_parse_req: parsing complete
+D (83889) httpd_uri: httpd_uri: request for / with type 1
+D (83899) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (83899) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (83909) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (83919) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (83919) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (83929) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (83939) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (83939) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (83949) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (83949) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (83959) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (83969) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (83969) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (83979) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (83989) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (83989) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (83999) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (84009) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (84009) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (84019) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (84019) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (84029) httpd_txrx: httpd send chunk buffer size = 70
+D (84039) httpd_txrx: httpd_send_all: sent = 70
+D (84039) httpd_txrx: httpd_send_all: sent = 16
+D (84039) httpd_txrx: httpd_send_all: sent = 2
+D (84049) httpd_txrx: httpd_send_all: sent = 4
+D (84049) httpd_txrx: httpd_send_all: sent = 2
+D (84059) httpd_txrx: httpd_send_all: sent = 2
+D (84059) httpd_txrx: httpd_send_all: sent = 5
+D (84059) httpd_txrx: httpd_send_all: sent = 813
+D (84069) httpd_txrx: httpd_send_all: sent = 2
+D (84069) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (84079) esp-rest: File sending complete
+D (84089) httpd_txrx: httpd_send_all: sent = 3
+D (84089) httpd_txrx: httpd_send_all: sent = 2
+D (84089) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (84099) httpd_sess: httpd_sess_process: httpd_req_delete
+D (84109) httpd_sess: httpd_sess_process: success
+D (84109) httpd: httpd_server: processing listen socket 54
+D (84119) httpd: httpd_accept_conn: newfd = 58
+D (84119) httpd_sess: httpd_sess_new: fd = 58
+D (84129) httpd_sess: httpd_sess_new: active sockets: 2
+D (84129) httpd: httpd_accept_conn: complete
+D (84139) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:2 posted to loop 0x3ffdfb78
+D (84149) httpd: httpd_server: doing select maxfd+1 = 59
+D (84149) httpd: httpd_process_session: processing socket 57
+D (84159) httpd_sess: httpd_sess_process: httpd_req_new
+D (84159) httpd_parse: scratch buf qsize = 128
+[0;32mI (84159) wifi:[ADDBA]RX DELBA, reason:37, delete tid:0, initiator:1(originator)[0m
+D (84169) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84179) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (84179) httpd_parse: read_block: received HTTP request block size = 128
+D (84189) httpd_parse: cb_url: message begin
+D (84189) httpd_parse: cb_url: processing url = /css/onsenui-cr.min.css
+D (84199) httpd_parse: verify_url: received URI = /css/onsenui-cr.min.css
+D (84209) httpd_parse: cb_header_field: headers begin
+D (84209) httpd_txrx: httpd_unrecv: length = 90
+D (84219) httpd_parse: pause_parsing: paused
+D (84219) httpd_parse: cb_header_field: processing field = Host
+D (84229) httpd_parse: scratch buf qsize = 128
+D (84229) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84239) httpd_txrx: httpd_recv_with_opt: pending length = 90
+D (84239) httpd_parse: read_block: received HTTP request block size = 90
+D (84249) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (84249) httpd_parse: continue_parsing: un-paused
+D (84259) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (84259) httpd_parse: cb_header_field: processing field = Connection
+D (84269) httpd_parse: cb_header_value: processing value = keep-alive
+D (84279) httpd_parse: cb_header_field: processing field = User-Agent
+D (84279) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64
+D (84289) httpd_parse: parse_block: parsed block size = 90
+D (84299) httpd_parse: scratch buf qsize = 218
+D (84299) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84309) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (84309) httpd_parse: read_block: received HTTP request block size = 128
+D (84319) httpd_parse: cb_header_value: processing value = ; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (84329) httpd_parse: cb_header_field: processing field = Accept
+D (84339) httpd_parse: cb_header_value: processing value = text/css,*/*;q=0.1
+D (84339) httpd_parse: cb_header_field: processing field = Referer
+D (84349) httpd_parse: cb_header_value: processing value = http://192.16
+D (84359) httpd_parse: parse_block: parsed block size = 218
+D (84359) httpd_parse: scratch buf qsize = 346
+D (84369) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84369) httpd_txrx: httpd_recv_with_opt: received length = 117
+D (84379) httpd_parse: read_block: received HTTP request block size = 117
+D (84379) httpd_parse: cb_header_value: processing value = 8.4.1/
+D (84389) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (84399) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (84399) httpd_parse: cb_header_field: processing field = Accept-Language
+D (84409) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (84419) httpd_parse: cb_headers_complete: bytes read     = 375
+D (84419) httpd_parse: cb_headers_complete: content length = 0
+D (84429) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (84439) httpd_parse: pause_parsing: paused
+D (84439) httpd_parse: cb_no_body: message complete
+D (84449) httpd_parse: httpd_parse_req: parsing complete
+D (84449) httpd_uri: httpd_uri: request for /css/onsenui-cr.min.css with type 1
+D (84459) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (84469) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (84469) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (84479) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (84489) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (84489) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (84499) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (84509) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (84509) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (84519) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (84529) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (84529) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (84539) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (84539) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (84549) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (84559) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (84559) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (84569) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (84579) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (84579) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (84589) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (84599) httpd_txrx: httpd send chunk buffer size = 69
+D (84599) httpd_txrx: httpd_send_all: sent = 69
+D (84599) httpd_txrx: httpd_send_all: sent = 16
+D (84609) httpd_txrx: httpd_send_all: sent = 2
+D (84609) httpd_txrx: httpd_send_all: sent = 4
+D (84619) httpd_txrx: httpd_send_all: sent = 2
+D (84619) httpd_txrx: httpd_send_all: sent = 2
+D (84619) httpd_txrx: httpd_send_all: sent = 5
+D (84629) httpd_txrx: httpd_send_all: sent = 2591
+D (84629) httpd_txrx: httpd_send_all: sent = 2
+D (84639) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (84649) esp-rest: File sending complete
+D (84649) httpd_txrx: httpd_send_all: sent = 3
+D (84649) httpd_txrx: httpd_send_all: sent = 2
+D (84659) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (84669) httpd_sess: httpd_sess_process: httpd_req_delete
+D (84669) httpd_sess: httpd_sess_process: success
+D (84679) httpd: httpd_server: doing select maxfd+1 = 59
+D (84679) httpd: httpd_process_session: processing socket 58
+D (84689) httpd_sess: httpd_sess_process: httpd_req_new
+D (84689) httpd_parse: scratch buf qsize = 128
+D (84699) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84699) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (84709) httpd_parse: read_block: received HTTP request block size = 128
+D (84719) httpd_parse: cb_url: message begin
+D (84719) httpd_parse: cb_url: processing url = /css/onsen-css-c.min.css
+D (84729) httpd_parse: verify_url: received URI = /css/onsen-css-c.min.css
+D (84729) httpd_parse: cb_header_field: headers begin
+D (84739) httpd_txrx: httpd_unrecv: length = 89
+D (84739) httpd_parse: pause_parsing: paused
+D (84749) httpd_parse: cb_header_field: processing field = Host
+D (84749) httpd_parse: scratch buf qsize = 128
+D (84759) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84759) httpd_txrx: httpd_recv_with_opt: pending length = 89
+D (84769) httpd_parse: read_block: received HTTP request block size = 89
+D (84769) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (84779) httpd_parse: continue_parsing: un-paused
+D (84779) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (84789) httpd_parse: cb_header_field: processing field = Connection
+D (84799) httpd_parse: cb_header_value: processing value = keep-alive
+D (84799) httpd_parse: cb_header_field: processing field = User-Agent
+D (84809) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win6
+D (84819) httpd_parse: parse_block: parsed block size = 89
+D (84819) httpd_parse: scratch buf qsize = 217
+D (84829) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84829) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (84839) httpd_parse: read_block: received HTTP request block size = 128
+D (84839) httpd_parse: cb_header_value: processing value = 4; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (84859) httpd_parse: cb_header_field: processing field = Accept
+D (84859) httpd_parse: cb_header_value: processing value = text/css,*/*;q=0.1
+D (84869) httpd_parse: cb_header_field: processing field = Referer
+D (84869) httpd_parse: cb_header_value: processing value = http://192.1
+D (84879) httpd_parse: parse_block: parsed block size = 217
+D (84889) httpd_parse: scratch buf qsize = 345
+D (84889) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (84899) httpd_txrx: httpd_recv_with_opt: received length = 118
+D (84899) httpd_parse: read_block: received HTTP request block size = 118
+D (84909) httpd_parse: cb_header_value: processing value = 68.4.1/
+D (84909) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (84919) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (84929) httpd_parse: cb_header_field: processing field = Accept-Language
+D (84929) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (84939) httpd_parse: cb_headers_complete: bytes read     = 376
+D (84949) httpd_parse: cb_headers_complete: content length = 0
+D (84959) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (84969) httpd_parse: pause_parsing: paused
+D (84969) httpd_parse: cb_no_body: message complete
+D (84969) httpd_parse: httpd_parse_req: parsing complete
+D (84979) httpd_uri: httpd_uri: request for /css/onsen-css-c.min.css with type 1
+D (84989) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (84989) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (84999) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (85009) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (85009) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (85019) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (85029) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (85029) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (85039) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (85039) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (85049) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (85059) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (85059) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (85069) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (85079) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (85079) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (85089) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (85099) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (85099) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (85109) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (85109) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (85129) httpd_txrx: httpd send chunk buffer size = 69
+D (85129) httpd_txrx: httpd_send_all: sent = 69
+D (85129) httpd_txrx: httpd_send_all: sent = 16
+D (85129) httpd_txrx: httpd_send_all: sent = 2
+D (85139) httpd_txrx: httpd_send_all: sent = 4
+D (85139) httpd_txrx: httpd_send_all: sent = 2
+D (85149) httpd_txrx: httpd_send_all: sent = 2
+D (85149) httpd_txrx: httpd_send_all: sent = 6
+D (85179) httpd_txrx: httpd_send_all: sent = 10240
+D (85179) httpd_txrx: httpd_send_all: sent = 2
+D (85179) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85189) httpd_txrx: httpd_send_all: sent = 6
+D (85199) httpd_txrx: httpd_send_all: sent = 6007
+D (85199) httpd_txrx: httpd_send_all: sent = 2
+D (85199) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85209) esp-rest: File sending complete
+D (85209) httpd_txrx: httpd_send_all: sent = 3
+D (85219) httpd_txrx: httpd_send_all: sent = 2
+D (85219) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85229) httpd_sess: httpd_sess_process: httpd_req_delete
+D (85239) httpd_sess: httpd_sess_process: success
+D (85239) httpd: httpd_server: processing listen socket 54
+D (85249) httpd: httpd_accept_conn: newfd = 59
+D (85249) httpd_sess: httpd_sess_new: fd = 59
+D (85249) httpd_sess: httpd_sess_new: active sockets: 3
+D (85259) httpd: httpd_accept_conn: complete
+D (85259) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:2 posted to loop 0x3ffdfb78
+D (85269) httpd: httpd_server: doing select maxfd+1 = 60
+D (85279) httpd: httpd_process_session: processing socket 59
+D (85279) httpd_sess: httpd_sess_process: httpd_req_new
+D (85289) httpd_parse: scratch buf qsize = 128
+D (85289) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (85299) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (85299) httpd_parse: read_block: received HTTP request block size = 128
+D (85309) httpd_parse: cb_url: message begin
+D (85309) httpd_parse: cb_url: processing url = /js/onsenui.min.js
+D (85319) httpd_parse: verify_url: received URI = /js/onsenui.min.js
+D (85329) httpd_parse: cb_header_field: headers begin
+D (85329) httpd_txrx: httpd_unrecv: length = 95
+D (85339) httpd_parse: pause_parsing: paused
+D (85339) httpd_parse: cb_header_field: processing field = Host
+D (85349) httpd_parse: scratch buf qsize = 128
+D (85349) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (85359) httpd_txrx: httpd_recv_with_opt: pending length = 95
+D (85359) httpd_parse: read_block: received HTTP request block size = 95
+D (85369) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (85369) httpd_parse: continue_parsing: un-paused
+D (85379) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (85379) httpd_parse: cb_header_field: processing field = Connection
+D (85389) httpd_parse: cb_header_value: processing value = keep-alive
+D (85399) httpd_parse: cb_header_field: processing field = User-Agent
+D (85399) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64; x64
+D (85409) httpd_parse: parse_block: parsed block size = 95
+D (85419) httpd_parse: scratch buf qsize = 223
+D (85419) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (85429) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (85429) httpd_parse: read_block: received HTTP request block size = 128
+D (85439) httpd_parse: cb_header_value: processing value = ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (85449) httpd_parse: cb_header_field: processing field = Accept
+D (85459) httpd_parse: cb_header_value: processing value = */*
+D (85459) httpd_parse: cb_header_field: processing field = Referer
+D (85469) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (85469) httpd_parse: cb_header_field: processing field = Accept-Encod
+D (85479) httpd_parse: parse_block: parsed block size = 223
+D (85489) httpd_parse: scratch buf qsize = 351
+D (85489) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (85499) httpd_txrx: httpd_recv_with_opt: received length = 97
+D (85499) httpd_parse: read_block: received HTTP request block size = 97
+D (85509) httpd_parse: cb_header_field: processing field = ing
+D (85509) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (85519) httpd_parse: cb_header_field: processing field = Accept-Language
+D (85529) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (85539) httpd_parse: cb_headers_complete: bytes read     = 355
+D (85539) httpd_parse: cb_headers_complete: content length = 0
+D (85549) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (85559) httpd_parse: pause_parsing: paused
+D (85559) httpd_parse: cb_no_body: message complete
+D (85569) httpd_parse: httpd_parse_req: parsing complete
+D (85569) httpd_uri: httpd_uri: request for /js/onsenui.min.js with type 1
+D (85579) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (85579) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (85589) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (85599) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (85599) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (85609) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (85619) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (85619) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (85629) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (85639) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (85639) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (85649) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (85659) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (85659) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (85669) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (85679) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (85679) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (85689) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (85689) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (85699) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (85699) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (85719) httpd_txrx: httpd send chunk buffer size = 83
+D (85719) httpd_txrx: httpd_send_all: sent = 83
+D (85719) httpd_txrx: httpd_send_all: sent = 16
+D (85729) httpd_txrx: httpd_send_all: sent = 2
+D (85729) httpd_txrx: httpd_send_all: sent = 4
+D (85729) httpd_txrx: httpd_send_all: sent = 2
+D (85739) httpd_txrx: httpd_send_all: sent = 2
+D (85739) httpd_txrx: httpd_send_all: sent = 6
+D (85769) httpd_txrx: httpd_send_all: sent = 10240
+D (85769) httpd_txrx: httpd_send_all: sent = 2
+D (85769) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85779) httpd_txrx: httpd_send_all: sent = 6
+D (85789) httpd_txrx: httpd_send_all: sent = 10240
+D (85789) httpd_txrx: httpd_send_all: sent = 2
+D (85789) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85799) httpd_txrx: httpd_send_all: sent = 6
+D (85819) httpd_txrx: httpd_send_all: sent = 10240
+D (85819) httpd_txrx: httpd_send_all: sent = 2
+D (85819) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85829) httpd_txrx: httpd_send_all: sent = 6
+D (85839) httpd_txrx: httpd_send_all: sent = 10240
+D (85839) httpd_txrx: httpd_send_all: sent = 2
+D (85839) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85849) httpd_txrx: httpd_send_all: sent = 6
+D (85859) httpd_txrx: httpd_send_all: sent = 10240
+D (85859) httpd_txrx: httpd_send_all: sent = 2
+D (85859) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85879) httpd_txrx: httpd_send_all: sent = 6
+D (85889) httpd_txrx: httpd_send_all: sent = 10240
+D (85889) httpd_txrx: httpd_send_all: sent = 2
+D (85889) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85899) httpd_txrx: httpd_send_all: sent = 6
+D (85919) httpd_txrx: httpd_send_all: sent = 10240
+D (85929) httpd_txrx: httpd_send_all: sent = 2
+D (85929) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85929) httpd_txrx: httpd_send_all: sent = 6
+D (85959) httpd_txrx: httpd_send_all: sent = 5063
+D (85959) httpd_txrx: httpd_send_all: sent = 2
+D (85959) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85969) esp-rest: File sending complete
+D (85969) httpd_txrx: httpd_send_all: sent = 3
+D (85979) httpd_txrx: httpd_send_all: sent = 2
+D (85979) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (85989) httpd_sess: httpd_sess_process: httpd_req_delete
+D (85999) httpd_sess: httpd_sess_process: success
+D (85999) httpd: httpd_server: processing listen socket 54
+D (86009) httpd: httpd_accept_conn: newfd = 60
+D (86009) httpd_sess: httpd_sess_new: fd = 60
+D (86009) httpd_sess: httpd_sess_new: active sockets: 4
+D (86019) httpd: httpd_accept_conn: complete
+D (86019) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:2 posted to loop 0x3ffdfb78
+D (86029) httpd: httpd_server: doing select maxfd+1 = 61
+D (86039) httpd: httpd_process_session: processing socket 60
+D (86039) httpd_sess: httpd_sess_process: httpd_req_new
+D (86049) httpd_parse: scratch buf qsize = 128
+D (86049) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86059) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (86059) httpd_parse: read_block: received HTTP request block size = 128
+D (86069) httpd_parse: cb_url: message begin
+D (86069) httpd_parse: cb_url: processing url = /js/jquery-3.4.1.min.js
+D (86079) httpd_parse: verify_url: received URI = /js/jquery-3.4.1.min.js
+D (86089) httpd_parse: cb_header_field: headers begin
+D (86089) httpd_txrx: httpd_unrecv: length = 90
+D (86099) httpd_parse: pause_parsing: paused
+D (86099) httpd_parse: cb_header_field: processing field = Host
+D (86109) httpd_parse: scratch buf qsize = 128
+D (86109) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86119) httpd_txrx: httpd_recv_with_opt: pending length = 90
+D (86119) httpd_parse: read_block: received HTTP request block size = 90
+D (86129) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (86129) httpd_parse: continue_parsing: un-paused
+D (86139) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (86149) httpd_parse: cb_header_field: processing field = Connection
+D (86149) httpd_parse: cb_header_value: processing value = keep-alive
+D (86159) httpd_parse: cb_header_field: processing field = User-Agent
+D (86159) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64
+D (86169) httpd_parse: parse_block: parsed block size = 90
+D (86179) httpd_parse: scratch buf qsize = 218
+D (86179) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86189) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (86189) httpd_parse: read_block: received HTTP request block size = 128
+D (86199) httpd_parse: cb_header_value: processing value = ; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (86209) httpd_parse: cb_header_field: processing field = Accept
+D (86219) httpd_parse: cb_header_value: processing value = */*
+D (86219) httpd_parse: cb_header_field: processing field = Referer
+D (86229) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (86239) httpd_parse: cb_header_field: processing field = Accept-
+D (86239) httpd_parse: parse_block: parsed block size = 218
+D (86249) httpd_parse: scratch buf qsize = 346
+D (86249) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86259) httpd_txrx: httpd_recv_with_opt: received length = 102
+D (86259) httpd_parse: read_block: received HTTP request block size = 102
+D (86269) httpd_parse: cb_header_field: processing field = Encoding
+D (86279) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (86279) httpd_parse: cb_header_field: processing field = Accept-Language
+D (86289) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (86299) httpd_parse: cb_headers_complete: bytes read     = 360
+D (86299) httpd_parse: cb_headers_complete: content length = 0
+D (86309) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (86319) httpd_parse: pause_parsing: paused
+D (86319) httpd_parse: cb_no_body: message complete
+D (86329) httpd_parse: httpd_parse_req: parsing complete
+D (86329) httpd_uri: httpd_uri: request for /js/jquery-3.4.1.min.js with type 1
+D (86339) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (86349) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (86349) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (86359) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (86369) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (86369) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (86379) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (86389) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (86389) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (86399) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (86399) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (86409) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (86419) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (86419) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (86429) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (86439) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (86439) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (86449) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (86459) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (86459) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (86469) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (86479) httpd_txrx: httpd send chunk buffer size = 83
+D (86479) httpd_txrx: httpd_send_all: sent = 83
+D (86479) httpd_txrx: httpd_send_all: sent = 16
+D (86489) httpd_txrx: httpd_send_all: sent = 2
+D (86489) httpd_txrx: httpd_send_all: sent = 4
+D (86499) httpd_txrx: httpd_send_all: sent = 2
+D (86499) httpd_txrx: httpd_send_all: sent = 2
+D (86499) httpd_txrx: httpd_send_all: sent = 6
+D (86519) httpd_txrx: httpd_send_all: sent = 10240
+D (86519) httpd_txrx: httpd_send_all: sent = 2
+D (86519) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (86529) httpd_txrx: httpd_send_all: sent = 6
+D (86539) httpd_txrx: httpd_send_all: sent = 10240
+D (86539) httpd_txrx: httpd_send_all: sent = 2
+D (86539) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (86559) httpd_txrx: httpd_send_all: sent = 6
+D (86559) httpd_txrx: httpd_send_all: sent = 10049
+D (86559) httpd_txrx: httpd_send_all: sent = 2
+D (86569) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (86579) esp-rest: File sending complete
+D (86579) httpd_txrx: httpd_send_all: sent = 3
+D (86579) httpd_txrx: httpd_send_all: sent = 2
+D (86589) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (86599) httpd_sess: httpd_sess_process: httpd_req_delete
+D (86599) httpd_sess: httpd_sess_process: success
+D (86609) httpd: httpd_server: processing listen socket 54
+D (86609) httpd: httpd_accept_conn: newfd = 61
+D (86619) httpd_sess: httpd_sess_new: fd = 61
+D (86619) httpd_sess: httpd_sess_new: active sockets: 5
+D (86619) httpd: httpd_accept_conn: complete
+D (86629) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:2 posted to loop 0x3ffdfb78
+D (86639) httpd: httpd_server: doing select maxfd+1 = 62
+D (86639) httpd: httpd_process_session: processing socket 61
+D (86649) httpd_sess: httpd_sess_process: httpd_req_new
+D (86649) httpd_parse: scratch buf qsize = 128
+D (86659) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86659) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (86669) httpd_parse: read_block: received HTTP request block size = 128
+D (86679) httpd_parse: cb_url: message begin
+D (86679) httpd_parse: cb_url: processing url = /js/ajaxq.js
+D (86689) httpd_parse: verify_url: received URI = /js/ajaxq.js
+D (86689) httpd_parse: cb_header_field: headers begin
+D (86699) httpd_txrx: httpd_unrecv: length = 101
+D (86699) httpd_parse: pause_parsing: paused
+D (86699) httpd_parse: cb_header_field: processing field = Host
+D (86709) httpd_parse: scratch buf qsize = 128
+D (86709) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86719) httpd_txrx: httpd_recv_with_opt: pending length = 101
+D (86729) httpd_parse: read_block: received HTTP request block size = 101
+D (86729) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (86739) httpd_parse: continue_parsing: un-paused
+D (86739) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (86749) httpd_parse: cb_header_field: processing field = Connection
+D (86759) httpd_parse: cb_header_value: processing value = keep-alive
+D (86759) httpd_parse: cb_header_field: processing field = User-Agent
+D (86769) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
+D (86779) httpd_parse: parse_block: parsed block size = 101
+D (86779) httpd_parse: scratch buf qsize = 229
+D (86789) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86789) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (86799) httpd_parse: read_block: received HTTP request block size = 128
+D (86799) httpd_parse: cb_header_value: processing value = eWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (86819) httpd_parse: cb_header_field: processing field = Accept
+D (86819) httpd_parse: cb_header_value: processing value = */*
+D (86829) httpd_parse: cb_header_field: processing field = Referer
+D (86829) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (86839) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (86849) httpd_parse: cb_header_value: processing value = g
+D (86849) httpd_parse: parse_block: parsed block size = 229
+D (86859) httpd_parse: scratch buf qsize = 357
+D (86859) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (86869) httpd_txrx: httpd_recv_with_opt: received length = 91
+D (86869) httpd_parse: read_block: received HTTP request block size = 91
+D (86879) httpd_parse: cb_header_value: processing value = zip, deflate
+D (86889) httpd_parse: cb_header_field: processing field = Accept-Language
+D (86889) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (86899) httpd_parse: cb_headers_complete: bytes read     = 348
+D (86909) httpd_parse: cb_headers_complete: content length = 0
+D (86909) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (86919) httpd_parse: pause_parsing: paused
+D (86929) httpd_parse: cb_no_body: message complete
+D (86929) httpd_parse: httpd_parse_req: parsing complete
+D (86939) httpd_uri: httpd_uri: request for /js/ajaxq.js with type 1
+D (86939) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (86949) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (86959) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (86959) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (86969) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (86979) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (86979) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (86989) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (86989) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (86999) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (87009) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (87009) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (87019) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (87029) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (87029) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (87039) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (87049) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (87049) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (87059) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (87059) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (87069) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (87079) httpd_txrx: httpd send chunk buffer size = 83
+D (87079) httpd_txrx: httpd_send_all: sent = 83
+D (87089) httpd_txrx: httpd_send_all: sent = 16
+D (87089) httpd_txrx: httpd_send_all: sent = 2
+D (87089) httpd_txrx: httpd_send_all: sent = 4
+D (87099) httpd_txrx: httpd_send_all: sent = 2
+D (87099) httpd_txrx: httpd_send_all: sent = 2
+D (87109) httpd_txrx: httpd_send_all: sent = 5
+D (87109) httpd_txrx: httpd_send_all: sent = 680
+D (87109) httpd_txrx: httpd_send_all: sent = 2
+D (87119) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (87129) esp-rest: File sending complete
+D (87129) httpd_txrx: httpd_send_all: sent = 3
+D (87139) httpd_txrx: httpd_send_all: sent = 2
+D (87139) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (87149) httpd_sess: httpd_sess_process: httpd_req_delete
+D (87159) httpd_sess: httpd_sess_process: success
+D (87159) httpd: httpd_server: doing select maxfd+1 = 62
+D (87209) httpd: httpd_process_session: processing socket 61
+D (87209) httpd_sess: httpd_sess_process: httpd_req_new
+D (87209) httpd_parse: scratch buf qsize = 128
+D (87209) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87219) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (87219) httpd_parse: read_block: received HTTP request block size = 128
+D (87229) httpd_parse: cb_url: message begin
+D (87229) httpd_parse: cb_url: processing url = /main.html
+D (87239) httpd_parse: verify_url: received URI = /main.html
+D (87239) httpd_parse: cb_header_field: headers begin
+D (87249) httpd_txrx: httpd_unrecv: length = 103
+D (87249) httpd_parse: pause_parsing: paused
+D (87259) httpd_parse: cb_header_field: processing field = Host
+D (87259) httpd_parse: scratch buf qsize = 128
+D (87269) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87269) httpd_txrx: httpd_recv_with_opt: pending length = 103
+D (87279) httpd_parse: read_block: received HTTP request block size = 103
+D (87289) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (87289) httpd_parse: continue_parsing: un-paused
+D (87299) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (87299) httpd_parse: cb_header_field: processing field = Connection
+D (87309) httpd_parse: cb_header_value: processing value = keep-alive
+D (87309) httpd_parse: cb_header_field: processing field = User-Agent
+D (87319) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleW
+D (87329) httpd_parse: parse_block: parsed block size = 103
+D (87339) httpd_parse: scratch buf qsize = 231
+D (87339) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87349) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (87349) httpd_parse: read_block: received HTTP request block size = 128
+D (87359) httpd_parse: cb_header_value: processing value = ebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (87369) httpd_parse: cb_header_field: processing field = Accept
+D (87369) httpd_parse: cb_header_value: processing value = */*
+D (87379) httpd_parse: cb_header_field: processing field = Referer
+D (87389) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (87389) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (87399) httpd_parse: cb_header_value: processing value = gzi
+D (87409) httpd_parse: parse_block: parsed block size = 231
+D (87409) httpd_parse: scratch buf qsize = 359
+D (87409) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87419) httpd_txrx: httpd_recv_with_opt: received length = 89
+D (87429) httpd_parse: read_block: received HTTP request block size = 89
+D (87429) httpd_parse: cb_header_value: processing value = p, deflate
+D (87439) httpd_parse: cb_header_field: processing field = Accept-Language
+D (87449) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (87459) httpd_parse: cb_headers_complete: bytes read     = 347
+D (87459) httpd_parse: cb_headers_complete: content length = 0
+D (87469) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (87479) httpd_parse: pause_parsing: paused
+D (87479) httpd_parse: cb_no_body: message complete
+D (87479) httpd_parse: httpd_parse_req: parsing complete
+D (87489) httpd_uri: httpd_uri: request for /main.html with type 1
+D (87499) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (87499) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (87509) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (87519) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (87519) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (87529) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (87529) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (87539) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (87549) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (87549) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (87559) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (87569) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (87569) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (87579) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (87589) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (87589) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (87599) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (87609) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (87609) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (87619) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (87619) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (87629) httpd_txrx: httpd send chunk buffer size = 70
+D (87639) httpd_txrx: httpd_send_all: sent = 70
+D (87639) httpd_txrx: httpd_send_all: sent = 16
+D (87639) httpd_txrx: httpd_send_all: sent = 2
+D (87649) httpd_txrx: httpd_send_all: sent = 4
+D (87649) httpd_txrx: httpd_send_all: sent = 2
+D (87659) httpd_txrx: httpd_send_all: sent = 2
+D (87659) httpd_txrx: httpd_send_all: sent = 5
+D (87659) httpd_txrx: httpd_send_all: sent = 3312
+D (87669) httpd_txrx: httpd_send_all: sent = 2
+D (87669) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (87679) esp-rest: File sending complete
+D (87689) httpd_txrx: httpd_send_all: sent = 3
+D (87689) httpd_txrx: httpd_send_all: sent = 2
+D (87689) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (87699) httpd_sess: httpd_sess_process: httpd_req_delete
+D (87709) httpd_sess: httpd_sess_process: success
+D (87709) httpd: httpd_server: doing select maxfd+1 = 62
+D (87719) httpd: httpd_process_session: processing socket 60
+D (87719) httpd_sess: httpd_sess_process: httpd_req_new
+D (87729) httpd_parse: scratch buf qsize = 128
+D (87729) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87739) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (87739) httpd_parse: read_block: received HTTP request block size = 128
+D (87749) httpd_parse: cb_url: message begin
+D (87749) httpd_parse: cb_url: processing url = /favicon.ico
+D (87759) httpd_parse: verify_url: received URI = /favicon.ico
+D (87769) httpd_parse: cb_header_field: headers begin
+D (87769) httpd_txrx: httpd_unrecv: length = 101
+D (87769) httpd_parse: pause_parsing: paused
+D (87779) httpd_parse: cb_header_field: processing field = Host
+D (87779) httpd_parse: scratch buf qsize = 128
+D (87789) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87789) httpd_txrx: httpd_recv_with_opt: pending length = 101
+D (87799) httpd_parse: read_block: received HTTP request block size = 101
+D (87809) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (87809) httpd_parse: continue_parsing: un-paused
+D (87819) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (87819) httpd_parse: cb_header_field: processing field = Connection
+D (87829) httpd_parse: cb_header_value: processing value = keep-alive
+D (87839) httpd_parse: cb_header_field: processing field = User-Agent
+D (87839) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
+D (87849) httpd_parse: parse_block: parsed block size = 101
+D (87859) httpd_parse: scratch buf qsize = 229
+D (87859) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87869) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (87869) httpd_parse: read_block: received HTTP request block size = 128
+D (87879) httpd_parse: cb_header_value: processing value = eWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (87889) httpd_parse: cb_header_field: processing field = Accept
+D (87899) httpd_parse: cb_header_value: processing value = image/avif,image/webp,image/apng,image/svg+xml,image/
+D (87909) httpd_parse: parse_block: parsed block size = 229
+D (87909) httpd_parse: scratch buf qsize = 357
+D (87909) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87919) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (87929) httpd_parse: read_block: received HTTP request block size = 128
+D (87929) httpd_parse: cb_header_value: processing value = *,*/*;q=0.8
+D (87939) httpd_parse: cb_header_field: processing field = Referer
+D (87949) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (87949) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (87959) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (87969) httpd_parse: cb_header_field: processing field = Accept-Language
+D (87969) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,
+D (87979) httpd_parse: parse_block: parsed block size = 357
+[0;32mI (87979) wifi:[ADDBA]RX DELBA, reason:37, delete tid:0, initiator:1(originator)[0m
+D (87989) httpd_parse: scratch buf qsize = 485
+D (87999) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (87999) httpd_txrx: httpd_recv_with_opt: received length = 24
+D (88009) httpd_parse: read_block: received HTTP request block size = 24
+D (88009) httpd_parse: cb_header_value: processing value = ru-RU;q=0.6,ru;q=0.5
+D (88019) httpd_parse: cb_headers_complete: bytes read     = 411
+D (88029) httpd_parse: cb_headers_complete: content length = 0
+D (88029) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (88039) httpd_parse: pause_parsing: paused
+D (88049) httpd_parse: cb_no_body: message complete
+D (88049) httpd_parse: httpd_parse_req: parsing complete
+D (88059) httpd_uri: httpd_uri: request for /favicon.ico with type 1
+D (88059) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (88069) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (88079) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (88079) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (88089) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (88099) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (88099) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (88109) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (88109) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (88119) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (88129) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (88129) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (88139) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (88149) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (88149) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (88159) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (88169) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (88169) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (88179) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (88179) httpd_uri: httpd_find_uri_handler: [19] = /*
+D (88189) httpd_txrx: httpd_resp_set_hdr: new header = Content-Encoding: gzip
+D (88199) httpd_txrx: httpd send chunk buffer size = 73
+D (88199) httpd_txrx: httpd_send_all: sent = 73
+D (88199) httpd_txrx: httpd_send_all: sent = 16
+D (88209) httpd_txrx: httpd_send_all: sent = 2
+D (88209) httpd_txrx: httpd_send_all: sent = 4
+D (88219) httpd_txrx: httpd_send_all: sent = 2
+D (88219) httpd_txrx: httpd_send_all: sent = 2
+D (88229) httpd_txrx: httpd_send_all: sent = 5
+D (88229) httpd_txrx: httpd_send_all: sent = 382
+D (88229) httpd_txrx: httpd_send_all: sent = 2
+D (88239) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (88249) esp-rest: File sending complete
+D (88249) httpd_txrx: httpd_send_all: sent = 3
+D (88259) httpd_txrx: httpd_send_all: sent = 2
+D (88259) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (88269) httpd_sess: httpd_sess_process: httpd_req_delete
+D (88269) httpd_sess: httpd_sess_process: success
+D (88279) httpd: httpd_server: doing select maxfd+1 = 62
+D (88289) httpd: httpd_process_session: processing socket 61
+D (88289) httpd_sess: httpd_sess_process: httpd_req_new
+D (88289) httpd_parse: scratch buf qsize = 128
+D (88299) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88299) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (88309) httpd_parse: read_block: received HTTP request block size = 128
+D (88319) httpd_parse: cb_url: message begin
+D (88319) httpd_parse: cb_url: processing url = /api/v1/getPlugins
+D (88329) httpd_parse: verify_url: received URI = /api/v1/getPlugins
+D (88329) httpd_parse: cb_header_field: headers begin
+D (88339) httpd_txrx: httpd_unrecv: length = 95
+D (88339) httpd_parse: pause_parsing: paused
+D (88349) httpd_parse: cb_header_field: processing field = Host
+D (88349) httpd_parse: scratch buf qsize = 128
+D (88359) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88359) httpd_txrx: httpd_recv_with_opt: pending length = 95
+D (88369) httpd_parse: read_block: received HTTP request block size = 95
+D (88369) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (88379) httpd_parse: continue_parsing: un-paused
+D (88379) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (88389) httpd_parse: cb_header_field: processing field = Connection
+D (88399) httpd_parse: cb_header_value: processing value = keep-alive
+D (88399) httpd_parse: cb_header_field: processing field = User-Agent
+D (88409) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64; x64
+D (88419) httpd_parse: parse_block: parsed block size = 95
+D (88419) httpd_parse: scratch buf qsize = 223
+D (88429) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88429) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (88439) httpd_parse: read_block: received HTTP request block size = 128
+D (88449) httpd_parse: cb_header_value: processing value = ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (88459) httpd_parse: cb_header_field: processing field = Accept
+D (88459) httpd_parse: cb_header_value: processing value = */*
+D (88469) httpd_parse: cb_header_field: processing field = X-Requested-With
+D (88469) httpd_parse: cb_header_value: processing value = XMLHttpRequest
+D (88479) httpd_parse: cb_header_field: processing field = Referer
+D (88489) httpd_parse: parse_block: parsed block size = 223
+D (88489) httpd_parse: scratch buf qsize = 351
+D (88499) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88499) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (88509) httpd_parse: read_block: received HTTP request block size = 128
+D (88509) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (88519) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (88529) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (88529) httpd_parse: cb_header_field: processing field = Accept-Language
+D (88539) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (88549) httpd_parse: parse_block: parsed block size = 351
+D (88559) httpd_parse: scratch buf qsize = 479
+D (88559) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88569) httpd_txrx: httpd_recv_with_opt: received length = 3
+D (88569) httpd_parse: read_block: received HTTP request block size = 3
+D (88579) httpd_parse: cb_headers_complete: bytes read     = 388
+D (88579) httpd_parse: cb_headers_complete: content length = 0
+D (88589) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (88599) httpd_parse: pause_parsing: paused
+D (88599) httpd_parse: cb_no_body: message complete
+D (88609) httpd_parse: httpd_parse_req: parsing complete
+D (88609) httpd_uri: httpd_uri: request for /api/v1/getPlugins with type 1
+D (88619) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (88629) get_plugins_get_handler: 1: Mem freesize internal 18020, largest block 7680, free SPIRAM 3038308, largest block SPIRAM 3014656!
+D (88639) JSON: read buffer
+D (88659) httpd_txrx: httpd send buffer size = 71
+D (88659) httpd_txrx: httpd_send_all: sent = 71
+D (88659) httpd_txrx: httpd_send_all: sent = 2
+D (88659) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:4 posted to loop 0x3ffdfb78
+D (88669) httpd_txrx: httpd_send_all: sent = 5827
+D (88669) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (88679) httpd_sess: httpd_sess_process: httpd_req_delete
+D (88689) httpd_sess: httpd_sess_process: success
+D (88689) httpd: httpd_server: doing select maxfd+1 = 62
+D (88699) httpd: httpd_process_session: processing socket 61
+D (88699) httpd_sess: httpd_sess_process: httpd_req_new
+D (88709) httpd_parse: scratch buf qsize = 128
+D (88709) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88719) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (88719) httpd_parse: read_block: received HTTP request block size = 128
+D (88729) httpd_parse: cb_url: message begin
+D (88729) httpd_parse: cb_url: processing url = /api/v1/favorites/getAll
+D (88739) httpd_parse: verify_url: received URI = /api/v1/favorites/getAll
+D (88749) httpd_parse: cb_header_field: headers begin
+D (88749) httpd_txrx: httpd_unrecv: length = 88
+D (88759) httpd_parse: pause_parsing: paused
+D (88759) httpd_parse: cb_header_field: processing field = Host
+D (88769) httpd_parse: scratch buf qsize = 128
+D (88769) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88779) httpd_txrx: httpd_recv_with_opt: pending length = 88
+D (88779) httpd_parse: read_block: received HTTP request block size = 88
+D (88789) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (88789) httpd_parse: continue_parsing: un-paused
+D (88799) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (88809) httpd_parse: cb_header_field: processing field = Connection
+D (88809) httpd_parse: cb_header_value: processing value = keep-alive
+D (88819) httpd_parse: cb_header_field: processing field = Content-Length
+D (88819) httpd_parse: cb_header_value: processing value = 0
+D (88829) httpd_parse: cb_header_field: processing field = User-Agent
+D (88839) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (W
+D (88839) httpd_parse: parse_block: parsed block size = 88
+D (88849) httpd_parse: scratch buf qsize = 216
+D (88849) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88859) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (88859) httpd_parse: read_block: received HTTP request block size = 128
+D (88869) httpd_parse: cb_header_value: processing value = indows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (88879) httpd_parse: cb_header_field: processing field = Accept
+D (88889) httpd_parse: cb_header_value: processing value = */*
+D (88889) httpd_parse: cb_header_field: processing field = X-Requested-With
+D (88899) httpd_parse: parse_block: parsed block size = 216
+D (88909) httpd_parse: scratch buf qsize = 344
+D (88909) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (88919) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (88919) httpd_parse: read_block: received HTTP request block size = 128
+D (88929) httpd_parse: cb_header_field: processing field = 
+D (88929) httpd_parse: cb_header_value: processing value = XMLHttpRequest
+D (88939) httpd_parse: cb_header_field: processing field = Origin
+D (88949) httpd_parse: cb_header_value: processing value = http://192.168.4.1
+D (88949) httpd_parse: cb_header_field: processing field = Referer
+D (88959) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (88969) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (88969) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (88979) httpd_parse: cb_header_field: processing field = Accept-Language
+D (88989) httpd_parse: cb_header_value: processing value = en-
+D (88989) httpd_parse: parse_block: parsed block size = 344
+D (88999) httpd_parse: scratch buf qsize = 472
+D (88999) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89009) httpd_txrx: httpd_recv_with_opt: received length = 57
+D (89009) httpd_parse: read_block: received HTTP request block size = 57
+D (89019) httpd_parse: cb_header_value: processing value = US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (89029) httpd_parse: cb_headers_complete: bytes read     = 444
+D (89029) httpd_parse: cb_headers_complete: content length = 0
+D (89039) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (89049) httpd_parse: pause_parsing: paused
+D (89049) httpd_parse: cb_no_body: message complete
+D (89059) httpd_parse: httpd_parse_req: parsing complete
+D (89059) httpd_uri: httpd_uri: request for /api/v1/favorites/getAll with type 3
+D (89069) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (89079) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (89079) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (89089) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (89099) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (89099) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (89109) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (89119) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (89119) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (89129) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (89129) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (89139) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (89149) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (89149) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (89159) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (89169) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (89169) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (89179) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (89189) favorite_post_handler: 1: Mem freesize internal 18012, largest block 7680, free SPIRAM 3029892, largest block SPIRAM 3014656!
+D (89199) REST: Favorite handler cmd: /api/v1/favorites/getAll
+D (89199) JSON: read buffer
+D (89219) httpd_txrx: httpd send buffer size = 70
+D (89219) httpd_txrx: httpd_send_all: sent = 70
+D (89219) httpd_txrx: httpd_send_all: sent = 2
+D (89219) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:4 posted to loop 0x3ffdfb78
+D (89229) httpd_txrx: httpd_send_all: sent = 921
+D (89229) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (89239) httpd_sess: httpd_sess_process: httpd_req_delete
+D (89249) httpd_sess: httpd_sess_process: success
+D (89249) httpd: httpd_server: doing select maxfd+1 = 62
+D (89269) httpd: httpd_process_session: processing socket 61
+D (89269) httpd_sess: httpd_sess_process: httpd_req_new
+D (89269) httpd_parse: scratch buf qsize = 128
+D (89279) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89279) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (89289) httpd_parse: read_block: received HTTP request block size = 128
+D (89299) httpd_parse: cb_url: message begin
+D (89299) httpd_parse: cb_url: processing url = /api/v1/getActivePlugin/0
+D (89309) httpd_parse: verify_url: received URI = /api/v1/getActivePlugin/0
+D (89309) httpd_parse: cb_header_field: headers begin
+D (89319) httpd_txrx: httpd_unrecv: length = 88
+D (89319) httpd_parse: pause_parsing: paused
+D (89329) httpd_parse: cb_header_field: processing field = Host
+D (89329) httpd_parse: scratch buf qsize = 128
+D (89339) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89339) httpd_txrx: httpd_recv_with_opt: pending length = 88
+D (89349) httpd_parse: read_block: received HTTP request block size = 88
+D (89349) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (89359) httpd_parse: continue_parsing: un-paused
+D (89359) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (89369) httpd_parse: cb_header_field: processing field = Connection
+D (89379) httpd_parse: cb_header_value: processing value = keep-alive
+D (89379) httpd_parse: cb_header_field: processing field = User-Agent
+D (89389) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win
+D (89399) httpd_parse: parse_block: parsed block size = 88
+D (89399) httpd_parse: scratch buf qsize = 216
+D (89409) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89409) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (89419) httpd_parse: read_block: received HTTP request block size = 128
+D (89419) httpd_parse: cb_header_value: processing value = 64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (89439) httpd_parse: cb_header_field: processing field = Accept
+D (89439) httpd_parse: cb_header_value: processing value = */*
+D (89449) httpd_parse: cb_header_field: processing field = X-Requested-With
+D (89449) httpd_parse: cb_header_value: processing value = XMLHttpRequest
+D (89459) httpd_parse: cb_header_field: processing field = R
+D (89469) httpd_parse: parse_block: parsed block size = 216
+D (89469) httpd_parse: scratch buf qsize = 344
+D (89479) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89479) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (89489) httpd_parse: read_block: received HTTP request block size = 128
+D (89489) httpd_parse: cb_header_field: processing field = eferer
+D (89499) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (89509) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (89509) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (89519) httpd_parse: cb_header_field: processing field = Accept-Language
+D (89529) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru
+D (89539) httpd_parse: parse_block: parsed block size = 344
+D (89539) httpd_parse: scratch buf qsize = 472
+D (89549) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89549) httpd_txrx: httpd_recv_with_opt: received length = 10
+D (89559) httpd_parse: read_block: received HTTP request block size = 10
+D (89559) httpd_parse: cb_header_value: processing value = ;q=0.5
+D (89569) httpd_parse: cb_headers_complete: bytes read     = 396
+D (89579) httpd_parse: cb_headers_complete: content length = 0
+D (89579) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (89589) httpd_parse: pause_parsing: paused
+D (89589) httpd_parse: cb_no_body: message complete
+D (89599) httpd_parse: httpd_parse_req: parsing complete
+D (89599) httpd_uri: httpd_uri: request for /api/v1/getActivePlugin/0 with type 1
+D (89609) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (89619) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (89619) get_active_plugin_get_handler: 1: Mem freesize internal 17964, largest block 7424, free SPIRAM 3024364, largest block SPIRAM 3014656!
+D (89639) esp-rest: Get active plugin for channel 0
+D (89639) httpd_txrx: httpd send buffer size = 69
+D (89649) httpd_txrx: httpd_send_all: sent = 69
+D (89649) httpd_txrx: httpd_send_all: sent = 2
+D (89649) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:4 posted to loop 0x3ffdfb78
+D (89659) httpd_txrx: httpd_send_all: sent = 15
+D (89669) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (89679) httpd_sess: httpd_sess_process: httpd_req_delete
+D (89679) httpd_sess: httpd_sess_process: success
+D (89689) httpd: httpd_server: doing select maxfd+1 = 62
+D (89709) httpd: httpd_process_session: processing socket 61
+D (89709) httpd_sess: httpd_sess_process: httpd_req_new
+D (89709) httpd_parse: scratch buf qsize = 128
+D (89719) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89719) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (89729) httpd_parse: read_block: received HTTP request block size = 128
+D (89729) httpd_parse: cb_url: message begin
+D (89739) httpd_parse: cb_url: processing url = /api/v1/getActivePlugin/1
+D (89739) httpd_parse: verify_url: received URI = /api/v1/getActivePlugin/1
+D (89749) httpd_parse: cb_header_field: headers begin
+D (89759) httpd_txrx: httpd_unrecv: length = 88
+D (89759) httpd_parse: pause_parsing: paused
+D (89759) httpd_parse: cb_header_field: processing field = Host
+D (89769) httpd_parse: scratch buf qsize = 128
+D (89769) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89779) httpd_txrx: httpd_recv_with_opt: pending length = 88
+D (89779) httpd_parse: read_block: received HTTP request block size = 88
+D (89789) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (89799) httpd_parse: continue_parsing: un-paused
+D (89799) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (89809) httpd_parse: cb_header_field: processing field = Connection
+D (89809) httpd_parse: cb_header_value: processing value = keep-alive
+D (89819) httpd_parse: cb_header_field: processing field = User-Agent
+D (89829) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win
+D (89839) httpd_parse: parse_block: parsed block size = 88
+D (89839) httpd_parse: scratch buf qsize = 216
+D (89839) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89849) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (89859) httpd_parse: read_block: received HTTP request block size = 128
+D (89859) httpd_parse: cb_header_value: processing value = 64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (89869) httpd_parse: cb_header_field: processing field = Accept
+D (89879) httpd_parse: cb_header_value: processing value = */*
+D (89889) httpd_parse: cb_header_field: processing field = X-Requested-With
+D (89889) httpd_parse: cb_header_value: processing value = XMLHttpRequest
+D (89899) httpd_parse: cb_header_field: processing field = R
+D (89899) httpd_parse: parse_block: parsed block size = 216
+D (89909) httpd_parse: scratch buf qsize = 344
+D (89909) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89919) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (89929) httpd_parse: read_block: received HTTP request block size = 128
+D (89929) httpd_parse: cb_header_field: processing field = eferer
+D (89939) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (89939) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (89949) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (89959) httpd_parse: cb_header_field: processing field = Accept-Language
+D (89959) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru
+D (89969) httpd_parse: parse_block: parsed block size = 344
+D (89979) httpd_parse: scratch buf qsize = 472
+D (89979) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (89989) httpd_txrx: httpd_recv_with_opt: received length = 10
+D (89999) httpd_parse: read_block: received HTTP request block size = 10
+D (89999) httpd_parse: cb_header_value: processing value = ;q=0.5
+D (90009) httpd_parse: cb_headers_complete: bytes read     = 396
+D (90009) httpd_parse: cb_headers_complete: content length = 0
+D (90019) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (90029) httpd_parse: pause_parsing: paused
+D (90029) httpd_parse: cb_no_body: message complete
+D (90039) httpd_parse: httpd_parse_req: parsing complete
+D (90039) httpd_uri: httpd_uri: request for /api/v1/getActivePlugin/1 with type 1
+D (90049) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (90059) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (90059) get_active_plugin_get_handler: 1: Mem freesize internal 17964, largest block 7424, free SPIRAM 3024364, largest block SPIRAM 3014656!
+D (90069) esp-rest: Get active plugin for channel 1
+D (90079) httpd_txrx: httpd send buffer size = 69
+D (90079) httpd_txrx: httpd_send_all: sent = 69
+D (90089) httpd_txrx: httpd_send_all: sent = 2
+D (90089) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:4 posted to loop 0x3ffdfb78
+D (90099) httpd_txrx: httpd_send_all: sent = 15
+D (90109) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (90119) httpd_sess: httpd_sess_process: httpd_req_delete
+D (90119) httpd_sess: httpd_sess_process: success
+D (90129) httpd: httpd_server: doing select maxfd+1 = 62
+D (90149) httpd: httpd_process_session: processing socket 61
+D (90149) httpd_sess: httpd_sess_process: httpd_req_new
+D (90149) httpd_parse: scratch buf qsize = 128
+D (90149) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (90159) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (90169) httpd_parse: read_block: received HTTP request block size = 128
+D (90169) httpd_parse: cb_url: message begin
+D (90179) httpd_parse: cb_url: processing url = /api/v1/getIOCaps
+D (90179) httpd_parse: verify_url: received URI = /api/v1/getIOCaps
+D (90189) httpd_parse: cb_header_field: headers begin
+D (90189) httpd_txrx: httpd_unrecv: length = 96
+D (90199) httpd_parse: pause_parsing: paused
+D (90199) httpd_parse: cb_header_field: processing field = Host
+D (90209) httpd_parse: scratch buf qsize = 128
+D (90209) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (90219) httpd_txrx: httpd_recv_with_opt: pending length = 96
+D (90219) httpd_parse: read_block: received HTTP request block size = 96
+D (90229) httpd_parse: continue_parsing: skip pre-parsed data of size = 5
+D (90229) httpd_parse: continue_parsing: un-paused
+D (90239) httpd_parse: cb_header_value: processing value = 192.168.4.1
+D (90249) httpd_parse: cb_header_field: processing field = Connection
+D (90249) httpd_parse: cb_header_value: processing value = keep-alive
+D (90259) httpd_parse: cb_header_field: processing field = User-Agent
+D (90259) httpd_parse: cb_header_value: processing value = Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+D (90269) httpd_parse: parse_block: parsed block size = 96
+D (90279) httpd_parse: scratch buf qsize = 224
+D (90279) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (90289) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (90289) httpd_parse: read_block: received HTTP request block size = 128
+D (90299) httpd_parse: cb_header_value: processing value =  AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+D (90309) httpd_parse: cb_header_field: processing field = Accept
+D (90319) httpd_parse: cb_header_value: processing value = */*
+D (90319) httpd_parse: cb_header_field: processing field = X-Requested-With
+D (90329) httpd_parse: cb_header_value: processing value = XMLHttpRequest
+D (90339) httpd_parse: cb_header_field: processing field = Referer
+D (90339) httpd_parse: parse_block: parsed block size = 224
+D (90349) httpd_parse: scratch buf qsize = 352
+D (90349) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (90359) httpd_txrx: httpd_recv_with_opt: received length = 128
+D (90359) httpd_parse: read_block: received HTTP request block size = 128
+D (90369) httpd_parse: cb_header_value: processing value = http://192.168.4.1/
+D (90379) httpd_parse: cb_header_field: processing field = Accept-Encoding
+D (90379) httpd_parse: cb_header_value: processing value = gzip, deflate
+D (90389) httpd_parse: cb_header_field: processing field = Accept-Language
+D (90399) httpd_parse: cb_header_value: processing value = en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7,ru-RU;q=0.6,ru;q=0.5
+D (90409) httpd_parse: parse_block: parsed block size = 352
+D (90409) httpd_parse: scratch buf qsize = 480
+D (90419) httpd_txrx: httpd_recv_with_opt: requested length = 128
+D (90419) httpd_txrx: httpd_recv_with_opt: received length = 2
+D (90429) httpd_parse: read_block: received HTTP request block size = 2
+D (90429) httpd_parse: cb_headers_complete: bytes read     = 387
+D (90439) httpd_parse: cb_headers_complete: content length = 0
+D (90449) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:3 posted to loop 0x3ffdfb78
+D (90449) httpd_parse: pause_parsing: paused
+D (90459) httpd_parse: cb_no_body: message complete
+D (90459) httpd_parse: httpd_parse_req: parsing complete
+D (90469) httpd_uri: httpd_uri: request for /api/v1/getIOCaps with type 1
+D (90469) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (90479) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (90489) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (90489) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (90499) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (90509) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (90509) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (90519) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (90529) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (90529) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (90539) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (90549) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (90549) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (90559) httpd_txrx: httpd send buffer size = 71
+D (90559) httpd_txrx: httpd_send_all: sent = 71
+D (90569) httpd_txrx: httpd_send_all: sent = 2
+D (90569) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:4 posted to loop 0x3ffdfb78
+D (90579) httpd_txrx: httpd_send_all: sent = 1495
+D (90589) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:6 posted to loop 0x3ffdfb78
+D (90589) httpd_sess: httpd_sess_process: httpd_req_delete
+D (90599) httpd_sess: httpd_sess_process: success
+D (90599) httpd: httpd_server: doing select maxfd+1 = 62
