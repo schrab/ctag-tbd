@@ -74,8 +74,6 @@ void app_main() {
     DRIVERS::Display::ShowFWVersion();
     vTaskDelay(2000 / portTICK_PERIOD_MS);
     DRIVERS::FileSystem::InitSD(); // try SD card (fails silently if no card)
-    CTRL::UIMenu::Init();
-    xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 8192, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
 #endif
 
 #if defined(CONFIG_SERIAL_UI)
@@ -84,6 +82,8 @@ void app_main() {
 
     AUDIO::SoundProcessorManager::StartSoundProcessor();
 #if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_BBA)
+    CTRL::UIMenu::Init();
+    xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 8192, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
     // Enable GPIO button ISRs after audio init to avoid I2S MCLK spinlock deadlock
     CTRL::UserInput::EnableISR();
 #endif
