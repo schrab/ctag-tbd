@@ -42,7 +42,9 @@ namespace CTAG {
             parseConfig();
         }
 
-        void UIMenuPageSystem::deinit() {}
+        void UIMenuPageSystem::deinit() {
+            applyCurrent();
+        }
 
         void UIMenuPageSystem::parseConfig() {
             itemCount = 0;
@@ -254,7 +256,6 @@ namespace CTAG {
                     while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
                     snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
                 }
-                applyCurrent();
             }
             doRedraw();
         }
