@@ -38,11 +38,15 @@ namespace CTAG {
             cursor = 0;
             scrollOffset = 0;
             pluginCount = 0;
-            systemPage = new UIMenuPageSystem();
+            systemPage = nullptr;
         }
 
         void UIMenuPageHome::deinit() {
-            if (subPage == SP_SYSTEM) systemPage->deinit();
+            if (systemPage) {
+                if (subPage == SP_SYSTEM) systemPage->deinit();
+                delete systemPage;
+                systemPage = nullptr;
+            }
         }
 
         void UIMenuPageHome::parsePlugins() {
@@ -102,6 +106,7 @@ namespace CTAG {
                         scrollOffset = 0;
                         parsePlugins();
                     } else if (cursor == 1) { // SYSTEM
+                        if (!systemPage) systemPage = new UIMenuPageSystem();
                         subPage = SP_SYSTEM;
                         systemPage->init();
                     }
