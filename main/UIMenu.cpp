@@ -26,6 +26,7 @@ respective component folders / files if different from this license.
 #include "menupages/UIMenuPageMix.hpp"
 #include "menupages/UIMenuPageParams.hpp"
 #include "menupages/UIMenuPageTape.hpp"
+#include "menupages/UIMenuPageSystem.hpp"
 #if CONFIG_BT_ENABLED
 #include "menupages/UIMenuPageBtMidi.hpp"
 #endif
@@ -38,9 +39,9 @@ namespace CTAG {
     namespace CTRL {
         UIMenu::Panel UIMenu::currentPanel = UIMenu::PANEL_HOME;
 #if CONFIG_BT_ENABLED
-        UIMenuPage *UIMenu::pages[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+        UIMenuPage *UIMenu::pages[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 #else
-        UIMenuPage *UIMenu::pages[4] = {nullptr, nullptr, nullptr, nullptr};
+        UIMenuPage *UIMenu::pages[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
 #endif
         UIMenu::NavState UIMenu::navState = UIMenu::ROOT;
         bool UIMenu::redrawNeeded = true;
@@ -51,6 +52,7 @@ namespace CTAG {
             pages[PANEL_MIX] = new UIMenuPageMix();
             pages[PANEL_TAPE] = new UIMenuPageTape();
             pages[PANEL_PARAMS] = new UIMenuPageParams();
+            pages[PANEL_SYSTEM] = new UIMenuPageSystem();
 #if CONFIG_BT_ENABLED
             pages[PANEL_BT] = new UIMenuPageBtMidi();
 #endif
@@ -59,6 +61,17 @@ namespace CTAG {
             redrawNeeded = true;
             panelBarTimer = 50; // ~1s
             // task created in main.cpp
+        }
+
+        void UIMenu::SwitchToPanel(Panel p) {
+            if (p != currentPanel) {
+                pages[currentPanel]->deinit();
+                currentPanel = p;
+                pages[currentPanel]->init();
+            }
+            navState = PANEL_IN;
+            panelBarTimer = 50;
+            redrawNeeded = true;
         }
 
         void UIMenu::drawPanelBar() {

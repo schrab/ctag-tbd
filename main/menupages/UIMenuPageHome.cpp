@@ -20,6 +20,7 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "UIMenuPageHome.hpp"
+#include "UIMenu.hpp"
 #include "Display.hpp"
 #include "SPManager.hpp"
 #include "rapidjson/document.h"
@@ -93,6 +94,8 @@ namespace CTAG {
                         cursor = 0;
                         scrollOffset = 0;
                         parsePlugins();
+                    } else if (cursor == 1) { // SYSTEM
+                        UIMenu::SwitchToPanel(UIMenu::PANEL_SYSTEM);
                     }
                 }
             } else if (subPage == SP_SELECT) {
