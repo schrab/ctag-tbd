@@ -137,7 +137,7 @@ namespace CTAG {
                 // Redraw if needed
                 if (redrawNeeded) {
                     if (navState == ROOT) {
-                        Display::Clear();
+                        pages[currentPanel]->doRedraw();
                         drawPanelBar();
                     } else {
                         pages[currentPanel]->doRedraw();
