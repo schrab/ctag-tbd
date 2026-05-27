@@ -163,10 +163,10 @@ namespace CTAG {
 
         void UIMenuPageHome::redrawMain() {
             Display::Clear();
-            const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP"};
-            for (int i = 0; i < 5; i++)
-                Display::DrawString(0, 12 + i * 10, items[i], Display::FONT_5X7);
-            Display::InvertRect(0, 12 + cursor * 10, 128, 8);
+            const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP", ""};
+            for (int i = 0; i < 6; i++)
+                Display::DrawString(0, 3 + i * 9, items[i], Display::FONT_5X7);
+            Display::InvertRect(0, 3 + cursor * 9, 128, 8);
             Display::Flush();
         }
 
@@ -182,15 +182,15 @@ namespace CTAG {
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const PluginEntry &e = plugins[idx];
-                int y = 10 + i * 9;
+                int y = 3 + i * 9;
                 Display::DrawString(0, y, e.name, Display::FONT_5X7);
                 // type indicator right-aligned
                 Display::DrawString(120, y, e.isStereo ? "S" : "M", Display::FONT_5X7);
             }
-            int cy = 10 + (cursor - scrollOffset) * 9;
+            int cy = 3 + (cursor - scrollOffset) * 9;
             Display::InvertRect(0, cy, 128, 8);
             if (pluginCount > 6)
-                Display::DrawScrollbar(126, 10, 54, pluginCount, cursor);
+                Display::DrawScrollbar(126, 3, 54, pluginCount, cursor);
             Display::Flush();
         }
 
@@ -203,8 +203,7 @@ namespace CTAG {
             const char *opts[] = {"Ch 0", "Ch 1", "Both"};
             for (int i = 0; i < 3; i++)
                 Display::DrawString(0, 20 + i * 10, opts[i], Display::FONT_5X7);
-            Display::InvertRect(0, 20 + cursor * 10, 128, 8);
-            Display::Flush();
+            Display::InvertRect(0, 20 + cursor * 10, 128, 8);            Display::Flush();
         }
     }
 }

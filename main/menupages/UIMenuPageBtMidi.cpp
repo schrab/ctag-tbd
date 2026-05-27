@@ -103,23 +103,23 @@ namespace CTAG {
         void UIMenuPageBtMidi::redrawMain() {
             Display::Clear();
             char buf[32];
-            int y = 10;
+            int y = 3;
 
             snprintf(buf, sizeof(buf), "SCAN%s",
                      BtMidiReceiver::IsScanning() ? " (running)" : "");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 10;
+            y += 9;
 
             snprintf(buf, sizeof(buf), "Disconnect%s",
                      BtMidiReceiver::IsConnected() ? "" : " (none)");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 10;
+            y += 9;
 
             snprintf(buf, sizeof(buf), "Status: %s",
                      BtMidiReceiver::IsConnected() ? "CONNECTED" : "IDLE");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
 
-            Display::InvertRect(0, 10 + cursor * 10, 128, 8);
+            Display::InvertRect(0, 3 + cursor * 9, 128, 8);
             Display::Flush();
         }
 
@@ -128,9 +128,9 @@ namespace CTAG {
             int n = BtMidiReceiver::GetDeviceCount();
 
             if (BtMidiReceiver::IsScanning()) {
-                Display::DrawString(0, 0, "Scanning...", Display::FONT_5X7);
+                Display::DrawString(0, 3, "Scanning...", Display::FONT_5X7);
             } else {
-                Display::DrawString(0, 0, "Scan complete", Display::FONT_5X7);
+                Display::DrawString(0, 3, "Scan complete", Display::FONT_5X7);
             }
 
             if (n == 0) {
@@ -142,13 +142,13 @@ namespace CTAG {
                     int idx = scrollOffset + i;
                     const BtDeviceInfo *d = BtMidiReceiver::GetDevice(idx);
                     if (!d) continue;
-                    int y = 10 + i * 9;
+                    int y = 3 + i * 9;
                     Display::DrawString(0, y, d->name[0] ? d->name : "(unnamed)", Display::FONT_5X7);
                 }
-                int cy = 10 + (cursor - scrollOffset) * 9;
+                int cy = 3 + (cursor - scrollOffset) * 9;
                 Display::InvertRect(0, cy, 128, 8);
                 if (n > 6)
-                    Display::DrawScrollbar(126, 10, 54, n, cursor);
+                    Display::DrawScrollbar(126, 3, 54, n, cursor);
             }
 
             Display::Flush();
