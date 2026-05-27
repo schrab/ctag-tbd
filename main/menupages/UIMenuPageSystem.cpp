@@ -35,10 +35,10 @@ using namespace rapidjson;
 namespace CTAG {
     namespace CTRL {
         void UIMenuPageSystem::init() {
-            subPage = SP_MAIN;
             cursor = 0;
             scrollOffset = 0;
             itemCount = 0;
+            editMode = false;
             parseConfig();
         }
 
@@ -54,23 +54,6 @@ namespace CTAG {
             Document doc;
             doc.Parse(json);
             if (!doc.IsObject()) return;
-
-            // cv_ch0..cv_ch3
-            static const char *cvNames[] = {"CV Ch 0", "CV Ch 1", "CV Ch 2", "CV Ch 3"};
-            static const char *cvIds[] = {"cv_ch0", "cv_ch1", "cv_ch2", "cv_ch3"};
-            for (int i = 0; i < 4 && itemCount < MAX_ITEMS; i++) {
-                ConfigItem &it = items[itemCount];
-                snprintf(it.id, sizeof(it.id), "%s", cvIds[i]);
-                snprintf(it.name, sizeof(it.name), "%s", cvNames[i]);
-                snprintf(it.type, sizeof(it.type), "enum");
-                snprintf(it.options, sizeof(it.options), "unipolar,bipolar");
-                it.min = 0; it.max = 1; it.valInt = 0;
-                if (doc.HasMember(cvIds[i]) && doc[cvIds[i]].IsString()) {
-                    snprintf(it.value, sizeof(it.value), "%s", doc[cvIds[i]].GetString());
-                    it.valInt = strcmp(it.value, "bipolar") == 0 ? 1 : 0;
-                }
-                itemCount++;
-            }
 
             // ng_config
             if (itemCount < MAX_ITEMS) {
@@ -230,16 +213,7 @@ namespace CTAG {
         }
 
         void UIMenuPageSystem::onEncoder(int delta) {
-            if (subPage == SP_MAIN) {
-                int nc = cursor + delta;
-                if (nc < 0) nc = 0;
-                if (nc >= itemCount) nc = itemCount - 1;
-                cursor = nc;
-                if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
-                if (scrollOffset > itemCount - 6) scrollOffset = itemCount - 6;
-                if (scrollOffset < 0) scrollOffset = 0;
-            } else if (subPage == SP_EDIT) {
+            if (editMode) {
                 if (itemCount == 0 || cursor >= itemCount) return;
                 ConfigItem &it = items[cursor];
                 it.valInt += delta;
@@ -256,26 +230,30 @@ namespace CTAG {
                     while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
                     snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
                 }
+                applyCurrent();
+            } else {
+                int nc = cursor + delta;
+                if (nc < 0) nc = 0;
+                if (nc >= itemCount) nc = itemCount - 1;
+                cursor = nc;
+                if (cursor - scrollOffset < 0) scrollOffset = cursor;
+                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
+                if (scrollOffset > itemCount - 6) scrollOffset = itemCount - 6;
+                if (scrollOffset < 0) scrollOffset = 0;
             }
             doRedraw();
         }
 
         void UIMenuPageSystem::onButton(int btnId, bool longPress) {
-            if (subPage == SP_MAIN) {
-                if (btnId == 2 && !longPress && itemCount > 0) {
-                    subPage = SP_EDIT;
-                }
-            } else if (subPage == SP_EDIT) {
-                if (btnId == 2 && !longPress) {
-                    subPage = SP_MAIN;
-                }
+            if (btnId == 2 && !longPress && itemCount > 0) {
+                editMode = !editMode;
             }
             doRedraw();
         }
 
         bool UIMenuPageSystem::onBack() {
-            if (subPage == SP_EDIT) {
-                subPage = SP_MAIN;
+            if (editMode) {
+                editMode = false;
                 doRedraw();
                 return true;
             }
@@ -283,8 +261,7 @@ namespace CTAG {
         }
 
         void UIMenuPageSystem::doRedraw() {
-            if (subPage == SP_MAIN) redrawMain();
-            else if (subPage == SP_EDIT) redrawEdit();
+            redrawMain();
         }
 
         void UIMenuPageSystem::redrawMain() {
@@ -304,46 +281,14 @@ namespace CTAG {
                 Display::DrawStringRight(127, y, it.value, Display::FONT_5X7);
             }
             int cy = 5 + (cursor - scrollOffset) * 9;
-            Display::InvertRect(0, cy, 128, 8);
+            if (editMode) {
+                // highlight only value area when editing
+                Display::InvertRect(70, cy, 58, 8);
+            } else {
+                Display::InvertRect(0, cy, 128, 8);
+            }
             if (itemCount > 6)
                 Display::DrawScrollbar(126, 5, 54, itemCount, cursor);
-            Display::Flush();
-        }
-
-        void UIMenuPageSystem::redrawEdit() {
-            Display::Clear();
-            if (itemCount == 0 || cursor >= itemCount) {
-                Display::DrawString(0, 24, "No config", Display::FONT_5X7);
-                Display::Flush();
-                return;
-            }
-            const ConfigItem &it = items[cursor];
-            int y = 5;
-
-            // show name
-            Display::DrawString(0, y, it.name, Display::FONT_5X7);
-            y += 12;
-
-            // show current value highlighted
-            char buf[32];
-            if (strcmp(it.type, "int") == 0) {
-                snprintf(buf, sizeof(buf), "%d", it.valInt);
-            } else {
-                snprintf(buf, sizeof(buf), "%s", it.value);
-            }
-            Display::DrawString(0, y, buf, Display::FONT_5X7);
-            Display::InvertRect(0, y - 1, 128, 9);
-            y += 12;
-
-            // show options range
-            char buf2[80];
-            if (strcmp(it.type, "int") == 0) {
-                snprintf(buf2, sizeof(buf2), "Min:%d Max:%d", it.min, it.max);
-            } else {
-                snprintf(buf2, sizeof(buf2), "Options: %s", it.options);
-            }
-            Display::DrawString(0, y, buf2, Display::FONT_5X7);
-
             Display::Flush();
         }
     }

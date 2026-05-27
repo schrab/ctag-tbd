@@ -35,10 +35,9 @@ namespace CTAG {
             bool onBack() override;
 
         private:
-            enum SubPage { SP_MAIN, SP_EDIT };
-            SubPage subPage;
             int cursor;
             int scrollOffset;
+            bool editMode;
 
             struct ConfigItem {
                 char id[24];
@@ -57,7 +56,6 @@ namespace CTAG {
 
             void parseConfig();
             void redrawMain();
-            void redrawEdit();
             void applyCurrent();
         };
     }
