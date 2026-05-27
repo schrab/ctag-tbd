@@ -20,11 +20,11 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "UIMenuPageHome.hpp"
-#include "UIMenu.hpp"
 #include "Display.hpp"
 #include "SPManager.hpp"
 #include "rapidjson/document.h"
 #include "fs.hpp"
+#include "UIMenuPageSystem.hpp"
 #include <cstring>
 
 using namespace CTAG::DRIVERS;
@@ -38,9 +38,12 @@ namespace CTAG {
             cursor = 0;
             scrollOffset = 0;
             pluginCount = 0;
+            systemPage = new UIMenuPageSystem();
         }
 
-        void UIMenuPageHome::deinit() {}
+        void UIMenuPageHome::deinit() {
+            if (subPage == SP_SYSTEM) systemPage->deinit();
+        }
 
         void UIMenuPageHome::parsePlugins() {
             pluginCount = 0;
@@ -64,7 +67,9 @@ namespace CTAG {
         }
 
         void UIMenuPageHome::onEncoder(int delta) {
-            if (subPage == SP_MAIN) {
+            if (subPage == SP_SYSTEM) {
+                systemPage->onEncoder(delta);
+            } else if (subPage == SP_MAIN) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
                 if (cursor > 5) cursor = 5;
@@ -86,7 +91,9 @@ namespace CTAG {
         }
 
         void UIMenuPageHome::onButton(int btnId, bool longPress) {
-            if (subPage == SP_MAIN) {
+            if (subPage == SP_SYSTEM) {
+                systemPage->onButton(btnId, longPress);
+            } else if (subPage == SP_MAIN) {
                 if (btnId == 2 && !longPress) {
                     // enter subpage
                     if (cursor == 0) { // SELECT
@@ -95,7 +102,8 @@ namespace CTAG {
                         scrollOffset = 0;
                         parsePlugins();
                     } else if (cursor == 1) { // SYSTEM
-                        UIMenu::SwitchToPanel(UIMenu::PANEL_SYSTEM);
+                        subPage = SP_SYSTEM;
+                        systemPage->init();
                     }
                 }
             } else if (subPage == SP_SELECT) {
@@ -137,6 +145,14 @@ namespace CTAG {
         }
 
         bool UIMenuPageHome::onBack() {
+            if (subPage == SP_SYSTEM) {
+                if (systemPage->onBack()) return true;
+                systemPage->deinit();
+                subPage = SP_MAIN;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
             if (subPage == SP_SELECT_CH) {
                 subPage = SP_SELECT;
                 cursor = selectedPlugin;
@@ -155,7 +171,9 @@ namespace CTAG {
         }
 
         void UIMenuPageHome::doRedraw() {
-            if (subPage == SP_MAIN) {
+            if (subPage == SP_SYSTEM) {
+                systemPage->doRedraw();
+            } else if (subPage == SP_MAIN) {
                 redrawMain();
             } else if (subPage == SP_SELECT) {
                 redrawSelect();

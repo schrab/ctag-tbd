@@ -25,6 +25,8 @@ respective component folders / files if different from this license.
 
 namespace CTAG {
     namespace CTRL {
+        class UIMenuPageSystem;
+
         class UIMenuPageHome final : public UIMenuPage {
         public:
             void init() override;
@@ -42,7 +44,7 @@ namespace CTAG {
                 bool isStereo;
             };
 
-            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH };
+            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM };
 
             SubPage subPage;
             int cursor;
@@ -53,6 +55,8 @@ namespace CTAG {
 
             int selChan;
             int selectedPlugin; // index of plugin being channel-assigned
+
+            UIMenuPageSystem *systemPage;
 
             void parsePlugins();
             void redrawMain();
