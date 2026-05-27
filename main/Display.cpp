@@ -275,7 +275,7 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
             for (int col = 0; col < 5; col++) {
                 uint8_t byte = glyph[col];
                 for (int row = 0; row < 7; row++) {
-                    DrawPixel(x + col, y + row, (byte >> (7 - row)) & 1);
+                    DrawPixel(x + col, y + row, (byte >> (6 - row)) & 1);
                 }
             }
             x += 6; // 5 px glyph + 1 px spacing
