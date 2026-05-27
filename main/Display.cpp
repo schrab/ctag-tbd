@@ -232,7 +232,7 @@ void Display::InvertRect(int x, int y, int w, int h) {
             int px = x + col, py = y + row;
             if (px < 0 || px >= 128 || py < 0 || py >= 64) continue;
             int page = py >> 3;
-            int bit = 7 - (py & 7);
+            int bit = py & 7;
             int idx = page * 128 + px;
             fb[idx] ^= (1 << bit);
             MarkDirty(page);
