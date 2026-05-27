@@ -197,7 +197,7 @@ void Display::Flush() {
 void Display::DrawPixel(int x, int y, bool on) {
     if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
     int page = y >> 3;
-    int bit = 7 - (y & 7);
+    int bit = y & 7;
     int idx = page * 128 + x;
     if (on)
         fb[idx] |= (1 << bit);
