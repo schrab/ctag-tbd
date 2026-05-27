@@ -39,7 +39,6 @@ namespace CTAG {
             cursor = 0;
             scrollOffset = 0;
             itemCount = 0;
-            parseConfig();
         }
 
         void UIMenuPageSystem::deinit() {

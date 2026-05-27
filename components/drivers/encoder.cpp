@@ -24,8 +24,8 @@ respective component folders / files if different from this license.
 #include "driver/gpio.h"
 #include "soc/pcnt_struct.h"
 
-#define ENC_A_GPIO 5
-#define ENC_B_GPIO 23
+#define ENC_A_GPIO 23
+#define ENC_B_GPIO 5
 #define PCNT_UNIT PCNT_UNIT_0
 
 namespace CTAG {
