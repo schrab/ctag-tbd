@@ -39,10 +39,11 @@ namespace CTAG {
             cursor = 0;
             scrollOffset = 0;
             itemCount = 0;
+            parseConfig();
         }
 
         void UIMenuPageSystem::deinit() {
-            applyCurrent();
+            if (itemCount > 0) applyCurrent();
         }
 
         void UIMenuPageSystem::parseConfig() {
