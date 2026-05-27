@@ -196,9 +196,11 @@ void Display::Flush() {
 
 void Display::DrawPixel(int x, int y, bool on) {
     if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
-    // 0xC8 COM scan: COM63→COM0 inverts page and bit order
-    int page = 7 - (y >> 3);
-    int bit = 7 - (y & 7);
+    // y=0 is physical top, y=63 is physical bottom
+    // page 0 = COM0-COM7 = y=0..7 (physical top)
+    // bit 0 = COM0 (physical top of the 8-row region)
+    int page = y >> 3;
+    int bit = y & 7;
     int idx = page * 128 + x;
     if (on)
         fb[idx] |= (1 << bit);
@@ -232,8 +234,8 @@ void Display::InvertRect(int x, int y, int w, int h) {
         for (int col = 0; col < w; col++) {
             int px = x + col, py = y + row;
             if (px < 0 || px >= 128 || py < 0 || py >= 64) continue;
-            int page = 7 - (py >> 3);
-            int bit = 7 - (py & 7);
+            int page = py >> 3;
+            int bit = py & 7;
             int idx = page * 128 + px;
             fb[idx] ^= (1 << bit);
             MarkDirty(page);
