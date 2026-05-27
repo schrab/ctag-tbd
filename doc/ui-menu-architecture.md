@@ -6,7 +6,7 @@
 |------|------|
 | `main/UIMenu.hpp` / `.cpp` | Menu controller — owns navigation state and page registry |
 | `main/UIMenuPage.hpp` | Abstract base class for all pages |
-| `main/menupages/UIMenuPage*.hpp/.cpp` | Concrete page implementations (Home, Mix, Tape, Params, BtMidi) |
+| `main/menupages/UIMenuPage*.hpp/.cpp` | Concrete page implementations (Home, Mix, Tape, Params, System, BtMidi) |
 | `main/UserInput.hpp` / `.cpp` | Hardware input: encoder + 2 buttons → FreeRTOS event queue |
 | `main/Display.hpp` / `.cpp` | OLED framebuffer (128x64, SSD1306) |
 | `main/main.cpp` | Boot sequence: splash → `StartSoundProcessor()` → `UIMenu::Init()` → task |
@@ -56,6 +56,7 @@ Pages are hardcoded in a fixed array by `UIMenu::Init()`:
 ```cpp
 enum Panel : uint8_t { PANEL_MIX=0, PANEL_TAPE=1, PANEL_HOME=2, PANEL_PARAMS=3 };
 // + PANEL_BT when CONFIG_BT_ENABLED
+// Note: SYSTEM is NOT a panel — it's a SP_SYSTEM sub-page of HOME
 static UIMenuPage *pages[PANEL_COUNT];
 static Panel currentPanel;     // starts at PANEL_HOME
 static NavState navState;      // starts at ROOT
@@ -121,9 +122,10 @@ Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` fo
 ### HOME (`UIMenuPageHome`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |---------|--------------|---------|-----------------|------|
-| `SP_MAIN` | Menu items: SELECT, SYSTEM, FAVORITES, SD CARD, SLEEP | Scroll cursor (0-5) | Enter sub-page at cursor | Return to ROOT |
+| `SP_MAIN` | Menu items: SELECT, SYSTEM, FAVORITES, SD CARD, SLEEP | Scroll cursor (0-5) | Enter sub-page at cursor (SYSTEM → SP_SYSTEM, lazy-allocates UIMenuPageSystem) | Return to ROOT |
 | `SP_SELECT` | Plugin list (parsed from JSON, max 64) | Scroll list (auto-scroll, 6 visible) | Load plugin: stereo → ch0 directly, mono → channel picker | Back to SP_MAIN |
 | `SP_SELECT_CH` | Channel options: Ch0 / Ch1 / Both | Scroll 3 options | Load to selected channel(s) | Back to SP_SELECT |
+| `SP_SYSTEM` | System config page (delegates to UIMenuPageSystem) | Forwarded to System page | Forwarded to System page | System page onBack() → SP_MAIN |
 
 ### PARAMS (`UIMenuPageParams`)
 | Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
@@ -140,7 +142,20 @@ Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` fo
 | `SP_FILELIST` | .wav files from SD card | Scroll list (auto-scroll) | Load selected file for playback | Back to SP_MAIN |
 | `SP_RECORD` | START REC / CANCEL | Scroll cursor (0-1) | START→record, CANCEL→stop | Back to SP_MAIN |
 
-### MIX (`UIMenuPageMix`)
+### SYSTEM (`UIMenuPageSystem`) — HOME sub-page
+System config is entered as `SP_SYSTEM` from HOME's `SP_MAIN` (cursor=1, "SYSTEM"). It is NOT a panel tab. Instances are lazy-allocated in `UIMenuPageHome::onButton()` to keep boot allocation small.
+
+| Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
+|------|--------------|---------|-----------------|------|
+| Browse | Config item list (parsed from `GetCStrJSONConfiguration()`, scrollable, 6 visible) | Scroll list | Toggle `editMode` on current item | If editing → exit edit; else → SP_MAIN |
+| Edit | Same list layout, right-side value highlighted (24px) | Adjust value (`valInt += delta`, clamped to min/max) | Toggle `editMode` off | Exit edit |
+
+**Config items displayed:** Noise Gate, Ch 0+1 Daisy, Ch0→Stereo, Ch1→Stereo, Ch0 Soft Clip, Ch1 Soft Clip, Ch0 Out Level, Ch1 Out Level.
+
+**Persistence:**
+- `applyCurrent()` loads the full config JSON, overlays only managed fields in-place, then calls `SetConfigurationFromJSON()`. This preserves `cv_ch0..cv_ch3`, `wifi`, and other keys not displayed in the UI.
+- On `deinit()`, if `itemCount > 0`, calls `applyCurrent()` to persist any unsaved changes.
+- `applyCurrent()` is also called per-tick in edit mode so value changes take effect immediately.
 No sub-pages. Shows "MIX" + placeholder VU meters. No encoder/button handlers. `onBack()` returns false (ROOT directly).
 
 ### BT MIDI (`UIMenuPageBtMidi`) — only when `CONFIG_BT_ENABLED`
@@ -171,6 +186,16 @@ The UIMenu task starts AFTER `StartSoundProcessor()` completes. This ensures the
 4. Implement `onBack()` for sub-page navigation
 5. Use BTN2_SHORT as the primary select/enter action (not LONG)
 
+## Adding a Sub-Page (like SYSTEM)
+
+For pages accessed from a parent page's menu (not a panel tab):
+
+1. Create `main/menupages/UIMenuPageFoo.hpp` and `.cpp` subclassing `UIMenuPage`
+2. Forward events from the parent page's `onEncoder`/`onButton`/`onBack`/`doRedraw` when the parent is in the matching sub-page state
+3. **Do NOT add to `UIMenu::Panel`** — it's not a panel tab
+4. **Lazy-allocate**: `new` on entry (user action), not during boot `init()`
+5. `deinit()` on exit from the sub-page, `delete` in parent's `deinit()`
+
 ## Common Pitfalls
 
 - **Stack overflow**: UIMenu task stack is 8192 bytes. JSON parsing in `parsePlugins()`/`parseParams()` uses stack-heavy RapidJSON `Document`. If overflowing, increase stack in `main.cpp`.
@@ -178,3 +203,5 @@ The UIMenu task starts AFTER `StartSoundProcessor()` completes. This ensures the
 - **GPIO5 conflict**: PIN_PUSH_BTN for old Favorites system is GPIO5, which is also encoder signal B. The old `Favorites::ui_task` is DISABLED in `SPManager.cpp`.
 - **Button ISR timing**: `UserInput::EnableISR()` must be called after `Codec::InitCodec()` to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3.
 - **SPModel assert on boot**: If storage partition doesn't have `spm-config.jsn` (e.g. after format), the firmware asserts. Use `idf.py flash` to write the storage partition from `spiffs_image/`.
+- **Boot-time `new` allocation freeze**: Allocating `UIMenuPageSystem` during `UIMenuPageHome::init()` via `operator new` causes the UI task to silently stop responding. The page must be lazy-allocated when the user enters `SP_SYSTEM` from the HOME menu, not during boot.
+- **Config persistence overwrite**: `applyCurrent()` must load the full config JSON and overlay only managed fields, not build a new object from scratch. Writing a partial config (e.g., only the 10 displayed items) removes `cv_ch0..cv_ch3` and `wifi`, causing `updateConfiguration()` to assert on next boot. Use `doc[it.id].Swap(v)` to modify in-place within the existing document.
