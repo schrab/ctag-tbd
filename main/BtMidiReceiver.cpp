@@ -107,6 +107,9 @@ static int on_chr_discovered(uint16_t conn,
                               const struct ble_gatt_chr *chr,
                               void *arg) {
     if (error->status == 0 && chr != nullptr) {
+        char uuid_str[37];
+        ble_uuid_to_str(&chr->uuid.u, uuid_str);
+        ESP_LOGD(TAG, "Found characteristic: %s", uuid_str);
         if (ble_uuid_cmp(&chr->uuid.u, &MIDI_CHR_UUID.u) == 0) {
             ESP_LOGI(TAG, "Found MIDI characteristic");
             midi_val_handle = chr->val_handle;
@@ -121,6 +124,8 @@ static int on_chr_discovered(uint16_t conn,
                 ESP_LOGE(TAG, "Subscribe failed: %d", rc);
             }
         }
+    } else if (error->status != BLE_HS_EDONE) {
+        ESP_LOGE(TAG, "Characteristic discovery error: %d", error->status);
     }
     return 0;
 }
@@ -149,6 +154,10 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     case BLE_GAP_EVENT_DISC: {
         const struct ble_gap_disc_desc &disc = event->disc;
         if (deviceCount >= MAX_DEVICES) return 0;
+        // Deduplicate: skip if address already in list
+        for (int i = 0; i < deviceCount; i++) {
+            if (memcmp(devices[i].bda, disc.addr.val, 6) == 0) return 0;
+        }
         // Parse AD data for device name
         struct ble_hs_adv_fields fields;
         int rc = ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data);

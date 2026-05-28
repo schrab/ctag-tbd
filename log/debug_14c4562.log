@@ -1,0 +1,411 @@
+rst:0x1 (POWERON_RESET),boot:0x1e (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:6604
+ho 0 tail 12 room 4
+load:0x40078000,len:16764
+load:0x40080400,len:4348
+entry 0x40080664
+I (29) boot: ESP-IDF v5.5.4-dirty 2nd stage bootloader
+I (29) boot: compile time May 26 2026 20:28:32
+I (29) boot: Multicore bootloader
+I (31) boot: chip revision: v3.1
+I (34) qio_mode: Enabling QIO for flash chip WinBond
+I (39) boot.esp32: SPI Speed      : 80MHz
+I (42) boot.esp32: SPI Mode       : QIO
+I (46) boot.esp32: SPI Flash Size : 16MB
+I (50) boot: Enabling RNG early entropy source...
+I (54) boot: Partition Table:
+I (57) boot: ## Label            Usage          Type ST Offset   Length
+I (63) boot:  0 nvs              WiFi data        01 02 00009000 00004000
+I (69) boot:  1 otadata          OTA data         01 00 0000d000 00002000
+I (76) boot:  2 phy_init         RF data          01 01 0000f000 00001000
+I (82) boot:  3 ota_0            OTA app          00 10 00010000 00300000
+I (89) boot:  4 ota_1            OTA app          00 11 00310000 00300000
+I (96) boot:  5 storage          Unknown data     01 82 00610000 00300000
+I (102) boot: End of partition table
+I (106) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=83e60h (540256) map
+I (251) esp_image: segment 1: paddr=00093e88 vaddr=3ffb0000 size=05738h ( 22328) load
+I (257) esp_image: segment 2: paddr=000995c8 vaddr=40080000 size=06a50h ( 27216) load
+I (266) esp_image: segment 3: paddr=000a0020 vaddr=400d0020 size=21ad00h (2206976) map
+I (830) esp_image: segment 4: paddr=002bad28 vaddr=40086a50 size=14b40h ( 84800) load
+I (855) esp_image: segment 5: paddr=002cf870 vaddr=50000800 size=00020h (    32) load
+I (869) boot: Loaded app from partition at offset 0x10000
+I (869) boot: Disabling RNG early entropy source...
+I (879) quad_psram: This chip is ESP32-D0WD
+I (880) esp_psram: Found 8MB PSRAM device
+I (880) esp_psram: Speed: 80MHz
+I (880) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.
+W (887) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped
+I (895) cpu_start: Multicore app
+D (898) cpu_start: Pro cpu up
+D (901) cpu_start: Starting app cpu, entry point is 0x4008161c
+D (0) cpu_start: App cpu up
+I (1373) esp_psram: SPI SRAM memory test OK
+D (1380) clk: RTC_SLOW_CLK calibration value: 3209741
+I (1386) cpu_start: GPIO 3 and 1 are used as console UART I/O pins
+D (1386) cpu_start: calling init function: 0x400d3934 on core: 0
+D (1388) cpu_start: calling init function: 0x400d3e24 on core: 0
+I (1394) cpu_start: Pro cpu start user code
+I (1398) cpu_start: cpu freq: 240000000 Hz
+D (1401) cpu_start: calling init function: 0x400d3870 on core: 0
+I (1407) app_init: Application information:
+I (1411) app_init: Project name:     ctag-tbd
+I (1415) app_init: App version:      14c4562
+I (1419) app_init: Compile time:     May 28 2026 16:00:10
+I (1424) app_init: ELF file SHA256:  a7151350a...
+I (1429) app_init: ESP-IDF:          v5.5.4-dirty
+D (1433) cpu_start: calling init function: 0x400d3944 on core: 0
+I (1439) efuse_init: Min chip rev:     v0.0
+I (1443) efuse_init: Max chip rev:     v3.99
+I (1447) efuse_init: Chip rev:         v3.1
+D (1451) cpu_start: calling init function: 0x400d572c on core: 0
+D (1456) memory_layout: Checking 10 reserved memory ranges:
+D (1462) memory_layout: Reserved memory range 0x3f800000 - 0x3fc00000
+D (1468) memory_layout: Reserved memory range 0x3ff82000 - 0x3ff82000
+D (1474) memory_layout: Reserved memory range 0x3ffae000 - 0x3ffae6e0
+D (1480) memory_layout: Reserved memory range 0x3ffb0000 - 0x3ffbc130
+D (1486) memory_layout: Reserved memory range 0x3ffe0000 - 0x3ffe0440
+D (1492) memory_layout: Reserved memory range 0x3ffe3f20 - 0x3ffe4350
+D (1499) memory_layout: Reserved memory range 0x40070000 - 0x40078000
+D (1505) memory_layout: Reserved memory range 0x40078000 - 0x40080000
+D (1511) memory_layout: Reserved memory range 0x40080000 - 0x4009b590
+D (1517) memory_layout: Reserved memory range 0x50001fe8 - 0x50002000
+D (1523) memory_layout: Building list of available memory regions:
+D (1529) memory_layout: Available memory region 0x3ffae6e0 - 0x3ffb0000
+D (1536) memory_layout: Available memory region 0x3ffbc130 - 0x3ffc0000
+D (1542) memory_layout: Available memory region 0x3ffc0000 - 0x3ffc2000
+D (1548) memory_layout: Available memory region 0x3ffc2000 - 0x3ffc4000
+D (1555) memory_layout: Available memory region 0x3ffc4000 - 0x3ffc6000
+D (1561) memory_layout: Available memory region 0x3ffc6000 - 0x3ffc8000
+D (1567) memory_layout: Available memory region 0x3ffc8000 - 0x3ffca000
+D (1574) memory_layout: Available memory region 0x3ffca000 - 0x3ffcc000
+D (1580) memory_layout: Available memory region 0x3ffcc000 - 0x3ffce000
+D (1586) memory_layout: Available memory region 0x3ffce000 - 0x3ffd0000
+D (1593) memory_layout: Available memory region 0x3ffd0000 - 0x3ffd2000
+D (1599) memory_layout: Available memory region 0x3ffd2000 - 0x3ffd4000
+D (1605) memory_layout: Available memory region 0x3ffd4000 - 0x3ffd6000
+D (1612) memory_layout: Available memory region 0x3ffd6000 - 0x3ffd8000
+D (1618) memory_layout: Available memory region 0x3ffd8000 - 0x3ffda000
+D (1624) memory_layout: Available memory region 0x3ffda000 - 0x3ffdc000
+D (1631) memory_layout: Available memory region 0x3ffdc000 - 0x3ffde000
+D (1637) memory_layout: Available memory region 0x3ffde000 - 0x3ffe0000
+D (1643) memory_layout: Available memory region 0x3ffe0440 - 0x3ffe3f20
+D (1650) memory_layout: Available memory region 0x3ffe4350 - 0x3ffe8000
+D (1656) memory_layout: Available memory region 0x3ffe8000 - 0x3fff0000
+D (1662) memory_layout: Available memory region 0x3fff0000 - 0x3fff8000
+D (1669) memory_layout: Available memory region 0x3fff8000 - 0x3fffc000
+D (1675) memory_layout: Available memory region 0x3fffc000 - 0x40000000
+D (1681) memory_layout: Available memory region 0x4009b590 - 0x4009c000
+D (1688) memory_layout: Available memory region 0x4009c000 - 0x4009e000
+D (1694) memory_layout: Available memory region 0x4009e000 - 0x400a0000
+I (1700) heap_init: Initializing. RAM available for dynamic allocation:
+D (1707) heap_init: New heap initialised at 0x3ffae6e0
+I (1711) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+D (1717) heap_init: New heap initialised at 0x3ffbc130
+I (1722) heap_init: At 3FFBC130 len 00023ED0 (143 KiB): DRAM
+I (1727) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+I (1732) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+D (1738) heap_init: New heap initialised at 0x4009b590
+I (1743) heap_init: At 4009B590 len 00004A70 (18 KiB): IRAM
+D (1748) cpu_start: calling init function: 0x400d78e8 on core: 0
+D (1754) cpu_start: calling init function: 0x400d6d0c on core: 0
+D (1760) cpu_start: calling init function: 0x400d7e40 on core: 0
+I (1765) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator
+D (1772) cpu_start: calling init function: 0x400d3e64 on core: 0
+D (1778) intr_alloc: Connected src 46 to int 1 (cpu 0)
+D (1783) cpu_start: calling init function: 0x400d3e74 on core: 0
+D (1788) cpu_start: calling init function: 0x400d8ffc on core: 0
+D (1794) cpu_start: calling init function: 0x400dd008 on core: 0
+D (1800) cpu_start: calling init function: 0x400db724 on core: 0
+D (1805) cpu_start: calling init function: 0x400d6d18 on core: 0
+D (1811) cpu_start: calling init function: 0x400d3ea0 on core: 0
+D (1817) spi_flash: trying chip: winbond
+I (1821) spi_flash: detected chip: winbond
+I (1824) spi_flash: flash io: qio
+D (1827) chip_generic: set_io_mode: status before 0x200
+D (1832) cpu_start: calling init function: 0x402b53f4 on core: 0
+D (1838) cpu_start: calling init function: 0x40292268
+D (1843) cpu_start: calling init function: 0x40291ff4
+D (1848) C++ init: Setting C++ exception emergency pool to 0.
+D (1853) cpu_start: calling init function: 0x40291780
+D (1858) cpu_start: calling init function: 0x40289980
+D (1863) cpu_start: calling init function: 0x40282b34
+D (1868) cpu_start: calling init function: 0x4027de7c
+D (1872) cpu_start: calling init function: 0x402e8268
+D (1877) cpu_start: calling init function: 0x4026b418
+D (1882) cpu_start: calling init function: 0x40230680
+W (1887) pcnt(legacy): legacy driver is deprecated, please migrate to `driver/pulse_cnt.h`
+D (1894) cpu_start: calling init function: 0x40226b28
+D (1899) cpu_start: calling init function: 0x4020b17c
+D (1904) cpu_start: calling init function: 0x401df67c
+D (1909) cpu_start: calling init function: 0x401de034
+D (1914) cpu_start: calling init function: 0x400f8370
+D (1918) cpu_start: calling init function: 0x400f5370
+D (1924) intr_alloc: Connected src 35 to int 2 (cpu 0)
+D (1928) cpu_start: calling init function: 0x400f3dbc
+D (1933) cpu_start: calling init function: 0x400e7b20
+D (1938) cpu_start: calling init function: 0x400dd7cc
+D (1942) cpu_start: calling init function: 0x4008b4f4
+D (1947) cpu_start: calling init function: 0x400d4cc4
+D (1952) cpu_start: calling init function: 0x4020b170 on core: 0
+D (1958) intr_alloc: Connected src 17 to int 3 (cpu 0)
+D (1962) cpu_start: calling init function: 0x402b54ac on core: 0
+D (1968) cpu_start: calling init function: 0x400d3e80 on core: 0
+D (1974) intr_alloc: Connected src 24 to int 5 (cpu 0)
+D (1979) app_start: Starting scheduler on CPU0
+ID (1983) intr_alloc: Connected src 25 to int 1 (cpu 1)
+D (1983) app_start: Starting scheduler on CPU1
+ (1983) main_task: Started on CPU0
+D (1993) heap_init: New heap initialised at 0x3ffe0440
+D (1993) heap_init: New heap initialised at 0x3ffe4350
+D (2003) intr_alloc: Connected src 16 to int 8 (cpu 0)
+I (2003) main_task: Calling app_main()
+I (2013) ctagSPAllocator: AllocateInternalBuffer: allocating 114688 bytes
+I (4013) fs: Initializing LITTLEFS
+I (4493) fs: Partition size: total: 3145728, used: 1572864
+D (4493) i2c.common: new bus(0) at 0x3f8022e0
+D (4493) i2c.common: bus clock source frequency: 80000000hz
+D (4493) intr_alloc: Connected src 49 to int 2 (cpu 0)
+I (4503) SSD1306: OLED configured successfully
+I (6553) fs: Initializing SD card via SDMMC
+D (6553) sdmmc_periph: peripheral version 5342270a, hardware config 03c44c83
+D (6553) intr_alloc: Connected src 37 to int 9 (cpu 0)
+D (6553) gpio: GPIO[13]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0
+D (6563) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6573) sdmmc_periph: clk_src_freq_hz: 160000000 hz
+D (6573) sdmmc_periph: slot=1 clk_src=6 host_div=10 card_div=20 freq=400kHz (max 400kHz)
+D (6583) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6593) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6593) sdmmc_periph: slot=1 width=1
+D (6603) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6623) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6623) sdmmc_sd: CMD8 timeout; not an SD v2.00 card
+D (6623) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6623) sdmmc_io: sdmmc_init_io: io_send_op_cond (1) returned 0x107; not IO card
+D (6633) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6643) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6653) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6653) sdmmc_cmd: sdmmc_send_cmd_send_op_cond: sdmmc_send_app_cmd err=0x107
+D (6663) sdmmc_common: send_op_cond timeout, trying MMC
+D (6663) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6673) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6683) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6683) sdmmc_cmd: sdmmc_send_cmd_send_op_cond: sdmmc_send_app_cmd err=0x107
+E (6693) sdmmc_common: sdmmc_init_ocr: send_op_cond (1) returned 0x107
+D (6703) sdmmc_init: sdmmc_card_init: sdmmc_init_ocr returned 0x107
+E (6703) vfs_fat_sdmmc: sdmmc_card_init failed (0x107).
+D (6713) sdmmc_periph: SDMMC host deinitialized
+E (6713) fs: SD card mount failed: ESP_ERR_TIMEOUT
+I (6723) SPModel: Trying to read config file
+D (6723) JSON: read buffer
+I (7393) Control: Initializing control!
+I (7393) MOD: ModEngine initialized, slots 80-89
+I (7413) SDA: SDAudio: 256 KB ring, 32768 frames
+I (7413) BBA Codec: Starting i2s setup...
+D (7413) efuse: BLK0 REG2 [8-15], len=8 bits
+D (7413) efuse: BLK0 REG2 [0-7], len=8 bits
+D (7413) efuse: BLK0 REG1 [24-31], len=8 bits
+D (7423) efuse: BLK0 REG1 [16-23], len=8 bits
+D (7423) efuse: BLK0 REG1 [8-15], len=8 bits
+D (7433) efuse: BLK0 REG1 [0-7], len=8 bits
+D (7433) efuse: BLK0 REG2 [16-23], len=8 bits
+D (7433) i2s_common: tx channel is registered on I2S0 successfully
+D (7443) i2s_common: rx channel is registered on I2S0 successfully
+D (7453) i2s_common: DMA malloc info: dma_desc_num = 4, dma_desc_buf_size = dma_frame_num * slot_num * data_bit_width = 128
+D (7463) i2s_std: Clock division info: [sclk] 160000000 Hz [mdiv] 9 13/29 [mclk] 16934306 Hz [bdiv] 12 [bclk] 1411200 Hz
+D (7473) i2s_common: MCLK is pinned to GPIO0 on I2S0
+D (7473) intr_alloc: Connected src 32 to int 2 (cpu 0)
+D (7483) i2s_std: The tx channel on I2S0 has been initialized to STD mode successfully
+D (7483) i2s_common: DMA malloc info: dma_desc_num = 4, dma_desc_buf_size = dma_frame_num * slot_num * data_bit_width = 128
+D (7503) i2s_std: Clock division info: [sclk] 160000000 Hz [mdiv] 9 13/29 [mclk] 16934306 Hz [bdiv] 12 [bclk] 1411200 Hz
+D (7513) i2s_common: MCLK is pinned to GPIO0 on I2S0
+D (7513) intr_alloc: Connected src 32 to int 2 (cpu 0)
+D (7523) i2s_std: The rx channel on I2S0 has been initialized to STD mode successfully
+D (7523) i2s_common: i2s tx channel enabled
+D (7533) i2s_common: i2s rx channel enabled
+D (7533) i2c.common: new bus(1) at 0x3f803838
+D (7533) i2c.common: bus clock source frequency: 80000000hz
+D (7543) intr_alloc: Connected src 50 to int 2 (cpu 0)
+I (7553) BBA Codec: Found codec...
+I (7553) Network: Starting with ssid ctag-tbd, pwd , mdns ctag-tbd, ip 192.178.3.1, is ap
+D (7573) esp_netif_lwip: LwIP stack has been initialized
+D (7573) esp_netif_lwip: esp-netif has been successfully initialized
+D (7573) event: running task for loop 0x3ffde948
+D (7583) event: created task for loop 0x3ffde948
+D (7583) event: created event loop 0x3ffde948
+D (7593) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x40223d98
+D (7593) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7603) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x40223d98
+D (7603) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7613) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7613) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x40223d98
+D (7623) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7623) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x40223d98
+D (7633) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7643) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7643) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7653) esp_netif_lwip: check: remote, if=0x3ffbf374 fn=0x40224238
+D (7653) esp_netif_objects: esp_netif_add_to_list_unsafe netif added successfully (total netifs: 1)
+D (7663) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7673) nvs: nvs_open_from_partition misc 1
+I (7683) wifi:wifi driver task: 3ffe2e7c, prio:23, stack:3584, core=0
+D (7683) efuse: BLK0 REG2 [8-15], len=8 bits
+D (7683) efuse: BLK0 REG2 [0-7], len=8 bits
+D (7683) efuse: BLK0 REG1 [24-31], len=8 bits
+D (7693) efuse: BLK0 REG1 [16-23], len=8 bits
+D (7693) efuse: BLK0 REG1 [8-15], len=8 bits
+D (7703) efuse: BLK0 REG1 [0-7], len=8 bits
+D (7703) efuse: BLK0 REG2 [16-23], len=8 bits
+D (7713) nvs: nvs_open_from_partition nvs.net80211 1
+D (7713) nvs: nvs_get opmode 1
+
+I (7993) wifi:wifi firmware version: 0947e8b
+I (8003) wifi:wifi certification version: v7.0
+I (8003) wifi:config NVS flash: enabled
+I (8003) wifi:config nano formatting: disabled
+I (8013) wifi:Init data frame dynamic rx buffer num: 32
+I (8013) wifi:Init static rx mgmt buffer num: 5
+I (8023) wifi:Init management short buffer num: 32
+I (8023) wifi:Init static tx buffer num: 16
+I (8033) wifi:Init tx cache buffer num: 32
+I (8033) wifi:Init static rx buffer size: 1600
+I (8033) wifi:Init static rx buffer num: 10
+I (8043) wifi:Init dynamic rx buffer num: 32
+D (8043) wifi:Reset scan defaults in ms : min,max,passive,chan_dwell :(0,120,360,30)
+I (8053) wifi_init: accept mbox: 6
+I (8053) wifi_init: tcpip mbox: 32
+I (8053) wifi_init: udp mbox: 6
+I (8063) wifi_init: tcp mbox: 6
+I (8063) wifi_init: tcp tx win: 5744
+I (8063) wifi_init: tcp rx win: 5744
+I (8073) wifi_init: tcp mss: 1440
+I (8073) wifi_init: WiFi/LWIP prefer SPIRAM
+I (8073) wifi_init: WiFi IRAM OP enabled
+I (8083) wifi_init: WiFi RX IRAM OP enabled
+I (8083) wifi:Set ps type: 0, coexist: 0
+
+D (8093) nvs: nvs_get opmode 1
+D (8093) nvs: nvs_set ap.authmode 1 0
+D (8093) nvs: nvs_set ap.sae_h2e 1 4
+D (8093) nvs: nvs_set ap.chanisset 1 0
+D (8103) nvs: nvs_set ap.chan 1 1
+D (8103) nvs: nvs_set ap.sndchan 1 1
+D (8103) nvs: nvs_set_blob ap.ssid 36
+D (8113) nvs: nvs_set_blob ap.passwd 65
+D (8113) nvs: nvs_set ap.hidden 1 0
+D (8113) nvs: nvs_set ap.max.conn 1 5
+D (8123) nvs: nvs_set bcn.interval 2 100
+D (8123) nvs: nvs_set ap.sae_ext 1 0
+D (8123) nvs: nvs_set ap.gtk_rekey 2 0
+D (8133) nvs: nvs_set ap.p_cipher 1 0
+D (8133) nvs: nvs_set ap.trans_d 1 0
+D (8143) nvs: nvs_set ap.ftm_r 1 0
+D (8143) nvs: nvs_set ap.pmf_e 1 0
+D (8143) nvs: nvs_set ap.pmf_r 1 0
+D (8143) nvs: nvs_set ap.csa_count 1 3
+D (8153) nvs: nvs_set ap.dtim_period 1 1
+D (8153) nvs: nvs_set ap.bssmaxidle 2 0
+D (8163) nvs: nvs_set ap.pro_keep_a 1 0
+I (8163) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06
+D (8163) phy_init: loading PHY init data from application binary
+D (8223) wifi:filter: set rx policy=0
+I (8233) wifi:mode : softAP (34:5f:45:25:b4:61)
+D (8233) wifi:filter: set rx policy=9
+I (8233) wifi:Total power save buffer number: 8
+I (8233) wifi:Init max length of beacon: 752/752
+I (8233) wifi:Init max length of beacon: 752/752
+D (8243) event: running post WIFI_EVENT:43 with handler 0x401ffb64 and context 0x3ffdfa54 on loop 0x3ffde948
+D (8253) event: running post WIFI_EVENT:43 with handler 0x401de8f0 and context 0x3ffee904 on loop 0x3ffde948
+D (8263) event: running post WIFI_EVENT:12 with handler 0x401ffb64 and context 0x3ffdfa54 on loop 0x3ffde948
+D (8273) event: running post WIFI_EVENT:12 with handler 0x40226e4c and context 0x3ffe1628 on loop 0x3ffde948
+D (8283) wifi_init_default: wifi_start esp-netif:0x3ffdfdac event-id12
+D (8283) wifi_init_default: WIFI mac address: 34 5f 45 25 b4 61
+D (8293) esp_netif_lwip: check: remote, if=0x3ffdfdac fn=0x40223dac
+D (8293) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+I (8293) Network: Disabling wifi power save mode
+D (8303) esp_netif_handlers: esp_netif action has started with netif0x3ffdfdac from event_id=12
+D (8303) esp_netif_lwip: check: local, if=0x3ffde644 fn=0x40223d98
+I (8313) wifi:Set ps type: 0, coexist: 0
+
+D (8313) esp_netif_lwip: check: remote, if=0x3ffdfdac fn=0x40224d2c
+D (8333) esp_netif_lwip: esp_netif_start_api 0x3ffdfdac
+I (8333) esp-rest: Starting HTTP Server
+D (8333) esp_netif_lwip: esp_netif_internal_dhcpc_cb lwip-netif:0x3ffdfe1c
+D (8343) esp_netif_lwip: if0x3ffdfdac ip unchanged
+D (8353) esp_netif_lwip: esp_netif_get_hostname esp_netif:0x3ffdfdac
+D (8353) esp_netif_lwip: esp_netif_start_api Setting the lwip netif0x3ffdfe1c UP
+I (8363) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: 192.168.4.1
+D (8373) esp_netif_lwip: check: local, if=0x3ffdfdac fn=0x4022564c
+D (8373) esp_netif_lwip: esp_netif_update_default_netif_lwip 0x3ffdfdac
+D (8383) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (8393) event: running post WIFI_EVENT:12 with handler 0x401de8f0 and context 0x3ffee904 on loop 0x3ffde948
+D (8403) httpd: httpd_thread: web server started
+D (8403) httpd: httpd_server: doing select maxfd+1 = 56
+D (8413) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:1 posted to loop 0x3ffde948
+D (8413) httpd_uri: httpd_register_uri_handler: [0] installed /api/v1/getPlugins
+====
+D (11143) httpd_uri: httpd_register_uri_handler: [19] installed /*
+I (11143) esp-rest: Starting HTTP Server
+E (11153) httpd: httpd_server_init: error in listen (112)
+I (11153) SPManager: Switching ch0 to plugin GDVerb
+I (11163) ctagSPAllocator: SetAllocationType: Stereo
+I (11163) ctagSPAllocator: Allocate: allocating STEREO 1180 bytes object size, 113508 bytes blockMem
+D (11173) ctagSPAllocator: GetRemainingBuffer: CH0 or STEREO 113508 bytes free
+D (11183) JSON: read buffer
+D (11223) JSON: read buffer
+D (11243) Model: Loading patch number 0
+D (11243) JSON: read buffer
+D (11263) Model: Preset Name is Default number 0
+D (11523) JSON: read buffer
+D (11543) Model: Preset Name is Default number 0
+D (11623) fv3: Trying Blockmemalloc
+D (11623) fv3: Trying Blockmemalloc
+D (11623) fv3: Trying Blockmemalloc
+D (11623) fv3: Trying Blockmemalloc
+D (11623) fv3: Trying Blockmemalloc
+D (11633) fv3: Trying Blockmemalloc
+D (11633) fv3: Trying Blockmemalloc
+D (11633) fv3: Trying Blockmemalloc
+D (11643) fv3: Trying Blockmemalloc
+D (11643) fv3: Trying Blockmemalloc
+D (11643) fv3: Trying Blockmemalloc
+D (11653) fv3: Falling back to regular malloc prefer internal, then SPIRAM
+D (11653) fv3: Trying Blockmemalloc
+D (11663) fv3: Trying Blockmemalloc
+D (11663) fv3: Freeing Blockmem
+D (11663) fv3: Trying Blockmemalloc
+D (11673) fv3: Freeing Blockmem
+D (11673) fv3: Trying Blockmemalloc
+D (11673) fv3: Freeing Blockmem
+D (11673) fv3: Trying Blockmemalloc
+D (11683) fv3: Freeing Blockmem
+D (11683) fv3: Trying Blockmemalloc
+D (11683) fv3: Falling back to regular malloc prefer internal, then SPIRAM
+D (11693) fv3: Freeing Blockmem
+D (11693) fv3: Trying Blockmemalloc
+D (11703) fv3: Falling back to regular malloc prefer internal, then SPIRAM
+D (11703) fv3: Freeing Blockmem
+D (11713) fv3: Trying Blockmemalloc
+D (11713) fv3: Freeing Blockmem
+D (11713) fv3: Trying Blockmemalloc
+D (11723) fv3: Freeing Blockmem
+D (11723) fv3: Trying Blockmemalloc
+D (11723) fv3: Freeing Blockmem
+D (11723) fv3: Trying Blockmemalloc
+D (11733) fv3: Freeing Blockmem
+D (11733) fv3: Trying Blockmemalloc
+D (11743) fv3: Freeing regular malloc
+D (11743) fv3: Trying Blockmemalloc
+D (11743) fv3: Falling back to regular malloc prefer internal, then SPIRAM
+D (11753) fv3: Freeing Blockmem
+D (11973) JSON: read buffer
+D (11993) Model: Preset Name is Default number 0
+I (12103) SPManager: Mem freesize internal 23424, largest block 18432, free SPIRAM 3758568, largest block SPIRAM 3735552!
+I (12103) SPManager: Init: Mem freesize internal 23424, largest block 18432, free SPIRAM 3758568, largest block SPIRAM 3735552!
+I (12113) UIMenu: Init: creating pages...
+I (12123) UIMenu: Init: calling init on pages...
+I (12133) UIMenu: Init: done
+D (12133) intr_alloc: Connected src 22 to int 9 (cpu 0)
+I (12133) main_task: Returned from app_main()

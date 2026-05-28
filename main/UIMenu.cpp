@@ -139,6 +139,16 @@ namespace CTAG {
                     }
                 }
 
+                // Periodic auto-refresh in PANEL_IN (~100ms interval)
+                if (navState != ROOT) {
+                    static int refreshCounter = 0;
+                    refreshCounter++;
+                    if (refreshCounter >= 5) {
+                        redrawNeeded = true;
+                        refreshCounter = 0;
+                    }
+                }
+
                 // Redraw if needed
                 if (redrawNeeded) {
                     if (navState == ROOT) {

@@ -1,0 +1,866 @@
+entry 0x40080664
+--- 0x40080664: call_start_cpu0 at /home/ubuntu/esp-idf/components/bootloader/subproject/main/bootloader_start.c:27[0;32mI (29) boot: ESP-IDF v5.5.4-dirty 2nd stage bootloader[0m
+[0;32mI (29) boot: compile time May 26 2026 20:28:32[0m
+[0;32mI (29) boot: Multicore bootloader[0m
+[0;32mI (31) boot: chip revision: v3.1[0m
+[0;32mI (34) qio_mode: Enabling QIO for flash chip WinBond[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 80MHz[0m
+[0;32mI (42) boot.esp32: SPI Mode       : QIO[0m
+[0;32mI (46) boot.esp32: SPI Flash Size : 16MB[0m
+[0;32mI (50) boot: Enabling RNG early entropy source...[0m
+[0;32mI (54) boot: Partition Table:[0m
+[0;32mI (57) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (63) boot:  0 nvs              WiFi data        01 02 00009000 00004000[0m
+[0;32mI (69) boot:  1 otadata          OTA data         01 00 0000d000 00002000[0m
+[0;32mI (76) boot:  2 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (82) boot:  3 ota_0            OTA app          00 10 00010000 00300000[0m
+[0;32mI (89) boot:  4 ota_1            OTA app          00 11 00310000 00300000[0m
+[0;32mI (96) boot:  5 storage          Unknown data     01 82 00610000 00300000[0m
+[0;32mI (102) boot: End of partition table[0m
+[0;32mI (106) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=83bd8h (539608) map[0m
+[0;32mI (251) esp_image: segment 1: paddr=00093c00 vaddr=3ffb0000 size=05738h ( 22328) load[0m
+[0;32mI (257) esp_image: segment 2: paddr=00099340 vaddr=40080000 size=06cd8h ( 27864) load[0m
+[0;32mI (266) esp_image: segment 3: paddr=000a0020 vaddr=400d0020 size=2187cch (2197452) map[0m
+[0;32mI (827) esp_image: segment 4: paddr=002b87f4 vaddr=40086cd8 size=148b8h ( 84152) load[0m
+[0;32mI (853) esp_image: segment 5: paddr=002cd0b4 vaddr=50000800 size=00020h (    32) load[0m
+[0;32mI (867) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (867) boot: Disabling RNG early entropy source...[0m
+[0;32mI (877) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (877) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (877) esp_psram: Speed: 80MHz[0m
+[0;32mI (877) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (884) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (893) cpu_start: Multicore app[0m
+D (895) cpu_start: Pro cpu up
+D (898) cpu_start: Starting app cpu, entry point is 0x4008161c
+--- 0x4008161c: call_start_cpu1 at /home/ubuntu/esp-idf/components/esp_system/port/cpu_start.c:219D (0) cpu_start: App cpu up
+[0;32mI (1370) esp_psram: SPI SRAM memory test OK[0m
+D (1378) clk: RTC_SLOW_CLK calibration value: 3218214
+[0;32mI (1383) cpu_start: GPIO 3 and 1 are used as console UART I/O pins[0m
+D (1383) cpu_start: calling init function: 0x400d3a78 on core: 0
+--- 0x400d3a78: __esp_system_init_fn_init_efuse_check at /home/ubuntu/esp-idf/components/efuse/src/esp_efuse_startup.c:37D (1385) cpu_start: calling init function: 0x400d3f68 on core: 0
+--- 0x400d3f68: __esp_system_init_fn_init_show_cpu_freq at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:64[0;32mI (1391) cpu_start: Pro cpu start user code[0m
+[0;32mI (1395) cpu_start: cpu freq: 240000000 Hz[0m
+D (1399) cpu_start: calling init function: 0x400d39b4 on core: 0
+--- 0x400d39b4: __esp_system_init_fn_init_show_app_info at /home/ubuntu/esp-idf/components/esp_app_format/esp_app_desc.c:123[0;32mI (1404) app_init: Application information:[0m
+[0;32mI (1408) app_init: Project name:     ctag-tbd[0m
+[0;32mI (1412) app_init: App version:      27ff227-dirty[0m
+[0;32mI (1417) app_init: Compile time:     May 27 2026 18:03:41[0m
+[0;32mI (1422) app_init: ELF file SHA256:  a1c1ab750...[0m
+[0;32mI (1426) app_init: ESP-IDF:          v5.5.4-dirty[0m
+D (1431) cpu_start: calling init function: 0x400d3a88 on core: 0
+--- 0x400d3a88: __esp_system_init_fn_init_efuse_show_app_info at /home/ubuntu/esp-idf/components/efuse/src/esp_efuse_startup.c:47[0;32mI (1437) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1441) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1445) efuse_init: Chip rev:         v3.1[0m
+D (1449) cpu_start: calling init function: 0x400d5870 on core: 0
+--- 0x400d5870: __esp_system_init_fn_init_heap at /home/ubuntu/esp-idf/components/heap/heap_caps_init.c:26D (1454) memory_layout: Checking 10 reserved memory ranges:
+D (1460) memory_layout: Reserved memory range 0x3f800000 - 0x3fc00000
+D (1466) memory_layout: Reserved memory range 0x3ff82000 - 0x3ff82000
+D (1472) memory_layout: Reserved memory range 0x3ffae000 - 0x3ffae6e0
+D (1478) memory_layout: Reserved memory range 0x3ffb0000 - 0x3ffbc130
+D (1484) memory_layout: Reserved memory range 0x3ffe0000 - 0x3ffe0440
+D (1490) memory_layout: Reserved memory range 0x3ffe3f20 - 0x3ffe4350
+D (1497) memory_layout: Reserved memory range 0x40070000 - 0x40078000
+D (1503) memory_layout: Reserved memory range 0x40078000 - 0x40080000
+--- 0x40080000: _WindowOverflow4 at /home/ubuntu/esp-idf/components/xtensa/xtensa_vectors.S:2027D (1509) memory_layout: Reserved memory range 0x40080000 - 0x4009b590
+--- 0x40080000: _WindowOverflow4 at /home/ubuntu/esp-idf/components/xtensa/xtensa_vectors.S:2027D (1515) memory_layout: Reserved memory range 0x50001fe8 - 0x50002000
+D (1521) memory_layout: Building list of available memory regions:
+D (1527) memory_layout: Available memory region 0x3ffae6e0 - 0x3ffb0000
+D (1533) memory_layout: Available memory region 0x3ffbc130 - 0x3ffc0000
+D (1540) memory_layout: Available memory region 0x3ffc0000 - 0x3ffc2000
+D (1546) memory_layout: Available memory region 0x3ffc2000 - 0x3ffc4000
+D (1552) memory_layout: Available memory region 0x3ffc4000 - 0x3ffc6000
+D (1559) memory_layout: Available memory region 0x3ffc6000 - 0x3ffc8000
+D (1565) memory_layout: Available memory region 0x3ffc8000 - 0x3ffca000
+D (1571) memory_layout: Available memory region 0x3ffca000 - 0x3ffcc000
+D (1578) memory_layout: Available memory region 0x3ffcc000 - 0x3ffce000
+D (1584) memory_layout: Available memory region 0x3ffce000 - 0x3ffd0000
+D (1590) memory_layout: Available memory region 0x3ffd0000 - 0x3ffd2000
+D (1597) memory_layout: Available memory region 0x3ffd2000 - 0x3ffd4000
+D (1603) memory_layout: Available memory region 0x3ffd4000 - 0x3ffd6000
+D (1609) memory_layout: Available memory region 0x3ffd6000 - 0x3ffd8000
+D (1616) memory_layout: Available memory region 0x3ffd8000 - 0x3ffda000
+D (1622) memory_layout: Available memory region 0x3ffda000 - 0x3ffdc000
+D (1628) memory_layout: Available memory region 0x3ffdc000 - 0x3ffde000
+D (1635) memory_layout: Available memory region 0x3ffde000 - 0x3ffe0000
+D (1641) memory_layout: Available memory region 0x3ffe0440 - 0x3ffe3f20
+D (1647) memory_layout: Available memory region 0x3ffe4350 - 0x3ffe8000
+D (1654) memory_layout: Available memory region 0x3ffe8000 - 0x3fff0000
+D (1660) memory_layout: Available memory region 0x3fff0000 - 0x3fff8000
+D (1666) memory_layout: Available memory region 0x3fff8000 - 0x3fffc000
+D (1673) memory_layout: Available memory region 0x3fffc000 - 0x40000000
+--- 0x40000000: _WindowOverflow4 in ROMD (1679) memory_layout: Available memory region 0x4009b590 - 0x4009c000
+D (1685) memory_layout: Available memory region 0x4009c000 - 0x4009e000
+D (1692) memory_layout: Available memory region 0x4009e000 - 0x400a0000
+[0;32mI (1698) heap_init: Initializing. RAM available for dynamic allocation:[0m
+D (1705) heap_init: New heap initialised at 0x3ffae6e0
+[0;32mI (1709) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+D (1715) heap_init: New heap initialised at 0x3ffbc130
+[0;32mI (1719) heap_init: At 3FFBC130 len 00023ED0 (143 KiB): DRAM[0m
+[0;32mI (1725) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1730) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+D (1736) heap_init: New heap initialised at 0x4009b590
+[0;32mI (1741) heap_init: At 4009B590 len 00004A70 (18 KiB): IRAM[0m
+D (1746) cpu_start: calling init function: 0x400d7a2c on core: 0
+--- 0x400d7a2c: __esp_system_init_fn_esp_timer_init_nonos at /home/ubuntu/esp-idf/components/esp_timer/src/esp_timer_init.c:27D (1752) cpu_start: calling init function: 0x400d6e50 on core: 0
+--- 0x400d6e50: __esp_system_init_fn_init_libc at /home/ubuntu/esp-idf/components/newlib/src/init.c:12D (1757) cpu_start: calling init function: 0x400d7f84 on core: 0
+--- 0x400d7f84: __esp_system_init_fn_add_psram_to_heap at /home/ubuntu/esp-idf/components/esp_psram/system_layer/esp_psram.c:117[0;32mI (1763) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+D (1770) cpu_start: calling init function: 0x400d3fa8 on core: 0
+--- 0x400d3fa8: __esp_system_init_fn_init_brownout at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:79D (1776) intr_alloc: Connected src 46 to int 1 (cpu 0)
+D (1780) cpu_start: calling init function: 0x400d3fb8 on core: 0
+--- 0x400d3fb8: __esp_system_init_fn_init_newlib_time at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:104D (1786) cpu_start: calling init function: 0x400d9140 on core: 0
+--- 0x400d9140: __esp_system_init_fn_init_vfs_uart at /home/ubuntu/esp-idf/components/esp_driver_uart/src/uart_vfs.c:1148D (1792) cpu_start: calling init function: 0x400dd14c on core: 0
+--- 0x400dd14c: __esp_system_init_fn_init_vfs_nullfs at /home/ubuntu/esp-idf/components/vfs/nullfs.c:322D (1798) cpu_start: calling init function: 0x400db868 on core: 0
+--- 0x400db868: __esp_system_init_fn_init_vfs_console at /home/ubuntu/esp-idf/components/esp_vfs_console/vfs_console.c:271D (1803) cpu_start: calling init function: 0x400d6e5c on core: 0
+--- 0x400d6e5c: __esp_system_init_fn_init_libc_stdio at /home/ubuntu/esp-idf/components/newlib/src/init.c:18D (1809) cpu_start: calling init function: 0x400d3fe4 on core: 0
+--- 0x400d3fe4: __esp_system_init_fn_init_flash at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:111D (1815) spi_flash: trying chip: winbond
+[0;32mI (1818) spi_flash: detected chip: winbond[0m
+[0;32mI (1822) spi_flash: flash io: qio[0m
+D (1825) chip_generic: set_io_mode: status before 0x200
+D (1830) cpu_start: calling init function: 0x402b2ecc on core: 0
+--- 0x402b2ecc: __esp_system_init_fn_init_efuse at /home/ubuntu/esp-idf/components/efuse/src/esp_efuse_startup.c:158D (1836) cpu_start: calling init function: 0x4028fdb0
+--- 0x4028fdb0: _GLOBAL__sub_I__ZN17__eh_globals_init7_S_initE at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/libsupc++/eh_globals.cc:162D (1841) cpu_start: calling init function: 0x4028fb3c
+--- 0x4028fb3c: _GLOBAL__sub_I__ZN9__gnu_cxx9__freeresEv at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/libsupc++/eh_alloc.cc:462D (1846) C++ init: Setting C++ exception emergency pool to 0.
+D (1851) cpu_start: calling init function: 0x4028f2c8
+--- 0x4028f2c8: _GLOBAL__sub_I__ZNSt12ctype_bynameIwEC2ERKSsj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1856) cpu_start: calling init function: 0x402874c8
+--- 0x402874c8: _GLOBAL__sub_I__ZNSt12ctype_bynameIcEC2ERKSsj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1861) cpu_start: calling init function: 0x4028067c
+--- 0x4028067c: _GLOBAL__sub_I__ZNSt12ctype_bynameIwEC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1865) cpu_start: calling init function: 0x4027b9c4
+--- 0x4027b9c4: _GLOBAL__sub_I__ZNSt12ctype_bynameIcEC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEj at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/gcc/libstdc++-v3/src/c++11/locale-inst.cc:160D (1870) cpu_start: calling init function: 0x402e5d34
+--- 0x402e5d34: esp_reset_reason_init at /home/ubuntu/esp-idf/components/esp_system/port/soc/esp32/reset_reason.c:60D (1875) cpu_start: calling init function: 0x40268f60
+--- 0x40268f60: esp_clock_output_pin_ctrl_init at /home/ubuntu/esp-idf/components/esp_hw_support/esp_clock_output.c:245D (1880) cpu_start: calling init function: 0x4022e1e4
+--- 0x4022e1e4: check_pcnt_driver_conflict at /home/ubuntu/esp-idf/components/driver/deprecated/pcnt_legacy.c:564[0;33mW (1884) pcnt(legacy): legacy driver is deprecated, please migrate to `driver/pulse_cnt.h`[0m
+D (1892) cpu_start: calling init function: 0x4022468c
+--- 0x4022468c: s_set_default_wifi_log_level at /home/ubuntu/esp-idf/components/esp_wifi/src/wifi_init.c:114D (1897) cpu_start: calling init function: 0x40208fe0
+--- 0x40208fe0: spi_bus_lock_init_main_bus at /home/ubuntu/esp-idf/components/esp_driver_spi/src/gpspi/spi_common.c:78D (1902) cpu_start: calling init function: 0x401dd4e0
+--- 0x401dd4e0: _GLOBAL__sub_I__ZN4CTAG3NET7Network17event_handler_staEPvPKclS2_ at /home/ubuntu/ctag-tbd/components/network/network.cpp:248D (1907) cpu_start: calling init function: 0x401dbea4
+--- 0x401dbea4: _GLOBAL__sub_I__ZN4CTAG7DRIVERS5Codec5codecE at /home/ubuntu/ctag-tbd/components/drivers/codec_bba.cpp:187D (1912) cpu_start: calling init function: 0x400f65f8
+--- 0x400f65f8: _GLOBAL__sub_I__ZN4CTAG3CAL11Calibration13ledTaskHandleE at /home/ubuntu/ctag-tbd/main/Calibration.cpp:284D (1916) cpu_start: calling init function: 0x400f361c
+--- 0x400f361c: _GLOBAL__sub_I__ZN4CTAG4CTRL4Midi13ccToCVid_abcdEh at /home/ubuntu/ctag-tbd/main/Midi.cpp:1171D (1922) intr_alloc: Connected src 35 to int 2 (cpu 0)
+D (1926) cpu_start: calling init function: 0x400f2068
+--- 0x400f2068: _GLOBAL__sub_I__ZN4CTAG3FAV9Favorites11isUIEnabledE at /home/ubuntu/ctag-tbd/main/Favorites.cpp:246D (1931) cpu_start: calling init function: 0x400e7c64
+--- 0x400e7c64: _GLOBAL__sub_I__ZN4CTAG9RESOURCES10spiffsRootB5cxx11E at /home/ubuntu/ctag-tbd/main/SPManager.cpp:604D (1935) cpu_start: calling init function: 0x400dd910
+--- 0x400dd910: _GLOBAL__sub_I__ZN4CTAG7DRIVERS7Display10I2CDisplayE at /home/ubuntu/ctag-tbd/main/Display.cpp:305D (1940) cpu_start: calling init function: 0x4008b4f4
+--- 0x4008b4f4: enable_timer_group0_for_calibration at /home/ubuntu/esp-idf/components/esp_hw_support/port/esp32/rtc_time.c:199D (1945) cpu_start: calling init function: 0x400d4e08
+--- 0x400d4e08: esp_ipc_init at /home/ubuntu/esp-idf/components/esp_system/esp_ipc.c:107D (1950) cpu_start: calling init function: 0x40208fd4 on core: 0
+--- 0x40208fd4: __esp_system_init_fn_esp_timer_init_os at /home/ubuntu/esp-idf/components/esp_timer/src/esp_timer.c:566D (1956) intr_alloc: Connected src 17 to int 3 (cpu 0)
+D (1960) cpu_start: calling init function: 0x402b2f84 on core: 0
+--- 0x402b2f84: __esp_system_init_fn_esp_security_init at /home/ubuntu/esp-idf/components/esp_security/src/init.c:57D (1966) cpu_start: calling init function: 0x400d3fc4 on core: 0
+--- 0x400d3fc4: __esp_system_init_fn_init_disable_rtc_wdt at /home/ubuntu/esp-idf/components/esp_system/startup_funcs.c:182D (1972) intr_alloc: Connected src 24 to int 5 (cpu 0)
+D (1977) app_start: Starting scheduler on CPU0
+ID (1981) intr_alloc: Connected src 25 to int 1 (cpu 1)
+D (1981) app_start: Starting scheduler on CPU1
+ (1981) main_task: Started on CPU0
+D (1991) heap_init: New heap initialised at 0x3ffe0440
+D (1991) heap_init: New heap initialised at 0x3ffe4350
+D (2001) intr_alloc: Connected src 16 to int 8 (cpu 0)
+[0;32mI (2001) main_task: Calling app_main()[0m
+[0;32mI (2011) ctagSPAllocator: AllocateInternalBuffer: allocating 114688 bytes[0m
+[0;32mI (4011) fs: Initializing LITTLEFS[0m
+[0;32mI (4461) fs: Partition size: total: 3145728, used: 1572864[0m
+D (4461) i2c.common: new bus(0) at 0x3f8022e0
+D (4461) i2c.common: bus clock source frequency: 80000000hz
+D (4471) intr_alloc: Connected src 49 to int 2 (cpu 0)
+[0;32mI (4471) SSD1306: OLED configured successfully[0m
+[0;32mI (6521) fs: Initializing SD card via SDMMC[0m
+D (6521) sdmmc_periph: peripheral version 5342270a, hardware config 03c44c83
+D (6521) intr_alloc: Connected src 37 to int 9 (cpu 0)
+D (6521) gpio: GPIO[13]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 
+D (6531) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6541) sdmmc_periph: clk_src_freq_hz: 160000000 hz
+D (6541) sdmmc_periph: slot=1 clk_src=6 host_div=10 card_div=20 freq=400kHz (max 400kHz)
+D (6551) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6561) sdmmc_periph: Slot 1 is not initialized yet, skipping sdmmc_host_change_to_slot
+D (6561) sdmmc_periph: slot=1 width=1
+D (6571) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6591) sdmmc_sd: SDHC/SDXC card
+D (6591) sdmmc_req: process_command_response: error 0x107  (status=00000100)
+D (6591) sdmmc_io: sdmmc_init_io: io_send_op_cond (1) returned 0x107; not IO card
+D (6601) sdmmc_common: host_ocr=0xff8000 card_ocr=0xc0ff8000
+D (6601) sdmmc_common: sdmmc_card_init: host_ocr=00ff8000, card_ocr=c0ff8000
+D (6611) sdmmc_init: sdmmc_card_init: card type is SD
+D (6611) sdmmc_common: sdmmc_init_host_bus_width: using 4-bit bus
+D (6621) sdmmc_periph: slot=1 width=4
+D (6621) sdmmc_periph: clk_src_freq_hz: 160000000 hz
+D (6621) sdmmc_periph: slot=1 clk_src=6 host_div=8 card_div=0 freq=20000kHz (max 20000kHz)
+D (6631) vfs_fat_sdmmc: using pdrv=0
+[0;32mI (6641) fs: SD card: SD16G, size 29818MB | FAT mounted at /sd[0m
+[0;32mI (6641) SPModel: Trying to read config file[0m
+D (6641) JSON: read buffer
+[0;32mI (7301) Control: Initializing control![0m
+[0;32mI (7301) MOD: ModEngine initialized, slots 80-89[0m
+[0;32mI (7321) SDA: SDAudio: 256 KB ring, 32768 frames[0m
+[0;32mI (7321) BBA Codec: Starting i2s setup...[0m
+D (7321) efuse: BLK0 REG2 [8-15], len=8 bits
+D (7321) efuse: BLK0 REG2 [0-7], len=8 bits
+D (7321) efuse: BLK0 REG1 [24-31], len=8 bits
+D (7331) efuse: BLK0 REG1 [16-23], len=8 bits
+D (7331) efuse: BLK0 REG1 [8-15], len=8 bits
+D (7341) efuse: BLK0 REG1 [0-7], len=8 bits
+D (7341) efuse: BLK0 REG2 [16-23], len=8 bits
+D (7341) i2s_common: tx channel is registered on I2S0 successfully
+D (7351) i2s_common: rx channel is registered on I2S0 successfully
+D (7361) i2s_common: DMA malloc info: dma_desc_num = 4, dma_desc_buf_size = dma_frame_num * slot_num * data_bit_width = 128
+D (7371) i2s_std: Clock division info: [sclk] 160000000 Hz [mdiv] 9 13/29 [mclk] 16934306 Hz [bdiv] 12 [bclk] 1411200 Hz
+D (7381) i2s_common: MCLK is pinned to GPIO0 on I2S0
+D (7381) intr_alloc: Connected src 32 to int 2 (cpu 0)
+D (7391) i2s_std: The tx channel on I2S0 has been initialized to STD mode successfully
+D (7391) i2s_common: DMA malloc info: dma_desc_num = 4, dma_desc_buf_size = dma_frame_num * slot_num * data_bit_width = 128
+D (7411) i2s_std: Clock division info: [sclk] 160000000 Hz [mdiv] 9 13/29 [mclk] 16934306 Hz [bdiv] 12 [bclk] 1411200 Hz
+D (7421) i2s_common: MCLK is pinned to GPIO0 on I2S0
+D (7421) intr_alloc: Connected src 32 to int 2 (cpu 0)
+D (7431) i2s_std: The rx channel on I2S0 has been initialized to STD mode successfully
+D (7431) i2s_common: i2s tx channel enabled
+D (7441) i2s_common: i2s rx channel enabled
+D (7441) i2c.common: new bus(1) at 0x3f80aa70
+D (7441) i2c.common: bus clock source frequency: 80000000hz
+D (7451) intr_alloc: Connected src 50 to int 2 (cpu 0)
+[0;32mI (7461) BBA Codec: Found codec...[0m
+[0;32mI (7461) Network: Starting with ssid ctag-tbd, pwd , mdns ctag-tbd, ip 192.178.3.1, is ap[0m
+D (7481) esp_netif_lwip: LwIP stack has been initialized
+D (7481) esp_netif_lwip: esp-netif has been successfully initialized
+D (7481) event: running task for loop 0x3ffddf04
+D (7491) event: created task for loop 0x3ffddf04
+D (7491) event: created event loop 0x3ffddf04
+D (7501) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x402218fc
+--- 0x402218fc: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7501) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7511) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x402218fc
+--- 0x402218fc: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7511) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7521) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7521) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x402218fc
+--- 0x402218fc: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7531) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7531) esp_netif_lwip: check: remote, if=0x3ffbf454 fn=0x402218fc
+--- 0x402218fc: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873D (7541) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7551) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7551) esp_netif_lwip: esp_netif_get_ip_info esp_netif:0x0
+D (7561) esp_netif_lwip: check: remote, if=0x3ffbf374 fn=0x40221d9c
+--- 0x40221d9c: esp_netif_new_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:769D (7561) esp_netif_objects: esp_netif_add_to_list_unsafe netif added successfully (total netifs: 1)
+D (7571) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (7581) nvs: nvs_open_from_partition misc 1
+[0;32mI (7591) wifi:wifi driver task: 3ffe3288, prio:23, stack:3584, core=0[0m
+D (7591) efuse: BLK0 REG2 [8-15], len=8 bits
+D (7591) efuse: BLK0 REG2 [0-7], len=8 bits
+D (7591) efuse: BLK0 REG1 [24-31], len=8 bits
+D (7601) efuse: BLK0 REG1 [16-23], len=8 bits
+D (7601) efuse: BLK0 REG1 [8-15], len=8 bits
+D (7611) efuse: BLK0 REG1 [0-7], len=8 bits
+D (7611) efuse: BLK0 REG2 [16-23], len=8 bits
+D (7621) nvs: nvs_open_from_partition nvs.net80211 1
+D (7621) nvs: nvs_get opmode 1
+D (7621) nvs: nvs_get_str_or_blob sta.ssid
+D (7631) nvs: nvs_get sta.authmode 1
+D (7631) nvs: nvs_get_str_or_blob sta.pswd
+D (7631) nvs: nvs_get_str_or_blob sta.pmk
+D (7641) nvs: nvs_get sta.chan 1
+D (7641) nvs: nvs_get auto.conn 1
+D (7641) nvs: nvs_get bssid.set 1
+D (7651) nvs: nvs_get_str_or_blob sta.bssid
+D (7651) nvs: nvs_get sta.lis_intval 2
+D (7651) nvs: nvs_get sta.phym 1
+D (7661) nvs: nvs_get sta.phybw 1
+D (7661) nvs: nvs_get_str_or_blob sta.apsw
+D (7661) nvs: nvs_get_str_or_blob sta.apinfo
+D (7671) nvs: nvs_get sta.scan_method 1
+D (7671) nvs: nvs_get sta.sort_method 1
+D (7671) nvs: nvs_get sta.minrssi 1
+D (7681) nvs: nvs_get sta.minauth 1
+D (7681) nvs: nvs_get sta.pmf_e 1
+D (7681) nvs: nvs_get sta.pmf_r 1
+D (7691) nvs: nvs_get sta.btm_e 1
+D (7691) nvs: nvs_get sta.rrm_e 1
+D (7691) nvs: nvs_get sta.mbo_e 1
+D (7701) nvs: nvs_get_str_or_blob ap.ssid
+D (7701) nvs: nvs_get_str_or_blob ap.passwd
+D (7701) nvs: nvs_get_str_or_blob ap.pmk
+D (7711) nvs: nvs_get ap.chan 1
+D (7711) nvs: nvs_get ap.authmode 1
+D (7711) nvs: nvs_get ap.hidden 1
+D (7721) nvs: nvs_get ap.max.conn 1
+D (7721) nvs: nvs_get bcn.interval 2
+D (7721) nvs: nvs_get ap.phym 1
+D (7731) nvs: nvs_get ap.phybw 1
+D (7731) nvs: nvs_get ap.sndchan 1
+D (7731) nvs: nvs_get ap.pmf_e 1
+D (7741) nvs: nvs_get ap.pmf_r 1
+D (7741) nvs: nvs_get ap.p_cipher 1
+D (7741) nvs: nvs_get lorate 1
+D (7741) nvs: nvs_get_str_or_blob country
+D (7751) nvs: nvs_get ap.ftm_r 1
+D (7751) nvs: nvs_get sta.ft 1
+D (7751) nvs: nvs_get sta.owe 1
+D (7761) nvs: nvs_get sta.trans_d 1
+D (7761) nvs: nvs_get sta.sae_h2e 1
+D (7761) nvs: nvs_get sta.sae_pk_mode 1
+D (7771) nvs: nvs_get sta.bss_retry 1
+D (7771) nvs: nvs_get_str_or_blob sta.owe_data
+D (7771) nvs: nvs_get sta.he_dcm 1
+D (7781) nvs: nvs_get sta.he_dcm_c_tx 1
+D (7781) nvs: nvs_get sta.he_dcm_c_rx 1
+D (7781) nvs: nvs_get sta.he_mcs9_d 1
+D (7791) nvs: nvs_get sta.he_su_b_d 1
+D (7791) nvs: nvs_get sta.he_su_b_f_d 1
+D (7791) nvs: nvs_get sta.he_mu_b_f_d 1
+D (7801) nvs: nvs_get sta.he_cqi_f_d 1
+D (7801) nvs: nvs_get_str_or_blob sta.sae_h2e_id
+D (7811) nvs: nvs_get ap.sae_h2e 1
+D (7811) nvs: nvs_get_str_or_blob ap.pmk_info
+D (7811) nvs: nvs_get nan.phym 1
+D (7821) nvs: nvs_get sta.pwr_reset 1
+D (7821) nvs: nvs_get band_mode 1
+D (7821) nvs: nvs_get sta.phym5g 1
+D (7831) nvs: nvs_get ap.phym5g 1
+D (7831) nvs: nvs_get sta.phybw5g 1
+D (7831) nvs: nvs_get ap.phybw5g 1
+D (7831) nvs: nvs_get ap.sndchan5g 1
+D (7841) nvs: nvs_get ap.chan5g 1
+D (7841) nvs: nvs_get ap.chanisset 1
+D (7841) nvs: nvs_get ap.chan5gisset 1
+D (7851) nvs: nvs_get sta.lowrate 1
+D (7851) nvs: nvs_get ap.lowrate 1
+D (7851) nvs: nvs_get sta.rssi_5g_adj 1
+D (7861) nvs: nvs_get ap.csa_count 1
+D (7861) nvs: nvs_get ap.dtim_period 1
+D (7861) nvs: nvs_get ap.trans_d 1
+D (7871) nvs: nvs_get ap.sae_ext 1
+D (7871) nvs: nvs_get ap.bssmaxidle 2
+D (7871) nvs: nvs_get ap.pro_keep_a 1
+D (7881) nvs: nvs_get ap.gtk_rekey 2
+D (7881) nvs: nvs_get sta.vht_su_b_d 1
+D (7881) nvs: nvs_get sta.vht_mu_b_d 1
+D (7891) nvs: nvs_get sta.vht_mcs8_e 1
+D (7891) nvs: nvs_get sta.ina_time 2
+D (7891) nvs: nvs_get ap.ina_time 2
+D (7901) nvs: nvs_set ap.sndchan 1 1
+[0;32mI (7901) wifi:wifi firmware version: 0947e8b[0m
+[0;32mI (7911) wifi:wifi certification version: v7.0[0m
+[0;32mI (7911) wifi:config NVS flash: enabled[0m
+[0;32mI (7911) wifi:config nano formatting: disabled[0m
+[0;32mI (7921) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (7921) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (7931) wifi:Init management short buffer num: 32[0m
+[0;32mI (7931) wifi:Init static tx buffer num: 16[0m
+[0;32mI (7941) wifi:Init tx cache buffer num: 32[0m
+[0;32mI (7941) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (7941) wifi:Init static rx buffer num: 10[0m
+[0;32mI (7951) wifi:Init dynamic rx buffer num: 32[0m
+D (7951) wifi:Reset scan defaults in ms : min,max,passive,chan_dwell :(0,120,360,30)
+[0;32mI (7961) wifi_init: accept mbox: 6[0m
+[0;32mI (7961) wifi_init: tcpip mbox: 32[0m
+[0;32mI (7961) wifi_init: udp mbox: 6[0m
+[0;32mI (7971) wifi_init: tcp mbox: 6[0m
+[0;32mI (7971) wifi_init: tcp tx win: 5744[0m
+[0;32mI (7971) wifi_init: tcp rx win: 5744[0m
+[0;32mI (7981) wifi_init: tcp mss: 1440[0m
+[0;32mI (7981) wifi_init: WiFi/LWIP prefer SPIRAM[0m
+[0;32mI (7981) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (7991) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (7991) wifi:Set ps type: 0, coexist: 0[0m
+
+D (8001) nvs: nvs_get opmode 1
+D (8001) nvs: nvs_set ap.authmode 1 0
+D (8001) nvs: nvs_set ap.sae_h2e 1 4
+D (8001) nvs: nvs_set ap.chanisset 1 0
+D (8011) nvs: nvs_set ap.chan 1 1
+D (8011) nvs: nvs_set ap.sndchan 1 1
+D (8011) nvs: nvs_set_blob ap.ssid 36
+D (8021) nvs: nvs_set_blob ap.passwd 65
+D (8021) nvs: nvs_set ap.hidden 1 0
+D (8021) nvs: nvs_set ap.max.conn 1 5
+D (8031) nvs: nvs_set bcn.interval 2 100
+D (8031) nvs: nvs_set ap.sae_ext 1 0
+D (8031) nvs: nvs_set ap.gtk_rekey 2 0
+D (8041) nvs: nvs_set ap.p_cipher 1 0
+D (8041) nvs: nvs_set ap.trans_d 1 0
+D (8051) nvs: nvs_set ap.ftm_r 1 0
+D (8051) nvs: nvs_set ap.pmf_e 1 0
+D (8051) nvs: nvs_set ap.pmf_r 1 0
+D (8051) nvs: nvs_set ap.csa_count 1 3
+D (8061) nvs: nvs_set ap.dtim_period 1 1
+D (8061) nvs: nvs_set ap.bssmaxidle 2 0
+D (8071) nvs: nvs_set ap.pro_keep_a 1 0
+[0;32mI (8071) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+D (8071) phy_init: loading PHY init data from application binary
+D (8131) wifi:filter: set rx policy=0
+[0;32mI (8131) wifi:mode : softAP (34:5f:45:25:b4:61)[0m
+D (8131) wifi:filter: set rx policy=9
+[0;32mI (8141) wifi:Total power save buffer number: 8[0m
+[0;32mI (8141) wifi:Init max length of beacon: 752/752[0m
+[0;32mI (8141) wifi:Init max length of beacon: 752/752[0m
+D (8151) event: running post WIFI_EVENT:43 with handler 0x401fd9c8 and context 0x3ffde2f4 on loop 0x3ffddf04
+--- 0x401fd9c8: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410D (8161) event: running post WIFI_EVENT:43 with handler 0x401dc760 and context 0x3ffe3e98 on loop 0x3ffddf04
+--- 0x401dc760: CTAG::NET::Network::wifi_event_handler_ap(void*, char const*, long, void*) at /home/ubuntu/ctag-tbd/components/network/network.cpp:110D (8171) event: running post WIFI_EVENT:12 with handler 0x401fd9c8 and context 0x3ffde2f4 on loop 0x3ffddf04
+--- 0x401fd9c8: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410D (8181) event: running post WIFI_EVENT:12 with handler 0x402249b0 and context 0x3ffe1a34 on loop 0x3ffddf04
+--- 0x402249b0: wifi_default_action_ap_start at /home/ubuntu/esp-idf/components/esp_wifi/src/wifi_default.c:147D (8191) wifi_init_default: wifi_start esp-netif:0x3ffe178c event-id12
+D (8191) wifi_init_default: WIFI mac address: 34 5f 45 25 b4 61
+D (8201) esp_netif_lwip: check: remote, if=0x3ffe178c fn=0x40221910
+--- 0x40221910: esp_netif_set_mac_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:1086D (8201) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+[0;32mI (8201) Network: Disabling wifi power save mode[0m
+D (8211) esp_netif_handlers: esp_netif action has started with netif0x3ffe178c from event_id=12
+D (8211) esp_netif_lwip: check: local, if=0x3ffdf194 fn=0x402218fc
+--- 0x402218fc: get_handle_from_ifkey_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:873[0;32mI (8221) wifi:Set ps type: 0, coexist: 0[0m
+
+D (8221) esp_netif_lwip: check: remote, if=0x3ffe178c fn=0x40222890
+--- 0x40222890: esp_netif_start_api at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:1161D (8241) esp_netif_lwip: esp_netif_start_api 0x3ffe178c
+[0;32mI (8241) esp-rest: Starting HTTP Server[0m
+D (8241) esp_netif_lwip: esp_netif_internal_dhcpc_cb lwip-netif:0x3ffe1800
+D (8251) esp_netif_lwip: if0x3ffe178c ip unchanged
+D (8261) esp_netif_lwip: esp_netif_get_hostname esp_netif:0x3ffe178c
+D (8261) esp_netif_lwip: esp_netif_start_api Setting the lwip netif0x3ffe1800 UP
+[0;32mI (8271) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: 192.168.4.1[0m
+D (8281) esp_netif_lwip: check: local, if=0x3ffe178c fn=0x402231b0
+--- 0x402231b0: esp_netif_update_default_netif_lwip at /home/ubuntu/esp-idf/components/esp_netif/lwip/esp_netif_lwip.c:313D (8281) esp_netif_lwip: esp_netif_update_default_netif_lwip 0x3ffe178c
+D (8291) esp_netif_lwip: call api in lwip: ret=0x0, give sem
+D (8301) event: running post WIFI_EVENT:12 with handler 0x401dc760 and context 0x3ffe3e98 on loop 0x3ffddf04
+--- 0x401dc760: CTAG::NET::Network::wifi_event_handler_ap(void*, char const*, long, void*) at /home/ubuntu/ctag-tbd/components/network/network.cpp:110D (8311) httpd: httpd_thread: web server started
+D (8311) httpd: httpd_server: doing select maxfd+1 = 56
+D (8311) event: no handlers have been registered for event ESP_HTTP_SERVER_EVENT:1 posted to loop 0x3ffddf04
+D (8321) httpd_uri: httpd_register_uri_handler: [0] installed /api/v1/getPlugins
+D (8331) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8341) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8341) httpd_uri: httpd_register_uri_handler: [1] installed /api/v1/getActivePlugin*
+D (8351) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8361) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8361) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8371) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8381) httpd_uri: httpd_register_uri_handler: [2] installed /api/v1/getPluginParams*
+D (8391) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8391) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8401) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8411) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8411) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8421) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8431) httpd_uri: httpd_register_uri_handler: [3] installed /api/v1/setActivePlugin*
+D (8431) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8441) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8451) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8451) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8461) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8471) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8471) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8481) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8491) httpd_uri: httpd_register_uri_handler: [4] installed /api/v1/setPluginParam*
+D (8501) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8501) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8511) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8521) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8521) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8531) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8541) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8541) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8551) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8561) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8571) httpd_uri: httpd_register_uri_handler: [5] installed /api/v1/getPresets*
+D (8571) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8581) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8591) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8591) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8601) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8611) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (8611) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8621) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8631) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8631) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8641) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8651) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (8651) httpd_uri: httpd_register_uri_handler: [6] installed /api/v1/getPresetData*
+D (8661) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8671) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8671) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8681) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8691) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8691) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (8701) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (8711) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8711) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8721) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8731) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8741) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8741) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (8751) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (8761) httpd_uri: httpd_register_uri_handler: [7] installed /api/v1/savePreset*
+D (8761) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8771) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8781) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8781) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8791) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8801) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (8801) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (8811) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (8821) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8821) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8831) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8841) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8841) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8851) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (8861) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (8871) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (8871) httpd_uri: httpd_register_uri_handler: [8] installed /api/v1/loadPreset*
+D (8881) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (8891) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (8891) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (8901) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (8911) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (8911) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (8921) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (8931) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (8931) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (8941) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (8941) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (8951) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (8961) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (8971) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (8971) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (8981) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (8991) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9001) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9001) httpd_uri: httpd_register_uri_handler: [9] installed /api/v1/getConfiguration
+D (9011) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9021) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9021) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9031) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9041) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9041) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9051) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9051) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9061) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9071) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9071) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9081) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9091) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9101) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9101) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9111) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9121) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9121) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9131) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9141) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9151) httpd_uri: httpd_register_uri_handler: [10] installed /api/v1/getCalibration
+D (9151) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9161) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9171) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9171) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9181) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9191) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9191) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9201) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9201) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9211) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9221) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9221) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9231) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9241) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9241) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9251) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9261) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9271) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9271) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9281) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9291) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9291) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9301) httpd_uri: httpd_register_uri_handler: [11] installed /api/v1/reboot
+D (9311) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9321) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9321) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9331) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9331) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9341) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9351) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9351) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9361) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9371) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9371) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9381) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (9391) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9391) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9401) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9411) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9411) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9421) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9431) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9441) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9441) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9451) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9461) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9461) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (9471) httpd_uri: httpd_register_uri_handler: [12] installed /api/v1/getIOCaps
+D (9481) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9481) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9491) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9501) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9501) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9511) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9521) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9521) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9531) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9541) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9541) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9551) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (9551) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (9561) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9571) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9571) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9581) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9591) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9601) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9601) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9611) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9621) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9621) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9631) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9641) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (9651) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (9651) httpd_uri: httpd_register_uri_handler: [13] installed /api/v1/setConfiguration
+D (9661) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9671) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9671) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9681) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9691) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9691) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9701) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9711) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9711) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9721) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9721) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9731) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (9741) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (9741) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (9751) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9761) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9761) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9771) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9781) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9791) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (9791) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (9801) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (9811) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (9811) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (9821) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (9831) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (9841) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (9841) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (9851) httpd_uri: httpd_register_uri_handler: [14] installed /api/v1/setCalibration*
+D (9861) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (9861) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (9871) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (9881) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (9881) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (9891) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (9901) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (9901) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (9911) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (9911) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (9921) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (9931) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (9931) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (9941) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (9951) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (9951) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (9961) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (9971) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (9971) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (9981) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (9991) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10001) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10001) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10011) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10021) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10021) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10031) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10041) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10051) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10051) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10061) httpd_uri: httpd_register_uri_handler: [15] installed /api/v1/setPresetData*
+D (10071) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10071) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10081) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10091) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10091) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10101) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10111) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10111) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10121) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10131) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10131) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10141) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10151) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10151) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10161) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10171) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (10171) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10181) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10191) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10191) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10201) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10211) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10221) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10221) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10231) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10241) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10241) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10251) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10261) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10271) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10271) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10281) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (10291) httpd_uri: httpd_register_uri_handler: [16] installed /api/v1/otaAPI*
+D (10291) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10301) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10311) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10311) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10321) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10331) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10331) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10341) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10351) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10351) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10361) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10371) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10371) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10381) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10381) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10391) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (10401) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (10401) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10411) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10421) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10431) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10431) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10441) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10451) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10461) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10461) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10471) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10481) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10481) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10491) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10501) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10511) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10511) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (10521) httpd_uri: httpd_register_uri_handler: [16] exists /api/v1/otaAPI*
+D (10531) httpd_uri: httpd_register_uri_handler: [17] installed /api/v1/favorite*
+D (10531) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10541) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10551) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10551) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10561) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10571) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10571) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10581) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10591) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10591) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10601) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10611) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10611) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10621) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10621) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10631) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (10641) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (10641) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (10651) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10661) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10661) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10671) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10681) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10691) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10691) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10701) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10711) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10711) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10721) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10731) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10741) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (10741) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (10751) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (10761) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (10771) httpd_uri: httpd_register_uri_handler: [16] exists /api/v1/otaAPI*
+D (10771) httpd_uri: httpd_register_uri_handler: [17] exists /api/v1/favorite*
+D (10781) httpd_uri: httpd_register_uri_handler: [18] installed /api/v1/srom*
+D (10791) httpd_uri: httpd_find_uri_handler: [0] = /api/v1/getPlugins
+D (10791) httpd_uri: httpd_find_uri_handler: [1] = /api/v1/getActivePlugin*
+D (10801) httpd_uri: httpd_find_uri_handler: [2] = /api/v1/getPluginParams*
+D (10811) httpd_uri: httpd_find_uri_handler: [3] = /api/v1/setActivePlugin*
+D (10811) httpd_uri: httpd_find_uri_handler: [4] = /api/v1/setPluginParam*
+D (10821) httpd_uri: httpd_find_uri_handler: [5] = /api/v1/getPresets*
+D (10831) httpd_uri: httpd_find_uri_handler: [6] = /api/v1/getPresetData*
+D (10831) httpd_uri: httpd_find_uri_handler: [7] = /api/v1/savePreset*
+D (10841) httpd_uri: httpd_find_uri_handler: [8] = /api/v1/loadPreset*
+D (10841) httpd_uri: httpd_find_uri_handler: [9] = /api/v1/getConfiguration
+D (10851) httpd_uri: httpd_find_uri_handler: [10] = /api/v1/getCalibration
+D (10861) httpd_uri: httpd_find_uri_handler: [11] = /api/v1/reboot
+D (10861) httpd_uri: httpd_find_uri_handler: [12] = /api/v1/getIOCaps
+D (10871) httpd_uri: httpd_find_uri_handler: [13] = /api/v1/setConfiguration
+D (10881) httpd_uri: httpd_find_uri_handler: [14] = /api/v1/setCalibration*
+D (10881) httpd_uri: httpd_find_uri_handler: [15] = /api/v1/setPresetData*
+D (10891) httpd_uri: httpd_find_uri_handler: [16] = /api/v1/otaAPI*
+D (10901) httpd_uri: httpd_find_uri_handler: [17] = /api/v1/favorite*
+D (10901) httpd_uri: httpd_find_uri_handler: [18] = /api/v1/srom*
+D (10911) httpd_uri: httpd_register_uri_handler: [0] exists /api/v1/getPlugins
+D (10911) httpd_uri: httpd_register_uri_handler: [1] exists /api/v1/getActivePlugin*
+D (10921) httpd_uri: httpd_register_uri_handler: [2] exists /api/v1/getPluginParams*
+D (10931) httpd_uri: httpd_register_uri_handler: [3] exists /api/v1/setActivePlugin*
+D (10941) httpd_uri: httpd_register_uri_handler: [4] exists /api/v1/setPluginParam*
+D (10941) httpd_uri: httpd_register_uri_handler: [5] exists /api/v1/getPresets*
+D (10951) httpd_uri: httpd_register_uri_handler: [6] exists /api/v1/getPresetData*
+D (10961) httpd_uri: httpd_register_uri_handler: [7] exists /api/v1/savePreset*
+D (10971) httpd_uri: httpd_register_uri_handler: [8] exists /api/v1/loadPreset*
+D (10971) httpd_uri: httpd_register_uri_handler: [9] exists /api/v1/getConfiguration
+D (10981) httpd_uri: httpd_register_uri_handler: [10] exists /api/v1/getCalibration
+D (10991) httpd_uri: httpd_register_uri_handler: [11] exists /api/v1/reboot
+D (10991) httpd_uri: httpd_register_uri_handler: [12] exists /api/v1/getIOCaps
+D (11001) httpd_uri: httpd_register_uri_handler: [13] exists /api/v1/setConfiguration
+D (11011) httpd_uri: httpd_register_uri_handler: [14] exists /api/v1/setCalibration*
+D (11021) httpd_uri: httpd_register_uri_handler: [15] exists /api/v1/setPresetData*
+D (11021) httpd_uri: httpd_register_uri_handler: [16] exists /api/v1/otaAPI*
+D (11031) httpd_uri: httpd_register_uri_handler: [17] exists /api/v1/favorite*
+D (11041) httpd_uri: httpd_register_uri_handler: [18] exists /api/v1/srom*
+D (11041) httpd_uri: httpd_register_uri_handler: [19] installed /*
+[0;32mI (11051) esp-rest: Starting HTTP Server[0m
+[1;31mE (11051) httpd: httpd_server_init: error in listen (112)[0m
+[0;32mI (11061) SPManager: Switching ch0 to plugin APCpp[0m
+[0;32mI (11061) ctagSPAllocator: SetAllocationType: Single Channel CH0[0m
+[0;32mI (11071) ctagSPAllocator: Allocate: allocating CH0 612 bytes object size, ch0 56732 bytes blockMem[0m
+D (11081) ctagSPAllocator: GetRemainingBuffer: CH0 or STEREO 56732 bytes free
+D (11091) JSON: read buffer
+D (11121) JSON: read buffer
+D (11141) Model: Loading patch number 0
+D (11141) JSON: read buffer
+D (11161) Model: Preset Name is Default number 0
+D (11241) JSON: read buffer
+D (11261) Model: Preset Name is Default number 0
+D (11731) JSON: read buffer
+D (11751) Model: Preset Name is Default number 0
+[0;32mI (11841) SPManager: Mem freesize internal 21980, largest block 16384, free SPIRAM 3768596, largest block SPIRAM 3735552![0m
+[0;32mI (11841) SPManager: Switching ch1 to plugin Void[0m
+[0;32mI (11841) ctagSPAllocator: SetAllocationType: Single Channel CH1[0m
+[0;32mI (11851) ctagSPAllocator: Allocate: allocating CH1 128 bytes object size, ch1 57216 bytes blockMem[0m
+D (11861) ctagSPAllocator: GetRemainingBuffer: CH1 57216 bytes free
+D (11861) JSON: read buffer
+D (11901) JSON: read buffer
+D (11931) Model: Loading patch number 0
+D (11931) JSON: read buffer
+D (11971) Model: Preset Name is Default number 0
+D (12031) JSON: read buffer
+D (12061) Model: Preset Name is Default number 0
+D (12331) JSON: read buffer
+D (12371) Model: Preset Name is Default number 0
+[0;32mI (12431) SPManager: Mem freesize internal 21360, largest block 16384, free SPIRAM 3751552, largest block SPIRAM 3735552![0m
+[0;32mI (12431) SPManager: Init: Mem freesize internal 21360, largest block 16384, free SPIRAM 3751552, largest block SPIRAM 3735552![0m
+D (12441) intr_alloc: Connected src 22 to int 12 (cpu 0)
+[0;32mI (12441) main_task: Returned from app_main()[0m
+D (76001) wifi:ap recv assoc/reassoc request
+[0;32mI (76001) wifi:new:<1,1>, old:<1,1>, ap:<1,1>, sta:<255,255>, prof:1, snd_ch_cfg:0x0[0m
+D (76001) wifi:hostap_ht_operation_update current operation mode=0x0
+D (76011) wifi:bss=0x3f86b504, resp=16 join
+[0;32mI (76011) wifi:station: fc:77:74:91:08:43 join, AID=1, bgn, 40U[0m
+D (76021) wifi:join success, ap send assoc response
+D (76021) event: running post WIFI_EVENT:14 with handler 0x401fd9c8 and context 0x3ffde2f4 on loop 0x3ffddf04
+--- 0x401fd9c8: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410D (76031) event: running post WIFI_EVENT:14 with handler 0x401dc760 and context 0x3ffe3e98 on loop 0x3ffddf04
+--- 0x401dc760: CTAG::NET::Network::wifi_event_handler_ap(void*, char const*, long, void*) at /home/ubuntu/ctag-tbd/components/network/network.cpp:110[0;32mI (76041) Network: station fc:77:74:91:08:43 join, AID=1[0m
+D (76221) wifi:eb is dhcp or dns sport = 68, dport = 67
+D (76221) wifi:eb is dhcp or dns sport = 67, dport = 68
+D (76341) wifi:eb is dhcp or dns sport = 68, dport = 67
+D (76341) wifi:D (76341) esp_netif_lwip: esp_netif_dhcps_cb esp_netif:0x3ffe178c
+eb is dhcp or dns sport = 67, dport = 68
+[0;32mI (76341) esp_netif_lwip: DHCP server assigned IP to a client, IP is: 192.168.4.2[0m
+D (76351) esp_netif_lwip: Client's MAC: fc:77:74:91:8:43
+D (76351) event: running post IP_EVENT:2 with handler 0x401fd9c8 and context 0x3ffde328 on loop 0x3ffddf04
+--- 0x401fd9c8: mdns_preset_if_handle_system_event at /home/ubuntu/ctag-tbd/managed_components/espressif__mdns/mdns.c:4410
