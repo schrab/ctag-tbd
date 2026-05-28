@@ -32,7 +32,7 @@ SOFTWARE.
 #include "ssd1306.h"
 #include "font8x8_basic.h"
 
-#define tag "SSD1306"
+#define tag "SSD1309"
 
 void ssd1306_init(SSD1306_t * dev, int width, int height)
 {

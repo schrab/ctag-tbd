@@ -30,7 +30,7 @@ SOFTWARE.
    Contains an 90 digree transposed 8x8 font map for unicode points 
    U+0000 - U+007F (basic latin)
    
-   To make it easy to use with SSD1306's GDDRAM mapping and API,
+   To make it easy to use with SSD1306/SSD1309 GDDRAM mapping and API,
    this constant is an 90 degree transposed.
    The original version written by Marcel Sondaar is availble at:
    https://github.com/dhepper/font8x8/blob/master/font8x8_basic.h 

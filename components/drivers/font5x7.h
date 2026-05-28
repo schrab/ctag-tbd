@@ -1,5 +1,5 @@
 /*
-5×7 monochrome bitmap font for SSD1306 OLED displays.
+5×7 monochrome bitmap font for SSD1306/SSD1309 OLED displays.
 
 Row-major layout: each glyph is 5 bytes, byte n = row n (0-6), bit 0 = leftmost pixel.
 Row 7 is blank (interline spacing). Non-printable control chars U+0000..U+001F are all zeros.

@@ -33,7 +33,7 @@ SOFTWARE.
 
 #include "ssd1306.h"
 
-#define tag "SSD1306"
+#define tag "SSD1309"
 #define CONFIG_OFFSETX 0
 
 static i2c_master_bus_handle_t bus_handle = NULL;

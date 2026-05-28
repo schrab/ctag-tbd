@@ -5,11 +5,11 @@
 ```
 Menu Pages (UIMenuPage subclasses)
   → DrawString(), DrawPixel(), InvertRect(), etc. → Display::fb[1024]
-  → Display::Flush() → ssd1306_display_image() → i2c_master_transmit() → SSD1306
+  → Display::Flush() → ssd1306_display_image() → i2c_master_transmit() → SSD1309
 ```
 
 **Framebuffer:** 1024 bytes = 128 columns × 8 pages. Page-major, column-minor.
-`fb[page*128 + x]` → each byte is a vertical 8-pixel column (SSD1306 GDDRAM page format).
+`fb[page*128 + x]` → each byte is a vertical 8-pixel column (SSD1306/SSD1309 GDDRAM page format).
 
 **Dirty tracking:** `dirtyPages[8]` — one flag per 8-row page.
 
@@ -59,7 +59,7 @@ GPIO5 is used by both `Favorites.cpp` (PIN_PUSH_BTN) and `encoder.cpp` (PCNT uni
 
 | Param | Value |
 |-------|-------|
-| Display | SSD1306 128x64 |
+| Display | SSD1309 128x64 |
 | I2C addr | 0x3C (7-bit) |
 | SCL/SDA | 22/21 |
 | Clock | 1 MHz |

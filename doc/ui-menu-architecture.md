@@ -8,7 +8,7 @@
 | `main/UIMenuPage.hpp` | Abstract base class for all pages |
 | `main/menupages/UIMenuPage*.hpp/.cpp` | Concrete page implementations (Home, Mix, Tape, Params, System, BtMidi) |
 | `main/UserInput.hpp` / `.cpp` | Hardware input: encoder + 2 buttons → FreeRTOS event queue |
-| `main/Display.hpp` / `.cpp` | OLED framebuffer (128x64, SSD1306) |
+| `main/Display.hpp` / `.cpp` | OLED framebuffer (128x64, SSD1309) |
 | `main/main.cpp` | Boot sequence: splash → `StartSoundProcessor()` → `UIMenu::Init()` → task |
 
 ## Navigation State Machine
@@ -113,7 +113,7 @@ Screen: 128x64px. FONT_5X7 = ~9 rows × ~21 chars, FONT_8X8 = 8 rows × 16 chars
 
 Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` for `ssd1306_display_text()`).
 
-**Framebuffer notes:** 1024 bytes = 128 columns × 8 pages. Page-major, column-minor. SSD1306 with 0xC8 COM scan requires `page = 7 - (y >> 3)` and `bit = 7 - (y & 7)` in DrawPixel/InvertRect.
+**Framebuffer notes:** 1024 bytes = 128 columns × 8 pages. Page-major, column-minor. Physical display is SSD1309 (driver compatible with SSD1306/SSD1309, 0xC8 COM scan), requiring `page = 7 - (y >> 3)` and `bit = 7 - (y & 7)` in DrawPixel/InvertRect.
 
 **Drawing functions (`DrawString`, `DrawVUMeter`, `DrawScrollbar`) do NOT call `Flush()` internally.** Each `redraw*()` method calls `Display::Flush()` once after all drawing is complete. `Clear()` does NOT do direct I2C — only `memset(fb, 0)` + dirty flags.
 
