@@ -31,6 +31,8 @@ respective component folders / files if different from this license.
 #endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_log.h"
+static const char *TAG = "UIMenu";
 
 using namespace CTAG::DRIVERS;
 
@@ -47,6 +49,7 @@ namespace CTAG {
         int UIMenu::panelBarTimer = 0;
 
         void UIMenu::Init() {
+            ESP_LOGI(TAG, "Init: creating pages...");
             pages[PANEL_HOME] = new UIMenuPageHome();
             pages[PANEL_MIX] = new UIMenuPageMix();
             pages[PANEL_TAPE] = new UIMenuPageTape();
@@ -54,10 +57,12 @@ namespace CTAG {
 #if CONFIG_BT_ENABLED
             pages[PANEL_BT] = new UIMenuPageBtMidi();
 #endif
+            ESP_LOGI(TAG, "Init: calling init on pages...");
             for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();
             navState = ROOT;
             redrawNeeded = true;
             panelBarTimer = 50; // ~1s
+            ESP_LOGI(TAG, "Init: done");
             // task created in main.cpp
         }
 
@@ -83,8 +88,13 @@ namespace CTAG {
         }
 
         void UIMenu::TaskFunction(void *) {
+            ESP_LOGI(TAG, "TaskFunction: initializing UserInput...");
             UserInput::Init();
+            ESP_LOGI(TAG, "TaskFunction: entering main loop");
+            int loopCount = 0;
             while (1) {
+                loopCount++;
+                if (loopCount % 50 == 0) ESP_LOGD(TAG, "alive, loop=%d", loopCount);
                 InputEvent ev;
                 bool gotEv = UserInput::GetEvent(ev, 20);
 
