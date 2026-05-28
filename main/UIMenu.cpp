@@ -49,6 +49,8 @@ namespace CTAG {
         int UIMenu::panelBarTimer = 0;
 
         void UIMenu::Init() {
+            ESP_LOGI(TAG, "Init: UserInput...");
+            UserInput::Init();
             ESP_LOGI(TAG, "Init: creating pages...");
             pages[PANEL_HOME] = new UIMenuPageHome();
             pages[PANEL_MIX] = new UIMenuPageMix();
@@ -67,6 +69,7 @@ namespace CTAG {
             drawPanelBar();
             ESP_LOGI(TAG, "Init: done");
             // task created in main.cpp
+            // UserInput::EnableISR() called after task creation in main.cpp
         }
 
         void UIMenu::drawPanelBar() {
@@ -91,9 +94,7 @@ namespace CTAG {
         }
 
         void UIMenu::TaskFunction(void *) {
-            printf("UIMenu_TaskFunction_entered\n");
-            fflush(stdout);
-            ESP_LOGI(TAG, "TaskFunction: entering main loop");
+            ESP_LOGI(TAG, "TaskFunction: starting main loop");
             int loopCount = 0;
             while (1) {
                 loopCount++;
