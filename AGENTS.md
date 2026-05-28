@@ -13,6 +13,7 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 - **Interrupt Watchdog**: ESP32-D0WD-V3 rev3.1 + PSRAM + dual-core requires `CONFIG_ESP_INT_WDT=y`. BT coex calibration during codec I2S init can exceed the default 300ms timeout — set `CONFIG_ESP_INT_WDT_TIMEOUT_MS=5000` in `sdkconfig.defaults.a1s`.
 - SD card FAT32: use `esp_vfs_fat_sdmmc_mount()` with `gpio_cd = GPIO_NUM_NC` to avoid card detect hang.
 - Sound processor allocator: 112KB internal buffer may not fit in DRAM when BT is active — falls back to PSRAM via `heap_caps_malloc(size, MALLOC_CAP_SPIRAM)`.
+- **DRAM exhaustion → silent UI freeze**: After audio init, only ~22KB DRAM remains (largest free block ~17KB). `UserInput::Init()` must be called from `UIMenu::TaskFunction` (post `xTaskCreatePinnedToCore`), not from `UIMenu::Init()` — the input task's 2KB stack fragments the heap so the UIMenu task's stack can't allocate contiguously. UIMenu stack is 4096 (not 8192) since it only polls a queue + draws display. See `doc/ui-menu-architecture.md` for full root cause.
 
 ## Architecture Notes
 - UI architecture: See doc/ui-menu-architecture.md for full details. Norns-style navigation with ROOT/PANEL_IN states. Page-owned sub-page depth via onBack(). Norns-style indicator bar (no text labels) with fade timer.
@@ -22,7 +23,7 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 - Parameter editing: main/menupages/UIMenuPageParams.cpp parses plugin parameter JSON via RapidJSON, renders 6-item scrollable list on OLED, dispatches value changes through SoundProcessorManager::SetChannelParamValue(). Encoder adjusts values in MODE_VALUEEDIT, OK confirms, BACK exits.
 - Plugin browser: main/menupages/UIMenuPageHome.cpp parses available processors JSON, renders 6-item scrollable plugin list, S/M type indicators. Stereo loads to ch0 directly. Mono shows Ch0/Ch1/Both submenu. BACK navigates through sub-pages. OK (BTN2_SHORT) is the primary select action.
 - SD card: components/drivers/fs.cpp InitSD() initializes SDMMC slot 1 (4-bit, GPIO34 CD), mounts as LittleFS on /sd in v5.x (was FAT on older IDF). CONFIG_LITTLEFS_SDMMC_SUPPORT must be enabled for SD detection.
-- UIMenu task: 8192 byte stack, runs on Core 0 at idle+3, 20ms period. Created after StartSoundProcessor() completes. Old Favorites::ui_task is DISABLED (GPIO5 conflict with encoder).
+- UIMenu task: 4096 byte stack, runs on Core 0 at idle+3, 20ms period. Created after StartSoundProcessor() completes. UserInput::Init() called from TaskFunction (not from Init()) to avoid DRAM fragmentation before task creation. Old Favorites::ui_task is DISABLED (GPIO5 conflict with encoder).
 - Panel bar: Norns-style dashed horizontal line at y=0 with active/inactive segment indicators. No text. Fades after ~1s. 128/PANEL_COUNT px per segment.
 
 ## Common Workflows
