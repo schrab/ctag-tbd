@@ -93,11 +93,19 @@ static int on_svc_discovered(uint16_t conn,
                               const struct ble_gatt_svc *svc,
                               void *arg) {
     if (error->status == 0 && svc != nullptr) {
+        char uuid_str[37];
+        ble_uuid_to_str(&svc->uuid.u, uuid_str);
+        ESP_LOGD(TAG, "Service: %s (%u-%u)", uuid_str, svc->start_handle, svc->end_handle);
         if (ble_uuid_cmp(&svc->uuid.u, &MIDI_SVC_UUID.u) == 0) {
             ESP_LOGI(TAG, "Found MIDI service, discovering characteristics");
-            ble_gattc_disc_all_chrs(conn, svc->start_handle, svc->end_handle,
-                                    on_chr_discovered, nullptr);
+            int rc = ble_gattc_disc_all_chrs(conn, svc->start_handle, svc->end_handle,
+                                             on_chr_discovered, nullptr);
+            if (rc != 0) ESP_LOGE(TAG, "Failed to start chr discovery: %d", rc);
         }
+    } else if (error->status == BLE_HS_EDONE) {
+        ESP_LOGI(TAG, "Service discovery complete");
+    } else {
+        ESP_LOGE(TAG, "Service discovery error: %d", error->status);
     }
     return 0;
 }
@@ -109,22 +117,28 @@ static int on_chr_discovered(uint16_t conn,
     if (error->status == 0 && chr != nullptr) {
         char uuid_str[37];
         ble_uuid_to_str(&chr->uuid.u, uuid_str);
-        ESP_LOGD(TAG, "Found characteristic: %s", uuid_str);
+        ESP_LOGD(TAG, "Found characteristic: def=%s val=%u", uuid_str, chr->val_handle);
+        // Try Apple BLE-MIDI UUID, fall back to any characteristic in the MIDI service
         if (ble_uuid_cmp(&chr->uuid.u, &MIDI_CHR_UUID.u) == 0) {
-            ESP_LOGI(TAG, "Found MIDI characteristic");
-            midi_val_handle = chr->val_handle;
-            // Subscribe to notifications: write 0x0001 to CCCD
-            uint8_t val[2] = {0x01, 0x00};
-            int rc = ble_gattc_write_flat(conn, chr->val_handle + 1,
-                                          val, sizeof(val),
-                                          nullptr, nullptr);
-            if (rc == 0) {
-                ESP_LOGI(TAG, "Subscribed to MIDI notifications");
-            } else {
-                ESP_LOGE(TAG, "Subscribe failed: %d", rc);
-            }
+            ESP_LOGI(TAG, "Found Apple BLE-MIDI characteristic");
+        } else if (midi_val_handle == 0) {
+            ESP_LOGI(TAG, "Using device-specific MIDI characteristic");
+        } else {
+            return 0; // already subscribed
         }
-    } else if (error->status != BLE_HS_EDONE) {
+        midi_val_handle = chr->val_handle;
+        uint8_t val[2] = {0x01, 0x00};
+        int rc = ble_gattc_write_flat(conn, chr->val_handle + 1,
+                                      val, sizeof(val),
+                                      nullptr, nullptr);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "Subscribed to MIDI notifications");
+        } else {
+            ESP_LOGE(TAG, "Subscribe write failed: %d", rc);
+        }
+    } else if (error->status == BLE_HS_EDONE) {
+        ESP_LOGI(TAG, "Characteristic discovery complete");
+    } else {
         ESP_LOGE(TAG, "Characteristic discovery error: %d", error->status);
     }
     return 0;
