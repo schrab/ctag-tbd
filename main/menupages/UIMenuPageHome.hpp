@@ -49,7 +49,7 @@ namespace CTAG {
                 char name[24];
             };
 
-            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_FAVORITES };
+            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_FAVORITES, SP_SD_CARD };
 
             SubPage subPage;
             int cursor;
@@ -62,6 +62,12 @@ namespace CTAG {
             FavEntry favorites[MAX_FAVORITES];
             int favActiveId;
 
+            static const int MAX_SD_FILES = 32;
+            char sdEntries[MAX_SD_FILES][32];
+            bool sdIsDir[MAX_SD_FILES];
+            int sdFileCount;
+            char sdCurrentPath[64];
+
             int selChan;
             int selectedPlugin; // index of plugin being channel-assigned
 
@@ -73,6 +79,9 @@ namespace CTAG {
             void redrawSelect();
             void redrawSelectCh();
             void redrawFavorites();
+            void scanSdFiles();
+            void goUpSdDir();
+            void redrawSdCard();
         };
     }
 }

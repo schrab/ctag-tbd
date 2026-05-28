@@ -27,6 +27,8 @@ respective component folders / files if different from this license.
 #include "fs.hpp"
 #include "UIMenuPageSystem.hpp"
 #include <cstring>
+#include <cstdio>
+#include <dirent.h>
 
 using namespace CTAG::DRIVERS;
 using namespace CTAG::AUDIO;
@@ -41,6 +43,8 @@ namespace CTAG {
             pluginCount = 0;
             systemPage = nullptr;
             favActiveId = -1;
+            sdFileCount = 0;
+            strcpy(sdCurrentPath, "/sd");
         }
 
         void UIMenuPageHome::deinit() {
@@ -113,6 +117,14 @@ namespace CTAG {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
                 if (cursor > 2) cursor = 2;
+            } else if (subPage == SP_SD_CARD) {
+                cursor += delta;
+                if (cursor < 0) cursor = 0;
+                if (cursor >= sdFileCount) cursor = sdFileCount - 1;
+                if (cursor - scrollOffset < 0) scrollOffset = cursor;
+                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
+                if (scrollOffset > sdFileCount - 6) scrollOffset = sdFileCount - 6;
+                if (scrollOffset < 0) scrollOffset = 0;
             } else if (subPage == SP_FAVORITES) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
@@ -145,6 +157,12 @@ namespace CTAG {
                         cursor = 0;
                         scrollOffset = 0;
                         parseFavorites();
+                    } else if (cursor == 3) { // SD CARD
+                        subPage = SP_SD_CARD;
+                        cursor = 0;
+                        scrollOffset = 0;
+                        strcpy(sdCurrentPath, "/sd");
+                        scanSdFiles();
                     }
                 }
             } else if (subPage == SP_SELECT) {
@@ -191,6 +209,20 @@ namespace CTAG {
                         cursor = 0;
                     }
                 }
+            } else if (subPage == SP_SD_CARD) {
+                if (btnId == 2 && !longPress) {
+                    if (cursor >= 0 && cursor < sdFileCount && sdIsDir[cursor]) {
+                        if (strcmp(sdEntries[cursor], "..") == 0) {
+                            goUpSdDir();
+                        } else {
+                            size_t curLen = strlen(sdCurrentPath);
+                            snprintf(sdCurrentPath + curLen, sizeof(sdCurrentPath) - curLen, "/%s", sdEntries[cursor]);
+                            scanSdFiles();
+                            cursor = 0;
+                            scrollOffset = 0;
+                        }
+                    }
+                }
             }
             doRedraw();
         }
@@ -224,6 +256,16 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
+            if (subPage == SP_SD_CARD) {
+                if (strcmp(sdCurrentPath, "/sd") != 0) {
+                    goUpSdDir();
+                } else {
+                    subPage = SP_MAIN;
+                    cursor = 0;
+                }
+                doRedraw();
+                return true;
+            }
             return false;
         }
 
@@ -238,6 +280,8 @@ namespace CTAG {
                 redrawSelectCh();
             } else if (subPage == SP_FAVORITES) {
                 redrawFavorites();
+            } else if (subPage == SP_SD_CARD) {
+                redrawSdCard();
             }
         }
 
@@ -282,6 +326,70 @@ namespace CTAG {
             Display::InvertRect(0, cy, 128, 8);
             if (MAX_FAVORITES > 6)
                 Display::DrawScrollbar(126, 5, 54, MAX_FAVORITES, cursor);
+            Display::Flush();
+        }
+
+        void UIMenuPageHome::scanSdFiles() {
+            sdFileCount = 0;
+            if (!FileSystem::IsSDMounted()) return;
+
+            bool atRoot = (strcmp(sdCurrentPath, "/sd") == 0);
+            if (!atRoot) {
+                strcpy(sdEntries[0], "..");
+                sdIsDir[0] = true;
+                sdFileCount = 1;
+            }
+
+            DIR *dir = opendir(sdCurrentPath);
+            if (!dir) return;
+            struct dirent *ent;
+            while ((ent = readdir(dir)) != nullptr && sdFileCount < MAX_SD_FILES) {
+                const char *name = ent->d_name;
+                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+                size_t len = strlen(name);
+                size_t copyLen = len < 31 ? len : 31;
+                memcpy(sdEntries[sdFileCount], name, copyLen);
+                sdEntries[sdFileCount][copyLen] = '\0';
+                sdIsDir[sdFileCount] = (ent->d_type == DT_DIR);
+                sdFileCount++;
+            }
+            closedir(dir);
+        }
+
+        void UIMenuPageHome::goUpSdDir() {
+            char *lastSlash = strrchr(sdCurrentPath, '/');
+            if (lastSlash && lastSlash != sdCurrentPath) {
+                *lastSlash = '\0';
+            }
+            scanSdFiles();
+            cursor = 0;
+            scrollOffset = 0;
+        }
+
+        void UIMenuPageHome::redrawSdCard() {
+            Display::Clear();
+            if (sdFileCount == 0) {
+                Display::DrawString(0, 24, "No card or empty", Display::FONT_5X7);
+                Display::Flush();
+                return;
+            }
+            int visible = sdFileCount - scrollOffset;
+            if (visible > 6) visible = 6;
+            for (int i = 0; i < visible; i++) {
+                int idx = scrollOffset + i;
+                int y = 5 + i * 9;
+                char buf[64];
+                if (sdIsDir[idx]) {
+                    snprintf(buf, sizeof(buf), " [%s]", sdEntries[idx]);
+                } else {
+                    snprintf(buf, sizeof(buf), "  %s", sdEntries[idx]);
+                }
+                Display::DrawString(0, y, buf, Display::FONT_5X7);
+            }
+            int cy = 5 + (cursor - scrollOffset) * 9;
+            Display::InvertRect(0, cy, 128, 8);
+            if (sdFileCount > 6)
+                Display::DrawScrollbar(126, 5, 54, sdFileCount, cursor);
             Display::Flush();
         }
 
