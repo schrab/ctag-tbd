@@ -83,13 +83,15 @@ static void parse_ble_midi_notify(const uint8_t *data, int len) {
     }
 }
 
-static void on_chr_discovered(uint16_t conn,
-                               const struct ble_gatt_error *error,
-                               struct ble_gatt_chr *chr);
+static int on_chr_discovered(uint16_t conn,
+                              const struct ble_gatt_error *error,
+                              const struct ble_gatt_chr *chr,
+                              void *arg);
 
-static void on_svc_discovered(uint16_t conn,
-                               const struct ble_gatt_error *error,
-                               struct ble_gatt_svc *svc) {
+static int on_svc_discovered(uint16_t conn,
+                              const struct ble_gatt_error *error,
+                              const struct ble_gatt_svc *svc,
+                              void *arg) {
     if (error->status == 0 && svc != nullptr) {
         if (ble_uuid_cmp(&svc->uuid.u, &MIDI_SVC_UUID.u) == 0) {
             ESP_LOGI(TAG, "Found MIDI service, discovering characteristics");
@@ -97,11 +99,13 @@ static void on_svc_discovered(uint16_t conn,
                                     on_chr_discovered, nullptr);
         }
     }
+    return 0;
 }
 
-static void on_chr_discovered(uint16_t conn,
-                               const struct ble_gatt_error *error,
-                               struct ble_gatt_chr *chr) {
+static int on_chr_discovered(uint16_t conn,
+                              const struct ble_gatt_error *error,
+                              const struct ble_gatt_chr *chr,
+                              void *arg) {
     if (error->status == 0 && chr != nullptr) {
         if (ble_uuid_cmp(&chr->uuid.u, &MIDI_CHR_UUID.u) == 0) {
             ESP_LOGI(TAG, "Found MIDI characteristic");
@@ -118,6 +122,7 @@ static void on_chr_discovered(uint16_t conn,
             }
         }
     }
+    return 0;
 }
 
 static int gap_event_cb(struct ble_gap_event *event, void *arg) {
@@ -143,21 +148,14 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         return 0;
     case BLE_GAP_EVENT_DISC: {
         const struct ble_gap_disc_desc &disc = event->disc;
-        // Skip devices without name
-        if (disc.length_data == 0 && disc.length_adv_name == 0) return 0;
-        const char *adv_name = nullptr;
-        int name_len = 0;
-        if (disc.length_adv_name > 0) {
-            adv_name = disc.adv_name;
-            name_len = disc.length_adv_name;
-        } else if (disc.length_data > 0) {
-            // For BLE-MIDI: fall back to device address if no name
-        }
         if (deviceCount >= MAX_DEVICES) return 0;
+        // Parse AD data for device name
+        struct ble_hs_adv_fields fields;
+        int rc = ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data);
         BtDeviceInfo &d = devices[deviceCount];
-        if (adv_name && name_len > 0) {
-            int copyLen = name_len < 31 ? name_len : 31;
-            memcpy(d.name, adv_name, copyLen);
+        if (rc == 0 && fields.name_len > 0) {
+            int copyLen = fields.name_len < 31 ? fields.name_len : 31;
+            memcpy(d.name, fields.name, copyLen);
             d.name[copyLen] = '\0';
         } else {
             snprintf(d.name, sizeof(d.name), "BLE-%02X%02X%02X%02X%02X%02X",
@@ -230,7 +228,15 @@ void BtMidiReceiver::StartScan() {
     if (bt_scanning || bt_connected) return;
     deviceCount = 0;
     bt_scanning = true;
-    int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 0, gap_event_cb, nullptr);
+    struct ble_gap_disc_params params = {
+        .itvl = 0,
+        .window = 0,
+        .filter_policy = BLE_HCI_CONN_FILT_NO_WL,
+        .limited = 0,
+        .passive = 0,
+        .filter_duplicates = 0,
+    };
+    int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &params, gap_event_cb, nullptr);
     if (rc != 0) {
         ESP_LOGE(TAG, "Scan start failed: %d", rc);
         bt_scanning = false;
@@ -251,7 +257,17 @@ void BtMidiReceiver::Connect(int idx) {
     ble_addr_t addr;
     addr.type = BLE_ADDR_PUBLIC;
     memcpy(addr.val, devices[idx].bda, 6);
-    int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &addr, 30000, gap_event_cb, nullptr);
+    struct ble_gap_conn_params params;
+    memset(&params, 0, sizeof(params));
+    params.scan_itvl = 0x0010;
+    params.scan_window = 0x0010;
+    params.itvl_min = 0x0018;
+    params.itvl_max = 0x0028;
+    params.latency = 0;
+    params.supervision_timeout = 0x00C8;
+    params.min_ce_len = 0;
+    params.max_ce_len = 0;
+    int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &addr, 30000, &params, gap_event_cb, nullptr);
     if (rc != 0) {
         ESP_LOGE(TAG, "Connect failed: %d", rc);
     } else {
@@ -261,5 +277,5 @@ void BtMidiReceiver::Connect(int idx) {
 
 void BtMidiReceiver::Disconnect() {
     if (!bt_connected) return;
-    ble_gap_terminate(conn_handle);
+    ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }

@@ -60,25 +60,34 @@ namespace CTAG {
         void UIMenuPageBtMidi::onButton(int btnId, bool longPress) {
             if (subPage == SP_MAIN) {
                 if (btnId == 2 && longPress) {
+                    if (cursor == 1 && BtMidiReceiver::IsConnected()) {
+                        BtMidiReceiver::Disconnect();
+                    }
+                } else if (btnId == 2 && !longPress) {
                     if (cursor == 0) {
                         BtMidiReceiver::StartScan();
                         subPage = SP_SCAN;
                         cursor = 0;
                         scrollOffset = 0;
-                    } else if (cursor == 1 && BtMidiReceiver::IsConnected()) {
-                        BtMidiReceiver::Disconnect();
                     }
-                } else if (btnId == 2 && !longPress) {
-                    // handled by UIMenu as panel enter
                 }
             } else if (subPage == SP_SCAN) {
-                if (btnId == 2 && !longPress && !BtMidiReceiver::IsScanning()) {
+                if (btnId == 2 && !longPress) {
                     int n = BtMidiReceiver::GetDeviceCount();
                     if (n > 0 && cursor < n) {
                         BtMidiReceiver::Connect(cursor);
+                        subPage = SP_MAIN;
+                        cursor = 0;
+                        doRedraw();
+                        return;
                     }
+                }
+                if (btnId == 1 && longPress) {
+                    if (BtMidiReceiver::IsScanning()) BtMidiReceiver::StopScan();
                     subPage = SP_MAIN;
                     cursor = 0;
+                    doRedraw();
+                    return;
                 }
             }
             doRedraw();
