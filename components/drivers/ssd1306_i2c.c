@@ -163,6 +163,16 @@ void i2c_contrast(SSD1306_t * dev, int contrast) {
     i2c_write_cmd(cmd, sizeof(cmd));
 }
 
+void i2c_display_on(SSD1306_t * dev) {
+    uint8_t cmd[] = { OLED_CMD_DISPLAY_ON };
+    i2c_write_cmd(cmd, sizeof(cmd));
+}
+
+void i2c_display_off(SSD1306_t * dev) {
+    uint8_t cmd[] = { OLED_CMD_DISPLAY_OFF };
+    i2c_write_cmd(cmd, sizeof(cmd));
+}
+
 void i2c_hardware_scroll(SSD1306_t * dev, ssd1306_scroll_type_t scroll) {
     uint8_t cmd_buf[16];
     int len = 0;

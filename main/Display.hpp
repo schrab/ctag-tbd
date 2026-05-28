@@ -53,6 +53,9 @@ namespace CTAG {
             // Font selection
             enum Font { FONT_8X8, FONT_5X7 };
 
+            static void Sleep();
+            static void Wake();
+
             Display() = delete;
             static void Init();
             static void Clear();

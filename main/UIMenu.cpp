@@ -47,6 +47,8 @@ namespace CTAG {
         UIMenu::NavState UIMenu::navState = UIMenu::ROOT;
         bool UIMenu::redrawNeeded = true;
         int UIMenu::panelBarTimer = 0;
+        int UIMenu::screensaverTimer = 0;
+        bool UIMenu::displayAsleep = false;
 
         void UIMenu::Init() {
             ESP_LOGI(TAG, "Init: creating pages...");
@@ -99,48 +101,60 @@ namespace CTAG {
                 bool gotEv = UserInput::GetEvent(ev, 20);
 
                 if (gotEv) {
-                    if (navState == ROOT) {
-                        if (ev.type == InputEvent::ENC_DELTA) {
-                            int steps = ev.delta;
-                            // acceleration: fast rotation = bigger jumps
-                            if (steps > 1) steps /= 2;
-                            if (steps < -1) steps /= 2;
-                            if (steps == 0) steps = (ev.delta > 0) ? 1 : -1;
-                            int prev = currentPanel;
-                            currentPanel = (Panel)((currentPanel + steps + PANEL_COUNT) % PANEL_COUNT);
-                            if (currentPanel != prev) {
-                                pages[prev]->deinit();
-                                pages[currentPanel]->init();
-                            }
-                            panelBarTimer = 50;
-                            redrawNeeded = true;
-                        } else if (ev.type == InputEvent::BTN2_SHORT) {
-                            navState = PANEL_IN;
-                            redrawNeeded = true;
-                        }
-                        // BTN1_SHORT/LONG in ROOT = no-op (future use)
+                    if (displayAsleep) {
+                        Display::Wake();
+                        displayAsleep = false;
+                        screensaverTimer = 0;
+                        panelBarTimer = 50;
+                        redrawNeeded = true;
                     } else {
-                        // PANEL_IN
-                        if (ev.type == InputEvent::ENC_DELTA) {
-                            pages[currentPanel]->onEncoder(ev.delta);
-                        } else if (ev.type == InputEvent::BTN2_SHORT) {
-                            pages[currentPanel]->onButton(2, false);
-                        } else if (ev.type == InputEvent::BTN2_LONG) {
-                            pages[currentPanel]->onButton(2, true);
-                        } else if (ev.type == InputEvent::BTN1_SHORT) {
-                            if (!pages[currentPanel]->onBack()) {
-                                navState = ROOT;
-                                redrawNeeded = true;
+                        screensaverTimer = 0;
+                        if (navState == ROOT) {
+                            if (ev.type == InputEvent::ENC_DELTA) {
+                                int steps = ev.delta;
+                                if (steps > 1) steps /= 2;
+                                if (steps < -1) steps /= 2;
+                                if (steps == 0) steps = (ev.delta > 0) ? 1 : -1;
+                                int prev = currentPanel;
+                                currentPanel = (Panel)((currentPanel + steps + PANEL_COUNT) % PANEL_COUNT);
+                                if (currentPanel != prev) {
+                                    pages[prev]->deinit();
+                                    pages[currentPanel]->init();
+                                }
                                 panelBarTimer = 50;
+                                redrawNeeded = true;
+                            } else if (ev.type == InputEvent::BTN2_SHORT) {
+                                navState = PANEL_IN;
+                                redrawNeeded = true;
                             }
-                        } else if (ev.type == InputEvent::BTN1_LONG) {
-                            pages[currentPanel]->onButton(1, true);
+                        } else {
+                            if (ev.type == InputEvent::ENC_DELTA) {
+                                pages[currentPanel]->onEncoder(ev.delta);
+                            } else if (ev.type == InputEvent::BTN2_SHORT) {
+                                pages[currentPanel]->onButton(2, false);
+                            } else if (ev.type == InputEvent::BTN2_LONG) {
+                                pages[currentPanel]->onButton(2, true);
+                            } else if (ev.type == InputEvent::BTN1_SHORT) {
+                                if (!pages[currentPanel]->onBack()) {
+                                    navState = ROOT;
+                                    redrawNeeded = true;
+                                    panelBarTimer = 50;
+                                }
+                            } else if (ev.type == InputEvent::BTN1_LONG) {
+                                pages[currentPanel]->onButton(1, true);
+                            }
                         }
+                    }
+                } else {
+                    screensaverTimer++;
+                    if (!displayAsleep && screensaverTimer >= SCREENSAVER_TIMEOUT) {
+                        Display::Sleep();
+                        displayAsleep = true;
                     }
                 }
 
                 // Periodic auto-refresh in PANEL_IN (~100ms interval)
-                if (navState != ROOT) {
+                if (!displayAsleep && navState != ROOT) {
                     static int refreshCounter = 0;
                     refreshCounter++;
                     if (refreshCounter >= 5) {
@@ -150,7 +164,7 @@ namespace CTAG {
                 }
 
                 // Redraw if needed
-                if (redrawNeeded) {
+                if (!displayAsleep && redrawNeeded) {
                     if (navState == ROOT) {
                         pages[currentPanel]->doRedraw();
                         drawPanelBar();

@@ -54,6 +54,14 @@ void Display::Init() {
     ssd1306_contrast(&I2CDisplay, 0xff);
 }
 
+void Display::Sleep() {
+    ssd1306_display_off(&I2CDisplay);
+}
+
+void Display::Wake() {
+    ssd1306_display_on(&I2CDisplay);
+}
+
 void Display::Clear() {
     std::memset(fb, 0, sizeof(fb));
     for (int i = 0; i < 8; i++) dirtyPages[i] = true;

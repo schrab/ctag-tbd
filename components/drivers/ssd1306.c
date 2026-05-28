@@ -82,6 +82,16 @@ void ssd1306_contrast(SSD1306_t * dev, int contrast)
     i2c_contrast(dev, contrast);
 }
 
+void ssd1306_display_on(SSD1306_t * dev)
+{
+    i2c_display_on(dev);
+}
+
+void ssd1306_display_off(SSD1306_t * dev)
+{
+    i2c_display_off(dev);
+}
+
 void ssd1306_software_scroll(SSD1306_t * dev, int start, int end)
 {
 	ESP_LOGD(tag, "software_scroll start=%d end=%d _pages=%d", start, end, dev->_pages);

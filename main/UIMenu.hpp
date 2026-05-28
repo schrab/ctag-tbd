@@ -55,6 +55,9 @@ namespace CTAG {
             static NavState navState;
             static bool redrawNeeded;
             static int panelBarTimer;
+            static int screensaverTimer;
+            static bool displayAsleep;
+            static constexpr int SCREENSAVER_TIMEOUT = 9000;
 
             static void drawPanelBar();
         };
