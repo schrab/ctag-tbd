@@ -102,6 +102,10 @@ void CTAG::FAV::Favorites::StartUI() {
     isUIEnabled = true;
 }
 
+int32_t CTAG::FAV::Favorites::GetActiveFav() {
+    return activeFav;
+}
+
 void CTAG::FAV::Favorites::DeactivateFavorite() {
     activeFav = -1;
     uiMenuState = CLEAR;

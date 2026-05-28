@@ -35,6 +35,7 @@ namespace CTAG {
             static void StoreFavorite(int const &id, const string &fav);
             static void ActivateFavorite(const int &id);
             static void DeactivateFavorite();
+            static int32_t GetActiveFav();
             static void DisableFavoritesUI();
             static void EnableFavoritesUI();
             static void StartUI();

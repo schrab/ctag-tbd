@@ -17,6 +17,7 @@ See [display-(second-occurrence---merged)/taste.md](display-(second-occurrence--
 
 # hardware
 - For this BBA platform: the RGB LED strip on GPIO23 may not be physically present; make its initialization optional/conditional rather than assuming it exists. Confidence: 0.85
+- `sdkconfig.defaults.bba` targets ESP32-S3, NOT ESP32 - file name refers to board platform, NOT chip target. For Ai-Thinker ESP32-A1S (ESP32-D0WD-V3 rev3.1), use `sdkconfig.defaults.a1s` instead. The chip target is set by `CONFIG_IDF_TARGET=\"esp32\"` in the defaults file, not by the platform name in the filename. Confidence: 0.80
 
 # workflow
 - Do not rebuild code that has already been flashed to the device; ask user if they need a rebuild first. Confidence: 0.90
@@ -25,6 +26,7 @@ See [display-(second-occurrence---merged)/taste.md](display-(second-occurrence--
 - Use `git co <hash> -- <file>` to revert a single file to a specific commit state. Confidence: 0.80
 - Use `git diff --cached` to review staged changes before committing. Confidence: 0.75
 - Use `git rebase -i` to squash commits on feature branch before merging. Confidence: 0.70
+- When a `git checkout <branch>` fails due to unmerged paths ("needs merge"), resolve with `git reset HEAD <file>` then `git checkout -- <file>` to clear conflicted files and switch branches. Confidence: 0.65
 
 # debugging
 - When both encoder AND buttons stop responding simultaneously, the root cause is in shared input infrastructure (input task crash, queue issue, UI task loop), not unrelated hardware pin changes. Confidence: 0.70

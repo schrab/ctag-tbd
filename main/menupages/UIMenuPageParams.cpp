@@ -37,6 +37,8 @@ namespace CTAG {
             scrollOffset = 0;
             mode = MODE_SELECT;
             paramCount = 0;
+            presetCount = 0;
+            presetChan = 0;
             parseParams();
         }
 
@@ -68,6 +70,27 @@ namespace CTAG {
             }
         }
 
+        void UIMenuPageParams::parsePresets(int chan) {
+            presetCount = 0;
+            presetChan = chan;
+            const char *json = SoundProcessorManager::GetCStrJSONGetPresets(chan);
+            if (!json) return;
+
+            Document doc;
+            doc.Parse(json);
+            if (!doc.HasMember("presets") || !doc["presets"].IsArray()) return;
+
+            const Value &arr = doc["presets"];
+            for (SizeType i = 0; i < arr.Size() && presetCount < MAX_PRESETS; i++) {
+                const Value &p = arr[i];
+                if (!p.HasMember("name")) continue;
+                PresetInfo &pi = presets[presetCount];
+                snprintf(pi.name, sizeof(pi.name), "%s", p["name"].GetString());
+                pi.number = p.HasMember("number") ? p["number"].GetInt() : i;
+                presetCount++;
+            }
+        }
+
         int UIMenuPageParams::paramIndexToScreen(int idx) const {
             return idx - scrollOffset;
         }
@@ -76,7 +99,7 @@ namespace CTAG {
             if (mode == MODE_SELECT) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
-                if (cursor > 2) cursor = 2;
+                if (cursor > 3) cursor = 3;
             } else if (mode == MODE_EDIT) {
                 if (paramCount == 0) return;
                 int newCursor = cursor + delta;
@@ -98,6 +121,17 @@ namespace CTAG {
                 if (val > pi.max) val = pi.max;
                 pi.current = val;
                 SoundProcessorManager::SetChannelParamValue(0, pi.id, "current", val);
+            } else if (mode == MODE_PRESETS) {
+                if (presetCount == 0) return;
+                int newCursor = cursor + delta;
+                if (newCursor < 0) newCursor = 0;
+                if (newCursor >= presetCount) newCursor = presetCount - 1;
+                cursor = newCursor;
+                // auto-scroll
+                if (cursor - scrollOffset < 0) scrollOffset = cursor;
+                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
+                if (scrollOffset > presetCount - 6) scrollOffset = presetCount - 6;
+                if (scrollOffset < 0) scrollOffset = 0;
             }
             doRedraw();
         }
@@ -109,6 +143,12 @@ namespace CTAG {
                     if (cursor == 0) { mode = MODE_EDIT; cursor = 0; scrollOffset = 0; }
                     else if (cursor == 1) { mode = MODE_MAP; }
                     else if (cursor == 2) { mode = MODE_PSET; }
+                    else if (cursor == 3) {
+                        mode = MODE_PRESETS;
+                        cursor = 0;
+                        scrollOffset = 0;
+                        parsePresets(0);
+                    }
                 }
             } else if (mode == MODE_EDIT) {
                 if (btnId == 2 && !longPress && paramCount > 0) {
@@ -122,6 +162,23 @@ namespace CTAG {
                     mode = MODE_EDIT;
                 }
                 // BTN2_LONG / BTN1 handled by UIMenu/TaskFunction
+            } else if (mode == MODE_PRESETS) {
+                if (btnId == 2 && !longPress) {
+                    // load selected preset
+                    if (presetCount > 0 && cursor >= 0 && cursor < presetCount) {
+                        SoundProcessorManager::ChannelLoadPreset(presetChan, presets[cursor].number);
+                        mode = MODE_SELECT;
+                        cursor = 0;
+                    }
+                } else if (btnId == 2 && longPress) {
+                    // save current as new preset
+                    if (presetCount > 0) {
+                        int nextNum = presets[presetCount - 1].number + 1;
+                        SoundProcessorManager::ChannelSavePreset(presetChan, "User", nextNum);
+                        // re-parse to show updated list
+                        parsePresets(presetChan);
+                    }
+                }
             }
             doRedraw();
         }
@@ -144,6 +201,12 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
+            if (mode == MODE_PRESETS) {
+                mode = MODE_SELECT;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
             return false;
         }
 
@@ -154,6 +217,8 @@ namespace CTAG {
                 redrawEdit();
             } else if (mode == MODE_VALUEEDIT) {
                 redrawEdit(); // same layout, cursor highlight acts as indicator
+            } else if (mode == MODE_PRESETS) {
+                redrawPresets();
             } else {
                 // MAP / PSET — simple placeholder
                 Display::Clear();
@@ -167,6 +232,7 @@ namespace CTAG {
             Display::DrawString(0, 5, "EDIT", Display::FONT_5X7);
             Display::DrawString(0, 14, "MAP", Display::FONT_5X7);
             Display::DrawString(0, 23, "PSET", Display::FONT_5X7);
+            Display::DrawString(0, 32, "PRESETS", Display::FONT_5X7);
             Display::InvertRect(0, 5 + cursor * 9, 128, 8);
             Display::Flush();
         }
@@ -205,6 +271,30 @@ namespace CTAG {
             // scrollbar
             if (paramCount > 6)
                 Display::DrawScrollbar(126, 5, 54, paramCount, cursor);
+            Display::Flush();
+        }
+
+        void UIMenuPageParams::redrawPresets() {
+            Display::Clear();
+            if (presetCount == 0) {
+                Display::DrawString(0, 24, "No presets", Display::FONT_5X7);
+                Display::Flush();
+                return;
+            }
+            int visible = presetCount - scrollOffset;
+            if (visible > 6) visible = 6;
+            for (int i = 0; i < visible; i++) {
+                int idx = scrollOffset + i;
+                const PresetInfo &pi = presets[idx];
+                int y = 5 + i * 9;
+                char buf[64];
+                snprintf(buf, sizeof(buf), "%s", pi.name);
+                Display::DrawString(0, y, buf, Display::FONT_5X7);
+            }
+            int cy = 5 + (cursor - scrollOffset) * 9;
+            Display::InvertRect(0, cy, 128, 8);
+            if (presetCount > 6)
+                Display::DrawScrollbar(126, 5, 54, presetCount, cursor);
             Display::Flush();
         }
     }

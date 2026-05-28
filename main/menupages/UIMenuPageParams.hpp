@@ -44,7 +44,12 @@ namespace CTAG {
                 int current;
             };
 
-            enum Mode { MODE_SELECT, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_VALUEEDIT, MODE_MAPEDIT };
+            struct PresetInfo {
+                char name[32];
+                int number;
+            };
+
+            enum Mode { MODE_SELECT, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_VALUEEDIT, MODE_MAPEDIT, MODE_PRESETS };
             int cursor;
             int scrollOffset;
             Mode mode;
@@ -52,9 +57,16 @@ namespace CTAG {
             static const int MAX_PARAMS = 64;
             ParamInfo params[MAX_PARAMS];
 
+            static const int MAX_PRESETS = 64;
+            PresetInfo presets[MAX_PRESETS];
+            int presetCount;
+            int presetChan; // channel we're editing presets for
+
             void parseParams();
+            void parsePresets(int chan);
             void redrawSelect();
             void redrawEdit();
+            void redrawPresets();
             int paramIndexToScreen(int idx) const;
         };
     }

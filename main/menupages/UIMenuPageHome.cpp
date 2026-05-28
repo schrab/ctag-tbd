@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "UIMenuPageHome.hpp"
 #include "Display.hpp"
 #include "SPManager.hpp"
+#include "Favorites.hpp"
 #include "rapidjson/document.h"
 #include "fs.hpp"
 #include "UIMenuPageSystem.hpp"
@@ -29,6 +30,7 @@ respective component folders / files if different from this license.
 
 using namespace CTAG::DRIVERS;
 using namespace CTAG::AUDIO;
+using namespace CTAG::FAV;
 using namespace rapidjson;
 
 namespace CTAG {
@@ -39,6 +41,7 @@ namespace CTAG {
             scrollOffset = 0;
             pluginCount = 0;
             systemPage = nullptr;
+            favActiveId = Favorites::GetActiveFav();
         }
 
         void UIMenuPageHome::deinit() {
@@ -70,6 +73,27 @@ namespace CTAG {
             }
         }
 
+        void UIMenuPageHome::parseFavorites() {
+            favActiveId = Favorites::GetActiveFav();
+            const string jsonStr = Favorites::GetAllFavorites();
+            if (jsonStr.empty()) return;
+
+            Document doc;
+            doc.Parse(jsonStr.c_str());
+            if (!doc.IsArray()) return;
+
+            for (SizeType i = 0; i < doc.Size() && i < MAX_FAVORITES; i++) {
+                const Value &f = doc[i];
+                FavEntry &e = favorites[i];
+                snprintf(e.name, sizeof(e.name), "%s",
+                         f.HasMember("name") ? f["name"].GetString() : "---");
+                // build info: "ch0:Plug ch1:Plug"
+                const char *p0 = f.HasMember("plug_0") ? f["plug_0"].GetString() : "?";
+                const char *p1 = f.HasMember("plug_1") ? f["plug_1"].GetString() : "?";
+                snprintf(e.info, sizeof(e.info), "%s %s", p0, p1);
+            }
+        }
+
         void UIMenuPageHome::onEncoder(int delta) {
             if (subPage == SP_SYSTEM) {
                 systemPage->onEncoder(delta);
@@ -90,6 +114,10 @@ namespace CTAG {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
                 if (cursor > 2) cursor = 2;
+            } else if (subPage == SP_FAVORITES) {
+                cursor += delta;
+                if (cursor < 0) cursor = 0;
+                if (cursor > MAX_FAVORITES - 1) cursor = MAX_FAVORITES - 1;
             }
             doRedraw();
         }
@@ -109,6 +137,11 @@ namespace CTAG {
                         if (!systemPage) systemPage = new UIMenuPageSystem();
                         subPage = SP_SYSTEM;
                         systemPage->init();
+                    } else if (cursor == 2) { // FAVORITES
+                        subPage = SP_FAVORITES;
+                        cursor = 0;
+                        scrollOffset = 0;
+                        parseFavorites();
                     }
                 }
             } else if (subPage == SP_SELECT) {
@@ -145,6 +178,16 @@ namespace CTAG {
                     subPage = SP_MAIN;
                     cursor = 0;
                 }
+            } else if (subPage == SP_FAVORITES) {
+                if (btnId == 2 && !longPress) {
+                    // activate selected favorite
+                    if (cursor >= 0 && cursor < MAX_FAVORITES) {
+                        Favorites::ActivateFavorite(cursor);
+                        favActiveId = cursor;
+                        subPage = SP_MAIN;
+                        cursor = 0;
+                    }
+                }
             }
             doRedraw();
         }
@@ -172,6 +215,12 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
+            if (subPage == SP_FAVORITES) {
+                subPage = SP_MAIN;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
             return false;
         }
 
@@ -184,6 +233,8 @@ namespace CTAG {
                 redrawSelect();
             } else if (subPage == SP_SELECT_CH) {
                 redrawSelectCh();
+            } else if (subPage == SP_FAVORITES) {
+                redrawFavorites();
             }
         }
 
@@ -192,7 +243,45 @@ namespace CTAG {
             const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP", ""};
             for (int i = 0; i < 6; i++)
                 Display::DrawString(0, 5 + i * 9, items[i], Display::FONT_5X7);
+            // show active favorite indicator
+            if (favActiveId >= 0) {
+                char buf[16];
+                snprintf(buf, sizeof(buf), "Fav%d", favActiveId);
+                Display::DrawString(70, 5 + 2 * 9, buf, Display::FONT_5X7);
+            }
             Display::InvertRect(0, 5 + cursor * 9, 128, 8);
+            Display::Flush();
+        }
+
+        void UIMenuPageHome::redrawFavorites() {
+            Display::Clear();
+            if (MAX_FAVORITES == 0) {
+                Display::DrawString(0, 24, "No favorites", Display::FONT_5X7);
+                Display::Flush();
+                return;
+            }
+            // show all 10 favorites (no scroll, fits on ~2 screens, but we show 6 at a time)
+            int visible = MAX_FAVORITES - scrollOffset;
+            if (visible > 6) visible = 6;
+            for (int i = 0; i < visible; i++) {
+                int idx = scrollOffset + i;
+                const FavEntry &f = favorites[idx];
+                int y = 5 + i * 9;
+                char buf[64];
+                if (idx == favActiveId) {
+                    snprintf(buf, sizeof(buf), "*%s", f.name);
+                } else {
+                    snprintf(buf, sizeof(buf), " %s", f.name);
+                }
+                Display::DrawString(0, y, buf, Display::FONT_5X7);
+                // plugin info right-aligned
+                Display::DrawStringRight(127, y, f.info, Display::FONT_5X7);
+            }
+            }
+            int cy = 5 + (cursor - scrollOffset) * 9;
+            Display::InvertRect(0, cy, 128, 8);
+            if (MAX_FAVORITES > 6)
+                Display::DrawScrollbar(126, 5, 54, MAX_FAVORITES, cursor);
             Display::Flush();
         }
 
@@ -229,7 +318,8 @@ namespace CTAG {
             const char *opts[] = {"Ch 0", "Ch 1", "Both"};
             for (int i = 0; i < 3; i++)
                 Display::DrawString(0, 20 + i * 10, opts[i], Display::FONT_5X7);
-            Display::InvertRect(0, 20 + cursor * 10, 128, 8);            Display::Flush();
+            Display::InvertRect(0, 20 + cursor * 10, 128, 8);
+            Display::Flush();
         }
     }
 }

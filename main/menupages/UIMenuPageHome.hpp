@@ -44,7 +44,13 @@ namespace CTAG {
                 bool isStereo;
             };
 
-            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM };
+            // favorites items
+            struct FavEntry {
+                char name[32];
+                char info[48];
+            };
+
+            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_FAVORITES };
 
             SubPage subPage;
             int cursor;
@@ -53,15 +59,21 @@ namespace CTAG {
             static const int MAX_PLUGINS = 64;
             PluginEntry plugins[MAX_PLUGINS];
 
+            static const int MAX_FAVORITES = 10;
+            FavEntry favorites[MAX_FAVORITES];
+            int favActiveId;
+
             int selChan;
             int selectedPlugin; // index of plugin being channel-assigned
 
             UIMenuPageSystem *systemPage;
 
             void parsePlugins();
+            void parseFavorites();
             void redrawMain();
             void redrawSelect();
             void redrawSelectCh();
+            void redrawFavorites();
         };
     }
 }
