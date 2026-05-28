@@ -117,6 +117,10 @@ namespace CTAG {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
                 if (cursor > MAX_FAVORITES - 1) cursor = MAX_FAVORITES - 1;
+                if (cursor - scrollOffset < 0) scrollOffset = cursor;
+                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
+                if (scrollOffset > MAX_FAVORITES - 6) scrollOffset = MAX_FAVORITES - 6;
+                if (scrollOffset < 0) scrollOffset = 0;
             }
             doRedraw();
         }
