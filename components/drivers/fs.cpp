@@ -96,9 +96,5 @@ bool FileSystem::InitSD() {
 }
 
 bool FileSystem::IsSDMounted() {
-#if CONFIG_LITTLEFS_SDMMC_SUPPORT
     return sdcard != nullptr;
-#else
-    return false;
-#endif
 }
