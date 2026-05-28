@@ -30,7 +30,6 @@ respective component folders / files if different from this license.
 
 using namespace CTAG::DRIVERS;
 using namespace CTAG::AUDIO;
-using namespace CTAG::FAV;
 using namespace rapidjson;
 
 namespace CTAG {
@@ -41,7 +40,7 @@ namespace CTAG {
             scrollOffset = 0;
             pluginCount = 0;
             systemPage = nullptr;
-            favActiveId = Favorites::GetActiveFav();
+            favActiveId = -1;
         }
 
         void UIMenuPageHome::deinit() {
@@ -74,8 +73,8 @@ namespace CTAG {
         }
 
         void UIMenuPageHome::parseFavorites() {
-            favActiveId = Favorites::GetActiveFav();
-            const string jsonStr = Favorites::GetAllFavorites();
+            favActiveId = CTAG::FAV::Favorites::GetActiveFav();
+            const std::string jsonStr = CTAG::FAV::Favorites::GetAllFavorites();
             if (jsonStr.empty()) return;
 
             Document doc;
@@ -182,7 +181,7 @@ namespace CTAG {
                 if (btnId == 2 && !longPress) {
                     // activate selected favorite
                     if (cursor >= 0 && cursor < MAX_FAVORITES) {
-                        Favorites::ActivateFavorite(cursor);
+                        CTAG::FAV::Favorites::ActivateFavorite(cursor);
                         favActiveId = cursor;
                         subPage = SP_MAIN;
                         cursor = 0;
@@ -276,7 +275,6 @@ namespace CTAG {
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
                 // plugin info right-aligned
                 Display::DrawStringRight(127, y, f.info, Display::FONT_5X7);
-            }
             }
             int cy = 5 + (cursor - scrollOffset) * 9;
             Display::InvertRect(0, cy, 128, 8);
