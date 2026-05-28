@@ -761,6 +761,15 @@ void Midi::noteOff(uint8_t* msg)
 // --- Calculate size of buffer for "CV" and "Gate/Trigger" values to be exchanged with audio-thread / plugins ---
 #define DATA_SZ  (N_CVS * 4 + N_TRIGS + 2)
 
+// --- MIDI source enable flags (set via MIDI page UI) ---
+static bool midiUartEnabled = true;
+static bool midiBleEnabled = true;
+
+void Midi::SetUartEnabled(bool en) { midiUartEnabled = en; }
+bool Midi::IsUartEnabled() { return midiUartEnabled; }
+void Midi::SetBleEnabled(bool en) { midiBleEnabled = en; }
+bool Midi::IsBleEnabled() { return midiBleEnabled; }
+
 // --- Instanciate objects for lowlevel and highlevel MIDI processing ---
 static CTAG::DRIVERS::midiuart midiuart_instance;              // UART reader (and writer) for MIDI-messages
 DRAM_ATTR static CTAG::CTRL::Midi distribute;     // Instanciate Midi-Class as object for MIDI-message distribution, according to events mapped via WebUI
@@ -850,13 +859,13 @@ uint8_t *Midi::Update() {
         ================================================================== */
         // len2 =  CTAG::DRIVERS::midiuart::Read(&msgBuffer[missing_bytes_offset], MIDI_BUF_SZ - 32);
 
-        // get all available MIDI messages from UART
-        if (missing_bytes_offset + len2 < (MIDI_BUF_SZ - 32)) // safety margin
-            midiuart_instance.read(&msgBuffer[missing_bytes_offset + len2], &len);  // Read UART data into MIDI-buffer
+        // get all available MIDI messages from UART (if enabled)
+        if (midiUartEnabled && missing_bytes_offset + len2 < (MIDI_BUF_SZ - 32))
+            midiuart_instance.read(&msgBuffer[missing_bytes_offset + len2], &len);
 
-        // get all available MIDI messages from Bluetooth SPP
+        // get all available MIDI messages from Bluetooth (if enabled)
 #if CONFIG_BT_ENABLED
-        {
+        if (midiBleEnabled) {
             uint32_t bt_len = 0;
             uint8_t *bt_pos = &msgBuffer[missing_bytes_offset + len2 + len];
             CTAG::DRIVERS::BtMidiReceiver::Read(bt_pos, &bt_len);

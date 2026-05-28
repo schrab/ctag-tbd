@@ -27,7 +27,7 @@ respective component folders / files if different from this license.
 #include "menupages/UIMenuPageParams.hpp"
 #include "menupages/UIMenuPageTape.hpp"
 #if CONFIG_BT_ENABLED
-#include "menupages/UIMenuPageBtMidi.hpp"
+#include "menupages/UIMenuPageMidi.hpp"
 #endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -55,7 +55,7 @@ namespace CTAG {
             pages[PANEL_TAPE] = new UIMenuPageTape();
             pages[PANEL_PARAMS] = new UIMenuPageParams();
 #if CONFIG_BT_ENABLED
-            pages[PANEL_BT] = new UIMenuPageBtMidi();
+            pages[PANEL_MIDI] = new UIMenuPageMidi();
 #endif
             ESP_LOGI(TAG, "Init: calling init on pages...");
             for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();

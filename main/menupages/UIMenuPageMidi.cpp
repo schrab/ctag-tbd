@@ -19,7 +19,8 @@ License and copyright details for specific submodules are included in their
 respective component folders / files if different from this license.
 ***************/
 
-#include "UIMenuPageBtMidi.hpp"
+#include "UIMenuPageMidi.hpp"
+#include "Midi.hpp"
 #include "Display.hpp"
 #include "BtMidiReceiver.hpp"
 #include <cstring>
@@ -29,19 +30,19 @@ using namespace CTAG::DRIVERS;
 
 namespace CTAG {
     namespace CTRL {
-        void UIMenuPageBtMidi::init() {
+        void UIMenuPageMidi::init() {
             subPage = SP_MAIN;
             cursor = 0;
             scrollOffset = 0;
         }
 
-        void UIMenuPageBtMidi::deinit() {}
+        void UIMenuPageMidi::deinit() {}
 
-        void UIMenuPageBtMidi::onEncoder(int delta) {
+        void UIMenuPageMidi::onEncoder(int delta) {
             if (subPage == SP_MAIN) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
-                if (cursor > 2) cursor = 2;
+                if (cursor > 4) cursor = 4;
             } else if (subPage == SP_SCAN) {
                 int n = BtMidiReceiver::GetDeviceCount();
                 int newCursor = cursor + delta;
@@ -57,7 +58,7 @@ namespace CTAG {
             doRedraw();
         }
 
-        void UIMenuPageBtMidi::onButton(int btnId, bool longPress) {
+        void UIMenuPageMidi::onButton(int btnId, bool longPress) {
             if (subPage == SP_MAIN) {
                 if (btnId == 2 && longPress) {
                     if (cursor == 1 && BtMidiReceiver::IsConnected()) {
@@ -69,6 +70,10 @@ namespace CTAG {
                         subPage = SP_SCAN;
                         cursor = 0;
                         scrollOffset = 0;
+                    } else if (cursor == 3) {
+                        Midi::SetUartEnabled(!Midi::IsUartEnabled());
+                    } else if (cursor == 4) {
+                        Midi::SetBleEnabled(!Midi::IsBleEnabled());
                     }
                 }
             } else if (subPage == SP_SCAN) {
@@ -93,7 +98,7 @@ namespace CTAG {
             doRedraw();
         }
 
-        bool UIMenuPageBtMidi::onBack() {
+        bool UIMenuPageMidi::onBack() {
             if (subPage == SP_SCAN) {
                 if (BtMidiReceiver::IsScanning()) BtMidiReceiver::StopScan();
                 subPage = SP_MAIN;
@@ -104,12 +109,12 @@ namespace CTAG {
             return false;
         }
 
-        void UIMenuPageBtMidi::doRedraw() {
+        void UIMenuPageMidi::doRedraw() {
             if (subPage == SP_MAIN) redrawMain();
             else if (subPage == SP_SCAN) redrawScan();
         }
 
-        void UIMenuPageBtMidi::redrawMain() {
+        void UIMenuPageMidi::redrawMain() {
             Display::Clear();
             char buf[32];
             int y = 5;
@@ -127,12 +132,22 @@ namespace CTAG {
             snprintf(buf, sizeof(buf), "Status: %s",
                      BtMidiReceiver::IsConnected() ? "CONNECTED" : "IDLE");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
+            y += 9;
+
+            snprintf(buf, sizeof(buf), "UART In [%s]",
+                     Midi::IsUartEnabled() ? "ON" : "OFF");
+            Display::DrawString(0, y, buf, Display::FONT_5X7);
+            y += 9;
+
+            snprintf(buf, sizeof(buf), "BLE  In [%s]",
+                     Midi::IsBleEnabled() ? "ON" : "OFF");
+            Display::DrawString(0, y, buf, Display::FONT_5X7);
 
             Display::InvertRect(0, 5 + cursor * 9, 128, 8);
             Display::Flush();
         }
 
-        void UIMenuPageBtMidi::redrawScan() {
+        void UIMenuPageMidi::redrawScan() {
             Display::Clear();
             int n = BtMidiReceiver::GetDeviceCount();
 

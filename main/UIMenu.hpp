@@ -36,7 +36,7 @@ namespace CTAG {
             enum Panel : uint8_t {
                 PANEL_MIX = 0, PANEL_TAPE = 1, PANEL_HOME = 2, PANEL_PARAMS = 3
 #if CONFIG_BT_ENABLED
-                , PANEL_BT = 4
+                , PANEL_MIDI = 4
 #endif
             };
 

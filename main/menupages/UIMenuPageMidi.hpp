@@ -25,7 +25,7 @@ respective component folders / files if different from this license.
 
 namespace CTAG {
     namespace CTRL {
-        class UIMenuPageBtMidi final : public UIMenuPage {
+        class UIMenuPageMidi final : public UIMenuPage {
         public:
             void init() override;
             void deinit() override;

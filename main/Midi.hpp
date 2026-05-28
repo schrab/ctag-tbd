@@ -76,6 +76,11 @@ namespace CTAG::CTRL
 
         static void Flush();
 
+        static void SetUartEnabled(bool en);
+        static bool IsUartEnabled();
+        static void SetBleEnabled(bool en);
+        static bool IsBleEnabled();
+
         enum midiStatusValues
         {
             // --- Channel Voice Messages ---
