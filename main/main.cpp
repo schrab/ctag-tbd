@@ -78,7 +78,15 @@ void app_main() {
     AUDIO::SoundProcessorManager::StartSoundProcessor();
 #if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_BBA)
     CTRL::UIMenu::Init();
-    xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 8192, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
+    TaskHandle_t uiTask = nullptr;
+    BaseType_t res = xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 8192, nullptr, tskIDLE_PRIORITY + 3, &uiTask, 0);
+    if (res != pdPASS) {
+        printf("FATAL: UIMenu task creation failed! res=%d\n", res);
+        fflush(stdout);
+    } else {
+        printf("UIMenu task created OK, handle=%p\n", (void*)uiTask);
+        fflush(stdout);
+    }
     // Enable GPIO button ISRs after audio init to avoid I2S MCLK spinlock deadlock
     CTRL::UserInput::EnableISR();
 #endif
