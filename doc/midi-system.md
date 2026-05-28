@@ -47,6 +47,49 @@ UART1 (GPIO19) → Midi::Update() → cv/trig buffers → Control::Update()
 - `0xE0` Pitch Bend → `pitchBend()`
 - `0xF8-0xFF` Real-time → do not reset running status
 
+## BLE MIDI (via NimBLE Central)
+
+BLE MIDI is received via NimBLE GATT **central** mode (TBD connects to a BLE MIDI peripheral like the M-VAVE SMC-PAD). The implementation is in `BtMidiReceiver` (central) and exposed through `UIMenuPageBtMidi` (SCAN/CONNECT/DISCONNECT UI).
+
+### Data Flow
+```
+SMC-PAD (BLE peripheral) → advertising → BtMidiReceiver::StartScan()
+  → BLE_GAP_EVENT_DISC: collect device name + address
+  → UI picks device → BtMidiReceiver::Connect(idx)
+    → ble_gap_connect() → service discovery
+    → find MIDI service → subscribe to notifications
+    → BLE_GAP_EVENT_NOTIFY_RX → parse Apple BLE-MIDI format
+      → skip 2-byte timestamp headers → raw MIDI bytes
+      → ring buffer (2KB, static DRAM)
+
+Midi::Update()
+  → BtMidiReceiver::Read(buf, &len)
+  → same processing pipeline as UART MIDI
+  → CV/trig buffers → Control::Update() → sp[0/1]->Process()
+```
+
+### Key Files
+| File | Role |
+|------|------|
+| `main/BtMidiReceiver.hpp` / `.cpp` | NimBLE central implementation: scan, connect, subscribe, ring buffer |
+| `main/menupages/UIMenuPageBtMidi.hpp` / `.cpp` | UI: device list, connect, disconnect, status |
+
+### GATT Service
+- **MIDI Service UUID:** `03B80E5A-EDE8-4B33-A751-6CE34EC4C700`
+- **MIDI Characteristic UUID:** `03B80E5A-EDE8-4B33-A751-6CE34EC4C702`
+- **TBD role:** GATT client (central) — subscribes to characteristic notifications
+- **Peripheral role:** SMC-PAD (or any BLE MIDI device) — sends MIDI data via notification
+
+### Init Ordering
+`BtMidiReceiver::Init()` is called from `SoundProcessorManager::StartSoundProcessor()` **after** `Codec::InitCodec()` and **before** `UIMenu::Init()`. On ESP32 Rev 3, BT coex calibration can lock I2C/I2S critical sections — initializing the codec first avoids this erratum.
+
+### Configuration (sdkconfig.defaults.a1s)
+- BLE-only mode (`BTDM_CTRL_MODE_BLE_ONLY`)
+- 1 connection max (controller + host)
+- NimBLE heap → PSRAM (`MEM_ALLOC_MODE_EXTERNAL`)
+- Central role only (no peripheral/broadcaster/observer)
+- Controller + host pinned to Core 0 (audio on Core 1)
+
 ## Special CCs
 - CC 111: toggle ignore_channels_6to9 (value >= 64 enables)
 - CC 120: All Sounds Off

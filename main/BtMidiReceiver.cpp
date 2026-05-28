@@ -8,15 +8,12 @@ Licensed under GPL 3.0.
 #include "esp_log.h"
 #include "nvs_flash.h"
 
-// NimBLE headers
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
 #include "host/ble_gap.h"
 #include "host/ble_gatt.h"
 #include "host/ble_uuid.h"
-#include "services/gap/ble_svc_gap.h"
-#include "services/gatt/ble_svc_gatt.h"
 
 using namespace CTAG::DRIVERS;
 
@@ -30,12 +27,24 @@ static const ble_uuid128_t MIDI_CHR_UUID = BLE_UUID128_INIT(
     0x02, 0xC7, 0xC4, 0x4E, 0xE3, 0x6C, 0x51, 0xA7,
     0x33, 0x4B, 0xE8, 0xED, 0x5A, 0x0E, 0xB8, 0x03);
 
+// Ring buffer
 #define BT_MIDI_RING_SZ 2048
 static uint8_t ring[BT_MIDI_RING_SZ];
 static volatile int ring_wr = 0;
 static volatile int ring_rd = 0;
+
+// Device list (discovered during scan)
+#define MAX_DEVICES 16
+static BtDeviceInfo devices[MAX_DEVICES];
+static int deviceCount = 0;
+
+// Connection state
 static bool bt_connected = false;
-static uint16_t conn_handle = 0;
+static bool bt_scanning = false;
+static uint16_t conn_handle = BLE_HS_CONN_HANDLE_NONE;
+
+// Characteristic value handle for MIDI data (for notification subscription)
+static uint16_t midi_val_handle = 0;
 
 static void ring_write(const uint8_t *data, int len) {
     for (int i = 0; i < len; i++) {
@@ -55,48 +64,131 @@ static int ring_read(uint8_t *buf, int max) {
     return n;
 }
 
-static int midi_acc_write_cb(uint16_t conn_handle, uint16_t attr_handle,
-                             struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    ring_write(ctxt->om->om_data, ctxt->om->om_len);
-    return 0;
+// Parse Apple BLE-MIDI notification data.
+// Format: [ts_high | 0x80] [ts_low] [MIDI bytes…]
+// Multiple groups can appear in one notification.
+// We skip the 2-byte timestamp headers and write raw MIDI bytes.
+static void parse_ble_midi_notify(const uint8_t *data, int len) {
+    int i = 0;
+    while (i < len) {
+        if ((data[i] & 0x80) && i + 2 <= len) {
+            // Timestamp header: skip 2 bytes
+            i += 2;
+        } else {
+            // Raw MIDI byte
+            int start = i;
+            while (i < len && !(data[i] & 0x80)) i++;
+            ring_write(data + start, i - start);
+        }
+    }
 }
 
-static const struct ble_gatt_chr_def gatt_chrs[] = {
-    {
-        .uuid = (ble_uuid_t *)&MIDI_CHR_UUID,
-        .access_cb = midi_acc_write_cb,
-        .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_NOTIFY,
-    },
-    {0}
-};
+static void on_chr_discovered(uint16_t conn,
+                               const struct ble_gatt_error *error,
+                               struct ble_gatt_chr *chr);
 
-static const struct ble_gatt_svc_def gatt_svcs[] = {
-    {
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = (ble_uuid_t *)&MIDI_SVC_UUID,
-        .characteristics = (struct ble_gatt_chr_def *)gatt_chrs,
-    },
-    {0}
-};
+static void on_svc_discovered(uint16_t conn,
+                               const struct ble_gatt_error *error,
+                               struct ble_gatt_svc *svc) {
+    if (error->status == 0 && svc != nullptr) {
+        if (ble_uuid_cmp(&svc->uuid.u, &MIDI_SVC_UUID.u) == 0) {
+            ESP_LOGI(TAG, "Found MIDI service, discovering characteristics");
+            ble_gattc_disc_all_chrs(conn, svc->start_handle, svc->end_handle,
+                                    on_chr_discovered, nullptr);
+        }
+    }
+}
+
+static void on_chr_discovered(uint16_t conn,
+                               const struct ble_gatt_error *error,
+                               struct ble_gatt_chr *chr) {
+    if (error->status == 0 && chr != nullptr) {
+        if (ble_uuid_cmp(&chr->uuid.u, &MIDI_CHR_UUID.u) == 0) {
+            ESP_LOGI(TAG, "Found MIDI characteristic");
+            midi_val_handle = chr->val_handle;
+            // Subscribe to notifications: write 0x0001 to CCCD
+            uint8_t val[2] = {0x01, 0x00};
+            int rc = ble_gattc_write_flat(conn, chr->val_handle + 1,
+                                          val, sizeof(val),
+                                          nullptr, nullptr);
+            if (rc == 0) {
+                ESP_LOGI(TAG, "Subscribed to MIDI notifications");
+            } else {
+                ESP_LOGE(TAG, "Subscribe failed: %d", rc);
+            }
+        }
+    }
+}
 
 static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     switch (event->type) {
-    case BLE_GAP_EVENT_CONNECT:
+    case BLE_GAP_EVENT_CONNECT: {
         if (event->connect.status == 0) {
-            bt_connected = true;
             conn_handle = event->connect.conn_handle;
-            ESP_LOGI(TAG, "BLE MIDI connected");
+            bt_connected = true;
+            bt_scanning = false;
+            ESP_LOGI(TAG, "Connected, discovering services");
+            ble_gattc_disc_all_svcs(conn_handle, on_svc_discovered, nullptr);
+        } else {
+            ESP_LOGE(TAG, "Connection failed: %d", event->connect.status);
+            bt_connected = false;
         }
         return 0;
+    }
     case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI(TAG, "Disconnected");
+        conn_handle = BLE_HS_CONN_HANDLE_NONE;
         bt_connected = false;
-        ESP_LOGI(TAG, "BLE MIDI disconnected, re-advertising");
-        ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                          NULL, gap_event_cb, NULL);
+        midi_val_handle = 0;
+        return 0;
+    case BLE_GAP_EVENT_DISC: {
+        const struct ble_gap_disc_desc &disc = event->disc;
+        // Skip devices without name
+        if (disc.length_data == 0 && disc.length_adv_name == 0) return 0;
+        const char *adv_name = nullptr;
+        int name_len = 0;
+        if (disc.length_adv_name > 0) {
+            adv_name = disc.adv_name;
+            name_len = disc.length_adv_name;
+        } else if (disc.length_data > 0) {
+            // For BLE-MIDI: fall back to device address if no name
+        }
+        if (deviceCount >= MAX_DEVICES) return 0;
+        BtDeviceInfo &d = devices[deviceCount];
+        if (adv_name && name_len > 0) {
+            int copyLen = name_len < 31 ? name_len : 31;
+            memcpy(d.name, adv_name, copyLen);
+            d.name[copyLen] = '\0';
+        } else {
+            snprintf(d.name, sizeof(d.name), "BLE-%02X%02X%02X%02X%02X%02X",
+                     disc.addr.val[5], disc.addr.val[4], disc.addr.val[3],
+                     disc.addr.val[2], disc.addr.val[1], disc.addr.val[0]);
+        }
+        memcpy(d.bda, disc.addr.val, 6);
+        deviceCount++;
+        return 0;
+    }
+    case BLE_GAP_EVENT_DISC_COMPLETE:
+        ESP_LOGI(TAG, "Scan complete, %d devices found", deviceCount);
+        bt_scanning = false;
+        return 0;
+    case BLE_GAP_EVENT_NOTIFY_RX: {
+        const struct os_mbuf *om = event->notify_rx.om;
+        if (om && om->om_len > 0) {
+            parse_ble_midi_notify(om->om_data, om->om_len);
+        }
+        return 0;
+    }
+    case BLE_GAP_EVENT_MTU:
+        ESP_LOGD(TAG, "MTU updated: %d", event->mtu.value);
         return 0;
     default:
         return 0;
     }
+}
+
+static void on_sync(void) {
+    ESP_LOGI(TAG, "NimBLE host synced with controller");
 }
 
 static void host_task(void *param) {
@@ -112,25 +204,12 @@ void BtMidiReceiver::Init() {
     }
 
     nimble_port_init();
-    ble_svc_gap_device_name_set("CTAG TBD");
-    ble_svc_gap_init();
-    ble_svc_gatt_init();
-    ble_gatts_count_cfg(gatt_svcs);
-    ble_gatts_add_svcs(gatt_svcs);
-    ble_hs_cfg.reset_cb = NULL;
-    ble_hs_cfg.sync_cb = NULL;
+    ble_hs_cfg.sync_cb = on_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
-
-    ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                      NULL, gap_event_cb, NULL);
 
     nimble_port_freertos_init(host_task);
 
-    ESP_LOGI(TAG, "BLE MIDI initialized — advertise as 'CTAG TBD'");
-}
-
-void BtMidiReceiver::TaskFunction(void *param) {
-    while (true) vTaskDelay(pdMS_TO_TICKS(1000));
+    ESP_LOGI(TAG, "BLE MIDI initialized (central mode)");
 }
 
 void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
@@ -138,10 +217,49 @@ void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
 }
 
 bool BtMidiReceiver::IsConnected() { return bt_connected; }
-bool BtMidiReceiver::IsScanning() { return false; }
-int  BtMidiReceiver::GetDeviceCount() { return 0; }
-const BtDeviceInfo* BtMidiReceiver::GetDevice(int) { return nullptr; }
-void BtMidiReceiver::Connect(int) {}
-void BtMidiReceiver::Disconnect() {}
-void BtMidiReceiver::StartScan() {}
-void BtMidiReceiver::StopScan() {}
+bool BtMidiReceiver::IsScanning() { return bt_scanning; }
+
+int BtMidiReceiver::GetDeviceCount() { return deviceCount; }
+
+const BtDeviceInfo* BtMidiReceiver::GetDevice(int idx) {
+    if (idx < 0 || idx >= deviceCount) return nullptr;
+    return &devices[idx];
+}
+
+void BtMidiReceiver::StartScan() {
+    if (bt_scanning || bt_connected) return;
+    deviceCount = 0;
+    bt_scanning = true;
+    int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 0, gap_event_cb, nullptr);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Scan start failed: %d", rc);
+        bt_scanning = false;
+    } else {
+        ESP_LOGI(TAG, "Scanning for BLE MIDI devices...");
+    }
+}
+
+void BtMidiReceiver::StopScan() {
+    if (!bt_scanning) return;
+    ble_gap_disc_cancel();
+    bt_scanning = false;
+}
+
+void BtMidiReceiver::Connect(int idx) {
+    if (bt_connected || idx < 0 || idx >= deviceCount) return;
+    StopScan();
+    ble_addr_t addr;
+    addr.type = BLE_ADDR_PUBLIC;
+    memcpy(addr.val, devices[idx].bda, 6);
+    int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &addr, 30000, gap_event_cb, nullptr);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Connect failed: %d", rc);
+    } else {
+        ESP_LOGI(TAG, "Connecting to %s...", devices[idx].name);
+    }
+}
+
+void BtMidiReceiver::Disconnect() {
+    if (!bt_connected) return;
+    ble_gap_terminate(conn_handle);
+}

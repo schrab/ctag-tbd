@@ -22,19 +22,18 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 
 namespace CTAG::DRIVERS {
 
 struct BtDeviceInfo {
     char name[32];
     uint8_t bda[6];
-    uint32_t cod;
 };
 
 class BtMidiReceiver {
 public:
     static void Init();
-    static void TaskFunction(void *);
     static void Read(uint8_t *buf, uint32_t *len);
     static int GetDeviceCount();
     static const BtDeviceInfo* GetDevice(int idx);
@@ -47,3 +46,4 @@ public:
 };
 
 }
+
