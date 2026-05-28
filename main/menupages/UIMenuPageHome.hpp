@@ -46,8 +46,7 @@ namespace CTAG {
 
             // favorites items
             struct FavEntry {
-                char name[32];
-                char info[48];
+                char name[24];
             };
 
             enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_FAVORITES };

@@ -49,8 +49,6 @@ namespace CTAG {
         int UIMenu::panelBarTimer = 0;
 
         void UIMenu::Init() {
-            ESP_LOGI(TAG, "Init: UserInput...");
-            UserInput::Init();
             ESP_LOGI(TAG, "Init: creating pages...");
             pages[PANEL_HOME] = new UIMenuPageHome();
             pages[PANEL_MIX] = new UIMenuPageMix();
@@ -95,10 +93,8 @@ namespace CTAG {
 
         void UIMenu::TaskFunction(void *) {
             ESP_LOGI(TAG, "TaskFunction: starting main loop");
-            int loopCount = 0;
+            UserInput::Init();
             while (1) {
-                loopCount++;
-                if (loopCount % 50 == 0) ESP_LOGD(TAG, "alive, loop=%d", loopCount);
                 InputEvent ev;
                 bool gotEv = UserInput::GetEvent(ev, 20);
 

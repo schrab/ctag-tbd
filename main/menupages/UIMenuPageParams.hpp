@@ -45,7 +45,7 @@ namespace CTAG {
             };
 
             struct PresetInfo {
-                char name[32];
+                char name[24];
                 int number;
             };
 

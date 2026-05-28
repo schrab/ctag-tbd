@@ -89,7 +89,7 @@ namespace CTAG {
                 // build info: "ch0:Plug ch1:Plug"
                 const char *p0 = f.HasMember("plug_0") ? f["plug_0"].GetString() : "?";
                 const char *p1 = f.HasMember("plug_1") ? f["plug_1"].GetString() : "?";
-                snprintf(e.info, sizeof(e.info), "%s %s", p0, p1);
+                snprintf(e.name + strlen(e.name), sizeof(e.name) - strlen(e.name), "  %s %s", p0, p1);
             }
         }
 
@@ -273,8 +273,6 @@ namespace CTAG {
                     snprintf(buf, sizeof(buf), " %s", f.name);
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
-                // plugin info right-aligned
-                Display::DrawStringRight(127, y, f.info, Display::FONT_5X7);
             }
             int cy = 5 + (cursor - scrollOffset) * 9;
             Display::InvertRect(0, cy, 128, 8);

@@ -79,7 +79,7 @@ UserInput task (Core 0, idle+3)
   → polls encoder (PCNT, 1kHz) + buttons (20ms debounce)
   → pushes events to FreeRTOS queue (64 slots)
 
-UIMenu task (Core 0, idle+3, 8192 stack, 20ms loop)
+UIMenu task (Core 0, idle+3, 4096 stack, 20ms loop)
   → UserInput::GetEvent(ev, 20)
   → if ROOT:
        ENC_DELTA → switch panel (accelerated: abs>1 → /2)
@@ -118,6 +118,21 @@ Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` fo
 **Drawing functions (`DrawString`, `DrawVUMeter`, `DrawScrollbar`) do NOT call `Flush()` internally.** Each `redraw*()` method calls `Display::Flush()` once after all drawing is complete. `Clear()` does NOT do direct I2C — only `memset(fb, 0)` + dirty flags.
 
 ## Existing Pages
+
+## DRAM Exhaustion → Silent Task Creation Failure
+
+**Symptom:** UIMenu task is created but never runs. Display shows splash then freezes. Encoder and buttons have no effect. No "TaskFunction: starting main loop" log appears. `xTaskCreatePinnedToCore` returns `-1` (`errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY`).
+
+**Root cause:** The UIMenu task needs ~8.3KB contiguous DRAM (8KB stack + TCB). On ESP32-D0WD-V3 rev3.1 with PSRAM, after audio init, only ~22KB DRAM remains with largest free block ~17KB. If `UserInput::Init()` is called **before** `xTaskCreatePinnedToCore`, it consumes 2KB for the input task stack, fragments the heap, and the UIMenu task's 8KB allocation fails.
+
+**Trigger:** Commit `79879b0` moved `UserInput::Init()` from `TaskFunction` (post-creation) into `UIMenu::Init()` (pre-creation). The 2KB input task allocation reduced the largest free block below 8KB before the UIMenu task could claim it.
+
+**Fix (applied):**
+1. `UserInput::Init()` stays inside `TaskFunction` — called after the UIMenu task stack is allocated
+2. UIMenu task stack reduced from 8192 → 4096 (polls queue + draws display, plenty of headroom)
+3. `UserInput::EnableISR()` remains in `main.cpp` after `xTaskCreatePinnedToCore`
+
+**Prevention:** Never call `UserInput::Init()` before the UIMenu task is created. Keep the allocation order: create UIMenu task first (large stack), then let TaskFunction create the input task (smaller stack). Monitor `heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)` if binary size grows.
 
 ### HOME (`UIMenuPageHome`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
@@ -172,7 +187,7 @@ No sub-pages. Shows "MIX" + placeholder VU meters. No encoder/button handlers. `
 3. FileSystem::InitSD()                — SD card (silent fail)
 4. SoundProcessorManager::StartSoundProcessor()  — audio init (creates audio task + Favorites data model)
 5. UIMenu::Init()                      — creates pages, sets navState=ROOT, redrawNeeded=true
-6. xTaskCreate(UIMenu::TaskFunction, 8192, idle+3, core 0)
+6. xTaskCreate(UIMenu::TaskFunction, 4096, idle+3, core 0)
 7. UserInput::EnableISR()              — GPIO ISRs (after audio init, avoid MCLK spinlock)
 ```
 
