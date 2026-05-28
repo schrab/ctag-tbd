@@ -44,8 +44,10 @@ svc_disc_cb()
     → ble_gattc_disc_all_chrs(conn_handle, start, end, chr_disc_cb, NULL)
 
 chr_disc_cb()
-  → Find MIDI characteristic with NOTIFY property
+  → Try Apple BLE-MIDI characteristic UUID match
+  → Fall back: subscribe to first characteristic found in MIDI service range
   → Write 0x0001 to CCCD (subscribe to notifications)
+  → BLE_GAP_EVENT_NOTIFY_RX starts flowing
 
 BLE_GAP_EVENT_NOTIFY_RX
   → Parse Apple BLE-MIDI format (skip 2-byte timestamp headers)
@@ -79,6 +81,24 @@ CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1            # single device
 # CONFIG_BT_NIMBLE_ROLE_OBSERVER is not set
 CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
 ```
+
+## SMC-PAD GATT Service Layout
+
+Discovered via log analysis. The SMC-PAD advertises the standard Apple BLE-MIDI
+service UUID (`03B80E5A-EDE8-4B33-A751-6CE34EC4C700`) but uses a **custom
+characteristic UUID** instead of the Apple standard:
+
+| Attribute | Handle | UUID |
+|-----------|--------|------|
+| Service declaration | 112 | `03B80E5A-EDE8-4B33-A751-6CE34EC4C700` |
+| Characteristic declaration | 113 | — (points to val=114) |
+| Characteristic value | 114 | `7772E5DB-3868-4112-A1A9-F2669D106BF3` |
+| CCCD | 115 | — |
+| Other services | 1-111, 128-133 | GAP (0x1800), GATT (0x1801), etc. |
+
+The implementation falls back to subscribing to **any** characteristic within the
+MIDI service handle range (112-115) when the Apple BLE-MIDI characteristic UUID
+doesn't match.
 
 ## Memory Impact
 
