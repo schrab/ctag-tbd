@@ -153,18 +153,46 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         return 0;
     case BLE_GAP_EVENT_DISC: {
         const struct ble_gap_disc_desc &disc = event->disc;
-        if (deviceCount >= MAX_DEVICES) return 0;
-        // Deduplicate: skip if address already in list
-        for (int i = 0; i < deviceCount; i++) {
-            if (memcmp(devices[i].bda, disc.addr.val, 6) == 0) return 0;
+        // Manually parse AD data for device name (type 0x08=short, 0x09=complete)
+        char nameBuf[32];
+        const char *advName = nullptr;
+        {
+            int off = 0;
+            const uint8_t *d = disc.data;
+            int dlen = disc.length_data;
+            while (off + 1 < dlen) {
+                int fieldLen = d[off];
+                if (fieldLen == 0 || off + 1 + fieldLen > dlen) break;
+                int type = d[off + 1];
+                if (type == 0x08 || type == 0x09) {
+                    int nameLen = fieldLen - 1;
+                    if (nameLen > 31) nameLen = 31;
+                    memcpy(nameBuf, &d[off + 2], nameLen);
+                    nameBuf[nameLen] = '\0';
+                    advName = nameBuf;
+                    break;
+                }
+                off += 1 + fieldLen;
+            }
         }
-        // Parse AD data for device name
-        struct ble_hs_adv_fields fields;
-        int rc = ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data);
+        // Deduplicate: check if address already in list
+        for (int i = 0; i < deviceCount; i++) {
+            if (memcmp(devices[i].bda, disc.addr.val, 6) == 0) {
+                // Update name from scan response (may carry name not in adv)
+                if (advName) {
+                    int copyLen = strlen(advName) < 31 ? strlen(advName) : 31;
+                    memcpy(devices[i].name, advName, copyLen);
+                    devices[i].name[copyLen] = '\0';
+                }
+                return 0;
+            }
+        }
+        // New device
+        if (deviceCount >= MAX_DEVICES) return 0;
         BtDeviceInfo &d = devices[deviceCount];
-        if (rc == 0 && fields.name_len > 0) {
-            int copyLen = fields.name_len < 31 ? fields.name_len : 31;
-            memcpy(d.name, fields.name, copyLen);
+        if (advName) {
+            int copyLen = strlen(advName) < 31 ? strlen(advName) : 31;
+            memcpy(d.name, advName, copyLen);
             d.name[copyLen] = '\0';
         } else {
             snprintf(d.name, sizeof(d.name), "BLE-%02X%02X%02X%02X%02X%02X",
