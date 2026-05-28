@@ -62,6 +62,9 @@ namespace CTAG {
             navState = ROOT;
             redrawNeeded = true;
             panelBarTimer = 50; // ~1s
+            // Do initial redraw before task starts so display clears splash immediately
+            pages[PANEL_HOME]->doRedraw();
+            drawPanelBar();
             ESP_LOGI(TAG, "Init: done");
             // task created in main.cpp
         }
@@ -88,8 +91,8 @@ namespace CTAG {
         }
 
         void UIMenu::TaskFunction(void *) {
-            ESP_LOGI(TAG, "TaskFunction: initializing UserInput...");
-            UserInput::Init();
+            printf("UIMenu_TaskFunction_entered\n");
+            fflush(stdout);
             ESP_LOGI(TAG, "TaskFunction: entering main loop");
             int loopCount = 0;
             while (1) {
