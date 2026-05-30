@@ -22,6 +22,11 @@ respective component folders / files if different from this license.
 #include "ModEngine.hpp"
 #include <cmath>
 #include "esp_log.h"
+#include "rapidjson/document.h"
+#include "rapidjson/filewritestream.h"
+#include "rapidjson/filereadstream.h"
+#include "rapidjson/writer.h"
+#include <cstdio>
 
 using namespace CTAG::DRIVERS;
 
@@ -55,6 +60,7 @@ void ModEngine::Init() {
     }
     lfoPhase[0] = 0;
     lfoPhase[1] = 0;
+    LoadConfig();
     ESP_LOGI(TAG, "ModEngine initialized, slots 90-99");
 }
 
@@ -181,6 +187,90 @@ void ModEngine_ApplyDynamicCC(uint8_t channel, uint8_t cc_num, uint8_t value, fl
             return;
         }
     }
+}
+
+static const char* MOD_CFG_PATH = "/spiffs/data/mod-config.jsn";
+
+void ModEngine::SaveConfig() {
+    using namespace rapidjson;
+    Document d;
+    d.SetObject();
+    auto &alloc = d.GetAllocator();
+
+    for (int i = 0; i < 2; i++) {
+        char key[8];
+        snprintf(key, sizeof(key), "lfo%d", i + 1);
+        Value lfo(kObjectType);
+        lfo.AddMember("shape", lfoShape[i], alloc);
+        lfo.AddMember("rate", lfoRate[i], alloc);
+        lfo.AddMember("amp", lfoAmplitude[i], alloc);
+        lfo.AddMember("cvSlot", lfoCVSlot[i], alloc);
+        d.AddMember(Value(key, alloc).Move(), lfo, alloc);
+    }
+
+    Value ccArr(kArrayType);
+    for (int i = 0; i < 8; i++) {
+        Value slot(kObjectType);
+        slot.AddMember("cc", dynCC[i], alloc);
+        slot.AddMember("chan", dynChan[i], alloc);
+        slot.AddMember("cvSlot", dynTargetSlot[i], alloc);
+        ccArr.PushBack(slot, alloc);
+    }
+    d.AddMember("ccSlots", ccArr, alloc);
+
+    FILE *fp = fopen(MOD_CFG_PATH, "w");
+    if (!fp) {
+        ESP_LOGE(TAG, "SaveConfig: cannot open %s", MOD_CFG_PATH);
+        return;
+    }
+    char writeBuf[512];
+    FileWriteStream os(fp, writeBuf, sizeof(writeBuf));
+    Writer<FileWriteStream> writer(os);
+    d.Accept(writer);
+    fflush(fp);
+    fclose(fp);
+    ESP_LOGI(TAG, "SaveConfig: written to %s", MOD_CFG_PATH);
+}
+
+void ModEngine::LoadConfig() {
+    using namespace rapidjson;
+    Document d;
+    FILE *fp = fopen(MOD_CFG_PATH, "r");
+    if (!fp) {
+        ESP_LOGW(TAG, "LoadConfig: no config file %s, using defaults", MOD_CFG_PATH);
+        return;
+    }
+    char readBuf[512];
+    FileReadStream is(fp, readBuf, sizeof(readBuf));
+    d.ParseStream(is);
+    fclose(fp);
+
+    if (d.HasParseError()) {
+        ESP_LOGE(TAG, "LoadConfig: parse error, using defaults");
+        return;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        char key[8];
+        snprintf(key, sizeof(key), "lfo%d", i + 1);
+        if (!d.HasMember(key) || !d[key].IsObject()) continue;
+        const Value &lfo = d[key];
+        if (lfo.HasMember("shape")) lfoShape[i] = lfo["shape"].GetInt();
+        if (lfo.HasMember("rate")) lfoRate[i] = lfo["rate"].GetFloat();
+        if (lfo.HasMember("amp")) lfoAmplitude[i] = lfo["amp"].GetFloat();
+        if (lfo.HasMember("cvSlot")) lfoCVSlot[i] = lfo["cvSlot"].GetInt();
+    }
+
+    if (d.HasMember("ccSlots") && d["ccSlots"].IsArray()) {
+        const Value &ccArr = d["ccSlots"];
+        for (SizeType i = 0; i < ccArr.Size() && i < 8; i++) {
+            const Value &slot = ccArr[i];
+            if (slot.HasMember("cc")) dynCC[i] = slot["cc"].GetInt();
+            if (slot.HasMember("chan")) dynChan[i] = slot["chan"].GetInt();
+            if (slot.HasMember("cvSlot")) dynTargetSlot[i] = slot["cvSlot"].GetInt();
+        }
+    }
+    ESP_LOGI(TAG, "LoadConfig: loaded from %s", MOD_CFG_PATH);
 }
 
 } // namespace CTAG::DRIVERS

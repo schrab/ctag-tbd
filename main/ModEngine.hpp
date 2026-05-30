@@ -47,6 +47,10 @@ public:
     static float GetLFORate(int lfo);
     static float GetLFOAmplitude(int lfo);
 
+    // Persistence: save/load config to /spiffs/data/mod-config.jsn
+    static void SaveConfig();
+    static void LoadConfig();
+
     // MIDI Learn: capture next CC on global channel into a dynamic slot
     static void StartLearn();
     static void StopLearn();
