@@ -26,7 +26,7 @@ respective component folders / files if different from this license.
 namespace CTAG::DRIVERS {
 
 // Modulation engine: 2 LFOs running at audio block rate
-// Writes to CV slots 88 (LFO1) and 89 (LFO2)
+// Writes to CV slots 98 (LFO1) and 99 (LFO2)
 
 class ModEngine {
 public:
@@ -53,7 +53,7 @@ public:
     static bool IsLearning();
     static int  GetLastLearnedSlot(); // returns CV slot index that was learned
 
-    // Dynamic CC slot 0-7 → CV slot 80-87
+    // Dynamic CC slot 0-7 → CV slot 90-97
     static int  GetDynamicSlotCC(int slot_idx); // returns CC number for given slot
     static void SetDynamicSlotCC(int slot_idx, int cc);
     static void SetDynamicSlotChan(int slot_idx, int chan);
@@ -67,10 +67,10 @@ private:
     static int lfoCVSlot[2];
     static float lfoHold[2];  // for S&H
 
-    // Dynamic CC mapping: slot 0-7 maps (chan, cc) → CV slot 80-87
+    // Dynamic CC mapping: slot 0-7 maps (chan, cc) → CV slot 90-97
     static int dynCC[8];   // CC number or -1 = unused
     static int dynChan[8]; // MIDI channel (0-15)
-    static int dynTargetSlot[8]; // which CV slot this CC writes to (80-87)
+    static int dynTargetSlot[8]; // which CV slot this CC writes to (90-97)
 
     static bool learning;
     static int lastLearnedSlot;

@@ -27,11 +27,11 @@ using namespace CTAG::DRIVERS;
 
 static const char *TAG = "MOD";
 
-// CV slots: 80-87 dynamic CC mapping, 88-89 LFOs
-// Slot 80 = OFFSET + 0, etc.
-#define DYN_SLOT_BASE 80
-#define LFO1_SLOT 88
-#define LFO2_SLOT 89
+// CV slots: 90-97 dynamic CC mapping, 98-99 LFOs
+// Slot 90 = OFFSET + 0, etc.
+#define DYN_SLOT_BASE 90
+#define LFO1_SLOT 98
+#define LFO2_SLOT 99
 
 float ModEngine::lfoPhase[2] = {0, 0};
 float ModEngine::lfoRate[2] = {1.0f, 2.0f};
@@ -42,7 +42,7 @@ float ModEngine::lfoHold[2] = {0, 0};
 
 int ModEngine::dynCC[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
 int ModEngine::dynChan[8] = {0};
-int ModEngine::dynTargetSlot[8] = {80, 81, 82, 83, 84, 85, 86, 87};
+int ModEngine::dynTargetSlot[8] = {90, 91, 92, 93, 94, 95, 96, 97};
 
 bool ModEngine::learning = false;
 int ModEngine::lastLearnedSlot = -1;
@@ -55,7 +55,7 @@ void ModEngine::Init() {
     }
     lfoPhase[0] = 0;
     lfoPhase[1] = 0;
-    ESP_LOGI(TAG, "ModEngine initialized, slots 80-89");
+    ESP_LOGI(TAG, "ModEngine initialized, slots 90-99");
 }
 
 void ModEngine::Process(float *cv_buffer) {
@@ -88,7 +88,7 @@ void ModEngine::Process(float *cv_buffer) {
         }
         val *= lfoAmplitude[lfo];
         int slot = lfoCVSlot[lfo];
-        if (slot >= 0 && slot < 90) {
+        if (slot >= 0 && slot < N_CVS) {
             cv_buffer[slot] = val;
         }
     }
@@ -111,7 +111,7 @@ void ModEngine::SetLFOAmplitude(int lfo, float amp) {
 
 int ModEngine::GetLFOCVSlot(int lfo) { return (lfo >= 0 && lfo < 2) ? lfoCVSlot[lfo] : -1; }
 void ModEngine::SetLFOCVSlot(int lfo, int slot) {
-    if (lfo >= 0 && lfo < 2 && slot >= 0 && slot < 90) lfoCVSlot[lfo] = slot;
+    if (lfo >= 0 && lfo < 2 && slot >= 0 && slot < N_CVS) lfoCVSlot[lfo] = slot;
 }
 int ModEngine::GetLFOShape(int lfo) { return (lfo >= 0 && lfo < 2) ? lfoShape[lfo] : 0; }
 float ModEngine::GetLFORate(int lfo) { return (lfo >= 0 && lfo < 2) ? lfoRate[lfo] : 0; }
