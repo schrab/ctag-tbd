@@ -42,6 +42,7 @@ namespace CTAG {
                 int min;
                 int max;
                 int current;
+                int cv;
             };
 
             struct GroupInfo {
@@ -73,11 +74,15 @@ namespace CTAG {
             int presetCount;
             int presetChan; // channel we're editing presets for
 
+            int mapParamIdx;
+            int mapEditSlot;
+
             void parseParams();
             void parsePresets(int chan);
             void redrawSelect();
             void redrawGroup();
             void redrawEdit();
+            void redrawMap();
             void redrawPresets();
             int paramIndexToScreen(int idx) const;
             int groupEditEnd() const;

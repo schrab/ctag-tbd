@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "UIMenuPageParams.hpp"
 #include "Display.hpp"
 #include "SPManager.hpp"
+#include "CVSlotNames.hpp"
 #include "rapidjson/document.h"
 #include "esp_heap_caps.h"
 #include <cstring>
@@ -44,6 +45,8 @@ namespace CTAG {
             paramCount = 0;
             groupCount = 0;
             currentGroup = -1;
+            mapParamIdx = 0;
+            mapEditSlot = -1;
             presetCount = 0;
             presetChan = 0;
             parseParams();
@@ -80,6 +83,7 @@ namespace CTAG {
                 pi.min = p.HasMember("min") ? p["min"].GetInt() : 0;
                 pi.max = p.HasMember("max") ? p["max"].GetInt() : 1;
                 pi.current = p.HasMember("current") ? p["current"].GetInt() : 0;
+                pi.cv = p.HasMember("cv") ? p["cv"].GetInt() : -1;
                 paramCount++;
             }
             int standaloneCount = paramCount - standaloneStart;
@@ -113,6 +117,7 @@ namespace CTAG {
                     pi.min = leaf.HasMember("min") ? leaf["min"].GetInt() : 0;
                     pi.max = leaf.HasMember("max") ? leaf["max"].GetInt() : 1;
                     pi.current = leaf.HasMember("current") ? leaf["current"].GetInt() : 0;
+                    pi.cv = leaf.HasMember("cv") ? leaf["cv"].GetInt() : -1;
                     paramCount++;
                     count++;
                 }
@@ -183,6 +188,12 @@ namespace CTAG {
                 if (scr >= 6) scrollOffset += (scr - 5);
                 if (scrollOffset > endIdx - 6) scrollOffset = endIdx - 6;
                 if (scrollOffset < startIdx) scrollOffset = startIdx;
+            } else if (mode == MODE_MAP) {
+                if (paramCount == 0) return;
+                int newSlot = mapEditSlot + delta;
+                if (newSlot < -1) newSlot = -1;
+                if (newSlot >= N_CVS) newSlot = N_CVS - 1;
+                mapEditSlot = newSlot;
             } else if (mode == MODE_VALUEEDIT) {
                 if (paramCount == 0 || cursor >= paramCount) return;
                 ParamInfo &pi = params[cursor];
@@ -243,7 +254,16 @@ namespace CTAG {
                     // enter value edit for selected param
                     mode = MODE_VALUEEDIT;
                 } else if (btnId == 2 && longPress && paramCount > 0) {
-                    // future: long press on param — mapping options
+                    // long press: enter CV mapping for this param
+                    mapParamIdx = cursor;
+                    mapEditSlot = params[cursor].cv;
+                    mode = MODE_MAP;
+                }
+            } else if (mode == MODE_MAP) {
+                if (btnId == 2 && !longPress) {
+                    params[mapParamIdx].cv = mapEditSlot;
+                    SoundProcessorManager::SetChannelParamValue(0, params[mapParamIdx].id, "cv", mapEditSlot);
+                    mode = MODE_EDIT;
                 }
             } else if (mode == MODE_VALUEEDIT) {
                 if (btnId == 2 && !longPress) {
@@ -296,7 +316,12 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
-            if (mode == MODE_MAP || mode == MODE_PSET) {
+            if (mode == MODE_MAP) {
+                mode = MODE_EDIT;
+                doRedraw();
+                return true;
+            }
+            if (mode == MODE_PSET) {
                 mode = MODE_SELECT;
                 cursor = 0;
                 doRedraw();
@@ -320,10 +345,12 @@ namespace CTAG {
                 redrawEdit();
             } else if (mode == MODE_VALUEEDIT) {
                 redrawEdit(); // same layout, cursor highlight acts as indicator
+            } else if (mode == MODE_MAP) {
+                redrawMap();
             } else if (mode == MODE_PRESETS) {
                 redrawPresets();
             } else {
-                // MAP / PSET — simple placeholder
+                // PSET — simple placeholder
                 Display::Clear();
                 Display::DrawString(0, 16, "Not implemented", Display::FONT_5X7);
                 Display::Flush();
@@ -402,6 +429,25 @@ namespace CTAG {
             // scrollbar
             if (count > 6)
                 Display::DrawScrollbar(126, 5, 54, count, cursor - startIdx);
+            Display::Flush();
+        }
+
+        void UIMenuPageParams::redrawMap() {
+            Display::Clear();
+            if (paramCount == 0) return;
+            const ParamInfo &pi = params[mapParamIdx];
+            Display::DrawString(0, 5, pi.name, Display::FONT_5X7);
+            Display::DrawString(0, 14, "---", Display::FONT_5X7);
+            char buf[32];
+            if (mapEditSlot < 0) {
+                snprintf(buf, sizeof(buf), "CV: None");
+            } else if (mapEditSlot < 100) {
+                snprintf(buf, sizeof(buf), "CV: %s", cvSlotDisplayNames[mapEditSlot]);
+            } else {
+                snprintf(buf, sizeof(buf), "CV: %d", mapEditSlot);
+            }
+            Display::DrawString(0, 23, buf, Display::FONT_5X7);
+            Display::InvertRect(0, 23, 128, 8);
             Display::Flush();
         }
 
