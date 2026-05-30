@@ -62,6 +62,7 @@ namespace CTAG {
             FavEntry favorites[MAX_FAVORITES];
             int favActiveId;
 
+            static const int VISIBLE_LINES = 7;
             static const int MAX_SD_FILES = 32;
             char sdEntries[MAX_SD_FILES][32];
             bool sdIsDir[MAX_SD_FILES];

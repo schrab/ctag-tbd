@@ -103,15 +103,15 @@ namespace CTAG {
             } else if (subPage == SP_MAIN) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
-                if (cursor > 5) cursor = 5;
+                if (cursor > 4) cursor = 4;
             } else if (subPage == SP_SELECT) {
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
                 if (newCursor >= pluginCount) newCursor = pluginCount - 1;
                 cursor = newCursor;
                 if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
-                if (scrollOffset > pluginCount - 6) scrollOffset = pluginCount - 6;
+                if (cursor - scrollOffset >= VISIBLE_LINES) scrollOffset = cursor - (VISIBLE_LINES - 1);
+                if (scrollOffset > pluginCount - VISIBLE_LINES) scrollOffset = pluginCount - VISIBLE_LINES;
                 if (scrollOffset < 0) scrollOffset = 0;
             } else if (subPage == SP_SELECT_CH) {
                 cursor += delta;
@@ -122,16 +122,16 @@ namespace CTAG {
                 if (cursor < 0) cursor = 0;
                 if (cursor >= sdFileCount) cursor = sdFileCount - 1;
                 if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
-                if (scrollOffset > sdFileCount - 6) scrollOffset = sdFileCount - 6;
+                if (cursor - scrollOffset >= VISIBLE_LINES) scrollOffset = cursor - (VISIBLE_LINES - 1);
+                if (scrollOffset > sdFileCount - VISIBLE_LINES) scrollOffset = sdFileCount - VISIBLE_LINES;
                 if (scrollOffset < 0) scrollOffset = 0;
             } else if (subPage == SP_FAVORITES) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
                 if (cursor > MAX_FAVORITES - 1) cursor = MAX_FAVORITES - 1;
                 if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
-                if (scrollOffset > MAX_FAVORITES - 6) scrollOffset = MAX_FAVORITES - 6;
+                if (cursor - scrollOffset >= VISIBLE_LINES) scrollOffset = cursor - (VISIBLE_LINES - 1);
+                if (scrollOffset > MAX_FAVORITES - VISIBLE_LINES) scrollOffset = MAX_FAVORITES - VISIBLE_LINES;
                 if (scrollOffset < 0) scrollOffset = 0;
             }
             doRedraw();
@@ -240,7 +240,7 @@ namespace CTAG {
                 subPage = SP_SELECT;
                 cursor = selectedPlugin;
                 scrollOffset = 0;
-                if (cursor > 5) scrollOffset = cursor - 5;
+                if (cursor > VISIBLE_LINES - 1) scrollOffset = cursor - (VISIBLE_LINES - 1);
                 doRedraw();
                 return true;
             }
@@ -287,16 +287,16 @@ namespace CTAG {
 
         void UIMenuPageHome::redrawMain() {
             Display::Clear();
-            const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP", ""};
-            for (int i = 0; i < 6; i++)
-                Display::DrawString(0, 5 + i * 9, items[i], Display::FONT_5X7);
+            const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP"};
+            for (int i = 0; i < 5; i++)
+                Display::DrawString(0, 5 + i * 8, items[i], Display::FONT_5X7);
             // show active favorite indicator
             if (favActiveId >= 0) {
                 char buf[16];
                 snprintf(buf, sizeof(buf), "Fav%d", favActiveId);
-                Display::DrawString(70, 5 + 2 * 9, buf, Display::FONT_5X7);
+                Display::DrawString(70, 5 + 2 * 8, buf, Display::FONT_5X7);
             }
-            Display::InvertRect(0, 5 + cursor * 9, 128, 8);
+            Display::InvertRect(0, 5 + cursor * 8, 128, 8);
             Display::Flush();
         }
 
@@ -307,13 +307,12 @@ namespace CTAG {
                 Display::Flush();
                 return;
             }
-            // show all 10 favorites (no scroll, fits on ~2 screens, but we show 6 at a time)
             int visible = MAX_FAVORITES - scrollOffset;
-            if (visible > 6) visible = 6;
+            if (visible > VISIBLE_LINES) visible = VISIBLE_LINES;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const FavEntry &f = favorites[idx];
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 char buf[64];
                 if (idx == favActiveId) {
                     snprintf(buf, sizeof(buf), "*%s", f.name);
@@ -322,10 +321,10 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 8;
             Display::InvertRect(0, cy, 128, 8);
-            if (MAX_FAVORITES > 6)
-                Display::DrawScrollbar(126, 5, 54, MAX_FAVORITES, cursor);
+            if (MAX_FAVORITES > VISIBLE_LINES)
+                Display::DrawScrollbar(126, 5, VISIBLE_LINES * 8, MAX_FAVORITES, cursor);
             Display::Flush();
         }
 
@@ -374,10 +373,10 @@ namespace CTAG {
                 return;
             }
             int visible = sdFileCount - scrollOffset;
-            if (visible > 6) visible = 6;
+            if (visible > VISIBLE_LINES) visible = VISIBLE_LINES;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 char buf[64];
                 if (sdIsDir[idx]) {
                     snprintf(buf, sizeof(buf), " [%s]", sdEntries[idx]);
@@ -386,10 +385,10 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 8;
             Display::InvertRect(0, cy, 128, 8);
-            if (sdFileCount > 6)
-                Display::DrawScrollbar(126, 5, 54, sdFileCount, cursor);
+            if (sdFileCount > VISIBLE_LINES)
+                Display::DrawScrollbar(126, 5, VISIBLE_LINES * 8, sdFileCount, cursor);
             Display::Flush();
         }
 
@@ -401,19 +400,19 @@ namespace CTAG {
                 return;
             }
             int visible = pluginCount - scrollOffset;
-            if (visible > 6) visible = 6;
+            if (visible > VISIBLE_LINES) visible = VISIBLE_LINES;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const PluginEntry &e = plugins[idx];
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 Display::DrawString(0, y, e.name, Display::FONT_5X7);
                 // type indicator right-aligned
                 Display::DrawString(120, y, e.isStereo ? "S" : "M", Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 8;
             Display::InvertRect(0, cy, 128, 8);
-            if (pluginCount > 6)
-                Display::DrawScrollbar(126, 5, 54, pluginCount, cursor);
+            if (pluginCount > VISIBLE_LINES)
+                Display::DrawScrollbar(126, 5, VISIBLE_LINES * 8, pluginCount, cursor);
             Display::Flush();
         }
 
