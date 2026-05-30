@@ -103,15 +103,8 @@ namespace CTAG {
                 bool gotEv = UserInput::GetEvent(ev, 20);
 
                 if (gotEv) {
-                    if (displayState == DIMMED) {
-                        Display::Contrast(0xFF);
-                        displayState = AWAKE;
-                        screensaverTimer = 0;
-                        panelBarTimer = 50;
-                        redrawNeeded = true;
-                    } else if (displayState == ASLEEP) {
+                    if (displayState == ASLEEP) {
                         Display::Wake();
-                        Display::Contrast(0xFF);
                         displayState = AWAKE;
                         screensaverTimer = 0;
                         panelBarTimer = 50;
@@ -156,11 +149,7 @@ namespace CTAG {
                     }
                 } else {
                     screensaverTimer++;
-                    if (displayState == AWAKE && screensaverTimer >= SCREENSAVER_DIM_TIMEOUT) {
-                        Display::Contrast(0x4D);
-                        displayState = DIMMED;
-                    }
-                    if (displayState == DIMMED && screensaverTimer >= SCREENSAVER_SLEEP_TIMEOUT) {
+                    if (displayState == AWAKE && screensaverTimer >= SCREENSAVER_TIMEOUT) {
                         Display::Sleep();
                         displayState = ASLEEP;
                     }

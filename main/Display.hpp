@@ -46,6 +46,7 @@ namespace CTAG {
             static bool dirtyPages[8];
 
             static void MarkDirty(int page);
+            static int userContrast;
 
         public:
             static void Flush();

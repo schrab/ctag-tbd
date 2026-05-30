@@ -44,6 +44,7 @@ using namespace CTAG::DRIVERS;
 SSD1306_t Display::I2CDisplay;
 std::vector<std::string> Display::userString_v;
 int Display::currentUserStringRow {0};
+int Display::userContrast = 0xFF;
 uint8_t Display::fb[1024];
 bool Display::dirtyPages[8] {false};
 
@@ -60,11 +61,13 @@ void Display::Sleep() {
 
 void Display::Wake() {
     ssd1306_display_on(&I2CDisplay);
+    ssd1306_contrast(&I2CDisplay, userContrast);
 }
 
 void Display::Contrast(int val) {
     if (val < 0) val = 0;
     if (val > 255) val = 255;
+    userContrast = val;
     ssd1306_contrast(&I2CDisplay, val);
 }
 
