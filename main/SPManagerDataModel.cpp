@@ -216,6 +216,7 @@ void SPManagerDataModel::SetConfigurationFromJSON(const string &data) {
 string SPManagerDataModel::GetConfigurationData(const string &id) {
     //PrintSelf();
     if (!m.HasMember("configuration")) return string();
+    if (!m["configuration"].HasMember(id)) return string();
     Value s(kStringType);
     s.CopyFrom(m["configuration"][id], m.GetAllocator());
     return s.GetString();
