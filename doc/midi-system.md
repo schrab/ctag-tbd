@@ -18,8 +18,11 @@ UART1 (GPIO19) → Midi::Update() → cv/trig buffers → Control::Update()
 ```
 
 ## CV/Trigger Buffer
-- BBA (Black Box Audio): N_CVS=90, N_TRIGS=40 (defined in root CMakeLists.txt)
+- BBA (Black Box Audio): N_CVS=100, N_TRIGS=40 (defined in root CMakeLists.txt)
 - MIDI events are mapped to fixed CV buffer indices via compile-time constexpr tables
+- Slots 0-89: MIDI-mapped (G_*, A_*, B_*, C_*, D_*)
+- Slots 90-97: ModEngine dynamic CC outputs (CC1..CC8)
+- Slots 98-99: LFO1/LFO2 outputs
 
 ## MIDI Channel Architecture
 | Channel | Mode |
@@ -49,7 +52,7 @@ UART1 (GPIO19) → Midi::Update() → cv/trig buffers → Control::Update()
 
 ## BLE MIDI (via NimBLE Central)
 
-BLE MIDI is received via NimBLE GATT **central** mode (TBD connects to a BLE MIDI peripheral like the M-VAVE SMC-PAD). The implementation is in `BtMidiReceiver` (central) and exposed through `UIMenuPageBtMidi` (SCAN/CONNECT/DISCONNECT UI).
+BLE MIDI is received via NimBLE GATT **central** mode (TBD connects to a BLE MIDI peripheral like the M-VAVE SMC-PAD). The implementation is in `BtMidiReceiver` (central) and exposed through `UIMenuPageMidi` (SCAN/CONNECT/DISCONNECT UI).
 
 ### Data Flow
 ```
@@ -72,7 +75,7 @@ Midi::Update()
 | File | Role |
 |------|------|
 | `main/BtMidiReceiver.hpp` / `.cpp` | NimBLE central implementation: scan, connect, subscribe, ring buffer |
-| `main/menupages/UIMenuPageBtMidi.hpp` / `.cpp` | UI: device list, connect, disconnect, status |
+| `main/menupages/UIMenuPageMidi.hpp` / `.cpp` | UI: device list, connect, disconnect, status, UART/BLE source toggling |
 
 ### GATT Service
 - **MIDI Service UUID:** `03B80E5A-EDE8-4B33-A751-6CE34EC4C700`
@@ -89,6 +92,10 @@ Midi::Update()
 - NimBLE heap → PSRAM (`MEM_ALLOC_MODE_EXTERNAL`)
 - Central role only (no peripheral/broadcaster/observer)
 - Controller + host pinned to Core 0 (audio on Core 1)
+
+## MIDI Source Switching
+
+UART and BLE MIDI inputs can be independently toggled from the MIDI page UI (cursor 3 = UART ON/OFF, cursor 4 = BLE ON/OFF). `Midi::SetUartEnabled(bool)` and `Midi::SetBleEnabled(bool)` set flags checked in `Midi::Update()` — if disabled, the respective source is skipped during read.
 
 ## Special CCs
 - CC 111: toggle ignore_channels_6to9 (value >= 64 enables)

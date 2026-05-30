@@ -19,6 +19,7 @@ namespace CTAG {
             int cursor;
             int ccEditSlot;
             int ccEditValue;
+            bool editing;
 
             void redrawMain();
             void redrawLFO(int lfo);

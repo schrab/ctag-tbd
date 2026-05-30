@@ -1,4 +1,7 @@
 Complete Analysis: Grouped Parameters in CTAG TBD
+> **Status: IMPLEMENTED** — this analysis was fully implemented. See `UIMenuPageParams` for the actual code.
+> Key outcomes: ParamInfo[256] + GroupInfo[32] in SPIRAM, MODE_GROUP→MODE_EDIT recursion, MODE_MAP for CV slot assignment, dual-channel editing.
+
 1. parseParams() — Full Implementation
 From /home/ubuntu/ctag-tbd/main/menupages/UIMenuPageParams.cpp, lines 47-71:
 void UIMenuPageParams::parseParams() {

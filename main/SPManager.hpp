@@ -85,6 +85,11 @@ namespace CTAG {
 
             static string GetStringID(const int chan);
 
+            static bool IsPluginStereo(const string &id) {
+                if (!model) return false;
+                return model->IsStereo(id);
+            }
+
             static void SetSoundProcessorChannel(const int chan, const string &id);
 
             static void SetChannelParamValue(const int chan, const string &id, const string &key, const int val);

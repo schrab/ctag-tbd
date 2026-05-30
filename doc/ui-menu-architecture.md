@@ -6,7 +6,7 @@
 |------|------|
 | `main/UIMenu.hpp` / `.cpp` | Menu controller — owns navigation state and page registry |
 | `main/UIMenuPage.hpp` | Abstract base class for all pages |
-| `main/menupages/UIMenuPage*.hpp/.cpp` | Concrete page implementations (Home, Mix, Tape, Params, System, BtMidi) |
+| `main/menupages/UIMenuPage*.hpp/.cpp` | Concrete page implementations (Home, Mix, Tape, Params, System, Midi, Mod) |
 | `main/UserInput.hpp` / `.cpp` | Hardware input: encoder + 2 buttons → FreeRTOS event queue |
 | `main/Display.hpp` / `.cpp` | OLED framebuffer (128x64, SSD1309) |
 | `main/main.cpp` | Boot sequence: splash → `StartSoundProcessor()` → `UIMenu::Init()` → task |
@@ -54,8 +54,9 @@ public:
 Pages are hardcoded in a fixed array by `UIMenu::Init()`:
 
 ```cpp
-enum Panel : uint8_t { PANEL_MIX=0, PANEL_TAPE=1, PANEL_HOME=2, PANEL_PARAMS=3 };
-// + PANEL_BT when CONFIG_BT_ENABLED
+enum Panel : uint8_t { PANEL_MIX=0, PANEL_TAPE=1, PANEL_HOME=2, PANEL_MOD=3, PANEL_PARAMS=4 };
+// + PANEL_MIDI=5 when CONFIG_BT_ENABLED
+// PANEL_COUNT = 5 (no BT) or 6 (BT enabled)
 // Note: SYSTEM is NOT a panel — it's a SP_SYSTEM sub-page of HOME
 static UIMenuPage *pages[PANEL_COUNT];
 static Panel currentPanel;     // starts at PANEL_HOME
@@ -145,10 +146,14 @@ Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` fo
 ### PARAMS (`UIMenuPageParams`)
 | Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |------|--------------|---------|-----------------|------|
-| `MODE_SELECT` | EDIT / MAP / PSET | Scroll cursor (0-2) | Enter selected mode | Return to ROOT |
-| `MODE_EDIT` | Param list (parsed from JSON, max 64) | Scroll list (auto-scroll, 6 visible) | Enter `MODE_VALUEEDIT` for selected param | Back to MODE_SELECT |
-| `MODE_VALUEEDIT` | Same as MODE_EDIT layout | Adjust param value (`pi.current += delta`) | Return to MODE_EDIT | Back to MODE_EDIT |
-| `MODE_MAP` / `MODE_PSET` | "Not implemented" placeholder | No-op | No-op | Back to MODE_SELECT |
+| `MODE_SELECT` | EDIT / MAP / PSET (or dual Ch0:name / Ch1:name if two different mono plugins loaded) | Scroll cursor (0-2, or 0-3 with dual) | Enter selected mode (selects `chan` 0 or 1 for EDIT) | Return to ROOT |
+| `MODE_GROUP` | Group list with param count, e.g. `Analogue BD (12)`, `Diffusion (5)` | Scroll list (auto-scroll, 6 visible) | Enter MODE_EDIT for that group | Back to MODE_SELECT |
+| `MODE_EDIT` | Param list for selected group (or all params if no groups) | Scroll list (auto-scroll, 6 visible) | Enter `MODE_VALUEEDIT` for selected param | Back to MODE_GROUP (or MODE_SELECT if no groups) |
+| `MODE_VALUEEDIT` | Same as MODE_EDIT layout | Adjust param value (`pi.current += delta`) | Confirm value → return to MODE_EDIT | Back to MODE_EDIT (no save) |
+| `MODE_MAP` | CV slot editor for selected param (-1=None, 0-99=slot index) | Scroll CV slot (-1 through 99, names from CVSlotNames.hpp) | Confirm slot via `SetChannelParamValue(chan, id, "cv", slot)` → MODE_EDIT | Exit without saving → MODE_EDIT |
+| `MODE_PSET` | "Not implemented" placeholder | No-op | No-op | Back to MODE_SELECT |
+
+Long-press on a param in MODE_EDIT enters MODE_MAP. `ParamInfo[256]` and `GroupInfo[32]` in SPIRAM. Standalone leaf params get implicit "General" group. If only one group exists, it auto-opens into MODE_EDIT directly (skipping MODE_GROUP). MODE_MAP shows "MAPPING" title + "OK=save BACK=exit" instruction.
 
 ### TAPE (`UIMenuPageTape`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
@@ -173,11 +178,23 @@ System config is entered as `SP_SYSTEM` from HOME's `SP_MAIN` (cursor=1, "SYSTEM
 - `applyCurrent()` is also called per-tick in edit mode so value changes take effect immediately.
 No sub-pages. Shows "MIX" + placeholder VU meters. No encoder/button handlers. `onBack()` returns false (ROOT directly).
 
-### BT MIDI (`UIMenuPageBtMidi`) — only when `CONFIG_BT_ENABLED`
+### MOD (`UIMenuPageMod`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |---------|--------------|---------|-----------------|------|
-| `SP_MAIN` | SCAN, Disconnect, Status | Scroll cursor (0-2) | LONG OK only (preserved) | Return to ROOT |
+| `SP_MAIN` | Overview: LFO1 shape/rate, LFO2 shape/rate, CC count | Scroll cursor (0-2) | Enter sub-page at cursor | Return to ROOT |
+| `SP_LFO1` / `SP_LFO2` | Shape / Rate (Hz) / Amp / Output CV slot | Scroll cursor (not editing); adjust value (editing) | Toggle editing mode on/off | If editing: exit edit mode; else back to SP_MAIN |
+| `SP_CC_SLOTS` | Scrolling list of 8 CC slots (CC# / chan / CV slot) | Scroll list (6 visible, scrollbar) | Enter SP_CC_EDIT at cursor | Back to SP_MAIN |
+| `SP_CC_EDIT` | CC number / MIDI channel / Learn toggle | Scroll cursor (not editing); adjust value (editing, cursors 0-1). Cursor 2 (Learn): OK starts/stops learn | Toggle editing mode on cursors 0-1; toggle Learn on cursor 2 | If editing: exit edit mode; else back to SP_CC_SLOTS |
+
+Editing mode visual: value portion (right side) inverted instead of full row. Saves to SPIFFS (`/spiffs/data/mod-config.jsn`) on every value change.
+
+### MIDI (`UIMenuPageMidi`) — only when `CONFIG_BT_ENABLED`
+| SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
+|---------|--------------|---------|-----------------|------|
+| `SP_MAIN` | SCAN, Disconnect, Status, UART ON/OFF, BLE ON/OFF | Scroll cursor (0-4) | Toggle UART/BLE on cursor 3/4; LONG OK preserved for SCAN | Return to ROOT |
 | `SP_SCAN` | Scanning status + device list | Scroll list | OK on device → connect | Stop scan + back to SP_MAIN |
+
+MIDI source toggling: `Midi::SetUartEnabled()` / `SetBleEnabled()` flags guard reads in `Midi::Update()`. Cursor 3 toggles UART RX, cursor 4 toggles BLE RX.
 
 ## Boot Sequence (`main.cpp`)
 
@@ -213,7 +230,7 @@ For pages accessed from a parent page's menu (not a panel tab):
 
 ## Common Pitfalls
 
-- **Stack overflow**: UIMenu task stack is 8192 bytes. JSON parsing in `parsePlugins()`/`parseParams()` uses stack-heavy RapidJSON `Document`. If overflowing, increase stack in `main.cpp`.
+- **Stack overflow**: UIMenu task stack is 4096 bytes (reduced from 8192 to avoid DRAM fragmentation). JSON parsing in `parsePlugins()`/`parseParams()` uses stack-heavy RapidJSON `Document`. If overflowing, increase stack in `main.cpp`.
 - **I2C contention**: All display writes from a single task (UIMenu). No mutex needed.
 - **GPIO5 conflict**: PIN_PUSH_BTN for old Favorites system is GPIO5, which is also encoder signal B. The old `Favorites::ui_task` is DISABLED in `SPManager.cpp`.
 - **Button ISR timing**: `UserInput::EnableISR()` must be called after `Codec::InitCodec()` to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3.

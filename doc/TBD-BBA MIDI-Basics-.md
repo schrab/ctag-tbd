@@ -254,7 +254,10 @@ TBD BBA: Table of available MIDI-Parameters and features
 | 87 | G\_PORT\_65 | 1,14,15,16 | continuous | y |  |
 | 88 | G\_SSTN\_66 | 1,14,15,16 | continuous | y |  |
 | 89 | G\_SOFT\_67 | 1,14,15,16 | continuous | y |  |
+| 89 | G\_HOLD\_69 | 1,14,15,16 | continuous | y |  |
 | 90 | G\_HOLD\_69 | 1,14,15,16 | continuous | y |  |
+
+> **Note:** The TBD BBA firmware extends the CV slot range with 10 virtual ModEngine slots (indices 90-99). Slots 90-97 are ModEngine dynamic CC outputs (CC1..CC8), and slots 98-99 are LFO1/LFO2 outputs. These appear in the UI's modulation source dropdowns (MODE_MAP and PANEL_MOD) but are not driven by MIDI — they are generated internally at audio block rate.
 
 TBD BBA: Table of features per channel
 

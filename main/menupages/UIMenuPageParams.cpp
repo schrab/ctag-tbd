@@ -52,7 +52,8 @@ namespace CTAG {
             chan = 0;
             string id0 = SoundProcessorManager::GetStringID(0);
             string id1 = SoundProcessorManager::GetStringID(1);
-            hasDualCh = (!id0.empty() && !id1.empty() && id0 != id1);
+            bool stereoCh0 = SoundProcessorManager::IsPluginStereo(id0);
+            hasDualCh = !stereoCh0 && !id0.empty() && !id1.empty() && id0 != id1;
             parseParams();
         }
 
@@ -228,7 +229,12 @@ namespace CTAG {
                     if (cursor == 0) {
                         chan = (hasDualCh ? 0 : 0);
                         parseParams();
-                        if (groupCount > 0 && paramCount > 0) {
+                        if (groupCount == 1) {
+                            currentGroup = 0;
+                            cursor = groups[0].firstParamIdx;
+                            scrollOffset = groups[0].firstParamIdx;
+                            mode = MODE_EDIT;
+                        } else if (groupCount > 1) {
                             mode = MODE_GROUP;
                             cursor = 0;
                             scrollOffset = 0;
@@ -243,7 +249,12 @@ namespace CTAG {
                         if (hasDualCh) {
                             chan = 1;
                             parseParams();
-                            if (groupCount > 0 && paramCount > 0) {
+                            if (groupCount == 1) {
+                                currentGroup = 0;
+                                cursor = groups[0].firstParamIdx;
+                                scrollOffset = groups[0].firstParamIdx;
+                                mode = MODE_EDIT;
+                            } else if (groupCount > 1) {
                                 mode = MODE_GROUP;
                                 cursor = 0;
                                 scrollOffset = 0;
@@ -470,9 +481,10 @@ namespace CTAG {
         void UIMenuPageParams::redrawMap() {
             Display::Clear();
             if (paramCount == 0) return;
+            Display::DrawString(0, 5, "MAPPING", Display::FONT_5X7);
             const ParamInfo &pi = params[mapParamIdx];
-            Display::DrawString(0, 5, pi.name, Display::FONT_5X7);
-            Display::DrawString(0, 14, "---", Display::FONT_5X7);
+            Display::DrawString(0, 14, pi.name, Display::FONT_5X7);
+            Display::DrawString(0, 23, "---", Display::FONT_5X7);
             char buf[32];
             if (mapEditSlot < 0) {
                 snprintf(buf, sizeof(buf), "CV: None");
@@ -481,8 +493,9 @@ namespace CTAG {
             } else {
                 snprintf(buf, sizeof(buf), "CV: %d", mapEditSlot);
             }
-            Display::DrawString(0, 23, buf, Display::FONT_5X7);
-            Display::InvertRect(0, 23, 128, 8);
+            Display::DrawString(0, 32, buf, Display::FONT_5X7);
+            Display::InvertRect(0, 32, 128, 8);
+            Display::DrawString(0, 41, "OK=save BACK=exit", Display::FONT_5X7);
             Display::Flush();
         }
 
