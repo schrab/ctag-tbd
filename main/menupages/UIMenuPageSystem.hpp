@@ -47,6 +47,7 @@ namespace CTAG {
                 int valInt;
                 int min;
                 int max;
+                bool deferred;
                 // enum-style: comma-separated options
                 char options[64];
             };
@@ -56,7 +57,7 @@ namespace CTAG {
 
             void parseConfig();
             void redrawMain();
-            void applyCurrent();
+            void applyCurrent(bool includeDeferred = true);
         };
     }
 }

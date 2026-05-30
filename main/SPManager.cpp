@@ -569,7 +569,7 @@ void SoundProcessorManager::updateConfiguration() {
 
     // output source
     string outSrc = model->GetConfigurationData("output_source");
-    if (outSrc == "headphones") DRIVERS::Codec::SetOutputSource(0);
+    if (outSrc == "headphones" || outSrc == "hp") DRIVERS::Codec::SetOutputSource(0);
     else if (outSrc == "amp")   DRIVERS::Codec::SetOutputSource(1);
     else if (outSrc == "all")   DRIVERS::Codec::SetOutputSource(2);
 

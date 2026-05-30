@@ -191,7 +191,7 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "Input Source");
                 snprintf(it.type, sizeof(it.type), "enum");
                 snprintf(it.options, sizeof(it.options), "line1,line2,line1_diff,line2_diff");
-                it.min = 0; it.max = 3; it.valInt = 1;
+                it.min = 0; it.max = 3; it.valInt = 1; it.deferred = true;
                 if (doc.HasMember("input_source") && doc["input_source"].IsString()) {
                     snprintf(it.value, sizeof(it.value), "%s", doc["input_source"].GetString());
                     const char *opts[] = {"line1","line2","line1_diff","line2_diff"};
@@ -209,7 +209,7 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "Input Gain");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = 8; it.valInt = 0;
+                it.min = 0; it.max = 8; it.valInt = 0; it.deferred = true;
                 if (doc.HasMember("input_gain") && doc["input_gain"].IsString()) {
                     snprintf(it.value, sizeof(it.value), "%s", doc["input_gain"].GetString());
                     it.valInt = atoi(it.value);
@@ -223,11 +223,11 @@ namespace CTAG {
                 snprintf(it.id, sizeof(it.id), "output_source");
                 snprintf(it.name, sizeof(it.name), "Output Route");
                 snprintf(it.type, sizeof(it.type), "enum");
-                snprintf(it.options, sizeof(it.options), "headphones,amp,all");
-                it.min = 0; it.max = 2; it.valInt = 2;
+                snprintf(it.options, sizeof(it.options), "hp,amp,all");
+                it.min = 0; it.max = 2; it.valInt = 2; it.deferred = true;
                 if (doc.HasMember("output_source") && doc["output_source"].IsString()) {
                     snprintf(it.value, sizeof(it.value), "%s", doc["output_source"].GetString());
-                    const char *opts[] = {"headphones","amp","all"};
+                    const char *opts[] = {"hp","amp","all"};
                     for (int j = 0; j < 3; j++) {
                         if (strcmp(it.value, opts[j]) == 0) { it.valInt = j; break; }
                     }
@@ -242,7 +242,7 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "Mixer Mode");
                 snprintf(it.type, sizeof(it.type), "enum");
                 snprintf(it.options, sizeof(it.options), "dac,bypass,mix");
-                it.min = 0; it.max = 2; it.valInt = 0;
+                it.min = 0; it.max = 2; it.valInt = 0; it.deferred = true;
                 if (doc.HasMember("mixer_mode") && doc["mixer_mode"].IsString()) {
                     snprintf(it.value, sizeof(it.value), "%s", doc["mixer_mode"].GetString());
                     const char *opts[] = {"dac","bypass","mix"};
@@ -260,7 +260,7 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "OLED Brightness");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = 255; it.valInt = 255;
+                it.min = 0; it.max = 255; it.valInt = 255; it.deferred = true;
                 if (doc.HasMember("oled_brightness") && doc["oled_brightness"].IsString()) {
                     snprintf(it.value, sizeof(it.value), "%s", doc["oled_brightness"].GetString());
                     it.valInt = atoi(it.value);
@@ -269,7 +269,7 @@ namespace CTAG {
             }
         }
 
-        void UIMenuPageSystem::applyCurrent() {
+        void UIMenuPageSystem::applyCurrent(bool includeDeferred) {
             // Read the full existing config, overlay only our managed keys
             const char *fullJson = SoundProcessorManager::GetCStrJSONConfiguration();
             if (!fullJson) return;
@@ -279,6 +279,7 @@ namespace CTAG {
 
             for (int i = 0; i < itemCount; i++) {
                 const ConfigItem &it = items[i];
+                if (it.deferred && !includeDeferred) continue;
                 Value key(it.id, doc.GetAllocator());
                 char valStr[16];
                 if (strcmp(it.type, "int") == 0) {
@@ -306,7 +307,11 @@ namespace CTAG {
             if (editMode) {
                 if (itemCount == 0 || cursor >= itemCount) return;
                 ConfigItem &it = items[cursor];
-                it.valInt += delta;
+                int step = 1;
+                if (strcmp(it.type, "int") == 0 && (it.max - it.min) > 20) {
+                    step = max(1, (it.max - it.min) / 16);
+                }
+                it.valInt += delta * step;
                 if (it.valInt < it.min) it.valInt = it.min;
                 if (it.valInt > it.max) it.valInt = it.max;
                 // update value string
@@ -320,7 +325,8 @@ namespace CTAG {
                     while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
                     snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
                 }
-                applyCurrent();
+                // real-time items applied immediately; deferred items wait for OK/BACK
+                applyCurrent(false);
             } else {
                 int nc = cursor + delta;
                 if (nc < 0) nc = 0;
@@ -336,7 +342,9 @@ namespace CTAG {
 
         void UIMenuPageSystem::onButton(int btnId, bool longPress) {
             if (btnId == 2 && !longPress && itemCount > 0) {
+                bool wasEditing = editMode;
                 editMode = !editMode;
+                if (wasEditing) applyCurrent();
             }
             doRedraw();
         }
@@ -344,6 +352,7 @@ namespace CTAG {
         bool UIMenuPageSystem::onBack() {
             if (editMode) {
                 editMode = false;
+                applyCurrent();
                 doRedraw();
                 return true;
             }
