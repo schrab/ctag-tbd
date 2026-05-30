@@ -51,6 +51,12 @@ namespace CTAG {
 
             static void WriteBuffer(float *buf, uint32_t sz);
 
+            static void SetInputSource(int sel);
+            static void SetOutputSource(int sel);
+            static void SetMixerMode(int mode);
+            static void SetAnalogBypass(bool on);
+            static void SetInputGain(int gain);
+
         private:
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
             static es8388 codec;

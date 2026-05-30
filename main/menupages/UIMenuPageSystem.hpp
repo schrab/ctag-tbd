@@ -50,7 +50,7 @@ namespace CTAG {
                 // enum-style: comma-separated options
                 char options[64];
             };
-            static const int MAX_ITEMS = 16;
+            static const int MAX_ITEMS = 21;
             ConfigItem items[MAX_ITEMS];
             int itemCount;
 

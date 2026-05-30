@@ -49,7 +49,7 @@ namespace CTAG {
         bool UIMenu::redrawNeeded = true;
         int UIMenu::panelBarTimer = 0;
         int UIMenu::screensaverTimer = 0;
-        bool UIMenu::displayAsleep = false;
+        UIMenu::DisplayState UIMenu::displayState = UIMenu::AWAKE;
 
         void UIMenu::Init() {
             ESP_LOGI(TAG, "Init: creating pages...");
@@ -103,9 +103,16 @@ namespace CTAG {
                 bool gotEv = UserInput::GetEvent(ev, 20);
 
                 if (gotEv) {
-                    if (displayAsleep) {
+                    if (displayState == DIMMED) {
+                        Display::Contrast(0xFF);
+                        displayState = AWAKE;
+                        screensaverTimer = 0;
+                        panelBarTimer = 50;
+                        redrawNeeded = true;
+                    } else if (displayState == ASLEEP) {
                         Display::Wake();
-                        displayAsleep = false;
+                        Display::Contrast(0xFF);
+                        displayState = AWAKE;
                         screensaverTimer = 0;
                         panelBarTimer = 50;
                         redrawNeeded = true;
@@ -149,14 +156,18 @@ namespace CTAG {
                     }
                 } else {
                     screensaverTimer++;
-                    if (!displayAsleep && screensaverTimer >= SCREENSAVER_TIMEOUT) {
+                    if (displayState == AWAKE && screensaverTimer >= SCREENSAVER_DIM_TIMEOUT) {
+                        Display::Contrast(0x4D);
+                        displayState = DIMMED;
+                    }
+                    if (displayState == DIMMED && screensaverTimer >= SCREENSAVER_SLEEP_TIMEOUT) {
                         Display::Sleep();
-                        displayAsleep = true;
+                        displayState = ASLEEP;
                     }
                 }
 
                 // Periodic auto-refresh in PANEL_IN (~100ms interval)
-                if (!displayAsleep && navState != ROOT) {
+                if (displayState != ASLEEP && navState != ROOT) {
                     static int refreshCounter = 0;
                     refreshCounter++;
                     if (refreshCounter >= 5) {
@@ -166,7 +177,7 @@ namespace CTAG {
                 }
 
                 // Redraw if needed
-                if (!displayAsleep && redrawNeeded) {
+                if (displayState != ASLEEP && redrawNeeded) {
                     if (navState == ROOT) {
                         pages[currentPanel]->doRedraw();
                         drawPanelBar();

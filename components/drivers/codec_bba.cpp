@@ -116,6 +116,39 @@ void Codec::HighPassDisable() {
 void Codec::RecalibDCOffset() {
 }
 
+void Codec::SetInputSource(int sel) {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    static const insel_t map[] = {IN1, IN2, IN1DIFF, IN2DIFF};
+    if (sel >= 0 && sel <= 3) codec.inputSelect(map[sel]);
+#endif
+}
+
+void Codec::SetOutputSource(int sel) {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    static const outsel_t map[] = {OUT1, OUT2, OUTALL};
+    if (sel >= 0 && sel <= 2) codec.outputSelect(map[sel]);
+#endif
+}
+
+void Codec::SetMixerMode(int mode) {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    static const mixercontrol_t map[] = {DACOUT, SRCSELOUT, MIXALL};
+    if (mode >= 0 && mode <= 2) codec.mixerSourceControl(map[mode]);
+#endif
+}
+
+void Codec::SetAnalogBypass(bool on) {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    codec.analogBypass(on);
+#endif
+}
+
+void Codec::SetInputGain(int gain) {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    codec.setInputGain(gain);
+#endif
+}
+
 void Codec::SetOutputLevels(const uint32_t left, const uint32_t right) {
     codec.setOutputVolume(static_cast<uint8_t>(left), static_cast<uint8_t>(right));
 }

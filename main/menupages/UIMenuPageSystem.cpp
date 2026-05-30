@@ -183,6 +183,90 @@ namespace CTAG {
                 }
                 itemCount++;
             }
+
+            // input_source
+            if (itemCount < MAX_ITEMS) {
+                ConfigItem &it = items[itemCount];
+                snprintf(it.id, sizeof(it.id), "input_source");
+                snprintf(it.name, sizeof(it.name), "Input Source");
+                snprintf(it.type, sizeof(it.type), "enum");
+                snprintf(it.options, sizeof(it.options), "line1,line2,line1_diff,line2_diff");
+                it.min = 0; it.max = 3; it.valInt = 1;
+                if (doc.HasMember("input_source") && doc["input_source"].IsString()) {
+                    snprintf(it.value, sizeof(it.value), "%s", doc["input_source"].GetString());
+                    const char *opts[] = {"line1","line2","line1_diff","line2_diff"};
+                    for (int j = 0; j < 4; j++) {
+                        if (strcmp(it.value, opts[j]) == 0) { it.valInt = j; break; }
+                    }
+                }
+                itemCount++;
+            }
+
+            // input_gain
+            if (itemCount < MAX_ITEMS) {
+                ConfigItem &it = items[itemCount];
+                snprintf(it.id, sizeof(it.id), "input_gain");
+                snprintf(it.name, sizeof(it.name), "Input Gain");
+                snprintf(it.type, sizeof(it.type), "int");
+                it.options[0] = '\0';
+                it.min = 0; it.max = 8; it.valInt = 0;
+                if (doc.HasMember("input_gain") && doc["input_gain"].IsString()) {
+                    snprintf(it.value, sizeof(it.value), "%s", doc["input_gain"].GetString());
+                    it.valInt = atoi(it.value);
+                }
+                itemCount++;
+            }
+
+            // output_source
+            if (itemCount < MAX_ITEMS) {
+                ConfigItem &it = items[itemCount];
+                snprintf(it.id, sizeof(it.id), "output_source");
+                snprintf(it.name, sizeof(it.name), "Output Route");
+                snprintf(it.type, sizeof(it.type), "enum");
+                snprintf(it.options, sizeof(it.options), "headphones,amp,all");
+                it.min = 0; it.max = 2; it.valInt = 2;
+                if (doc.HasMember("output_source") && doc["output_source"].IsString()) {
+                    snprintf(it.value, sizeof(it.value), "%s", doc["output_source"].GetString());
+                    const char *opts[] = {"headphones","amp","all"};
+                    for (int j = 0; j < 3; j++) {
+                        if (strcmp(it.value, opts[j]) == 0) { it.valInt = j; break; }
+                    }
+                }
+                itemCount++;
+            }
+
+            // mixer_mode
+            if (itemCount < MAX_ITEMS) {
+                ConfigItem &it = items[itemCount];
+                snprintf(it.id, sizeof(it.id), "mixer_mode");
+                snprintf(it.name, sizeof(it.name), "Mixer Mode");
+                snprintf(it.type, sizeof(it.type), "enum");
+                snprintf(it.options, sizeof(it.options), "dac,bypass,mix");
+                it.min = 0; it.max = 2; it.valInt = 0;
+                if (doc.HasMember("mixer_mode") && doc["mixer_mode"].IsString()) {
+                    snprintf(it.value, sizeof(it.value), "%s", doc["mixer_mode"].GetString());
+                    const char *opts[] = {"dac","bypass","mix"};
+                    for (int j = 0; j < 3; j++) {
+                        if (strcmp(it.value, opts[j]) == 0) { it.valInt = j; break; }
+                    }
+                }
+                itemCount++;
+            }
+
+            // oled_brightness
+            if (itemCount < MAX_ITEMS) {
+                ConfigItem &it = items[itemCount];
+                snprintf(it.id, sizeof(it.id), "oled_brightness");
+                snprintf(it.name, sizeof(it.name), "OLED Brightness");
+                snprintf(it.type, sizeof(it.type), "int");
+                it.options[0] = '\0';
+                it.min = 0; it.max = 255; it.valInt = 255;
+                if (doc.HasMember("oled_brightness") && doc["oled_brightness"].IsString()) {
+                    snprintf(it.value, sizeof(it.value), "%s", doc["oled_brightness"].GetString());
+                    it.valInt = atoi(it.value);
+                }
+                itemCount++;
+            }
         }
 
         void UIMenuPageSystem::applyCurrent() {

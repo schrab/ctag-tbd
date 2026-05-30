@@ -56,8 +56,10 @@ namespace CTAG {
             static bool redrawNeeded;
             static int panelBarTimer;
             static int screensaverTimer;
-            static bool displayAsleep;
-            static constexpr int SCREENSAVER_TIMEOUT = 1500;
+            enum DisplayState { AWAKE, DIMMED, ASLEEP };
+            static DisplayState displayState;
+            static constexpr int SCREENSAVER_DIM_TIMEOUT = 1500;
+            static constexpr int SCREENSAVER_SLEEP_TIMEOUT = 3000;
 
             static void drawPanelBar();
         };

@@ -23,6 +23,11 @@
     "ch0_outputSoftClip": "on",
     "ch1_outputSoftClip": "on",
     "ch0_codecLvlOut": "58",
-    "ch1_codecLvlOut": "58"
+    "ch1_codecLvlOut": "58",
+    "input_source": "line2",
+    "input_gain": "0",
+    "output_source": "all",
+    "mixer_mode": "dac",
+    "oled_brightness": "255"
   }
 }

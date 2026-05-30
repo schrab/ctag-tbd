@@ -27,6 +27,7 @@ respective component folders / files if different from this license.
 #include "stdint.h"
 #include "string.h"
 #include "codec.hpp"
+#include "Display.hpp"
 #include "esp_heap_caps.h"
 #include "led_rgb.hpp"
 #include "network.hpp"
@@ -554,6 +555,33 @@ void SoundProcessorManager::updateConfiguration() {
             DRIVERS::Codec::SetOutputLevels(lLevel, rLevel);
         }
     }
+
+    // input source
+    string inSrc = model->GetConfigurationData("input_source");
+    if (inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
+    else if (inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
+    else if (inSrc == "line1_diff") DRIVERS::Codec::SetInputSource(2);
+    else if (inSrc == "line2_diff") DRIVERS::Codec::SetInputSource(3);
+
+    // input gain
+    string inGain = model->GetConfigurationData("input_gain");
+    if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
+
+    // output source
+    string outSrc = model->GetConfigurationData("output_source");
+    if (outSrc == "headphones") DRIVERS::Codec::SetOutputSource(0);
+    else if (outSrc == "amp")   DRIVERS::Codec::SetOutputSource(1);
+    else if (outSrc == "all")   DRIVERS::Codec::SetOutputSource(2);
+
+    // mixer mode
+    string mixMode = model->GetConfigurationData("mixer_mode");
+    if (mixMode == "dac")    DRIVERS::Codec::SetMixerMode(0);
+    else if (mixMode == "bypass") DRIVERS::Codec::SetMixerMode(1);
+    else if (mixMode == "mix")    DRIVERS::Codec::SetMixerMode(2);
+
+    // OLED brightness
+    string oledBr = model->GetConfigurationData("oled_brightness");
+    if (!oledBr.empty()) DRIVERS::Display::Contrast(std::stoi(oledBr));
 }
 
 void SoundProcessorManager::led_task(void *pvParams) {

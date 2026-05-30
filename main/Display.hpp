@@ -55,6 +55,7 @@ namespace CTAG {
 
             static void Sleep();
             static void Wake();
+            static void Contrast(int val);
 
             Display() = delete;
             static void Init();
