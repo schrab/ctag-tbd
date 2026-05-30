@@ -26,6 +26,7 @@ respective component folders / files if different from this license.
 #include "menupages/UIMenuPageMix.hpp"
 #include "menupages/UIMenuPageParams.hpp"
 #include "menupages/UIMenuPageTape.hpp"
+#include "menupages/UIMenuPageMod.hpp"
 #if CONFIG_BT_ENABLED
 #include "menupages/UIMenuPageMidi.hpp"
 #endif
@@ -40,9 +41,9 @@ namespace CTAG {
     namespace CTRL {
         UIMenu::Panel UIMenu::currentPanel = UIMenu::PANEL_HOME;
 #if CONFIG_BT_ENABLED
-        UIMenuPage *UIMenu::pages[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+        UIMenuPage *UIMenu::pages[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 #else
-        UIMenuPage *UIMenu::pages[4] = {nullptr, nullptr, nullptr, nullptr};
+        UIMenuPage *UIMenu::pages[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
 #endif
         UIMenu::NavState UIMenu::navState = UIMenu::ROOT;
         bool UIMenu::redrawNeeded = true;
@@ -55,6 +56,7 @@ namespace CTAG {
             pages[PANEL_HOME] = new UIMenuPageHome();
             pages[PANEL_MIX] = new UIMenuPageMix();
             pages[PANEL_TAPE] = new UIMenuPageTape();
+            pages[PANEL_MOD] = new UIMenuPageMod();
             pages[PANEL_PARAMS] = new UIMenuPageParams();
 #if CONFIG_BT_ENABLED
             pages[PANEL_MIDI] = new UIMenuPageMidi();

@@ -34,9 +34,9 @@ namespace CTAG {
             static void TaskFunction(void *);
 
             enum Panel : uint8_t {
-                PANEL_MIX = 0, PANEL_TAPE = 1, PANEL_HOME = 2, PANEL_PARAMS = 3
+                PANEL_MIX = 0, PANEL_TAPE = 1, PANEL_HOME = 2, PANEL_MOD = 3, PANEL_PARAMS = 4
 #if CONFIG_BT_ENABLED
-                , PANEL_MIDI = 4
+                , PANEL_MIDI = 5
 #endif
             };
 
@@ -44,11 +44,11 @@ namespace CTAG {
             enum NavState : uint8_t { ROOT, PANEL_IN };
 
 #if CONFIG_BT_ENABLED
+            static constexpr int PANEL_COUNT = 6;
+            static UIMenuPage *pages[6];
+#else
             static constexpr int PANEL_COUNT = 5;
             static UIMenuPage *pages[5];
-#else
-            static constexpr int PANEL_COUNT = 4;
-            static UIMenuPage *pages[4];
 #endif
 
             static Panel currentPanel;
