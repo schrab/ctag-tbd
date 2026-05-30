@@ -333,8 +333,8 @@ namespace CTAG {
                 if (nc >= itemCount) nc = itemCount - 1;
                 cursor = nc;
                 if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
-                if (scrollOffset > itemCount - 6) scrollOffset = itemCount - 6;
+                if (cursor - scrollOffset >= 7) scrollOffset = cursor - 6;
+                if (scrollOffset > itemCount - 7) scrollOffset = itemCount - 7;
                 if (scrollOffset < 0) scrollOffset = 0;
             }
             doRedraw();
@@ -371,23 +371,23 @@ namespace CTAG {
                 return;
             }
             int visible = itemCount - scrollOffset;
-            if (visible > 6) visible = 6;
+            if (visible > 7) visible = 7;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const ConfigItem &it = items[idx];
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 Display::DrawString(0, y, it.name, Display::FONT_5X7);
                 Display::DrawStringRight(127, y, it.value, Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 8;
             if (editMode) {
                 // highlight only value area when editing
                 Display::InvertRect(104, cy, 24, 8);
             } else {
                 Display::InvertRect(0, cy, 128, 8);
             }
-            if (itemCount > 6)
-                Display::DrawScrollbar(126, 5, 54, itemCount, cursor);
+            if (itemCount > 7)
+                Display::DrawScrollbar(126, 5, 56, itemCount, cursor);
             Display::Flush();
         }
     }

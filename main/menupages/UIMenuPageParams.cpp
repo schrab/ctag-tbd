@@ -175,8 +175,8 @@ namespace CTAG {
                 cursor = newCursor;
                 int scr = cursor - scrollOffset;
                 if (scr < 0) scrollOffset += scr;
-                if (scr >= 6) scrollOffset += (scr - 5);
-                if (scrollOffset > groupCount - 6) scrollOffset = groupCount - 6;
+                if (scr >= 7) scrollOffset += (scr - 6);
+                if (scrollOffset > groupCount - 7) scrollOffset = groupCount - 7;
                 if (scrollOffset < 0) scrollOffset = 0;
             } else if (mode == MODE_EDIT) {
                 if (paramCount == 0) return;
@@ -190,8 +190,8 @@ namespace CTAG {
                 // auto-scroll
                 int scr = paramIndexToScreen(cursor);
                 if (scr < 0) scrollOffset += scr;
-                if (scr >= 6) scrollOffset += (scr - 5);
-                if (scrollOffset > endIdx - 6) scrollOffset = endIdx - 6;
+                if (scr >= 7) scrollOffset += (scr - 6);
+                if (scrollOffset > endIdx - 7) scrollOffset = endIdx - 7;
                 if (scrollOffset < startIdx) scrollOffset = startIdx;
             } else if (mode == MODE_MAP) {
                 if (paramCount == 0) return;
@@ -215,8 +215,8 @@ namespace CTAG {
                 cursor = newCursor;
                 // auto-scroll
                 if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
-                if (scrollOffset > presetCount - 6) scrollOffset = presetCount - 6;
+                if (cursor - scrollOffset >= 7) scrollOffset = cursor - 6;
+                if (scrollOffset > presetCount - 7) scrollOffset = presetCount - 7;
                 if (scrollOffset < 0) scrollOffset = 0;
             }
             doRedraw();
@@ -400,16 +400,16 @@ namespace CTAG {
                 snprintf(buf, sizeof(buf), "Ch0:%.*s", 21, id0.c_str());
                 Display::DrawString(0, 5, buf, Display::FONT_5X7);
                 snprintf(buf, sizeof(buf), "Ch1:%.*s", 21, id1.c_str());
-                Display::DrawString(0, 14, buf, Display::FONT_5X7);
-                Display::DrawString(0, 23, "MAP", Display::FONT_5X7);
-                Display::DrawString(0, 32, "PRESETS", Display::FONT_5X7);
+                Display::DrawString(0, 13, buf, Display::FONT_5X7);
+                Display::DrawString(0, 21, "MAP", Display::FONT_5X7);
+                Display::DrawString(0, 29, "PRESETS", Display::FONT_5X7);
             } else {
                 Display::DrawString(0, 5, "EDIT", Display::FONT_5X7);
-                Display::DrawString(0, 14, "MAP", Display::FONT_5X7);
-                Display::DrawString(0, 23, "PSET", Display::FONT_5X7);
-                Display::DrawString(0, 32, "PRESETS", Display::FONT_5X7);
+                Display::DrawString(0, 13, "MAP", Display::FONT_5X7);
+                Display::DrawString(0, 21, "PSET", Display::FONT_5X7);
+                Display::DrawString(0, 29, "PRESETS", Display::FONT_5X7);
             }
-            Display::InvertRect(0, 5 + cursor * 9, 128, 8);
+            Display::InvertRect(0, 5 + cursor * 8, 128, 8);
             Display::Flush();
         }
 
@@ -421,19 +421,19 @@ namespace CTAG {
                 return;
             }
             int visible = groupCount - scrollOffset;
-            if (visible > 6) visible = 6;
+            if (visible > 7) visible = 7;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const GroupInfo &g = groups[idx];
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 char buf[32];
                 snprintf(buf, sizeof(buf), "%s (%d)", g.name, g.paramCount);
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 8;
             Display::InvertRect(0, cy, 128, 8);
-            if (groupCount > 6)
-                Display::DrawScrollbar(126, 5, 54, groupCount, cursor);
+            if (groupCount > 7)
+                Display::DrawScrollbar(126, 5, 56, groupCount, cursor);
             Display::Flush();
         }
 
@@ -447,15 +447,15 @@ namespace CTAG {
             int endIdx = groupEditEnd();
             int startIdx = (currentGroup >= 0) ? groups[currentGroup].firstParamIdx : 0;
             int count = endIdx - startIdx;
-            // visible range: scrollOffset to scrollOffset+5 (6 items)
+            // visible range: scrollOffset to scrollOffset+6 (7 items)
             int visible = count - (scrollOffset - startIdx);
-            if (visible > 6) visible = 6;
+            if (visible > 7) visible = 7;
 
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 if (idx >= endIdx) break;
                 const ParamInfo &pi = params[idx];
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 // name left
                 Display::DrawString(0, y, pi.name, Display::FONT_5X7);
                 // value right
@@ -470,11 +470,11 @@ namespace CTAG {
                 Display::DrawStringRight(127, y, valBuf, Display::FONT_5X7);
             }
             // highlight cursor row — full width
-            int cursorY = 5 + paramIndexToScreen(cursor) * 9;
+            int cursorY = 5 + paramIndexToScreen(cursor) * 8;
             Display::InvertRect(0, cursorY, 128, 8);
             // scrollbar
-            if (count > 6)
-                Display::DrawScrollbar(126, 5, 54, count, cursor - startIdx);
+            if (count > 7)
+                Display::DrawScrollbar(126, 5, 56, count, cursor - startIdx);
             Display::Flush();
         }
 
@@ -483,8 +483,8 @@ namespace CTAG {
             if (paramCount == 0) return;
             Display::DrawString(0, 5, "MAPPING", Display::FONT_5X7);
             const ParamInfo &pi = params[mapParamIdx];
-            Display::DrawString(0, 14, pi.name, Display::FONT_5X7);
-            Display::DrawString(0, 23, "---", Display::FONT_5X7);
+            Display::DrawString(0, 13, pi.name, Display::FONT_5X7);
+            Display::DrawString(0, 21, "---", Display::FONT_5X7);
             char buf[32];
             if (mapEditSlot < 0) {
                 snprintf(buf, sizeof(buf), "CV: None");
@@ -493,9 +493,9 @@ namespace CTAG {
             } else {
                 snprintf(buf, sizeof(buf), "CV: %d", mapEditSlot);
             }
-            Display::DrawString(0, 32, buf, Display::FONT_5X7);
-            Display::InvertRect(0, 32, 128, 8);
-            Display::DrawString(0, 41, "OK=save BACK=exit", Display::FONT_5X7);
+            Display::DrawString(0, 29, buf, Display::FONT_5X7);
+            Display::InvertRect(0, 29, 128, 8);
+            Display::DrawString(0, 37, "OK=save BACK=exit", Display::FONT_5X7);
             Display::Flush();
         }
 
@@ -507,19 +507,19 @@ namespace CTAG {
                 return;
             }
             int visible = presetCount - scrollOffset;
-            if (visible > 6) visible = 6;
+            if (visible > 7) visible = 7;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const PresetInfo &pi = presets[idx];
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 char buf[64];
                 snprintf(buf, sizeof(buf), "%s", pi.name);
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 9;
+            int cy = 5 + (cursor - scrollOffset) * 8;
             Display::InvertRect(0, cy, 128, 8);
-            if (presetCount > 6)
-                Display::DrawScrollbar(126, 5, 54, presetCount, cursor);
+            if (presetCount > 7)
+                Display::DrawScrollbar(126, 5, 56, presetCount, cursor);
             Display::Flush();
         }
     }

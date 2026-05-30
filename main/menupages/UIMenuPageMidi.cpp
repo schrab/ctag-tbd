@@ -50,9 +50,9 @@ namespace CTAG {
                 if (newCursor >= n) newCursor = (n > 0) ? n - 1 : 0;
                 cursor = newCursor;
                 if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 6) scrollOffset = cursor - 5;
+                if (cursor - scrollOffset >= 7) scrollOffset = cursor - 6;
                 if (scrollOffset < 0) scrollOffset = 0;
-                if (n > 0 && scrollOffset > n - 6) scrollOffset = n - 6;
+                if (n > 0 && scrollOffset > n - 7) scrollOffset = n - 7;
                 if (scrollOffset < 0) scrollOffset = 0;
             }
             doRedraw();
@@ -122,28 +122,28 @@ namespace CTAG {
             snprintf(buf, sizeof(buf), "SCAN%s",
                      BtMidiReceiver::IsScanning() ? " (running)" : "");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 9;
+            y += 8;
 
             snprintf(buf, sizeof(buf), "Disconnect%s",
                      BtMidiReceiver::IsConnected() ? "" : " (none)");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 9;
+            y += 8;
 
             snprintf(buf, sizeof(buf), "Status: %s",
                      BtMidiReceiver::IsConnected() ? "CONNECTED" : "IDLE");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 9;
+            y += 8;
 
             snprintf(buf, sizeof(buf), "UART In [%s]",
                      Midi::IsUartEnabled() ? "ON" : "OFF");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 9;
+            y += 8;
 
             snprintf(buf, sizeof(buf), "BLE  In [%s]",
                      Midi::IsBleEnabled() ? "ON" : "OFF");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
 
-            Display::InvertRect(0, 5 + cursor * 9, 128, 8);
+            Display::InvertRect(0, 5 + cursor * 8, 128, 8);
             Display::Flush();
         }
 
@@ -161,18 +161,18 @@ namespace CTAG {
                 Display::DrawString(0, 24, "No devices found", Display::FONT_5X7);
             } else {
                 int visible = n - scrollOffset;
-                if (visible > 6) visible = 6;
+                if (visible > 7) visible = 7;
                 for (int i = 0; i < visible; i++) {
                     int idx = scrollOffset + i;
                     const BtDeviceInfo *d = BtMidiReceiver::GetDevice(idx);
                     if (!d) continue;
-                    int y = 5 + i * 9;
+                    int y = 5 + i * 8;
                     Display::DrawString(0, y, d->name[0] ? d->name : "(unnamed)", Display::FONT_5X7);
                 }
-                int cy = 5 + (cursor - scrollOffset) * 9;
+                int cy = 5 + (cursor - scrollOffset) * 8;
                 Display::InvertRect(0, cy, 128, 8);
-                if (n > 6)
-                    Display::DrawScrollbar(126, 5, 54, n, cursor);
+                if (n > 7)
+                    Display::DrawScrollbar(126, 5, 56, n, cursor);
             }
 
             Display::Flush();

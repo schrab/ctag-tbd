@@ -165,7 +165,7 @@ namespace CTAG {
             Display::Clear();
             char buf[32];
             for (int i = 0; i < 3; i++) {
-                int y = 5 + i * 9;
+                int y = 5 + i * 8;
                 if (i == 0) {
                     float r = ModEngine::GetLFORate(0);
                     snprintf(buf, sizeof(buf), " LFO1: %s %.1fHz", shapeNames[ModEngine::GetLFOShape(0)], r);
@@ -177,7 +177,7 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + cursor * 9;
+            int cy = 5 + cursor * 8;
             Display::InvertRect(0, cy, 128, 8);
             Display::Flush();
         }
@@ -191,26 +191,26 @@ namespace CTAG {
 
             int s = ModEngine::GetLFOShape(lfo);
             snprintf(buf, sizeof(buf), " Shp:%s", shapeNames[s >= 0 && s < 5 ? s : 0]);
-            Display::DrawString(0, 14, buf, Display::FONT_5X7);
+            Display::DrawString(0, 13, buf, Display::FONT_5X7);
             if (editing && cursor == 0) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 14, 128 - x, 8);
+                Display::InvertRect(x, 13, 128 - x, 8);
             }
 
             float r = ModEngine::GetLFORate(lfo);
             snprintf(buf, sizeof(buf), " Rate:%.1fHz", r);
-            Display::DrawString(0, 23, buf, Display::FONT_5X7);
+            Display::DrawString(0, 21, buf, Display::FONT_5X7);
             if (editing && cursor == 1) {
                 int x = 6 * 6 + 1;
-                Display::InvertRect(x, 23, 128 - x, 8);
+                Display::InvertRect(x, 21, 128 - x, 8);
             }
 
             float a = ModEngine::GetLFOAmplitude(lfo);
             snprintf(buf, sizeof(buf), " Amp:%.2f", a);
-            Display::DrawString(0, 32, buf, Display::FONT_5X7);
+            Display::DrawString(0, 29, buf, Display::FONT_5X7);
             if (editing && cursor == 2) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 32, 128 - x, 8);
+                Display::InvertRect(x, 29, 128 - x, 8);
             }
 
             int cv = ModEngine::GetLFOCVSlot(lfo);
@@ -221,14 +221,14 @@ namespace CTAG {
             } else {
                 snprintf(buf, sizeof(buf), " Out:%d", cv);
             }
-            Display::DrawString(0, 41, buf, Display::FONT_5X7);
+            Display::DrawString(0, 37, buf, Display::FONT_5X7);
             if (editing && cursor == 3) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 41, 128 - x, 8);
+                Display::InvertRect(x, 37, 128 - x, 8);
             }
 
             if (!editing) {
-                int cy = 14 + cursor * 9;
+                int cy = 13 + cursor * 8;
                 Display::InvertRect(0, cy, 128, 8);
             }
             Display::Flush();
@@ -237,12 +237,12 @@ namespace CTAG {
         void UIMenuPageMod::redrawCCSlots() {
             Display::Clear();
             Display::DrawString(0, 5, "CC Slots", Display::FONT_5X7);
-            int scrollOff = (cursor > 4) ? cursor - 4 : 0;
-            int visible = 8 - scrollOff;
-            if (visible > 5) visible = 5;
+            int scrollOff = (cursor > 5) ? cursor - 5 : 0;
+            int visible = 10 - scrollOff;
+            if (visible > 6) visible = 6;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOff + i;
-                int y = 14 + i * 9;
+                int y = 13 + i * 8;
                 int cc = ModEngine::GetDynamicSlotCC(idx);
                 int ch = ModEngine::GetDynamicSlotChan(idx);
                 char buf[48];
@@ -253,10 +253,10 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 14 + (cursor - scrollOff) * 9;
+            int cy = 13 + (cursor - scrollOff) * 8;
             Display::InvertRect(0, cy, 128, 8);
-            if (8 > 5)
-                Display::DrawScrollbar(126, 14, 45, 8, cursor);
+            if (8 > 6)
+                Display::DrawScrollbar(126, 13, 46, 8, cursor);
             Display::Flush();
         }
 
@@ -272,26 +272,26 @@ namespace CTAG {
             } else {
                 snprintf(buf, sizeof(buf), " CC: %d", cc);
             }
-            Display::DrawString(0, 14, buf, Display::FONT_5X7);
+            Display::DrawString(0, 13, buf, Display::FONT_5X7);
             if (editing && cursor == 0) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 14, 128 - x, 8);
+                Display::InvertRect(x, 13, 128 - x, 8);
             }
 
             int ch = ModEngine::GetDynamicSlotChan(ccEditSlot);
             snprintf(buf, sizeof(buf), " Chan: %d", ch);
-            Display::DrawString(0, 23, buf, Display::FONT_5X7);
+            Display::DrawString(0, 21, buf, Display::FONT_5X7);
             if (editing && cursor == 1) {
                 int x = 6 * 6 + 1;
-                Display::InvertRect(x, 23, 128 - x, 8);
+                Display::InvertRect(x, 21, 128 - x, 8);
             }
 
             const char* learnStatus = ModEngine::IsLearning() ? "StopLearn" : "Learn";
             snprintf(buf, sizeof(buf), " [%s]", learnStatus);
-            Display::DrawString(0, 32, buf, Display::FONT_5X7);
+            Display::DrawString(0, 29, buf, Display::FONT_5X7);
 
             if (!editing) {
-                int cy = 14 + cursor * 9;
+                int cy = 13 + cursor * 8;
                 Display::InvertRect(0, cy, 128, 8);
             }
             Display::Flush();
