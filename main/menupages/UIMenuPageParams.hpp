@@ -44,18 +44,29 @@ namespace CTAG {
                 int current;
             };
 
+            struct GroupInfo {
+                char name[24];
+                int firstParamIdx;
+                int paramCount;
+            };
+
             struct PresetInfo {
                 char name[24];
                 int number;
             };
 
-            enum Mode { MODE_SELECT, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_VALUEEDIT, MODE_MAPEDIT, MODE_PRESETS };
+            enum Mode { MODE_SELECT, MODE_GROUP, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_VALUEEDIT, MODE_MAPEDIT, MODE_PRESETS };
             int cursor;
             int scrollOffset;
             Mode mode;
             int paramCount;
-            static const int MAX_PARAMS = 64;
-            ParamInfo params[MAX_PARAMS];
+            static const int MAX_PARAMS = 256;
+            ParamInfo *params;
+
+            int groupCount;
+            int currentGroup;
+            static const int MAX_GROUPS = 32;
+            GroupInfo *groups;
 
             static const int MAX_PRESETS = 64;
             PresetInfo presets[MAX_PRESETS];
@@ -65,9 +76,11 @@ namespace CTAG {
             void parseParams();
             void parsePresets(int chan);
             void redrawSelect();
+            void redrawGroup();
             void redrawEdit();
             void redrawPresets();
             int paramIndexToScreen(int idx) const;
+            int groupEditEnd() const;
         };
     }
 }

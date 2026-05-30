@@ -23,6 +23,7 @@ respective component folders / files if different from this license.
 #include "Display.hpp"
 #include "SPManager.hpp"
 #include "rapidjson/document.h"
+#include "esp_heap_caps.h"
 #include <cstring>
 #include <cstdlib>
 
@@ -33,19 +34,30 @@ using namespace rapidjson;
 namespace CTAG {
     namespace CTRL {
         void UIMenuPageParams::init() {
+            if (!params) {
+                params = (ParamInfo*)heap_caps_malloc(MAX_PARAMS * sizeof(ParamInfo), MALLOC_CAP_SPIRAM);
+                groups = (GroupInfo*)heap_caps_malloc(MAX_GROUPS * sizeof(GroupInfo), MALLOC_CAP_SPIRAM);
+            }
             cursor = 0;
             scrollOffset = 0;
             mode = MODE_SELECT;
             paramCount = 0;
+            groupCount = 0;
+            currentGroup = -1;
             presetCount = 0;
             presetChan = 0;
             parseParams();
         }
 
-        void UIMenuPageParams::deinit() {}
+        void UIMenuPageParams::deinit() {
+            if (params) { heap_caps_free(params); params = nullptr; }
+            if (groups) { heap_caps_free(groups); groups = nullptr; }
+        }
 
         void UIMenuPageParams::parseParams() {
             paramCount = 0;
+            groupCount = 0;
+            currentGroup = -1;
             const char *json = SoundProcessorManager::GetCStrJSONActivePluginParams(0);
             if (!json) return;
 
@@ -54,9 +66,13 @@ namespace CTAG {
             if (!doc.HasMember("params") || !doc["params"].IsArray()) return;
 
             const Value &arr = doc["params"];
+
+            // First pass: standalone leaf params (not in groups)
+            int standaloneStart = paramCount;
             for (SizeType i = 0; i < arr.Size() && paramCount < MAX_PARAMS; i++) {
                 const Value &p = arr[i];
                 if (!p.HasMember("id") || !p.HasMember("name") || !p.HasMember("type")) continue;
+                if (strcmp(p["type"].GetString(), "group") == 0) continue;
                 ParamInfo &pi = params[paramCount];
                 snprintf(pi.id, sizeof(pi.id), "%s", p["id"].GetString());
                 snprintf(pi.name, sizeof(pi.name), "%s", p["name"].GetString());
@@ -64,9 +80,44 @@ namespace CTAG {
                 pi.min = p.HasMember("min") ? p["min"].GetInt() : 0;
                 pi.max = p.HasMember("max") ? p["max"].GetInt() : 1;
                 pi.current = p.HasMember("current") ? p["current"].GetInt() : 0;
-                // skip groups for now — treat as single item
-                if (strcmp(pi.type, "group") == 0) continue;
                 paramCount++;
+            }
+            int standaloneCount = paramCount - standaloneStart;
+            if (standaloneCount > 0 && groupCount < MAX_GROUPS) {
+                GroupInfo &g = groups[groupCount++];
+                snprintf(g.name, sizeof(g.name), "General");
+                g.firstParamIdx = standaloneStart;
+                g.paramCount = standaloneCount;
+            }
+
+            // Second pass: recurse into groups
+            for (SizeType i = 0; i < arr.Size(); i++) {
+                const Value &p = arr[i];
+                if (!p.HasMember("type") || strcmp(p["type"].GetString(), "group") != 0) continue;
+                if (!p.HasMember("params") || !p["params"].IsArray()) continue;
+                if (groupCount >= MAX_GROUPS) break;
+
+                GroupInfo &g = groups[groupCount];
+                snprintf(g.name, sizeof(g.name), "%s", p["name"].GetString());
+                g.firstParamIdx = paramCount;
+
+                const Value &garr = p["params"];
+                int count = 0;
+                for (SizeType j = 0; j < garr.Size() && paramCount < MAX_PARAMS; j++) {
+                    const Value &leaf = garr[j];
+                    if (!leaf.HasMember("id") || !leaf.HasMember("name") || !leaf.HasMember("type")) continue;
+                    ParamInfo &pi = params[paramCount];
+                    snprintf(pi.id, sizeof(pi.id), "%s", leaf["id"].GetString());
+                    snprintf(pi.name, sizeof(pi.name), "%s", leaf["name"].GetString());
+                    snprintf(pi.type, sizeof(pi.type), "%s", leaf["type"].GetString());
+                    pi.min = leaf.HasMember("min") ? leaf["min"].GetInt() : 0;
+                    pi.max = leaf.HasMember("max") ? leaf["max"].GetInt() : 1;
+                    pi.current = leaf.HasMember("current") ? leaf["current"].GetInt() : 0;
+                    paramCount++;
+                    count++;
+                }
+                g.paramCount = count;
+                groupCount++;
             }
         }
 
@@ -95,24 +146,43 @@ namespace CTAG {
             return idx - scrollOffset;
         }
 
+        int UIMenuPageParams::groupEditEnd() const {
+            return (currentGroup >= 0)
+                ? groups[currentGroup].firstParamIdx + groups[currentGroup].paramCount
+                : paramCount;
+        }
+
         void UIMenuPageParams::onEncoder(int delta) {
             if (mode == MODE_SELECT) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
                 if (cursor > 3) cursor = 3;
-            } else if (mode == MODE_EDIT) {
-                if (paramCount == 0) return;
+            } else if (mode == MODE_GROUP) {
+                if (groupCount == 0) return;
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
-                if (newCursor >= paramCount) newCursor = paramCount - 1;
+                if (newCursor >= groupCount) newCursor = groupCount - 1;
+                cursor = newCursor;
+                int scr = cursor - scrollOffset;
+                if (scr < 0) scrollOffset += scr;
+                if (scr >= 6) scrollOffset += (scr - 5);
+                if (scrollOffset > groupCount - 6) scrollOffset = groupCount - 6;
+                if (scrollOffset < 0) scrollOffset = 0;
+            } else if (mode == MODE_EDIT) {
+                if (paramCount == 0) return;
+                int endIdx = groupEditEnd();
+                int newCursor = cursor + delta;
+                int startIdx = (currentGroup >= 0) ? groups[currentGroup].firstParamIdx : 0;
+                if (newCursor < startIdx) newCursor = startIdx;
+                if (newCursor >= endIdx) newCursor = endIdx - 1;
                 cursor = newCursor;
 
                 // auto-scroll
                 int scr = paramIndexToScreen(cursor);
                 if (scr < 0) scrollOffset += scr;
                 if (scr >= 6) scrollOffset += (scr - 5);
-                if (scrollOffset > paramCount - 6) scrollOffset = paramCount - 6;
-                if (scrollOffset < 0) scrollOffset = 0;
+                if (scrollOffset > endIdx - 6) scrollOffset = endIdx - 6;
+                if (scrollOffset < startIdx) scrollOffset = startIdx;
             } else if (mode == MODE_VALUEEDIT) {
                 if (paramCount == 0 || cursor >= paramCount) return;
                 ParamInfo &pi = params[cursor];
@@ -140,7 +210,18 @@ namespace CTAG {
             if (mode == MODE_SELECT) {
                 if (btnId == 2 && !longPress) {
                     // enter sub-mode
-                    if (cursor == 0) { mode = MODE_EDIT; cursor = 0; scrollOffset = 0; }
+                    if (cursor == 0) {
+                        if (groupCount > 0 && paramCount > 0) {
+                            mode = MODE_GROUP;
+                            cursor = 0;
+                            scrollOffset = 0;
+                        } else {
+                            mode = MODE_EDIT;
+                            cursor = 0;
+                            scrollOffset = 0;
+                            currentGroup = -1;
+                        }
+                    }
                     else if (cursor == 1) { mode = MODE_MAP; }
                     else if (cursor == 2) { mode = MODE_PSET; }
                     else if (cursor == 3) {
@@ -149,6 +230,13 @@ namespace CTAG {
                         scrollOffset = 0;
                         parsePresets(0);
                     }
+                }
+            } else if (mode == MODE_GROUP) {
+                if (btnId == 2 && !longPress && groupCount > 0) {
+                    currentGroup = cursor;
+                    cursor = groups[currentGroup].firstParamIdx;
+                    scrollOffset = groups[currentGroup].firstParamIdx;
+                    mode = MODE_EDIT;
                 }
             } else if (mode == MODE_EDIT) {
                 if (btnId == 2 && !longPress && paramCount > 0) {
@@ -190,6 +278,19 @@ namespace CTAG {
                 return true;
             }
             if (mode == MODE_EDIT) {
+                if (currentGroup >= 0) {
+                    mode = MODE_GROUP;
+                    cursor = currentGroup;
+                    scrollOffset = 0;
+                    currentGroup = -1;
+                } else {
+                    mode = MODE_SELECT;
+                    cursor = 0;
+                }
+                doRedraw();
+                return true;
+            }
+            if (mode == MODE_GROUP) {
                 mode = MODE_SELECT;
                 cursor = 0;
                 doRedraw();
@@ -213,6 +314,8 @@ namespace CTAG {
         void UIMenuPageParams::doRedraw() {
             if (mode == MODE_SELECT) {
                 redrawSelect();
+            } else if (mode == MODE_GROUP) {
+                redrawGroup();
             } else if (mode == MODE_EDIT) {
                 redrawEdit();
             } else if (mode == MODE_VALUEEDIT) {
@@ -237,6 +340,30 @@ namespace CTAG {
             Display::Flush();
         }
 
+        void UIMenuPageParams::redrawGroup() {
+            Display::Clear();
+            if (groupCount == 0) {
+                Display::DrawString(0, 24, "No groups", Display::FONT_5X7);
+                Display::Flush();
+                return;
+            }
+            int visible = groupCount - scrollOffset;
+            if (visible > 6) visible = 6;
+            for (int i = 0; i < visible; i++) {
+                int idx = scrollOffset + i;
+                const GroupInfo &g = groups[idx];
+                int y = 5 + i * 9;
+                char buf[32];
+                snprintf(buf, sizeof(buf), "%s (%d)", g.name, g.paramCount);
+                Display::DrawString(0, y, buf, Display::FONT_5X7);
+            }
+            int cy = 5 + (cursor - scrollOffset) * 9;
+            Display::InvertRect(0, cy, 128, 8);
+            if (groupCount > 6)
+                Display::DrawScrollbar(126, 5, 54, groupCount, cursor);
+            Display::Flush();
+        }
+
         void UIMenuPageParams::redrawEdit() {
             Display::Clear();
             if (paramCount == 0) {
@@ -244,12 +371,16 @@ namespace CTAG {
                 Display::Flush();
                 return;
             }
+            int endIdx = groupEditEnd();
+            int startIdx = (currentGroup >= 0) ? groups[currentGroup].firstParamIdx : 0;
+            int count = endIdx - startIdx;
             // visible range: scrollOffset to scrollOffset+5 (6 items)
-            int visible = paramCount - scrollOffset;
+            int visible = count - (scrollOffset - startIdx);
             if (visible > 6) visible = 6;
 
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
+                if (idx >= endIdx) break;
                 const ParamInfo &pi = params[idx];
                 int y = 5 + i * 9;
                 // name left
@@ -269,8 +400,8 @@ namespace CTAG {
             int cursorY = 5 + paramIndexToScreen(cursor) * 9;
             Display::InvertRect(0, cursorY, 128, 8);
             // scrollbar
-            if (paramCount > 6)
-                Display::DrawScrollbar(126, 5, 54, paramCount, cursor);
+            if (count > 6)
+                Display::DrawScrollbar(126, 5, 54, count, cursor - startIdx);
             Display::Flush();
         }
 
