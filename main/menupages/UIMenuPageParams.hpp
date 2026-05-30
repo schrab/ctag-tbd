@@ -77,6 +77,9 @@ namespace CTAG {
             int mapParamIdx;
             int mapEditSlot;
 
+            int chan;
+            bool hasDualCh;
+
             void parseParams();
             void parsePresets(int chan);
             void redrawSelect();

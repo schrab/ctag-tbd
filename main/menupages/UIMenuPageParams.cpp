@@ -49,6 +49,10 @@ namespace CTAG {
             mapEditSlot = -1;
             presetCount = 0;
             presetChan = 0;
+            chan = 0;
+            string id0 = SoundProcessorManager::GetStringID(0);
+            string id1 = SoundProcessorManager::GetStringID(1);
+            hasDualCh = (!id0.empty() && !id1.empty() && id0 != id1);
             parseParams();
         }
 
@@ -61,7 +65,7 @@ namespace CTAG {
             paramCount = 0;
             groupCount = 0;
             currentGroup = -1;
-            const char *json = SoundProcessorManager::GetCStrJSONActivePluginParams(0);
+            const char *json = SoundProcessorManager::GetCStrJSONActivePluginParams(chan);
             if (!json) return;
 
             Document doc;
@@ -201,7 +205,7 @@ namespace CTAG {
                 if (val < pi.min) val = pi.min;
                 if (val > pi.max) val = pi.max;
                 pi.current = val;
-                SoundProcessorManager::SetChannelParamValue(0, pi.id, "current", val);
+                SoundProcessorManager::SetChannelParamValue(chan, pi.id, "current", val);
             } else if (mode == MODE_PRESETS) {
                 if (presetCount == 0) return;
                 int newCursor = cursor + delta;
@@ -222,6 +226,8 @@ namespace CTAG {
                 if (btnId == 2 && !longPress) {
                     // enter sub-mode
                     if (cursor == 0) {
+                        chan = (hasDualCh ? 0 : 0);
+                        parseParams();
                         if (groupCount > 0 && paramCount > 0) {
                             mode = MODE_GROUP;
                             cursor = 0;
@@ -233,13 +239,30 @@ namespace CTAG {
                             currentGroup = -1;
                         }
                     }
-                    else if (cursor == 1) { mode = MODE_MAP; }
+                    else if (cursor == 1) {
+                        if (hasDualCh) {
+                            chan = 1;
+                            parseParams();
+                            if (groupCount > 0 && paramCount > 0) {
+                                mode = MODE_GROUP;
+                                cursor = 0;
+                                scrollOffset = 0;
+                            } else {
+                                mode = MODE_EDIT;
+                                cursor = 0;
+                                scrollOffset = 0;
+                                currentGroup = -1;
+                            }
+                        } else {
+                            mode = MODE_MAP;
+                        }
+                    }
                     else if (cursor == 2) { mode = MODE_PSET; }
                     else if (cursor == 3) {
                         mode = MODE_PRESETS;
                         cursor = 0;
                         scrollOffset = 0;
-                        parsePresets(0);
+                        parsePresets(chan);
                     }
                 }
             } else if (mode == MODE_GROUP) {
@@ -262,7 +285,7 @@ namespace CTAG {
             } else if (mode == MODE_MAP) {
                 if (btnId == 2 && !longPress) {
                     params[mapParamIdx].cv = mapEditSlot;
-                    SoundProcessorManager::SetChannelParamValue(0, params[mapParamIdx].id, "cv", mapEditSlot);
+                    SoundProcessorManager::SetChannelParamValue(chan, params[mapParamIdx].id, "cv", mapEditSlot);
                     mode = MODE_EDIT;
                 }
             } else if (mode == MODE_VALUEEDIT) {
@@ -359,10 +382,22 @@ namespace CTAG {
 
         void UIMenuPageParams::redrawSelect() {
             Display::Clear();
-            Display::DrawString(0, 5, "EDIT", Display::FONT_5X7);
-            Display::DrawString(0, 14, "MAP", Display::FONT_5X7);
-            Display::DrawString(0, 23, "PSET", Display::FONT_5X7);
-            Display::DrawString(0, 32, "PRESETS", Display::FONT_5X7);
+            if (hasDualCh) {
+                string id0 = SoundProcessorManager::GetStringID(0);
+                string id1 = SoundProcessorManager::GetStringID(1);
+                char buf[26];
+                snprintf(buf, sizeof(buf), "Ch0:%.*s", 21, id0.c_str());
+                Display::DrawString(0, 5, buf, Display::FONT_5X7);
+                snprintf(buf, sizeof(buf), "Ch1:%.*s", 21, id1.c_str());
+                Display::DrawString(0, 14, buf, Display::FONT_5X7);
+                Display::DrawString(0, 23, "MAP", Display::FONT_5X7);
+                Display::DrawString(0, 32, "PRESETS", Display::FONT_5X7);
+            } else {
+                Display::DrawString(0, 5, "EDIT", Display::FONT_5X7);
+                Display::DrawString(0, 14, "MAP", Display::FONT_5X7);
+                Display::DrawString(0, 23, "PSET", Display::FONT_5X7);
+                Display::DrawString(0, 32, "PRESETS", Display::FONT_5X7);
+            }
             Display::InvertRect(0, 5 + cursor * 9, 128, 8);
             Display::Flush();
         }
