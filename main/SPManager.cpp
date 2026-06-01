@@ -92,6 +92,10 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 
     SP::ProcessData pd;
     pd.buf = fbuf;
+    float defaultCv[N_CVS] = {0.f};
+    uint8_t defaultTrig[N_TRIGS] = {0};
+    pd.cv = defaultCv;
+    pd.trig = defaultTrig;
 
     // generate linear ramp ]0,1[ squared
     for (uint32_t i = 0; i < BUF_SZ; i++) {
@@ -100,12 +104,7 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     }
 
     while (runAudioTask) {
-
-        // update data from ADCs and GPIOs for real-time control
-        CTAG::CTRL::Control::Update(&pd.trig, &pd.cv);
-
-        // run modulation engine at block rate
-        DRIVERS::ModEngine::Process(pd.cv);
+        // no CV/trigger hardware on BBA, defaults are all zeros
 
         // get normalized raw data from CODEC
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);
@@ -557,31 +556,31 @@ void SoundProcessorManager::updateConfiguration() {
     }
 
     // input source
-    string inSrc = model->GetConfigurationData("input_source");
-    if (inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
-    else if (inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
-    else if (inSrc == "line1_diff") DRIVERS::Codec::SetInputSource(2);
-    else if (inSrc == "line2_diff") DRIVERS::Codec::SetInputSource(3);
+    //string inSrc = model->GetConfigurationData("input_source");
+    //if (inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
+    //else if (inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
+    //else if (inSrc == "line1_diff") DRIVERS::Codec::SetInputSource(2);
+    //else if (inSrc == "line2_diff") DRIVERS::Codec::SetInputSource(3);
 
     // input gain
-    string inGain = model->GetConfigurationData("input_gain");
-    if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
+    //string inGain = model->GetConfigurationData("input_gain");
+    //if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
 
     // output source
-    string outSrc = model->GetConfigurationData("output_source");
-    if (outSrc == "headphones" || outSrc == "hp") DRIVERS::Codec::SetOutputSource(0);
-    else if (outSrc == "amp")   DRIVERS::Codec::SetOutputSource(1);
-    else if (outSrc == "all")   DRIVERS::Codec::SetOutputSource(2);
+    //string outSrc = model->GetConfigurationData("output_source");
+    //if (outSrc == "headphones" || outSrc == "hp") DRIVERS::Codec::SetOutputSource(0);
+    //else if (outSrc == "amp")   DRIVERS::Codec::SetOutputSource(1);
+    //else if (outSrc == "all")   DRIVERS::Codec::SetOutputSource(2);
 
     // mixer mode
-    string mixMode = model->GetConfigurationData("mixer_mode");
-    if (mixMode == "dac")    DRIVERS::Codec::SetMixerMode(0);
-    else if (mixMode == "bypass") DRIVERS::Codec::SetMixerMode(1);
-    else if (mixMode == "mix")    DRIVERS::Codec::SetMixerMode(2);
+    //string mixMode = model->GetConfigurationData("mixer_mode");
+    //if (mixMode == "dac")    DRIVERS::Codec::SetMixerMode(0);
+    //else if (mixMode == "bypass") DRIVERS::Codec::SetMixerMode(1);
+    //else if (mixMode == "mix")    DRIVERS::Codec::SetMixerMode(2);
 
     // OLED brightness
-    string oledBr = model->GetConfigurationData("oled_brightness");
-    if (!oledBr.empty()) DRIVERS::Display::Contrast(std::stoi(oledBr));
+    //string oledBr = model->GetConfigurationData("oled_brightness");
+    //if (!oledBr.empty()) DRIVERS::Display::Contrast(std::stoi(oledBr));
 }
 
 void SoundProcessorManager::led_task(void *pvParams) {
