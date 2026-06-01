@@ -48,9 +48,20 @@ namespace CTAG {
             uint32_t lastTs = 0;
             uint32_t pressTs = 0;
             bool wasPressed = false;
+            uint32_t lastShortTs = 0;
+            bool pendingShort = false;
 
             while (true) {
                 uint32_t now = xTaskGetTickCount();
+
+                // check pending short press timeout -> single click
+                if (pendingShort && (now - lastShortTs) >= pdMS_TO_TICKS(300)) {
+                    pendingShort = false;
+                    InputEvent ev;
+                    ev.type = InputEvent::BTN1_SHORT;
+                    ev.delta = 0;
+                    xQueueSend(evQueue, &ev, 0);
+                }
 
                 // read encoder
                 int delta = enc.ReadDelta();
@@ -71,15 +82,22 @@ namespace CTAG {
                 } else if (!pressed && wasPressed) {
                     uint32_t held = now - pressTs;
                     if (held >= pdMS_TO_TICKS(LONG_PRESS_MS)) {
+                        pendingShort = false;
                         InputEvent ev;
                         ev.type = InputEvent::BTN1_LONG;
                         ev.delta = 0;
                         xQueueSend(evQueue, &ev, 0);
                     } else if (held >= pdMS_TO_TICKS(DEBOUNCE_MS)) {
-                        InputEvent ev;
-                        ev.type = InputEvent::BTN1_SHORT;
-                        ev.delta = 0;
-                        xQueueSend(evQueue, &ev, 0);
+                        if (pendingShort && (now - lastShortTs) < pdMS_TO_TICKS(300)) {
+                            pendingShort = false;
+                            InputEvent ev;
+                            ev.type = InputEvent::BTN1_DOUBLE;
+                            ev.delta = 0;
+                            xQueueSend(evQueue, &ev, 0);
+                        } else {
+                            pendingShort = true;
+                            lastShortTs = now;
+                        }
                     }
                     lastTs = now;
                     wasPressed = false;

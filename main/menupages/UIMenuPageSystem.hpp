@@ -57,7 +57,7 @@ namespace CTAG {
 
             void parseConfig();
             void redrawMain();
-            void applyCurrent(bool includeDeferred = true);
+            void applyCurrent(bool includeDeferred = true, bool skipNonDeferred = false);
         };
     }
 }

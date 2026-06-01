@@ -548,23 +548,25 @@ void SoundProcessorManager::updateConfiguration() {
 
     // input source
     string inSrc = model->GetConfigurationData("input_source");
-    if (inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
-    else if (inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
-    else if (inSrc == "line1_diff") DRIVERS::Codec::SetInputSource(2);
-    else if (inSrc == "line2_diff") DRIVERS::Codec::SetInputSource(3);
+    ESP_LOGI("SPM", "inSrc='%s'", inSrc.c_str());
+    if (inSrc == "mic" || inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
+    else if (inSrc == "line" || inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
 
     // input gain
     string inGain = model->GetConfigurationData("input_gain");
+    ESP_LOGI("SPM", "inGain='%s'", inGain.c_str());
     if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
 
     // output source
     string outSrc = model->GetConfigurationData("output_source");
+    ESP_LOGI("SPM", "outSrc='%s'", outSrc.c_str());
     if (outSrc == "headphones" || outSrc == "hp") DRIVERS::Codec::SetOutputSource(0);
     else if (outSrc == "amp")   DRIVERS::Codec::SetOutputSource(1);
     else if (outSrc == "all")   DRIVERS::Codec::SetOutputSource(2);
 
     // mixer mode
     string mixMode = model->GetConfigurationData("mixer_mode");
+    ESP_LOGI("SPM", "mixMode='%s'", mixMode.c_str());
     if (mixMode == "dac")    DRIVERS::Codec::SetMixerMode(0);
     else if (mixMode == "bypass") DRIVERS::Codec::SetMixerMode(1);
     else if (mixMode == "mix")    DRIVERS::Codec::SetMixerMode(2);

@@ -231,9 +231,9 @@ bool es8388::outputSelect(outsel_t _sel) {
     if (_sel == OUTALL)
         res &= write_reg(ES8388_DACPOWER, 0x3C);
     else if (_sel == OUT1)
-        res &= write_reg(ES8388_DACPOWER, 0x30);
-    else if (_sel == OUT2)
         res &= write_reg(ES8388_DACPOWER, 0x0C);
+    else if (_sel == OUT2)
+        res &= write_reg(ES8388_DACPOWER, 0x30);
     _outSel = _sel;
     return res;
 }

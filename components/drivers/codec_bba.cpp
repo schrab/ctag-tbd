@@ -132,8 +132,21 @@ void Codec::SetOutputSource(int sel) {
 
 void Codec::SetMixerMode(int mode) {
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
-    static const mixercontrol_t map[] = {DACOUT, SRCSELOUT, MIXALL};
-    if (mode >= 0 && mode <= 2) codec.mixerSourceControl(map[mode]);
+    static const char *names[] = {"DAC", "BYPASS", "MIX"};
+    if (mode >= 0 && mode <= 2) {
+        ESP_LOGI("BBA Codec", "SetMixerMode(%d) -> %s", mode, names[mode]);
+        if (mode == 0) {
+            codec.analogBypass(false);
+        } else if (mode == 1) {
+            codec.analogBypass(true);
+        } else if (mode == 2) {
+            codec.analogBypass(true);
+            codec.mixerSourceControl(true, true, 2, true, true, 2);
+        }
+        uint8_t *regs = codec.readAllReg();
+        ESP_LOGI("BBA Codec", "  reg[0x26]=0x%02X reg[0x27]=0x%02X reg[0x2A]=0x%02X",
+                 regs[0x26], regs[0x27], regs[0x2A]);
+    }
 #endif
 }
 

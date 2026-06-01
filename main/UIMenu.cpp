@@ -98,22 +98,10 @@ namespace CTAG {
         void UIMenu::TaskFunction(void *) {
             ESP_LOGI(TAG, "TaskFunction: starting main loop");
             UserInput::Init();
-            uint32_t lastBtn1Time = 0;
-            bool pendingBtn1Action = false;
             while (1) {
                 InputEvent ev;
                 bool gotEv = UserInput::GetEvent(ev, 20);
                 uint32_t now = xTaskGetTickCount();
-
-                // check pending double-click timeout
-                if (pendingBtn1Action && (now - lastBtn1Time) >= pdMS_TO_TICKS(300)) {
-                    pendingBtn1Action = false;
-                    if (!pages[currentPanel]->onBack()) {
-                        navState = ROOT;
-                        redrawNeeded = true;
-                        panelBarTimer = 50;
-                    }
-                }
 
                 if (gotEv) {
                     if (displayState == ASLEEP) {
@@ -145,19 +133,16 @@ namespace CTAG {
                         } else {
                             if (ev.type == InputEvent::ENC_DELTA) {
                                 pages[currentPanel]->onEncoder(ev.delta);
-                            } else if (ev.type == InputEvent::BTN1_DOUBLE) {
-                                pages[currentPanel]->onButton(2, false);
                             } else if (ev.type == InputEvent::BTN1_SHORT) {
-                                if (pendingBtn1Action && (now - lastBtn1Time) < pdMS_TO_TICKS(300)) {
-                                    pendingBtn1Action = false;
-                                    pages[currentPanel]->onButton(2, false);
-                                } else {
-                                    pendingBtn1Action = true;
-                                    lastBtn1Time = now;
-                                }
+                                pages[currentPanel]->onButton(2, false);
                             } else if (ev.type == InputEvent::BTN1_LONG) {
-                                pendingBtn1Action = false;
-                                pages[currentPanel]->onButton(1, true);
+                                pages[currentPanel]->onButton(2, true);
+                            } else if (ev.type == InputEvent::BTN1_DOUBLE) {
+                                if (!pages[currentPanel]->onBack()) {
+                                    navState = ROOT;
+                                    redrawNeeded = true;
+                                    panelBarTimer = 50;
+                                }
                             }
                         }
                     }

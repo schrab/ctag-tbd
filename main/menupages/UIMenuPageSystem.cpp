@@ -190,12 +190,12 @@ namespace CTAG {
                 snprintf(it.id, sizeof(it.id), "input_source");
                 snprintf(it.name, sizeof(it.name), "Input Source");
                 snprintf(it.type, sizeof(it.type), "enum");
-                snprintf(it.options, sizeof(it.options), "line1,line2,line1_diff,line2_diff");
-                it.min = 0; it.max = 3; it.valInt = 1; it.deferred = true;
+                snprintf(it.options, sizeof(it.options), "mic,line");
+                it.min = 0; it.max = 1; it.valInt = 0; it.deferred = true;
                 if (doc.HasMember("input_source") && doc["input_source"].IsString()) {
                     snprintf(it.value, sizeof(it.value), "%s", doc["input_source"].GetString());
-                    const char *opts[] = {"line1","line2","line1_diff","line2_diff"};
-                    for (int j = 0; j < 4; j++) {
+                    const char *opts[] = {"mic","line"};
+                    for (int j = 0; j < 2; j++) {
                         if (strcmp(it.value, opts[j]) == 0) { it.valInt = j; break; }
                     }
                 }
@@ -269,7 +269,7 @@ namespace CTAG {
             }
         }
 
-        void UIMenuPageSystem::applyCurrent(bool includeDeferred) {
+        void UIMenuPageSystem::applyCurrent(bool includeDeferred, bool skipNonDeferred) {
             // Read the full existing config, overlay only our managed keys
             const char *fullJson = SoundProcessorManager::GetCStrJSONConfiguration();
             if (!fullJson) return;
@@ -280,20 +280,26 @@ namespace CTAG {
             for (int i = 0; i < itemCount; i++) {
                 const ConfigItem &it = items[i];
                 if (it.deferred && !includeDeferred) continue;
-                Value key(it.id, doc.GetAllocator());
+                if (!it.deferred && skipNonDeferred) continue;
                 char valStr[16];
                 if (strcmp(it.type, "int") == 0) {
                     snprintf(valStr, sizeof(valStr), "%d", it.valInt);
-                    Value v(valStr, doc.GetAllocator());
-                    doc[it.id].Swap(v);
                 } else {
                     char optCopy[64];
                     snprintf(optCopy, sizeof(optCopy), "%s", it.options);
                     char *p = strtok(optCopy, ",");
                     int idx = it.valInt;
                     while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
-                    Value v(p ? p : "off", doc.GetAllocator());
+                    snprintf(valStr, sizeof(valStr), "%s", p ? p : "off");
+                }
+                ESP_LOGI("SYS", "apply: id=%s deferred=%d valStr=%s HasMember=%d",
+                         it.id, it.deferred, valStr, doc.HasMember(it.id));
+                Value v(valStr, doc.GetAllocator());
+                if (doc.HasMember(it.id)) {
                     doc[it.id].Swap(v);
+                } else {
+                    Value key(it.id, doc.GetAllocator());
+                    doc.AddMember(key, v, doc.GetAllocator());
                 }
             }
 
@@ -326,7 +332,7 @@ namespace CTAG {
                     snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
                 }
                 // real-time items applied immediately; deferred items wait for OK/BACK
-                applyCurrent(false);
+                if (!it.deferred) applyCurrent(false);
             } else {
                 int nc = cursor + delta;
                 if (nc < 0) nc = 0;
@@ -341,7 +347,13 @@ namespace CTAG {
             if (btnId == 2 && !longPress && itemCount > 0) {
                 bool wasEditing = editMode;
                 editMode = !editMode;
-                if (wasEditing) applyCurrent();
+                if (wasEditing) {
+                    if (cursor < itemCount) {
+                        const ConfigItem &it = items[cursor];
+                        ESP_LOGI("SYS", "OK apply: id=%s valInt=%d val=%s", it.id, it.valInt, it.value);
+                    }
+                    applyCurrent(true, true);
+                }
             }
             doRedraw();
         }
@@ -349,7 +361,7 @@ namespace CTAG {
         bool UIMenuPageSystem::onBack() {
             if (editMode) {
                 editMode = false;
-                applyCurrent();
+                applyCurrent(true, true);
                 doRedraw();
                 return true;
             }

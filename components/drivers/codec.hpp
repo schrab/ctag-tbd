@@ -46,11 +46,19 @@ namespace CTAG {
 
             static void WriteBuffer(float *buf, uint32_t sz);
 
+#ifdef CONFIG_TBD_PLATFORM_BBA
+            static void SetInputSource(int sel);
+            static void SetOutputSource(int sel);
+            static void SetMixerMode(int mode);
+            static void SetAnalogBypass(bool on);
+            static void SetInputGain(int gain);
+#else
             static void SetInputSource(int sel) {}
             static void SetOutputSource(int sel) {}
             static void SetMixerMode(int mode) {}
             static void SetAnalogBypass(bool on) {}
             static void SetInputGain(int gain) {}
+#endif
 
         private:
 
