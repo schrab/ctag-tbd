@@ -152,7 +152,7 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     perfState.note = freqCv;
 
     perfState.modulation = 0.f;
-    perfState.strength = 1.f;
+    perfState.strength = 0.5f;
 
     // Resonator model
     int rModel = resonator_model;
