@@ -78,6 +78,15 @@ file(GLOB SRCS_FILES
         eurorack/clouds/dsp/pvoc/phase_vocoder.h
         eurorack/clouds/dsp/pvoc/stft.cc
         eurorack/clouds/dsp/pvoc/stft.h
+        eurorack/elements/resources.cc
+        eurorack/elements/dsp/part.cc
+        eurorack/elements/dsp/voice.cc
+        eurorack/elements/dsp/resonator.cc
+        eurorack/elements/dsp/exciter.cc
+        eurorack/elements/dsp/string.cc
+        eurorack/elements/dsp/tube.cc
+        eurorack/elements/dsp/multistage_envelope.cc
+        eurorack/elements/dsp/ominous_voice.cc
         )
 
 
@@ -100,5 +109,6 @@ else()
             -Wno-shift-negative-value
             -Wno-unused-local-typedefs
             -ffast-math
+            -DTEST
             )
 endif()

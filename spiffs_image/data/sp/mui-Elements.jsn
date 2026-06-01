@@ -1,0 +1,186 @@
+{
+ "id": "Elements",
+ "isStereo": true,
+ "name": "Elements",
+ "hint": "Mutable Instruments Elements Port",
+ "params": [
+  {
+   "id": "frequency",
+   "name": "Frequency",
+   "type": "int",
+   "min": 0,
+   "max": 4032
+  },
+  {
+   "id": "resonator_model",
+   "name": "Resonator Model",
+   "type": "int",
+   "min": 0,
+   "max": 2
+  },
+  {
+   "id": "exciter_envelope_shape",
+   "name": "Envelope Shape",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_bow_level",
+   "name": "Bow Level",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_bow_timbre",
+   "name": "Bow Timbre",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_blow_level",
+   "name": "Blow Level",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_blow_meta",
+   "name": "Blow Meta",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_blow_timbre",
+   "name": "Blow Timbre",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_strike_level",
+   "name": "Strike Level",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_strike_meta",
+   "name": "Strike Meta",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_strike_timbre",
+   "name": "Strike Timbre",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "exciter_signature",
+   "name": "Signature",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
+   "id": "resonator",
+   "type": "group",
+   "name": "Resonator",
+   "params": [
+    {
+     "id": "resonator_geometry",
+     "name": "Geometry",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "resonator_brightness",
+     "name": "Brightness",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "resonator_damping",
+     "name": "Damping",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "resonator_position",
+     "name": "Position",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "resonator_mod_freq",
+     "name": "Mod Frequency",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "resonator_mod_offset",
+     "name": "Mod Offset",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    }
+   ]
+  },
+  {
+   "id": "space",
+   "type": "group",
+   "name": "Space",
+   "params": [
+    {
+     "id": "reverb_diffusion",
+     "name": "Diffusion",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "reverb_lp",
+     "name": "Lowpass",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "space",
+     "name": "Space",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "modulation_frequency",
+     "name": "LFO Freq",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    }
+   ]
+  },
+  {
+   "id": "gate",
+   "type": "bool",
+   "name": "Gate"
+  },
+  {
+   "id": "easter_egg",
+   "type": "bool",
+   "name": "Easter Egg"
+  }
+ ]
+}

@@ -1,0 +1,34 @@
+{
+  "activePatch": 0,
+  "patches": [
+    {
+      "name": "Default",
+      "params": [
+        { "id": "frequency", "current": 800, "cv": -1 },
+        { "id": "resonator_model", "current": 0, "cv": -1 },
+        { "id": "exciter_envelope_shape", "current": 2047, "cv": -1 },
+        { "id": "exciter_bow_level", "current": 0, "cv": -1 },
+        { "id": "exciter_bow_timbre", "current": 2047, "cv": -1 },
+        { "id": "exciter_blow_level", "current": 0, "cv": -1 },
+        { "id": "exciter_blow_meta", "current": 2047, "cv": -1 },
+        { "id": "exciter_blow_timbre", "current": 2047, "cv": -1 },
+        { "id": "exciter_strike_level", "current": 3276, "cv": -1 },
+        { "id": "exciter_strike_meta", "current": 2047, "cv": -1 },
+        { "id": "exciter_strike_timbre", "current": 2047, "cv": -1 },
+        { "id": "exciter_signature", "current": 0, "cv": -1 },
+        { "id": "resonator_geometry", "current": 819, "cv": -1 },
+        { "id": "resonator_brightness", "current": 2047, "cv": -1 },
+        { "id": "resonator_damping", "current": 1024, "cv": -1 },
+        { "id": "resonator_position", "current": 1229, "cv": -1 },
+        { "id": "resonator_mod_freq", "current": 0, "cv": -1 },
+        { "id": "resonator_mod_offset", "current": 410, "cv": -1 },
+        { "id": "reverb_diffusion", "current": 2560, "cv": -1 },
+        { "id": "reverb_lp", "current": 2867, "cv": -1 },
+        { "id": "space", "current": 2047, "cv": -1 },
+        { "id": "modulation_frequency", "current": 0, "cv": -1 },
+        { "id": "gate", "current": 0, "trig": -1 },
+        { "id": "easter_egg", "current": 0, "trig": -1 }
+      ]
+    }
+  ]
+}

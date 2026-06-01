@@ -144,7 +144,7 @@ namespace CTAG {
             const Value &arr = doc["presets"];
             for (SizeType i = 0; i < arr.Size() && presetCount < MAX_PRESETS; i++) {
                 const Value &p = arr[i];
-                if (!p.HasMember("name")) continue;
+                if (!p.IsObject() || !p.HasMember("name") || !p["name"].IsString()) continue;
                 PresetInfo &pi = presets[presetCount];
                 snprintf(pi.name, sizeof(pi.name), "%s", p["name"].GetString());
                 pi.number = p.HasMember("number") ? p["number"].GetInt() : i;
