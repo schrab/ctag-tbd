@@ -27,6 +27,8 @@ respective component folders / files if different from this license.
 #include "esp_heap_caps.h"
 #include <cstring>
 #include <cstdlib>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 using namespace CTAG::DRIVERS;
 using namespace CTAG::AUDIO;
@@ -198,7 +200,20 @@ namespace CTAG {
             } else if (mode == MODE_VALUEEDIT) {
                 if (paramCount == 0 || cursor >= paramCount) return;
                 ParamInfo &pi = params[cursor];
-                int val = pi.current + delta;
+
+                // Encoder acceleration: build momentum on consecutive same-direction turns
+                uint32_t now = xTaskGetTickCount();
+                if (now - lastEncTick > pdMS_TO_TICKS(100)) encoderAccel = 0;
+                lastEncTick = now;
+
+                int dir = delta > 0 ? 1 : (delta < 0 ? -1 : 0);
+                if (dir != lastEncDir) encoderAccel = 0;
+                else if (encoderAccel < 10) encoderAccel++;
+                lastEncDir = dir;
+
+                int step = delta * (1 + encoderAccel * encoderAccel);
+
+                int val = pi.current + step;
                 if (val < pi.min) val = pi.min;
                 if (val > pi.max) val = pi.max;
                 pi.current = val;

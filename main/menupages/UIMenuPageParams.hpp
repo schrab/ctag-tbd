@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include "UIMenuPage.hpp"
+#include <cstdint>
 
 namespace CTAG {
     namespace CTRL {
@@ -79,6 +80,9 @@ namespace CTAG {
 
             int chan;
             bool hasDualCh;
+            int encoderAccel = 0;
+            int lastEncDir = 0;
+            uint32_t lastEncTick = 0;
 
             void parseParams();
             void parsePresets(int chan);
