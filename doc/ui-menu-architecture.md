@@ -106,17 +106,42 @@ UIMenu task (Core 0, idle+3, 4096 stack, 20ms loop)
 | `DrawString(x,y,str,font)` | Text (FONT_5X7 or FONT_8X8) |
 | `DrawStringRight(x,y,str,font)` | Right-aligned text |
 | `InvertRect(x,y,w,h)` | Invert region (cursor highlight) |
-| `DrawScrollbar(x,y,h,total,cursor)` | Scrollbar |
+| `DrawScrollbar(x,y,h,total,cursor)` | Scrollbar (visible items = h/LINE_H) |
 | `DrawVUMeter(x,y,w,h,level)` | VU bar (0.0-1.0) |
 | `DrawPixel/HLine/VLine/Rect` | Primitives |
 
-Screen: 128x64px. FONT_5X7 = ~9 rows × ~21 chars, FONT_8X8 = 8 rows × 16 chars.
+Screen: 128x64px. FONT_5X7 = 7 rows × ~21 chars, FONT_8X8 = 8 rows × 16 chars.
 
 Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` for `ssd1306_display_text()`).
 
 **Framebuffer notes:** 1024 bytes = 128 columns × 8 pages. Page-major, column-minor. Physical display is SSD1309 (driver compatible with SSD1306/SSD1309, 0xC8 COM scan), requiring `page = 7 - (y >> 3)` and `bit = 7 - (y & 7)` in DrawPixel/InvertRect.
 
 **Drawing functions (`DrawString`, `DrawVUMeter`, `DrawScrollbar`) do NOT call `Flush()` internally.** Each `redraw*()` method calls `Display::Flush()` once after all drawing is complete. `Clear()` does NOT do direct I2C — only `memset(fb, 0)` + dirty flags.
+
+## Layout Constants (in `Display.hpp`)
+
+All Y positions, visible-item counts, and scrollbar dimensions are derived from these:
+
+```cpp
+constexpr int FONT_H = 7;              // font glyph height
+constexpr int LINE_H = FONT_H + 1;     // 8px — 7px font + 1px gap
+constexpr int ITEM_Y0 = 5;             // first item Y (no-header pages)
+constexpr int ITEM_Y0_HDR = 13;        // first item Y (header pages: 5 + 7 + 1)
+constexpr int VISIBLE_ITEMS = 7;       // items per page (no-header)
+constexpr int VISIBLE_ITEMS_HDR = 6;   // items per page (header pages)
+
+#define ROW(n)     (ITEM_Y0 + (n) * LINE_H)        // e.g. ROW(2) = 21
+#define ROW_HDR(n) (ITEM_Y0_HDR + (n) * LINE_H)    // e.g. ROW_HDR(0) = 13
+```
+
+Two inline helpers standardize scroll logic across all pages:
+
+```cpp
+inline void ClampScroll(cursor, &scrollOffset, total, visible);
+inline int  ClampVisible(total, scrollOff, maxVis);
+```
+
+To change fonts (e.g. to 04B_03__ at 5px), edit `FONT_H` and recompile — every Y position, visible count, scrollbar size, and scroll offset recomputes automatically.
 
 ## Existing Pages
 
@@ -139,7 +164,7 @@ Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` fo
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |---------|--------------|---------|-----------------|------|
 | `SP_MAIN` | Menu items: SELECT, SYSTEM, FAVORITES, SD CARD, SLEEP | Scroll cursor (0-5) | Enter sub-page at cursor (SYSTEM → SP_SYSTEM, lazy-allocates UIMenuPageSystem) | Return to ROOT |
-| `SP_SELECT` | Plugin list (parsed from JSON, max 64) | Scroll list (auto-scroll, 6 visible) | Load plugin: stereo → ch0 directly, mono → channel picker | Back to SP_MAIN |
+| `SP_SELECT` | Plugin list (parsed from JSON, max 64) | Scroll list (auto-scroll, 7 visible) | Load plugin: stereo → ch0 directly, mono → channel picker | Back to SP_MAIN |
 | `SP_SELECT_CH` | Channel options: Ch0 / Ch1 / Both | Scroll 3 options | Load to selected channel(s) | Back to SP_SELECT |
 | `SP_SYSTEM` | System config page (delegates to UIMenuPageSystem) | Forwarded to System page | Forwarded to System page | System page onBack() → SP_MAIN |
 
@@ -147,8 +172,8 @@ Only FONT_5X7 is used in menu UI. FONT_8X8 is legacy (only `font8x8_basic_tr` fo
 | Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |------|--------------|---------|-----------------|------|
 | `MODE_SELECT` | EDIT / MAP / PSET (or dual Ch0:name / Ch1:name if two different mono plugins loaded) | Scroll cursor (0-2, or 0-3 with dual) | Enter selected mode (selects `chan` 0 or 1 for EDIT) | Return to ROOT |
-| `MODE_GROUP` | Group list with param count, e.g. `Analogue BD (12)`, `Diffusion (5)` | Scroll list (auto-scroll, 6 visible) | Enter MODE_EDIT for that group | Back to MODE_SELECT |
-| `MODE_EDIT` | Param list for selected group (or all params if no groups) | Scroll list (auto-scroll, 6 visible) | Enter `MODE_VALUEEDIT` for selected param | Back to MODE_GROUP (or MODE_SELECT if no groups) |
+| `MODE_GROUP` | Group list with param count, e.g. `Analogue BD (12)`, `Diffusion (5)` | Scroll list (auto-scroll, 7 visible) | Enter MODE_EDIT for that group | Back to MODE_SELECT |
+| `MODE_EDIT` | Param list for selected group (or all params if no groups) | Scroll list (auto-scroll, 7 visible) | Enter `MODE_VALUEEDIT` for selected param | Back to MODE_GROUP (or MODE_SELECT if no groups) |
 | `MODE_VALUEEDIT` | Same as MODE_EDIT layout | Adjust param value (`pi.current += delta`) | Confirm value → return to MODE_EDIT | Back to MODE_EDIT (no save) |
 | `MODE_MAP` | CV slot editor for selected param (-1=None, 0-99=slot index) | Scroll CV slot (-1 through 99, names from CVSlotNames.hpp) | Confirm slot via `SetChannelParamValue(chan, id, "cv", slot)` → MODE_EDIT | Exit without saving → MODE_EDIT |
 | `MODE_PSET` | "Not implemented" placeholder | No-op | No-op | Back to MODE_SELECT |
@@ -159,7 +184,7 @@ Long-press on a param in MODE_EDIT enters MODE_MAP. `ParamInfo[256]` and `GroupI
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |---------|--------------|---------|-----------------|------|
 | `SP_MAIN` | PLAY FILE / RECORD / STOP (or PLAYING/RECORDING status) | Scroll cursor (0-2) | PL→file list, REC→record screen, STOP→stop | Return to ROOT |
-| `SP_FILELIST` | .wav files from SD card | Scroll list (auto-scroll) | Load selected file for playback | Back to SP_MAIN |
+| `SP_FILELIST` | .wav files from SD card | Scroll list (auto-scroll, 7 visible) | Load selected file for playback | Back to SP_MAIN |
 | `SP_RECORD` | START REC / CANCEL | Scroll cursor (0-1) | START→record, CANCEL→stop | Back to SP_MAIN |
 
 ### SYSTEM (`UIMenuPageSystem`) — HOME sub-page
@@ -167,7 +192,7 @@ System config is entered as `SP_SYSTEM` from HOME's `SP_MAIN` (cursor=1, "SYSTEM
 
 | Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |------|--------------|---------|-----------------|------|
-| Browse | Config item list (parsed from `GetCStrJSONConfiguration()`, scrollable, 6 visible) | Scroll list | Toggle `editMode` on current item | If editing → exit edit; else → SP_MAIN |
+| Browse | Config item list (parsed from `GetCStrJSONConfiguration()`, scrollable, 7 visible) | Scroll list | Toggle `editMode` on current item | If editing → exit edit; else → SP_MAIN |
 | Edit | Same list layout, right-side value highlighted (24px) | Adjust value (`valInt += delta`, clamped to min/max) | Toggle `editMode` off | Exit edit |
 
 **Config items displayed:** Noise Gate, Ch 0+1 Daisy, Ch0→Stereo, Ch1→Stereo, Ch0 Soft Clip, Ch1 Soft Clip, Ch0 Out Level, Ch1 Out Level.
@@ -183,7 +208,7 @@ No sub-pages. Shows "MIX" + placeholder VU meters. No encoder/button handlers. `
 |---------|--------------|---------|-----------------|------|
 | `SP_MAIN` | Overview: LFO1 shape/rate, LFO2 shape/rate, CC count | Scroll cursor (0-2) | Enter sub-page at cursor | Return to ROOT |
 | `SP_LFO1` / `SP_LFO2` | Shape / Rate (Hz) / Amp / Output CV slot | Scroll cursor (not editing); adjust value (editing) | Toggle editing mode on/off | If editing: exit edit mode; else back to SP_MAIN |
-| `SP_CC_SLOTS` | Scrolling list of 8 CC slots (CC# / chan / CV slot) | Scroll list (6 visible, scrollbar) | Enter SP_CC_EDIT at cursor | Back to SP_MAIN |
+| `SP_CC_SLOTS` | Scrolling list of 8 CC slots (CC# / chan / CV slot) | Scroll list (VISIBLE_ITEMS_HDR=6 visible, scrollbar) | Enter SP_CC_EDIT at cursor | Back to SP_MAIN |
 | `SP_CC_EDIT` | CC number / MIDI channel / Learn toggle | Scroll cursor (not editing); adjust value (editing, cursors 0-1). Cursor 2 (Learn): OK starts/stops learn | Toggle editing mode on cursors 0-1; toggle Learn on cursor 2 | If editing: exit edit mode; else back to SP_CC_SLOTS |
 
 Editing mode visual: value portion (right side) inverted instead of full row. Saves to SPIFFS (`/spiffs/data/mod-config.jsn`) on every value change.

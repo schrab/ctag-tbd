@@ -49,11 +49,7 @@ namespace CTAG {
                 if (newCursor < 0) newCursor = 0;
                 if (newCursor >= n) newCursor = (n > 0) ? n - 1 : 0;
                 cursor = newCursor;
-                if (cursor - scrollOffset < 0) scrollOffset = cursor;
-                if (cursor - scrollOffset >= 7) scrollOffset = cursor - 6;
-                if (scrollOffset < 0) scrollOffset = 0;
-                if (n > 0 && scrollOffset > n - 7) scrollOffset = n - 7;
-                if (scrollOffset < 0) scrollOffset = 0;
+                ClampScroll(cursor, scrollOffset, n, VISIBLE_ITEMS);
             }
             doRedraw();
         }
@@ -117,33 +113,33 @@ namespace CTAG {
         void UIMenuPageMidi::redrawMain() {
             Display::Clear();
             char buf[32];
-            int y = 5;
+            int y = ITEM_Y0;
 
             snprintf(buf, sizeof(buf), "SCAN%s",
                      BtMidiReceiver::IsScanning() ? " (running)" : "");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 8;
+            y += LINE_H;
 
             snprintf(buf, sizeof(buf), "Disconnect%s",
                      BtMidiReceiver::IsConnected() ? "" : " (none)");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 8;
+            y += LINE_H;
 
             snprintf(buf, sizeof(buf), "Status: %s",
                      BtMidiReceiver::IsConnected() ? "CONNECTED" : "IDLE");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 8;
+            y += LINE_H;
 
             snprintf(buf, sizeof(buf), "UART In [%s]",
                      Midi::IsUartEnabled() ? "ON" : "OFF");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
-            y += 8;
+            y += LINE_H;
 
             snprintf(buf, sizeof(buf), "BLE  In [%s]",
                      Midi::IsBleEnabled() ? "ON" : "OFF");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
 
-            Display::InvertRect(0, 5 + cursor * 8, 128, 8);
+            Display::InvertRect(0, ROW(cursor), 128, 8);
             Display::Flush();
         }
 
@@ -160,19 +156,18 @@ namespace CTAG {
             if (n == 0) {
                 Display::DrawString(0, 24, "No devices found", Display::FONT_5X7);
             } else {
-                int visible = n - scrollOffset;
-                if (visible > 7) visible = 7;
+                int visible = ClampVisible(n, scrollOffset, VISIBLE_ITEMS);
                 for (int i = 0; i < visible; i++) {
                     int idx = scrollOffset + i;
                     const BtDeviceInfo *d = BtMidiReceiver::GetDevice(idx);
                     if (!d) continue;
-                    int y = 5 + i * 8;
+                    int y = ROW(i);
                     Display::DrawString(0, y, d->name[0] ? d->name : "(unnamed)", Display::FONT_5X7);
                 }
-                int cy = 5 + (cursor - scrollOffset) * 8;
+                int cy = ROW(cursor - scrollOffset);
                 Display::InvertRect(0, cy, 128, 8);
-                if (n > 7)
-                    Display::DrawScrollbar(126, 5, 56, n, cursor);
+                if (n > VISIBLE_ITEMS)
+                    Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, n, cursor);
             }
 
             Display::Flush();

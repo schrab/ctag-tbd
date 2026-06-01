@@ -165,7 +165,7 @@ namespace CTAG {
             Display::Clear();
             char buf[32];
             for (int i = 0; i < 3; i++) {
-                int y = 5 + i * 8;
+                int y = ROW(i);
                 if (i == 0) {
                     float r = ModEngine::GetLFORate(0);
                     snprintf(buf, sizeof(buf), " LFO1: %s %.1fHz", shapeNames[ModEngine::GetLFOShape(0)], r);
@@ -177,7 +177,7 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + cursor * 8;
+            int cy = ROW(cursor);
             Display::InvertRect(0, cy, 128, 8);
             Display::Flush();
         }
@@ -187,30 +187,30 @@ namespace CTAG {
             char buf[32];
             const char* title = (lfo == 0) ? "LFO1" : "LFO2";
             snprintf(buf, sizeof(buf), "%s Config", title);
-            Display::DrawString(0, 5, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
 
             int s = ModEngine::GetLFOShape(lfo);
             snprintf(buf, sizeof(buf), " Shp:%s", shapeNames[s >= 0 && s < 5 ? s : 0]);
-            Display::DrawString(0, 13, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(0), buf, Display::FONT_5X7);
             if (editing && cursor == 0) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 13, 128 - x, 8);
+                Display::InvertRect(x, ROW_HDR(0), 128 - x, 8);
             }
 
             float r = ModEngine::GetLFORate(lfo);
             snprintf(buf, sizeof(buf), " Rate:%.1fHz", r);
-            Display::DrawString(0, 21, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(1), buf, Display::FONT_5X7);
             if (editing && cursor == 1) {
                 int x = 6 * 6 + 1;
-                Display::InvertRect(x, 21, 128 - x, 8);
+                Display::InvertRect(x, ROW_HDR(1), 128 - x, 8);
             }
 
             float a = ModEngine::GetLFOAmplitude(lfo);
             snprintf(buf, sizeof(buf), " Amp:%.2f", a);
-            Display::DrawString(0, 29, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
             if (editing && cursor == 2) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 29, 128 - x, 8);
+                Display::InvertRect(x, ROW_HDR(2), 128 - x, 8);
             }
 
             int cv = ModEngine::GetLFOCVSlot(lfo);
@@ -221,14 +221,14 @@ namespace CTAG {
             } else {
                 snprintf(buf, sizeof(buf), " Out:%d", cv);
             }
-            Display::DrawString(0, 37, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(3), buf, Display::FONT_5X7);
             if (editing && cursor == 3) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 37, 128 - x, 8);
+                Display::InvertRect(x, ROW_HDR(3), 128 - x, 8);
             }
 
             if (!editing) {
-                int cy = 13 + cursor * 8;
+                int cy = ROW_HDR(cursor);
                 Display::InvertRect(0, cy, 128, 8);
             }
             Display::Flush();
@@ -236,13 +236,14 @@ namespace CTAG {
 
         void UIMenuPageMod::redrawCCSlots() {
             Display::Clear();
-            Display::DrawString(0, 5, "CC Slots", Display::FONT_5X7);
-            int scrollOff = (cursor > 5) ? cursor - 5 : 0;
-            int visible = 10 - scrollOff;
-            if (visible > 6) visible = 6;
+            Display::DrawString(0, ROW(0), "CC Slots", Display::FONT_5X7);
+            constexpr int TOTAL = 8;
+            int scrollOff = (cursor > VISIBLE_ITEMS_HDR - 1) ? cursor - (VISIBLE_ITEMS_HDR - 1) : 0;
+            int visible = TOTAL - scrollOff;
+            if (visible > VISIBLE_ITEMS_HDR) visible = VISIBLE_ITEMS_HDR;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOff + i;
-                int y = 13 + i * 8;
+                int y = ROW_HDR(i);
                 int cc = ModEngine::GetDynamicSlotCC(idx);
                 int ch = ModEngine::GetDynamicSlotChan(idx);
                 char buf[48];
@@ -253,10 +254,10 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 13 + (cursor - scrollOff) * 8;
+            int cy = ROW_HDR(cursor - scrollOff);
             Display::InvertRect(0, cy, 128, 8);
-            if (8 > 6)
-                Display::DrawScrollbar(126, 13, 46, 8, cursor);
+            if (TOTAL > VISIBLE_ITEMS_HDR)
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VISIBLE_ITEMS_HDR * LINE_H, TOTAL, cursor);
             Display::Flush();
         }
 
@@ -264,7 +265,7 @@ namespace CTAG {
             Display::Clear();
             char buf[32];
             snprintf(buf, sizeof(buf), "Slot %d", ccEditSlot);
-            Display::DrawString(0, 5, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
 
             int cc = ModEngine::GetDynamicSlotCC(ccEditSlot);
             if (cc < 0) {
@@ -272,26 +273,26 @@ namespace CTAG {
             } else {
                 snprintf(buf, sizeof(buf), " CC: %d", cc);
             }
-            Display::DrawString(0, 13, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(0), buf, Display::FONT_5X7);
             if (editing && cursor == 0) {
                 int x = 6 * 5 + 1;
-                Display::InvertRect(x, 13, 128 - x, 8);
+                Display::InvertRect(x, ROW_HDR(0), 128 - x, 8);
             }
 
             int ch = ModEngine::GetDynamicSlotChan(ccEditSlot);
             snprintf(buf, sizeof(buf), " Chan: %d", ch);
-            Display::DrawString(0, 21, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(1), buf, Display::FONT_5X7);
             if (editing && cursor == 1) {
                 int x = 6 * 6 + 1;
-                Display::InvertRect(x, 21, 128 - x, 8);
+                Display::InvertRect(x, ROW_HDR(1), 128 - x, 8);
             }
 
             const char* learnStatus = ModEngine::IsLearning() ? "StopLearn" : "Learn";
             snprintf(buf, sizeof(buf), " [%s]", learnStatus);
-            Display::DrawString(0, 29, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
 
             if (!editing) {
-                int cy = 13 + cursor * 8;
+                int cy = ROW_HDR(cursor);
                 Display::InvertRect(0, cy, 128, 8);
             }
             Display::Flush();

@@ -30,6 +30,30 @@ extern "C" {
 #include <cstdint>
 #include <cstddef>
 
+// Layout constants — change these when swapping fonts
+static constexpr int FONT_H = 7;
+static constexpr int LINE_H = FONT_H + 1;
+static constexpr int ITEM_Y0 = 5;
+static constexpr int ITEM_Y0_HDR = ITEM_Y0 + FONT_H + 1;
+static constexpr int VISIBLE_ITEMS = 7;
+static constexpr int VISIBLE_ITEMS_HDR = 6;
+static constexpr int SCROLLBAR_X = 126;
+
+#define ROW(n)     (ITEM_Y0 + (n) * LINE_H)
+#define ROW_HDR(n) (ITEM_Y0_HDR + (n) * LINE_H)
+
+inline void ClampScroll(int cursor, int &scrollOffset, int total, int visible) {
+    if (cursor - scrollOffset < 0) scrollOffset = cursor;
+    if (cursor - scrollOffset >= visible) scrollOffset = cursor - (visible - 1);
+    if (scrollOffset > total - visible) scrollOffset = total - visible;
+    if (scrollOffset < 0) scrollOffset = 0;
+}
+
+inline int ClampVisible(int total, int scrollOff, int maxVis) {
+    int v = total - scrollOff;
+    return v > maxVis ? maxVis : v;
+}
+
 namespace CTAG {
     namespace DRIVERS {
         class Display final {

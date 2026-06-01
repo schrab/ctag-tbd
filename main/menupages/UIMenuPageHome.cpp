@@ -289,14 +289,13 @@ namespace CTAG {
             Display::Clear();
             const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP"};
             for (int i = 0; i < 5; i++)
-                Display::DrawString(0, 5 + i * 8, items[i], Display::FONT_5X7);
-            // show active favorite indicator
+                Display::DrawString(0, ROW(i), items[i], Display::FONT_5X7);
             if (favActiveId >= 0) {
                 char buf[16];
                 snprintf(buf, sizeof(buf), "Fav%d", favActiveId);
-                Display::DrawString(70, 5 + 2 * 8, buf, Display::FONT_5X7);
+                Display::DrawString(70, ROW(2), buf, Display::FONT_5X7);
             }
-            Display::InvertRect(0, 5 + cursor * 8, 128, 8);
+            Display::InvertRect(0, ROW(cursor), 128, 8);
             Display::Flush();
         }
 
@@ -307,12 +306,11 @@ namespace CTAG {
                 Display::Flush();
                 return;
             }
-            int visible = MAX_FAVORITES - scrollOffset;
-            if (visible > VISIBLE_LINES) visible = VISIBLE_LINES;
+            int visible = ClampVisible(MAX_FAVORITES, scrollOffset, VISIBLE_ITEMS);
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const FavEntry &f = favorites[idx];
-                int y = 5 + i * 8;
+                int y = ROW(i);
                 char buf[64];
                 if (idx == favActiveId) {
                     snprintf(buf, sizeof(buf), "*%s", f.name);
@@ -321,10 +319,10 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 8;
+            int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy, 128, 8);
-            if (MAX_FAVORITES > VISIBLE_LINES)
-                Display::DrawScrollbar(126, 5, VISIBLE_LINES * 8, MAX_FAVORITES, cursor);
+            if (MAX_FAVORITES > VISIBLE_ITEMS)
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, MAX_FAVORITES, cursor);
             Display::Flush();
         }
 
@@ -372,11 +370,10 @@ namespace CTAG {
                 Display::Flush();
                 return;
             }
-            int visible = sdFileCount - scrollOffset;
-            if (visible > VISIBLE_LINES) visible = VISIBLE_LINES;
+            int visible = ClampVisible(sdFileCount, scrollOffset, VISIBLE_ITEMS);
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
-                int y = 5 + i * 8;
+                int y = ROW(i);
                 char buf[64];
                 if (sdIsDir[idx]) {
                     snprintf(buf, sizeof(buf), " [%s]", sdEntries[idx]);
@@ -385,10 +382,10 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 8;
+            int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy, 128, 8);
-            if (sdFileCount > VISIBLE_LINES)
-                Display::DrawScrollbar(126, 5, VISIBLE_LINES * 8, sdFileCount, cursor);
+            if (sdFileCount > VISIBLE_ITEMS)
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, sdFileCount, cursor);
             Display::Flush();
         }
 
@@ -399,20 +396,18 @@ namespace CTAG {
                 Display::Flush();
                 return;
             }
-            int visible = pluginCount - scrollOffset;
-            if (visible > VISIBLE_LINES) visible = VISIBLE_LINES;
+            int visible = ClampVisible(pluginCount, scrollOffset, VISIBLE_ITEMS);
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
                 const PluginEntry &e = plugins[idx];
-                int y = 5 + i * 8;
+                int y = ROW(i);
                 Display::DrawString(0, y, e.name, Display::FONT_5X7);
-                // type indicator right-aligned
                 Display::DrawString(120, y, e.isStereo ? "S" : "M", Display::FONT_5X7);
             }
-            int cy = 5 + (cursor - scrollOffset) * 8;
+            int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy, 128, 8);
-            if (pluginCount > VISIBLE_LINES)
-                Display::DrawScrollbar(126, 5, VISIBLE_LINES * 8, pluginCount, cursor);
+            if (pluginCount > VISIBLE_ITEMS)
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, pluginCount, cursor);
             Display::Flush();
         }
 
@@ -421,11 +416,12 @@ namespace CTAG {
             const PluginEntry &e = plugins[selectedPlugin];
             char buf[64];
             snprintf(buf, sizeof(buf), "%s >", e.name);
-            Display::DrawString(0, 5, buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
+            const int optGap = LINE_H + 2;
             const char *opts[] = {"Ch 0", "Ch 1", "Both"};
             for (int i = 0; i < 3; i++)
-                Display::DrawString(0, 20 + i * 10, opts[i], Display::FONT_5X7);
-            Display::InvertRect(0, 20 + cursor * 10, 128, 8);
+                Display::DrawString(0, ROW_HDR(1) + i * optGap, opts[i], Display::FONT_5X7);
+            Display::InvertRect(0, ROW_HDR(1) + cursor * optGap, 128, 8);
             Display::Flush();
         }
     }

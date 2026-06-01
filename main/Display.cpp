@@ -312,7 +312,7 @@ void Display::DrawVUMeter(int x, int y, int w, int h, float level) {
 
 void Display::DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos) {
     if (totalItems <= 1) return;
-    int visibleItems = 6;
+    int visibleItems = h / LINE_H;
     if (visibleItems >= totalItems) return;
     int thumbH = h * visibleItems / totalItems;
     if (thumbH < 4) thumbH = 4;
