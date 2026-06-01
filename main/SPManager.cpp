@@ -393,9 +393,9 @@ void SoundProcessorManager::StartSoundProcessor() {
     SAPI::SerialAPI::StartSerialAPI();
 #endif
 
-    // check for network reset at bootup - after audio/codec init to avoid GPIO0 conflict with I2S MCLK
+    // read BOOT button level without changing GPIO0 direction (preserves I2S MCLK output)
+    // GPIO input register reflects actual pin level even when configured as output
 #ifdef CONFIG_TBD_PLATFORM_BBA
-    gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
     if(gpio_get_level(GPIO_NUM_0) == 0){
         model->ResetNetworkConfiguration();
         ESP_LOGE("SP", "Network credentials reset requested!");
