@@ -104,7 +104,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     }
 
     while (runAudioTask) {
-        // no CV/trigger hardware on BBA, defaults are all zeros
+        // LFO modulation → CV slots
+        DRIVERS::ModEngine::Process(pd.cv);
 
         // get normalized raw data from CODEC
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);
