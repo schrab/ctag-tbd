@@ -15,22 +15,25 @@
 
 ```
 ROOT (encoder switches panels)
-  │  OK (BTN2_SHORT) → enter panel
-  │  BACK (BTN1_SHORT) → no-op
+  │  SHORT → enter panel
+  │  DOUBLE → no-op
   ▼
 PANEL_IN (encoder scrolls page items)
-  │  OK → `page.onButton(2, false)` (select/enter)
-  │  BACK → `page.onBack()` → if false: return to ROOT
-  │  LONG OK → `page.onButton(2, true)`
-  │  LONG BACK → `page.onButton(1, true)`
+  │  SHORT → `page.onButton(2, false)` (OK / select / enter)
+  │  LONG  → `page.onButton(2, true)` (MOD mapping)
+  │  DOUBLE → `page.onBack()` → if false: return to ROOT
   ▼
 Sub-pages (page-owned, via onBack())
 ```
 
-**Event mapping:**
-- `BTN1` = GPIO36 = BACK
-- `BTN2` = GPIO0 (BOOT button) = OK
-- Encoder A/B on GPIO23/GPIO5 via PCNT unit 0
+**Event mapping (single button, BTN1 = GPIO36):**
+| User action | Duration | Event emitted | UIMenu dispatch |
+|------------|----------|---------------|-----------------|
+| Short tap | 20–500ms | `BTN1_SHORT` (delayed 300ms) | `onButton(2, false)` = OK |
+| Long press | >500ms | `BTN1_LONG` | `onButton(2, true)` = MOD |
+| Double tap | two taps within 300ms | `BTN1_DOUBLE` | `onBack()` = BACK |
+
+Encoder A/B on GPIO23/GPIO5 via PCNT unit 0. **GPIO0 is I2S MCLK — NOT a button.**
 
 **States:** `enum NavState : uint8_t { ROOT, PANEL_IN }` in `UIMenu.hpp`
 
@@ -84,14 +87,13 @@ UIMenu task (Core 0, idle+3, 4096 stack, 20ms loop)
   → UserInput::GetEvent(ev, 20)
   → if ROOT:
        ENC_DELTA → switch panel (accelerated: abs>1 → /2)
-       BTN2_SHORT → enter PANEL_IN
-       BTN1_SHORT/LONG → no-op
+       BTN1_SHORT → enter PANEL_IN (OK)
+       BTN1_LONG/LONG → no-op
   → if PANEL_IN:
        ENC_DELTA → pages[current]->onEncoder(delta)
-       BTN2_SHORT → pages[current]->onButton(2, false)
-       BTN2_LONG  → pages[current]->onButton(2, true)
-       BTN1_SHORT → pages[current]->onBack(); if false → ROOT
-       BTN1_LONG  → pages[current]->onButton(1, true)
+       BTN1_SHORT → pages[current]->onButton(2, false) (OK)
+       BTN1_LONG  → pages[current]->onButton(2, true) (MOD)
+       BTN1_DOUBLE → pages[current]->onBack(); if false → ROOT (BACK)
   → redrawNeeded? if ROOT: page->doRedraw() + drawPanelBar()
                   if PANEL_IN: page->doRedraw()
   → panelBarTimer-- each tick in ROOT
@@ -195,12 +197,31 @@ System config is entered as `SP_SYSTEM` from HOME's `SP_MAIN` (cursor=1, "SYSTEM
 | Browse | Config item list (parsed from `GetCStrJSONConfiguration()`, scrollable, 7 visible) | Scroll list | Toggle `editMode` on current item | If editing → exit edit; else → SP_MAIN |
 | Edit | Same list layout, right-side value highlighted (24px) | Adjust value (`valInt += delta`, clamped to min/max) | Toggle `editMode` off | Exit edit |
 
-**Config items displayed:** Noise Gate, Ch 0+1 Daisy, Ch0→Stereo, Ch1→Stereo, Ch0 Soft Clip, Ch1 Soft Clip, Ch0 Out Level, Ch1 Out Level.
+**Config items displayed:**
+
+| # | id | name | type | options | deferred | Notes |
+|---|-----|------|------|---------|----------|-------|
+| 0 | `ng_config` | Noise Gate | enum | on,off | no | |
+| 1 | `ch01_daisy` | Ch 0+1 Daisy | enum | on,off | no | |
+| 2 | `ch0_toStereo` | Ch0→Stereo | enum | on,off | no | |
+| 3 | `ch1_toStereo` | Ch1→Stereo | enum | on,off | no | |
+| 4 | `ch0_outputSoftClip` | Ch0 Soft Clip | enum | on,off | no | |
+| 5 | `ch1_outputSoftClip` | Ch1 Soft Clip | enum | on,off | no | |
+| 6 | `ch0_codecLvlOut` | Ch0 Out Level | int | — | no | 0–33 |
+| 7 | `ch1_codecLvlOut` | Ch1 Out Level | int | — | no | 0–33 |
+| 8 | `input_source` | Input Source | enum | mic,line | yes | mic=LIN1 (mono), line=LIN2/RIN2 (stereo) |
+| 9 | `input_gain` | Input Gain | int | — | yes | 0–8 (+0dB to +24dB) |
+| 10 | `output_source` | Output Route | enum | hp,amp,all | yes | hp=LOUT1/ROUT1, amp=LOUT2/ROUT2 |
+| 11 | `mixer_mode` | Mixer Mode | enum | dac,bypass,mix | yes | dac=DSP only, bypass=analog in, mix=both |
+| 12 | `oled_brightness` | OLED Brightness | int | — | yes | 0–255 |
+
+Deferred items are only committed on OK or BACK, not on encoder scroll.
 
 **Persistence:**
 - `applyCurrent()` loads the full config JSON, overlays only managed fields in-place, then calls `SetConfigurationFromJSON()`. This preserves `cv_ch0..cv_ch3`, `wifi`, and other keys not displayed in the UI.
 - On `deinit()`, if `itemCount > 0`, calls `applyCurrent()` to persist any unsaved changes.
-- `applyCurrent()` is also called per-tick in edit mode so value changes take effect immediately.
+- Non-deferred items are applied immediately on encoder change (`applyCurrent(false)`).
+- Deferred items are applied only on OK or BACK (`applyCurrent(true, true)` — skips non-deferred to avoid double-write).
 No sub-pages. Shows "MIX" + placeholder VU meters. No encoder/button handlers. `onBack()` returns false (ROOT directly).
 
 ### MOD (`UIMenuPageMod`)
@@ -241,7 +262,7 @@ The UIMenu task starts AFTER `StartSoundProcessor()` completes. This ensures the
 2. Add enum value to `UIMenu::Panel` in `UIMenu.hpp`
 3. `new` it in `UIMenu::Init()`
 4. Implement `onBack()` for sub-page navigation
-5. Use BTN2_SHORT as the primary select/enter action (not LONG)
+5. Use `btnId=2, longPress=false` (OK/short) as the primary select/enter action — this is triggered by BTN1 short tap in the actual mapping
 
 ## Adding a Sub-Page (like SYSTEM)
 
@@ -255,10 +276,10 @@ For pages accessed from a parent page's menu (not a panel tab):
 
 ## Common Pitfalls
 
-- **Stack overflow**: UIMenu task stack is 4096 bytes (reduced from 8192 to avoid DRAM fragmentation). JSON parsing in `parsePlugins()`/`parseParams()` uses stack-heavy RapidJSON `Document`. If overflowing, increase stack in `main.cpp`.
+- **Single button = OK + MOD + BACK**: BTN1 (GPIO36) is the only button. Short tap = OK (BTN2_SHORT), long press = MOD (BTN2_LONG), double-tap = BACK. Double-click detection in `UserInput::inputTask()`: two releases within 300ms emit `BTN1_DOUBLE` instead of two `BTN1_SHORT`. Single tap has a 300ms delay before firing `BTN1_SHORT` to allow time for a second tap.
 - **I2C contention**: All display writes from a single task (UIMenu). No mutex needed.
-- **GPIO5 conflict**: PIN_PUSH_BTN for old Favorites system is GPIO5, which is also encoder signal B. The old `Favorites::ui_task` is DISABLED in `SPManager.cpp`.
-- **Button ISR timing**: `UserInput::EnableISR()` must be called after `Codec::InitCodec()` to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3.
+- **GPIO5 conflict (encoder)**: GPIO5 is encoder signal B (PCNT). The old `Favorites::ui_task` used GPIO5 as a button — DISABLED in `SPManager.cpp`. No other GPIO5 usage.
+- **Button ISR timing**: `UserInput::EnableISR()` must be called after `Codec::InitCodec()` to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3. GPIO0 (BOOT button) is NOT usable — it's the I2S MCLK output.
 - **SPModel assert on boot**: If storage partition doesn't have `spm-config.jsn` (e.g. after format), the firmware asserts. Use `idf.py flash` to write the storage partition from `spiffs_image/`.
 - **Boot-time `new` allocation freeze**: Allocating `UIMenuPageSystem` during `UIMenuPageHome::init()` via `operator new` causes the UI task to silently stop responding. The page must be lazy-allocated when the user enters `SP_SYSTEM` from the HOME menu, not during boot.
 - **Config persistence overwrite**: `applyCurrent()` must load the full config JSON and overlay only managed fields, not build a new object from scratch. Writing a partial config (e.g., only the 10 displayed items) removes `cv_ch0..cv_ch3` and `wifi`, causing `updateConfiguration()` to assert on next boot. Use `doc[it.id].Swap(v)` to modify in-place within the existing document.
