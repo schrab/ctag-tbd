@@ -190,7 +190,7 @@ bool es8388::init() {
     // TODO does ES8388 auto derive ratio?
     //res &= write_reg(ES8388_DACCONTROL2, 0b00000011);//0b00000010);
     // unmute codec
-    //res &= write_reg(ES8388_DACCONTROL3, 0x00);
+    res &= write_reg(ES8388_DACCONTROL3, 0x00);
     // set DAC digital volume
     res &= write_reg(ES8388_DACCONTROL4, 0x00);
     res &= write_reg(ES8388_DACCONTROL5, 0x00);
@@ -285,6 +285,8 @@ bool es8388::setOutputVolume(uint8_t vol) {
 
 bool es8388::setOutputVolume(uint8_t lvol, uint8_t rvol) {
     bool res = true;
+    if (lvol > 33) lvol = 33;
+    if (rvol > 33) rvol = 33;
     if (_outSel == OUTALL || _outSel == OUT1) {
         //ESP_LOGE("ES8388", "lvol: %d, rvol: %d", lvol, rvol);
         res &= write_reg(ES8388_DACCONTROL24, lvol);  // LOUT1VOL
