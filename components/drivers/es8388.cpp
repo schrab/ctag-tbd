@@ -106,8 +106,11 @@ static bool ensure_bus() {
 bool es8388::write_reg(uint8_t reg_add, uint8_t data)
 {
     if (!ensure_bus()) return false;
+    esp_err_t ret;
     uint8_t buf[2] = { reg_add, data };
-    esp_err_t ret = i2c_master_transmit(es8388_dev, buf, 2, 100);
+    do{
+        ret = i2c_master_transmit(es8388_dev, buf, 2, 100);
+    }while(ret != ESP_OK);
     if(ret != ESP_OK)
         ESP_LOGE("ES8388", "Error writing to register %d", reg_add);
     return ret == ESP_OK;
@@ -117,7 +120,9 @@ bool es8388::read_reg(uint8_t reg_add, uint8_t &data)
 {
     if (!ensure_bus()) return false;
     esp_err_t ret;
-    ret = i2c_master_transmit_receive(es8388_dev, &reg_add, 1, &data, 1, 100);
+    do{
+        ret = i2c_master_transmit_receive(es8388_dev, &reg_add, 1, &data, 1, 100);
+    }while(ret != ESP_OK);
     if(ret != ESP_OK)
         ESP_LOGE("ES8388", "Error reading from register %d", reg_add);
     return ret == ESP_OK;
@@ -148,8 +153,8 @@ bool es8388::init() {
     res &= write_reg(ES8388_CHIPPOWER, 0xFF);
     // Set same LRCK	Set same LRCK
     res &= write_reg(ES8388_DACCONTROL21, 0b10000000);
-    // Set Chip to Play&Record Mode, same LRCK for ADC and DAC
-    res &= write_reg(ES8388_CONTROL1, 0x1E); // SameFs=1, SeqEn=1, EnRef=1, VMIDSEL=10 (500kΩ)
+    // Set Chip to Play&Record Mode
+    res &= write_reg(ES8388_CONTROL1, 0x05);
     // Power Up Analog and Ibias
     res &= write_reg(ES8388_CONTROL2, 0x00);
 
@@ -190,7 +195,7 @@ bool es8388::init() {
     // TODO does ES8388 auto derive ratio?
     //res &= write_reg(ES8388_DACCONTROL2, 0b00000011);//0b00000010);
     // unmute codec
-    res &= write_reg(ES8388_DACCONTROL3, 0x00);
+    //res &= write_reg(ES8388_DACCONTROL3, 0x00);
     // set DAC digital volume
     res &= write_reg(ES8388_DACCONTROL4, 0x00);
     res &= write_reg(ES8388_DACCONTROL5, 0x00);
@@ -200,6 +205,8 @@ bool es8388::init() {
     // (reg[16] 1B mic Amp, 0x09 direct;[reg 17-20] 0x90 DAC, 0x50 Mic Amp)
     res &= write_reg(ES8388_DACCONTROL16, 0x00);
     res &= write_reg(ES8388_DACCONTROL17, 0xB8);
+    res &= write_reg(ES8388_DACCONTROL18, 0x38);  //??
+    res &= write_reg(ES8388_DACCONTROL19, 0x38);  //??
     res &= write_reg(ES8388_DACCONTROL20, 0xB8);
 
     // set Lout/Rout Volume 0db
@@ -283,8 +290,6 @@ bool es8388::setOutputVolume(uint8_t vol) {
 
 bool es8388::setOutputVolume(uint8_t lvol, uint8_t rvol) {
     bool res = true;
-    if (lvol > 33) lvol = 33;
-    if (rvol > 33) rvol = 33;
     if (_outSel == OUTALL || _outSel == OUT1) {
         //ESP_LOGE("ES8388", "lvol: %d, rvol: %d", lvol, rvol);
         res &= write_reg(ES8388_DACCONTROL24, lvol);  // LOUT1VOL

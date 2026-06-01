@@ -27,7 +27,6 @@ respective component folders / files if different from this license.
 #include "freertos/queue.h"
 
 #define BTN1_GPIO 36
-#define BTN2_GPIO 0
 
 #define DEBOUNCE_MS 20
 #define LONG_PRESS_MS 500
@@ -46,9 +45,9 @@ namespace CTAG {
 
         static void inputTask(void *) {
             CTAG::DRIVERS::encoder enc;
-            uint32_t lastTs[2] = {0, 0};
-            uint32_t pressTs[2] = {0, 0};
-            bool wasPressed[2] = {false, false};
+            uint32_t lastTs = 0;
+            uint32_t pressTs = 0;
+            bool wasPressed = false;
 
             while (true) {
                 uint32_t now = xTaskGetTickCount();
@@ -62,32 +61,28 @@ namespace CTAG {
                     xQueueSend(evQueue, &ev, 0);
                 }
 
-                // process debounced button state
-                for (int i = 0; i < 2; i++) {
-                    int gpio = (i == 0) ? BTN1_GPIO : BTN2_GPIO;
-                    bool pressed = (gpio_get_level((gpio_num_t)gpio) == 0);
-
-                    if (pressed && !wasPressed[i]) {
-                        if (now - lastTs[i] >= pdMS_TO_TICKS(DEBOUNCE_MS)) {
-                            pressTs[i] = now;
-                            wasPressed[i] = true;
-                        }
-                    } else if (!pressed && wasPressed[i]) {
-                        uint32_t held = now - pressTs[i];
-                        if (held >= pdMS_TO_TICKS(LONG_PRESS_MS)) {
-                            InputEvent ev;
-                            ev.type = (i == 0) ? InputEvent::BTN1_LONG : InputEvent::BTN2_LONG;
-                            ev.delta = 0;
-                            xQueueSend(evQueue, &ev, 0);
-                        } else if (held >= pdMS_TO_TICKS(DEBOUNCE_MS)) {
-                            InputEvent ev;
-                            ev.type = (i == 0) ? InputEvent::BTN1_SHORT : InputEvent::BTN2_SHORT;
-                            ev.delta = 0;
-                            xQueueSend(evQueue, &ev, 0);
-                        }
-                        lastTs[i] = now;
-                        wasPressed[i] = false;
+                // process debounced button state (BTN1 only, GPIO0 is I2S MCLK)
+                bool pressed = (gpio_get_level((gpio_num_t)BTN1_GPIO) == 0);
+                if (pressed && !wasPressed) {
+                    if (now - lastTs >= pdMS_TO_TICKS(DEBOUNCE_MS)) {
+                        pressTs = now;
+                        wasPressed = true;
                     }
+                } else if (!pressed && wasPressed) {
+                    uint32_t held = now - pressTs;
+                    if (held >= pdMS_TO_TICKS(LONG_PRESS_MS)) {
+                        InputEvent ev;
+                        ev.type = InputEvent::BTN1_LONG;
+                        ev.delta = 0;
+                        xQueueSend(evQueue, &ev, 0);
+                    } else if (held >= pdMS_TO_TICKS(DEBOUNCE_MS)) {
+                        InputEvent ev;
+                        ev.type = InputEvent::BTN1_SHORT;
+                        ev.delta = 0;
+                        xQueueSend(evQueue, &ev, 0);
+                    }
+                    lastTs = now;
+                    wasPressed = false;
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(POLL_MS));
@@ -98,15 +93,14 @@ namespace CTAG {
             evQueue = xQueueCreate(64, sizeof(InputEvent));
 
             gpio_config_t io_conf = {};
-            io_conf.pin_bit_mask = (1ULL << BTN1_GPIO) | (1ULL << BTN2_GPIO);
+            io_conf.pin_bit_mask = (1ULL << BTN1_GPIO);
             io_conf.mode = GPIO_MODE_INPUT;
             io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
             io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
             io_conf.intr_type = GPIO_INTR_DISABLE; // no ISR yet, installed after audio init
             gpio_config(&io_conf);
 
-            // enable internal pull-up on GPIO0 (BOOT button has external pull but safe)
-            gpio_set_pull_mode((gpio_num_t)BTN2_GPIO, GPIO_PULLUP_ONLY);
+            // do NOT configure GPIO0 (BTN2) — it's the I2S MCLK output on BBA
 
             xTaskCreatePinnedToCore(inputTask, "input_task", 2048, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
         }
@@ -116,7 +110,6 @@ namespace CTAG {
             // to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3
             gpio_install_isr_service(0);
             gpio_isr_handler_add((gpio_num_t)BTN1_GPIO, btnIsr, (void*)BTN1_GPIO);
-            gpio_isr_handler_add((gpio_num_t)BTN2_GPIO, btnIsr, (void*)BTN2_GPIO);
         }
 
         bool UserInput::GetEvent(InputEvent& ev, uint32_t timeoutMs) {

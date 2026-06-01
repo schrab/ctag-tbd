@@ -31,6 +31,7 @@ namespace CTAG {
                 BTN1_LONG = 2,
                 BTN2_SHORT = 3,
                 BTN2_LONG = 4,
+                BTN1_DOUBLE = 5,
             };
             Type type;
             int16_t delta; // only meaningful for ENC_DELTA
