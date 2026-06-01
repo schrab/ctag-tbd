@@ -148,8 +148,8 @@ bool es8388::init() {
     res &= write_reg(ES8388_CHIPPOWER, 0xFF);
     // Set same LRCK	Set same LRCK
     res &= write_reg(ES8388_DACCONTROL21, 0b10000000);
-    // Set Chip to Play&Record Mode
-    res &= write_reg(ES8388_CONTROL1, 0x05); // 0x05 in binary
+    // Set Chip to Play&Record Mode, same LRCK for ADC and DAC
+    res &= write_reg(ES8388_CONTROL1, 0x1E); // SameFs=1, SeqEn=1, EnRef=1, VMIDSEL=10 (500kΩ)
     // Power Up Analog and Ibias
     res &= write_reg(ES8388_CONTROL2, 0x00);
 
@@ -200,8 +200,6 @@ bool es8388::init() {
     // (reg[16] 1B mic Amp, 0x09 direct;[reg 17-20] 0x90 DAC, 0x50 Mic Amp)
     res &= write_reg(ES8388_DACCONTROL16, 0x00);
     res &= write_reg(ES8388_DACCONTROL17, 0xB8);
-    res &= write_reg(ES8388_DACCONTROL18, 0x38);  //??
-    res &= write_reg(ES8388_DACCONTROL19, 0x38);  //??
     res &= write_reg(ES8388_DACCONTROL20, 0xB8);
 
     // set Lout/Rout Volume 0db
