@@ -3,3 +3,4 @@ hw/
 tbd4vcv/
 simulator/
 .devcontainer/
+log/

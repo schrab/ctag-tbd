@@ -392,16 +392,7 @@ void SoundProcessorManager::StartSoundProcessor() {
     SAPI::SerialAPI::StartSerialAPI();
 #endif
 
-    // read BOOT button level without changing GPIO0 direction (preserves I2S MCLK output)
-    // GPIO input register reflects actual pin level even when configured as output
-#ifdef CONFIG_TBD_PLATFORM_BBA
-    if(gpio_get_level(GPIO_NUM_0) == 0){
-        model->ResetNetworkConfiguration();
-        ESP_LOGE("SP", "Network credentials reset requested!");
-        DRIVERS::LedRGB::SetLedRGB(255, 255, 255);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-#endif
+    // GPIO0 is I2S MCLK output on BBA — must NOT be read or configured as input
     // generate internal data
     updateConfiguration();
 
@@ -556,31 +547,31 @@ void SoundProcessorManager::updateConfiguration() {
     }
 
     // input source
-    //string inSrc = model->GetConfigurationData("input_source");
-    //if (inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
-    //else if (inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
-    //else if (inSrc == "line1_diff") DRIVERS::Codec::SetInputSource(2);
-    //else if (inSrc == "line2_diff") DRIVERS::Codec::SetInputSource(3);
+    string inSrc = model->GetConfigurationData("input_source");
+    if (inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
+    else if (inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
+    else if (inSrc == "line1_diff") DRIVERS::Codec::SetInputSource(2);
+    else if (inSrc == "line2_diff") DRIVERS::Codec::SetInputSource(3);
 
     // input gain
-    //string inGain = model->GetConfigurationData("input_gain");
-    //if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
+    string inGain = model->GetConfigurationData("input_gain");
+    if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
 
     // output source
-    //string outSrc = model->GetConfigurationData("output_source");
-    //if (outSrc == "headphones" || outSrc == "hp") DRIVERS::Codec::SetOutputSource(0);
-    //else if (outSrc == "amp")   DRIVERS::Codec::SetOutputSource(1);
-    //else if (outSrc == "all")   DRIVERS::Codec::SetOutputSource(2);
+    string outSrc = model->GetConfigurationData("output_source");
+    if (outSrc == "headphones" || outSrc == "hp") DRIVERS::Codec::SetOutputSource(0);
+    else if (outSrc == "amp")   DRIVERS::Codec::SetOutputSource(1);
+    else if (outSrc == "all")   DRIVERS::Codec::SetOutputSource(2);
 
     // mixer mode
-    //string mixMode = model->GetConfigurationData("mixer_mode");
-    //if (mixMode == "dac")    DRIVERS::Codec::SetMixerMode(0);
-    //else if (mixMode == "bypass") DRIVERS::Codec::SetMixerMode(1);
-    //else if (mixMode == "mix")    DRIVERS::Codec::SetMixerMode(2);
+    string mixMode = model->GetConfigurationData("mixer_mode");
+    if (mixMode == "dac")    DRIVERS::Codec::SetMixerMode(0);
+    else if (mixMode == "bypass") DRIVERS::Codec::SetMixerMode(1);
+    else if (mixMode == "mix")    DRIVERS::Codec::SetMixerMode(2);
 
     // OLED brightness
-    //string oledBr = model->GetConfigurationData("oled_brightness");
-    //if (!oledBr.empty()) DRIVERS::Display::Contrast(std::stoi(oledBr));
+    string oledBr = model->GetConfigurationData("oled_brightness");
+    if (!oledBr.empty()) DRIVERS::Display::Contrast(std::stoi(oledBr));
 }
 
 void SoundProcessorManager::led_task(void *pvParams) {
