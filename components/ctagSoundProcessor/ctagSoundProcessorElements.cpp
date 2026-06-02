@@ -38,106 +38,107 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
 }
 
 void ctagSoundProcessorElements::Process(const ProcessData &data) {
-    // Read params → Patch struct
-    patch.exciter_envelope_shape = exciter_envelope_shape / 4095.f;
+    // Write into Part's internal patch_ (Part::Process reads from patch_, not a param)
+    elements::Patch* p = part.mutable_patch();
+    p->exciter_envelope_shape = exciter_envelope_shape / 4095.f;
     if (cv_exciter_envelope_shape != -1)
-        patch.exciter_envelope_shape = fabsf(data.cv[cv_exciter_envelope_shape]);
-    CONSTRAIN(patch.exciter_envelope_shape, 0.f, 1.f);
+        p->exciter_envelope_shape = fabsf(data.cv[cv_exciter_envelope_shape]);
+    CONSTRAIN(p->exciter_envelope_shape, 0.f, 1.f);
 
-    patch.exciter_bow_level = exciter_bow_level / 4095.f;
+    p->exciter_bow_level = exciter_bow_level / 4095.f;
     if (cv_exciter_bow_level != -1)
-        patch.exciter_bow_level = fabsf(data.cv[cv_exciter_bow_level]);
-    CONSTRAIN(patch.exciter_bow_level, 0.f, 1.f);
+        p->exciter_bow_level = fabsf(data.cv[cv_exciter_bow_level]);
+    CONSTRAIN(p->exciter_bow_level, 0.f, 1.f);
 
-    patch.exciter_bow_timbre = exciter_bow_timbre / 4095.f;
+    p->exciter_bow_timbre = exciter_bow_timbre / 4095.f;
     if (cv_exciter_bow_timbre != -1)
-        patch.exciter_bow_timbre = fabsf(data.cv[cv_exciter_bow_timbre]);
-    CONSTRAIN(patch.exciter_bow_timbre, 0.f, 1.f);
+        p->exciter_bow_timbre = fabsf(data.cv[cv_exciter_bow_timbre]);
+    CONSTRAIN(p->exciter_bow_timbre, 0.f, 1.f);
 
-    patch.exciter_blow_level = exciter_blow_level / 4095.f;
+    p->exciter_blow_level = exciter_blow_level / 4095.f;
     if (cv_exciter_blow_level != -1)
-        patch.exciter_blow_level = fabsf(data.cv[cv_exciter_blow_level]);
-    CONSTRAIN(patch.exciter_blow_level, 0.f, 1.f);
+        p->exciter_blow_level = fabsf(data.cv[cv_exciter_blow_level]);
+    CONSTRAIN(p->exciter_blow_level, 0.f, 1.f);
 
-    patch.exciter_blow_meta = exciter_blow_meta / 4095.f;
+    p->exciter_blow_meta = exciter_blow_meta / 4095.f;
     if (cv_exciter_blow_meta != -1)
-        patch.exciter_blow_meta = fabsf(data.cv[cv_exciter_blow_meta]);
-    CONSTRAIN(patch.exciter_blow_meta, 0.f, 1.f);
+        p->exciter_blow_meta = fabsf(data.cv[cv_exciter_blow_meta]);
+    CONSTRAIN(p->exciter_blow_meta, 0.f, 1.f);
 
-    patch.exciter_blow_timbre = exciter_blow_timbre / 4095.f;
+    p->exciter_blow_timbre = exciter_blow_timbre / 4095.f;
     if (cv_exciter_blow_timbre != -1)
-        patch.exciter_blow_timbre = fabsf(data.cv[cv_exciter_blow_timbre]);
-    CONSTRAIN(patch.exciter_blow_timbre, 0.f, 1.f);
+        p->exciter_blow_timbre = fabsf(data.cv[cv_exciter_blow_timbre]);
+    CONSTRAIN(p->exciter_blow_timbre, 0.f, 1.f);
 
-    patch.exciter_strike_level = exciter_strike_level / 4095.f;
+    p->exciter_strike_level = exciter_strike_level / 4095.f;
     if (cv_exciter_strike_level != -1)
-        patch.exciter_strike_level = fabsf(data.cv[cv_exciter_strike_level]);
-    CONSTRAIN(patch.exciter_strike_level, 0.f, 1.f);
+        p->exciter_strike_level = fabsf(data.cv[cv_exciter_strike_level]);
+    CONSTRAIN(p->exciter_strike_level, 0.f, 1.f);
 
-    patch.exciter_strike_meta = exciter_strike_meta / 4095.f;
+    p->exciter_strike_meta = exciter_strike_meta / 4095.f;
     if (cv_exciter_strike_meta != -1)
-        patch.exciter_strike_meta = fabsf(data.cv[cv_exciter_strike_meta]);
-    CONSTRAIN(patch.exciter_strike_meta, 0.f, 1.f);
+        p->exciter_strike_meta = fabsf(data.cv[cv_exciter_strike_meta]);
+    CONSTRAIN(p->exciter_strike_meta, 0.f, 1.f);
 
-    patch.exciter_strike_timbre = exciter_strike_timbre / 4095.f;
+    p->exciter_strike_timbre = exciter_strike_timbre / 4095.f;
     if (cv_exciter_strike_timbre != -1)
-        patch.exciter_strike_timbre = fabsf(data.cv[cv_exciter_strike_timbre]);
-    CONSTRAIN(patch.exciter_strike_timbre, 0.f, 1.f);
+        p->exciter_strike_timbre = fabsf(data.cv[cv_exciter_strike_timbre]);
+    CONSTRAIN(p->exciter_strike_timbre, 0.f, 1.f);
 
-    patch.exciter_signature = exciter_signature / 4095.f;
+    p->exciter_signature = exciter_signature / 4095.f;
     if (cv_exciter_signature != -1)
-        patch.exciter_signature = fabsf(data.cv[cv_exciter_signature]);
-    CONSTRAIN(patch.exciter_signature, 0.f, 1.f);
+        p->exciter_signature = fabsf(data.cv[cv_exciter_signature]);
+    CONSTRAIN(p->exciter_signature, 0.f, 1.f);
 
-    patch.resonator_geometry = resonator_geometry / 4095.f;
+    p->resonator_geometry = resonator_geometry / 4095.f;
     if (cv_resonator_geometry != -1)
-        patch.resonator_geometry = fabsf(data.cv[cv_resonator_geometry]);
-    CONSTRAIN(patch.resonator_geometry, 0.f, 1.f);
+        p->resonator_geometry = fabsf(data.cv[cv_resonator_geometry]);
+    CONSTRAIN(p->resonator_geometry, 0.f, 1.f);
 
-    patch.resonator_brightness = resonator_brightness / 4095.f;
+    p->resonator_brightness = resonator_brightness / 4095.f;
     if (cv_resonator_brightness != -1)
-        patch.resonator_brightness = fabsf(data.cv[cv_resonator_brightness]);
-    CONSTRAIN(patch.resonator_brightness, 0.f, 1.f);
+        p->resonator_brightness = fabsf(data.cv[cv_resonator_brightness]);
+    CONSTRAIN(p->resonator_brightness, 0.f, 1.f);
 
-    patch.resonator_damping = resonator_damping / 4095.f;
+    p->resonator_damping = resonator_damping / 4095.f;
     if (cv_resonator_damping != -1)
-        patch.resonator_damping = fabsf(data.cv[cv_resonator_damping]);
-    CONSTRAIN(patch.resonator_damping, 0.f, 1.f);
+        p->resonator_damping = fabsf(data.cv[cv_resonator_damping]);
+    CONSTRAIN(p->resonator_damping, 0.f, 1.f);
 
-    patch.resonator_position = resonator_position / 4095.f;
+    p->resonator_position = resonator_position / 4095.f;
     if (cv_resonator_position != -1)
-        patch.resonator_position = fabsf(data.cv[cv_resonator_position]);
-    CONSTRAIN(patch.resonator_position, 0.f, 1.f);
+        p->resonator_position = fabsf(data.cv[cv_resonator_position]);
+    CONSTRAIN(p->resonator_position, 0.f, 1.f);
 
-    patch.resonator_modulation_frequency = (resonator_mod_freq / 4095.f * 0.5f + 0.4f) / 44100.f;
+    p->resonator_modulation_frequency = (resonator_mod_freq / 4095.f * 0.5f + 0.4f) / 44100.f;
     if (cv_resonator_mod_freq != -1)
-        patch.resonator_modulation_frequency = (fabsf(data.cv[cv_resonator_mod_freq]) * 0.5f + 0.4f) / 44100.f;
-    CONSTRAIN(patch.resonator_modulation_frequency, 0.4f / 44100.f, 1.2f / 44100.f);
+        p->resonator_modulation_frequency = (fabsf(data.cv[cv_resonator_mod_freq]) * 0.5f + 0.4f) / 44100.f;
+    CONSTRAIN(p->resonator_modulation_frequency, 0.4f / 44100.f, 1.2f / 44100.f);
 
-    patch.resonator_modulation_offset = resonator_mod_offset / 4095.f * 0.15f + 0.05f;
+    p->resonator_modulation_offset = resonator_mod_offset / 4095.f * 0.15f + 0.05f;
     if (cv_resonator_mod_offset != -1)
-        patch.resonator_modulation_offset = fabsf(data.cv[cv_resonator_mod_offset]) * 0.15f + 0.05f;
-    CONSTRAIN(patch.resonator_modulation_offset, 0.05f, 0.2f);
+        p->resonator_modulation_offset = fabsf(data.cv[cv_resonator_mod_offset]) * 0.15f + 0.05f;
+    CONSTRAIN(p->resonator_modulation_offset, 0.05f, 0.2f);
 
-    patch.reverb_diffusion = reverb_diffusion / 4095.f * 0.3f + 0.55f;
+    p->reverb_diffusion = reverb_diffusion / 4095.f * 0.3f + 0.55f;
     if (cv_reverb_diffusion != -1)
-        patch.reverb_diffusion = fabsf(data.cv[cv_reverb_diffusion]) * 0.3f + 0.55f;
-    CONSTRAIN(patch.reverb_diffusion, 0.55f, 0.85f);
+        p->reverb_diffusion = fabsf(data.cv[cv_reverb_diffusion]) * 0.3f + 0.55f;
+    CONSTRAIN(p->reverb_diffusion, 0.55f, 0.85f);
 
-    patch.reverb_lp = reverb_lp / 4095.f * 0.3f + 0.5f;
+    p->reverb_lp = reverb_lp / 4095.f * 0.3f + 0.5f;
     if (cv_reverb_lp != -1)
-        patch.reverb_lp = fabsf(data.cv[cv_reverb_lp]) * 0.3f + 0.5f;
-    CONSTRAIN(patch.reverb_lp, 0.5f, 0.8f);
+        p->reverb_lp = fabsf(data.cv[cv_reverb_lp]) * 0.3f + 0.5f;
+    CONSTRAIN(p->reverb_lp, 0.5f, 0.8f);
 
-    patch.space = space / 4095.f * 1.75f;
+    p->space = space / 4095.f * 1.75f;
     if (cv_space != -1)
-        patch.space = fabsf(data.cv[cv_space]) * 1.75f;
-    CONSTRAIN(patch.space, 0.f, 1.75f);
+        p->space = fabsf(data.cv[cv_space]) * 1.75f;
+    CONSTRAIN(p->space, 0.f, 1.75f);
 
-    patch.modulation_frequency = modulation_frequency / 4095.f * 0.5f;
+    p->modulation_frequency = modulation_frequency / 4095.f * 0.5f;
     if (cv_modulation_frequency != -1)
-        patch.modulation_frequency = fabsf(data.cv[cv_modulation_frequency]) * 0.5f;
-    CONSTRAIN(patch.modulation_frequency, 0.f, 0.5f);
+        p->modulation_frequency = fabsf(data.cv[cv_modulation_frequency]) * 0.5f;
+    CONSTRAIN(p->modulation_frequency, 0.f, 0.5f);
 
     // PerformanceState
     bool gateVal = gate;
@@ -166,7 +167,7 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         ee = data.trig[trig_easter_egg] == 1;
     part.set_easter_egg(ee);
 
-    // Generate buffers
+    // Generate buffers from stereo input
     float blow_in[bufSz], strike_in[bufSz], out[bufSz], aux[bufSz];
     for (int i = 0; i < bufSz; i++) {
         strike_in[i] = data.buf[i * 2];
@@ -176,8 +177,8 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     part.Process(perfState, blow_in, strike_in, out, aux, bufSz);
 
     for (int i = 0; i < bufSz; i++) {
-        data.buf[i * 2] = out[i];
-        data.buf[i * 2 + 1] = aux[i];
+        data.buf[i * 2] = out[i] * 0.125f;
+        data.buf[i * 2 + 1] = aux[i] * 0.125f;
     }
 }
 
