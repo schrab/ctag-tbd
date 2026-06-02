@@ -30,6 +30,6 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 
 ## Common Workflows
 - **Build**: `source /home/ubuntu/esp-idf/export.sh && idf.py build`
-- **Full flash (all partitions + storage)**: `source /home/ubuntu/esp-idf/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/ctag-tbd.bin 0x610000 build/storage.bin`
+- **Full flash (all partitions + storage)**: `source /home/ubuntu/esp-idf/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/ctag-tbd.bin 0x710000 build/storage.bin`
 - **Flash main app only** (no storage update): `source /home/ubuntu/esp-idf/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x10000 build/ctag-tbd.bin`
 - **UART log capture**: `source /home/ubuntu/esp-idf/export.sh 2>/dev/null && stty -F /dev/ttyUSB0 115200 raw -echo && timeout 15 cat /dev/ttyUSB0 2>/dev/null | tee /tmp/uart.log`
