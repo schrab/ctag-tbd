@@ -317,6 +317,6 @@ void Display::DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos) 
     int thumbH = h * visibleItems / totalItems;
     if (thumbH < 4) thumbH = 4;
     int thumbY = y + (h - thumbH) * cursorPos / (totalItems - visibleItems);
-    DrawRect(x, y, 2, h, false, true);
-    DrawRect(x, thumbY, 2, thumbH, true, true);
+    DrawVLine(x, y, h);                           // 1px track
+    DrawRect(x - 1, thumbY, 3, thumbH, true, true); // 3px thumb overlaps right edge
 }

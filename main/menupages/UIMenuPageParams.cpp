@@ -475,7 +475,7 @@ namespace CTAG {
             int cursorY = ROW(paramIndexToScreen(cursor));
             Display::InvertRect(0, cursorY, 128, 8);
             if (count > VISIBLE_ITEMS)
-                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, count, cursor - startIdx);
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, count, cursor);
             Display::Flush();
         }
 
