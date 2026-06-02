@@ -270,6 +270,7 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
                     DrawPixel(x + col, y + row, (byte >> row) & 1);
                 }
             }
+            x += 8;
             str++;
         }
     } else {
@@ -282,6 +283,7 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
                     DrawPixel(x + col, y + row, (byte >> row) & 1);
                 }
             }
+            x += 6;
             str++;
         }
     }
