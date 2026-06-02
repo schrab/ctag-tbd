@@ -63,9 +63,10 @@ namespace CTAG {
                     xQueueSend(evQueue, &ev, 0);
                 }
 
-                // read encoder
+                // read encoder (suppress during 300ms double-click window
+                // so stale events don't queue ahead of the pending BTN)
                 int delta = enc.ReadDelta();
-                if (delta != 0) {
+                if (delta != 0 && !pendingShort) {
                     InputEvent ev;
                     ev.type = InputEvent::ENC_DELTA;
                     ev.delta = (int16_t)delta;
@@ -132,6 +133,10 @@ namespace CTAG {
 
         bool UserInput::GetEvent(InputEvent& ev, uint32_t timeoutMs) {
             return xQueueReceive(evQueue, &ev, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+        }
+
+        bool UserInput::PeekEvent(InputEvent& ev) {
+            return xQueuePeek(evQueue, &ev, 0) == pdTRUE;
         }
     }
 }

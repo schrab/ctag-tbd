@@ -43,6 +43,8 @@ namespace CTAG {
             cfg.counter_h_lim = INT16_MAX;
             cfg.counter_l_lim = INT16_MIN;
             pcnt_unit_config(&cfg);
+            pcnt_set_filter_value(PCNT_UNIT, 200);
+            pcnt_filter_enable(PCNT_UNIT);
             pcnt_counter_pause(PCNT_UNIT);
             pcnt_counter_clear(PCNT_UNIT);
             pcnt_counter_resume(PCNT_UNIT);
@@ -58,7 +60,7 @@ namespace CTAG {
             pcnt_get_counter_value(PCNT_UNIT, &count);
             if (count == 0) return 0;
             pcnt_counter_clear(PCNT_UNIT);
-            // sensitivity threshold: ignore ±1 glitches
+            // halve PCNT edge count to detents, pass through single-edge noise
             if (count > 1) return count / 2;
             if (count < -1) return count / 2;
             return count;

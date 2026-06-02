@@ -83,7 +83,6 @@ namespace CTAG {
             int encoderAccel = 0;
             int lastEncDir = 0;
             uint32_t lastEncTick = 0;
-            int skipEncoders = 0;
 
             void parseParams();
             void parsePresets(int chan);

@@ -165,10 +165,6 @@ namespace CTAG {
         }
 
         void UIMenuPageParams::onEncoder(int delta) {
-            if (mode != MODE_VALUEEDIT && skipEncoders > 0) {
-                skipEncoders--;
-                return;
-            }
             if (mode == MODE_SELECT) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
@@ -314,7 +310,6 @@ namespace CTAG {
             } else if (mode == MODE_VALUEEDIT) {
                 if (btnId == 2 && !longPress) {
                     mode = MODE_EDIT;
-                    skipEncoders = 4;
                 }
                 // BTN2_LONG / BTN1 handled by UIMenu/TaskFunction
             } else if (mode == MODE_PRESETS) {
@@ -341,7 +336,6 @@ namespace CTAG {
         bool UIMenuPageParams::onBack() {
             if (mode == MODE_VALUEEDIT) {
                 mode = MODE_EDIT;
-                skipEncoders = 4;
                 doRedraw();
                 return true;
             }
