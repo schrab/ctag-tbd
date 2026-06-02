@@ -15,25 +15,27 @@
 
 ```
 ROOT (encoder switches panels)
-  │  SHORT → enter panel
-  │  DOUBLE → no-op
+  │  OK (BTN2_SHORT) → enter panel
   ▼
 PANEL_IN (encoder scrolls page items)
-  │  SHORT → `page.onButton(2, false)` (OK / select / enter)
-  │  LONG  → `page.onButton(2, true)` (MOD mapping)
-  │  DOUBLE → `page.onBack()` → if false: return to ROOT
+  │  BACK (BTN1_SHORT) → `page.onBack()` → if false: return to ROOT
+  │  OK   (BTN2_SHORT) → `page.onButton(2, false)` (select / enter)
+  │  MOD  (BTN2_LONG)  → `page.onButton(2, true)` (MOD mapping)
   ▼
 Sub-pages (page-owned, via onBack())
 ```
 
-**Event mapping (single button, BTN1 = GPIO36):**
-| User action | Duration | Event emitted | UIMenu dispatch |
-|------------|----------|---------------|-----------------|
-| Short tap | 20–500ms | `BTN1_SHORT` (delayed 300ms) | `onButton(2, false)` = OK |
-| Long press | >500ms | `BTN1_LONG` | `onButton(2, true)` = MOD |
-| Double tap | two taps within 300ms | `BTN1_DOUBLE` | `onBack()` = BACK |
+**Event mapping (two ADC buttons):**
+| Physical button | ADC range | Event emitted | UIMenu dispatch | Role |
+|---------------|-----------|---------------|-----------------|------|
+| SW1 (short) | ~1850-1950 | `BTN2_SHORT` | `onButton(2, false)` | OK |
+| SW1 (long) | ~1850-1950 | `BTN2_LONG` | `onButton(2, true)` | MOD |
+| SW2 (short) | ~1100-1200 | `BTN1_SHORT` | `onBack()` | BACK |
+| SW2 (long) | ~1100-1200 | `BTN1_LONG` | `onBack()` | BACK (long=short) |
+| Both | ~800-900 | (no events) | — | No action |
 
-Encoder A/B on GPIO23/GPIO5 via PCNT unit 0. **GPIO0 is I2S MCLK — NOT a button.**
+Encoder A on GPIO5, B on GPIO23 via PCNT unit 0. **GPIO0 is I2S MCLK — NOT a button.**
+GPIO36 is ADC1_CH0, shared by both buttons via voltage divider (see doc/ui-input.md).
 
 **States:** `enum NavState : uint8_t { ROOT, PANEL_IN }` in `UIMenu.hpp`
 
@@ -80,20 +82,19 @@ static int panelBarTimer;      // counts down from 50 (~1s) in ROOT
 
 ```
 UserInput task (Core 0, idle+3)
-  → polls encoder (PCNT, 1kHz) + buttons (20ms debounce)
+  → polls encoder (PCNT, 1kHz) + ADC buttons (10ms, 4-sample average, 20ms debounce)
   → pushes events to FreeRTOS queue (64 slots)
 
 UIMenu task (Core 0, idle+3, 4096 stack, 20ms loop)
   → UserInput::GetEvent(ev, 20)
   → if ROOT:
        ENC_DELTA → switch panel (accelerated: abs>1 → /2)
-       BTN1_SHORT → enter PANEL_IN (OK)
-       BTN1_LONG/LONG → no-op
+       BTN2_SHORT → enter PANEL_IN (OK)
   → if PANEL_IN:
        ENC_DELTA → pages[current]->onEncoder(delta)
-       BTN1_SHORT → pages[current]->onButton(2, false) (OK)
-       BTN1_LONG  → pages[current]->onButton(2, true) (MOD)
-       BTN1_DOUBLE → pages[current]->onBack(); if false → ROOT (BACK)
+       BTN1_SHORT/LONG → pages[current]->onBack(); if false → ROOT (BACK)
+       BTN2_SHORT → pages[current]->onButton(2, false) (OK)
+       BTN2_LONG  → pages[current]->onButton(2, true) (MOD)    
   → redrawNeeded? if ROOT: page->doRedraw() + drawPanelBar()
                   if PANEL_IN: page->doRedraw()
   → panelBarTimer-- each tick in ROOT
@@ -262,7 +263,7 @@ The UIMenu task starts AFTER `StartSoundProcessor()` completes. This ensures the
 2. Add enum value to `UIMenu::Panel` in `UIMenu.hpp`
 3. `new` it in `UIMenu::Init()`
 4. Implement `onBack()` for sub-page navigation
-5. Use `btnId=2, longPress=false` (OK/short) as the primary select/enter action — this is triggered by BTN1 short tap in the actual mapping
+5. Use `btnId=2, longPress=false` (OK/short) as the primary select/enter action — this is triggered by physical SW1 short press in the actual mapping
 
 ## Adding a Sub-Page (like SYSTEM)
 
@@ -276,10 +277,11 @@ For pages accessed from a parent page's menu (not a panel tab):
 
 ## Common Pitfalls
 
-- **Single button = OK + MOD + BACK**: BTN1 (GPIO36) is the only button. Short tap = OK (BTN2_SHORT), long press = MOD (BTN2_LONG), double-tap = BACK. Double-click detection in `UserInput::inputTask()`: two releases within 300ms emit `BTN1_DOUBLE` instead of two `BTN1_SHORT`. Single tap has a 300ms delay before firing `BTN1_SHORT` to allow time for a second tap.
+- **Two buttons on one ADC pin**: SW1 = OK (10k to GND), SW2 = BACK (4.7k to GND), shared 10k pull-up to 3.3V. ADC reads distinct voltage levels for each. **Must not use GPIO0** (I2S MCLK). The ADC button approach eliminates single-button timing races (stale events on mode transitions, double-click delay). See `doc/ui-input.md` for circuit and thresholds.
+- **Encoder pin swap**: On this build, ENC_A = GPIO5, ENC_B = GPIO23 (swapped relative to upstream). The PCNT glitch filter (val=200, ~2.5µs) is enabled for mechanical bounce rejection.
 - **I2C contention**: All display writes from a single task (UIMenu). No mutex needed.
-- **GPIO5 conflict (encoder)**: GPIO5 is encoder signal B (PCNT). The old `Favorites::ui_task` used GPIO5 as a button — DISABLED in `SPManager.cpp`. No other GPIO5 usage.
-- **Button ISR timing**: `UserInput::EnableISR()` must be called after `Codec::InitCodec()` to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3. GPIO0 (BOOT button) is NOT usable — it's the I2S MCLK output.
-- **SPModel assert on boot**: If storage partition doesn't have `spm-config.jsn` (e.g. after format), the firmware asserts. Use `idf.py flash` to write the storage partition from `spiffs_image/`.
-- **Boot-time `new` allocation freeze**: Allocating `UIMenuPageSystem` during `UIMenuPageHome::init()` via `operator new` causes the UI task to silently stop responding. The page must be lazy-allocated when the user enters `SP_SYSTEM` from the HOME menu, not during boot.
-- **Config persistence overwrite**: `applyCurrent()` must load the full config JSON and overlay only managed fields, not build a new object from scratch. Writing a partial config (e.g., only the 10 displayed items) removes `cv_ch0..cv_ch3` and `wifi`, causing `updateConfiguration()` to assert on next boot. Use `doc[it.id].Swap(v)` to modify in-place within the existing document.
+- **GPIO5 conflict (encoder)**: GPIO5 is encoder signal A (PCNT). The old `Favorites::ui_task` used GPIO5 as a button — DISABLED in `SPManager.cpp`. No other GPIO5 usage.
+- **Button ISR timing**: `UserInput::EnableISR()` must be called after `Codec::InitCodec()` to avoid ISR firing inside I2S MCLK spinlock on ESP32 Rev3. GPIO0 (BOOT button) is NOT usable — it's the I2S MCLK output. With ADC polling, ISRs are not needed — `EnableISR()` is a no-op.
+- **SPModel assert on boot**: Same as upstream — storage partition must have `spm-config.jsn`.
+- **Boot-time `new` allocation freeze**: Same as upstream.
+- **Config persistence overwrite**: Same as upstream.

@@ -133,23 +133,23 @@ namespace CTAG {
                                 }
                                 panelBarTimer = 50;
                                 redrawNeeded = true;
-                            } else if (ev.type == InputEvent::BTN1_SHORT) {
+                            } else if (ev.type == InputEvent::BTN2_SHORT) {
                                 navState = PANEL_IN;
                                 redrawNeeded = true;
                             }
                         } else {
                             if (ev.type == InputEvent::ENC_DELTA) {
                                 pages[currentPanel]->onEncoder(ev.delta);
-                            } else if (ev.type == InputEvent::BTN1_SHORT) {
-                                pages[currentPanel]->onButton(2, false);
-                            } else if (ev.type == InputEvent::BTN1_LONG) {
-                                pages[currentPanel]->onButton(2, true);
-                            } else if (ev.type == InputEvent::BTN1_DOUBLE) {
+                            } else if (ev.type == InputEvent::BTN1_SHORT || ev.type == InputEvent::BTN1_LONG) {
                                 if (!pages[currentPanel]->onBack()) {
                                     navState = ROOT;
                                     redrawNeeded = true;
                                     panelBarTimer = 50;
                                 }
+                            } else if (ev.type == InputEvent::BTN2_SHORT) {
+                                pages[currentPanel]->onButton(2, false);
+                            } else if (ev.type == InputEvent::BTN2_LONG) {
+                                pages[currentPanel]->onButton(2, true);
                             }
                         }
                     }

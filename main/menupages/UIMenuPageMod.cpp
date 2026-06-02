@@ -18,7 +18,9 @@ namespace CTAG {
             editing = false;
         }
 
-        void UIMenuPageMod::deinit() { ModEngine::SaveConfig(); }
+        void UIMenuPageMod::deinit() {
+            if (dirty) { ModEngine::SaveConfig(); dirty = false; }
+        }
 
         void UIMenuPageMod::onEncoder(int delta) {
             if (subPage == SP_MAIN) {
@@ -33,21 +35,25 @@ namespace CTAG {
                         if (s < 0) s = 0;
                         if (s > 4) s = 4;
                         ModEngine::SetLFOShape(lfo, s);
+                        dirty = true;
                     } else if (cursor == 1) {
                         float r = ModEngine::GetLFORate(lfo) + delta * 0.1f;
                         if (r < 0.01f) r = 0.01f;
                         if (r > 100.0f) r = 100.0f;
                         ModEngine::SetLFORate(lfo, r);
+                        dirty = true;
                     } else if (cursor == 2) {
                         float a = ModEngine::GetLFOAmplitude(lfo) + delta * 0.01f;
                         if (a < 0.0f) a = 0.0f;
                         if (a > 1.0f) a = 1.0f;
                         ModEngine::SetLFOAmplitude(lfo, a);
+                        dirty = true;
                     } else if (cursor == 3) {
                         int s = ModEngine::GetLFOCVSlot(lfo) + delta;
                         if (s < -1) s = -1;
                         if (s >= N_CVS) s = N_CVS - 1;
                         ModEngine::SetLFOCVSlot(lfo, s);
+                        dirty = true;
                     }
                 } else {
                     cursor += delta;
@@ -65,11 +71,13 @@ namespace CTAG {
                         if (cc < -1) cc = -1;
                         if (cc > 127) cc = 127;
                         ModEngine::SetDynamicSlotCC(ccEditSlot, cc);
+                        dirty = true;
                     } else if (cursor == 1) {
                         int ch = ModEngine::GetDynamicSlotChan(ccEditSlot) + delta;
                         if (ch < 0) ch = 0;
                         if (ch > 15) ch = 15;
                         ModEngine::SetDynamicSlotChan(ccEditSlot, ch);
+                        dirty = true;
                     }
                 } else {
                     cursor += delta;
