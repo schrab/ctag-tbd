@@ -259,7 +259,6 @@ void Display::InvertRect(int x, int y, int w, int h) {
 
 void Display::DrawString(int x, int y, const char *str, Font font) {
     if (!str) return;
-    int ox = x;
     if (font == FONT_8X8) {
         while (*str) {
             if (*str < 32 || *str > 127) { str++; continue; }
@@ -271,8 +270,6 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
                     DrawPixel(x + col, y + row, (byte >> row) & 1);
                 }
             }
-            x += 8;
-            if (x > 120) { x = ox; y += 8; }
             str++;
         }
     } else {
@@ -285,8 +282,6 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
                     DrawPixel(x + col, y + row, (byte >> row) & 1);
                 }
             }
-            x += 6; // 5 px glyph + 1 px spacing
-            if (x > 123) { x = ox; y += 8; }
             str++;
         }
     }
