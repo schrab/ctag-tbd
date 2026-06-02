@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "UIMenu.hpp"
 #include "UserInput.hpp"
 #include "Display.hpp"
+#include "SPManager.hpp"
 #include "menupages/UIMenuPageHome.hpp"
 #include "menupages/UIMenuPageMix.hpp"
 #include "menupages/UIMenuPageParams.hpp"
@@ -75,24 +76,30 @@ namespace CTAG {
         }
 
         void UIMenu::drawPanelBar() {
-            if (panelBarTimer <= 0) return;
-
-            // Norns-style indicator bar at top: 20px wide rectangles
-            int segWidth = 128 / PANEL_COUNT;
-            int rectW = 20;
-            for (int i = 0; i < PANEL_COUNT; i++) {
-                int rx = i * segWidth + (segWidth - rectW) / 2;
-                if (i == currentPanel) {
-                    // Active: filled rectangle
-                    Display::DrawRect(rx, 0, rectW, 3, true, true);
-                } else {
-                    // Inactive: 1px border rectangle
-                    Display::DrawRect(rx, 0, rectW, 3, false, true);
+            if (panelBarTimer > 0) {
+                // Norns-style indicator bar at top: 20px wide rectangles
+                int segWidth = 128 / PANEL_COUNT;
+                int rectW = 20;
+                for (int i = 0; i < PANEL_COUNT; i++) {
+                    int rx = i * segWidth + (segWidth - rectW) / 2;
+                    if (i == currentPanel) {
+                        // Active: filled rectangle
+                        Display::DrawRect(rx, 0, rectW, 3, true, true);
+                    } else {
+                        // Inactive: 1px border rectangle
+                        Display::DrawRect(rx, 0, rectW, 3, false, true);
+                    }
                 }
+                panelBarTimer--;
             }
 
+            // CPU overload indicator at top-right corner (unconditional)
+            if (CTAG::AUDIO::SoundProcessorManager::GetCPUOverload()) {
+                Display::DrawRect(124, 0, 3, 3, true, true);
+            } else {
+                Display::DrawRect(124, 0, 3, 3, true, false);
+            }
             Display::Flush();
-            panelBarTimer--;
         }
 
         void UIMenu::TaskFunction(void *) {

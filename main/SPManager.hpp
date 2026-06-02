@@ -43,41 +43,34 @@ namespace CTAG {
             static void StartSoundProcessor();
 
             static const char *GetCStrJSONSoundProcessors() {
-                ledBlink = 1;
                 if (!model) return "[]";
                 return model->GetCStrJSONSoundProcessors();
             }
 
             static const char *GetCStrJSONActivePluginParams(const int chan) {
-                ledBlink = 1;
                 if (sp[chan] == nullptr) return "{}";
                 return sp[chan]->GetCStrJSONParamSpecs();
             }
 
             static const char *GetCStrJSONGetPresets(const int chan) { // names of all available presets
-                ledBlink = 1;
                 if (sp[chan] == nullptr) return "{}";
                 return sp[chan]->GetCStrJSONPresets();
             }
 
             static const char *GetCStrJSONAllPresetData(const int chan) { // current preset as JSON
-                ledBlink = 1;
                 if (sp[chan] == nullptr) return "{}";
                 return sp[chan]->GetCStrJSONAllPresetData();
             }
 
             static const char *GetCStrJSONConfiguration() {
-                ledBlink = 1;
                 return model->GetCStrJSONConfiguration();
             }
 
             static const char *GetCStrJSONSoundProcessorPresets(const string &id) {
-                ledBlink = 1;
                 return model->GetCStrJSONSoundProcessorPresets(id);
             }
 
             static void SetCStrJSONSoundProcessorPreset(const char* id, const char *data) {
-                ledBlink = 1;
                 model->SetCStrJSONSoundProcessorPreset(id, data);
             }
 
@@ -103,20 +96,18 @@ namespace CTAG {
             static void DisablePluginProcessing();
             static void EnablePluginProcessing();
             static void RefreshSampleRom();
+            static bool GetCPUOverload() { return cpuOverload != 0; }
 
         private:
             static void audio_task(void *pvParams);
 
-            static void led_task(void *pvParams);
-
             static void updateConfiguration();
 
-            static TaskHandle_t audioTaskH, ledTaskH;
+            static TaskHandle_t audioTaskH;
             static ctagSoundProcessor *sp[2];
             static std::unique_ptr<SPManagerDataModel> model;
             static SemaphoreHandle_t processMutex;
-            static atomic<uint32_t> ledBlink;
-            static atomic<uint32_t> ledStatus;
+            static atomic<uint32_t> cpuOverload;
             static atomic<uint32_t> noiseGateCfg;
             static atomic<uint32_t> ch01Daisy;
             static atomic<uint32_t> toStereoCH0;

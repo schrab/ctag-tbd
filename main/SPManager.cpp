@@ -29,7 +29,6 @@ respective component folders / files if different from this license.
 #include "codec.hpp"
 #include "Display.hpp"
 #include "esp_heap_caps.h"
-#include "led_rgb.hpp"
 #include "network.hpp"
 #include "SerialAPI.hpp"
 #include "RestServer.hpp"
@@ -73,7 +72,7 @@ namespace CTAG {
 // audio real-time task
 void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     float fbuf[BUF_SZ * 2];
-    float peakIn = 0.f, peakOut = 0.f;
+    float peakIn = 0.f;
     float peakL = 0.f, peakR = 0.f;
     int ngState = NG_OPEN;
     float lramp[BUF_SZ];
@@ -181,15 +180,6 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             }
         }
 
-        // led indicator, green for input
-        max = 255.f + 3.2f * CTAG::SP::HELPERS::fast_dBV(peakIn); // cut away at approx -80dB
-        uint32_t ledData = 0;
-        //ESP_LOGI("SP", "Max %.9f %f", peakIn, max);
-        if (max > 0 && ngState == NG_OPEN) {
-            ledData = ((uint32_t) max);
-            ledData <<= 8; // green
-        }
-
         // sound processors
         if (xSemaphoreTake(processMutex, 0) == pdTRUE) {
             // apply sound processors
@@ -275,17 +265,9 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             //if (fbuf[i * 2 + 1] > max) max = fbuf[i * 2 + 1];
         }
 
-        // just take first sample of block for level meter
-        max = fabsf(fbuf[0] + fbuf[1]) / 2.f;
-        peakOut = 0.9f * peakOut + 0.1f * max;
-        //ESP_LOGW("PEAK", "max %.12f, peak %.12f", max, peakOut);
-        max = 255.f + 3.2f * HELPERS::fast_dBV(peakOut);
-        if (max > 0.f) ledData |= ((uint32_t) max) << 16; // red
-
-        // get cpu cycles for audio task and tone led
+        // get cpu cycles for audio task
         diff = esp_cpu_get_cycle_count() - start;
-        if(diff > CPU_MAX_ALLOWED_CYCLES) ledData = 0xB39134; // orange code for cpu overflow
-        ledStatus = ledData;
+        cpuOverload = (diff > CPU_MAX_ALLOWED_CYCLES) ? 1 : 0;
 
         // SD audio: mix playback into output
         CTAG::AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
@@ -302,8 +284,6 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 }
 
 void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const string &id) {
-    ledBlink = 5;
-
     // does the SP exist?
     if(!model->HasPluginID(id)) return;
 
@@ -345,12 +325,10 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
 }
 
 TaskHandle_t SoundProcessorManager::audioTaskH;
-TaskHandle_t SoundProcessorManager::ledTaskH;
 DRAM_ATTR ctagSoundProcessor* SoundProcessorManager::sp[2] {nullptr, nullptr};
 std::unique_ptr<SPManagerDataModel> SoundProcessorManager::model;
 DRAM_ATTR SemaphoreHandle_t SoundProcessorManager::processMutex;
-atomic<uint32_t> SoundProcessorManager::ledBlink;
-atomic<uint32_t> SoundProcessorManager::ledStatus;
+atomic<uint32_t> SoundProcessorManager::cpuOverload = 0;
 atomic<uint32_t> SoundProcessorManager::noiseGateCfg;
 atomic<uint32_t> SoundProcessorManager::ch01Daisy;
 atomic<uint32_t> SoundProcessorManager::toStereoCH0;
@@ -360,7 +338,6 @@ atomic<uint32_t> SoundProcessorManager::ch0_outputSoftClip;
 atomic<uint32_t> SoundProcessorManager::ch1_outputSoftClip;
 
 void SoundProcessorManager::StartSoundProcessor() {
-    ledBlink = 5;
     model = std::make_unique<SPManagerDataModel>();
 
 #ifdef CONFIG_TBD_PLATFORM_STR
@@ -415,11 +392,6 @@ void SoundProcessorManager::StartSoundProcessor() {
     if (processMutex == NULL) {
         ESP_LOGE("SPM", "Fatal couldn't create mutex!");
     }
-#ifndef CONFIG_TBD_PLATFORM_STR
-    // create led indicator thread
-    xTaskCreatePinnedToCore(&SoundProcessorManager::led_task, "led_task", 4096, nullptr, tskIDLE_PRIORITY + 2,
-                            &ledTaskH, 0);
-#endif
     CTRL::Control::FlushBuffers();
     // create audio thread
     runAudioTask = 1;
@@ -441,12 +413,10 @@ void SoundProcessorManager::StartSoundProcessor() {
 }
 
 void SoundProcessorManager::SetChannelParamValue(const int chan, const string &id, const string &key, const int val) {
-    ledBlink = 3;
     sp[chan]->SetParamValue(id, key, val);
 }
 
 void SoundProcessorManager::ChannelSavePreset(const int chan, const string &name, const int number) {
-    ledBlink = 3;
     if (sp[chan] == nullptr) return;
     xSemaphoreTake(processMutex, portMAX_DELAY);
     sp[chan]->SavePreset(name, number);
@@ -455,7 +425,6 @@ void SoundProcessorManager::ChannelSavePreset(const int chan, const string &name
 }
 
 void SoundProcessorManager::ChannelLoadPreset(const int chan, const int number) {
-    ledBlink = 3;
     if (sp[chan] == nullptr) return;
     xSemaphoreTake(processMutex, portMAX_DELAY);
     sp[chan]->LoadPreset(number);
@@ -464,12 +433,10 @@ void SoundProcessorManager::ChannelLoadPreset(const int chan, const int number) 
 }
 
 string SoundProcessorManager::GetStringID(const int chan) {
-    ledBlink = 3;
     return model->GetActiveProcessorID(chan);
 }
 
 void SoundProcessorManager::SetConfigurationFromJSON(const string &data) {
-    ledBlink = 3;
     xSemaphoreTake(processMutex, portMAX_DELAY);
     model->SetConfigurationFromJSON(data);
     updateConfiguration();
@@ -477,7 +444,6 @@ void SoundProcessorManager::SetConfigurationFromJSON(const string &data) {
 }
 
 void SoundProcessorManager::updateConfiguration() {
-    ledBlink = 3;
     CTRL::Control::SetCVChannelBiPolar(model->GetConfigurationData("cv_ch0") == "bipolar",
                               model->GetConfigurationData("cv_ch1") == "bipolar",
                               model->GetConfigurationData("cv_ch2") == "bipolar",
@@ -577,27 +543,6 @@ void SoundProcessorManager::updateConfiguration() {
     if (!oledBr.empty()) DRIVERS::Display::Contrast(std::stoi(oledBr));
 }
 
-void SoundProcessorManager::led_task(void *pvParams) {
-    uint32_t r = 0, g = 0, b = 0;
-    uint32_t data = 0;
-    while (1) {
-        data = ledStatus;
-        r = data & 0x00FF0000;
-        r >>= 16;
-        g = data & 0x0000FF00;
-        g >>= 8;
-        b = data & 0x000000FF;
-        if ((ledBlink % 2) == 1) {
-            DRIVERS::LedRGB::SetLedRGB(r, g, b);
-        } else {
-            DRIVERS::LedRGB::SetLedRGB(r, g, 255);
-        }
-        if (ledBlink > 1 && ledBlink < 42) ledBlink--; // >= 42 led blink doesn't stop
-        if (ledBlink == 42) ledBlink = 44;
-        vTaskDelay(50 / portTICK_PERIOD_MS); // 50ms refresh rate for led
-    }
-}
-
 void SoundProcessorManager::KillAudioTask() {
     FAV::Favorites::DisableFavoritesUI();
     Codec::SetOutputLevels(0, 0);
@@ -609,12 +554,6 @@ void SoundProcessorManager::KillAudioTask() {
     sp[0] = nullptr;
     sp[1] = nullptr;
     ctagSPAllocator::ReleaseInternalBuffer();
-#ifndef CONFIG_TBD_PLATFORM_STR
-    vTaskDelete(ledTaskH);
-    ledTaskH = NULL;
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-    DRIVERS::LedRGB::SetLedRGB(255, 0, 255);
-#endif
     ESP_LOGI("SPManager", "Audio Task Killed: Mem freesize internal %d, largest block %d, free SPIRAM %d, largest block SPIRAM %d!",
              heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL),
              heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL),
@@ -624,15 +563,12 @@ void SoundProcessorManager::KillAudioTask() {
 
 void SoundProcessorManager::DisablePluginProcessing() {
     xSemaphoreTake(processMutex, portMAX_DELAY);
-    ledBlink = 42;
 }
 
 void SoundProcessorManager::EnablePluginProcessing() {
-    ledBlink = 5;
     xSemaphoreGive(processMutex);
 }
 
 void SoundProcessorManager::RefreshSampleRom() {
-    ledBlink = 5;
     ctagSampleRom::RefreshDataStructure();
 }
