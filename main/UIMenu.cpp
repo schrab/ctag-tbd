@@ -132,11 +132,7 @@ namespace CTAG {
                             }
                         } else {
                             if (ev.type == InputEvent::ENC_DELTA) {
-                                int steps = ev.delta;
-                                if (steps > 1) steps /= 2;
-                                if (steps < -1) steps /= 2;
-                                if (steps == 0) steps = (ev.delta > 0) ? 1 : -1;
-                                pages[currentPanel]->onEncoder(steps);
+                                pages[currentPanel]->onEncoder(ev.delta);
                             } else if (ev.type == InputEvent::BTN1_SHORT) {
                                 pages[currentPanel]->onButton(2, false);
                             } else if (ev.type == InputEvent::BTN1_LONG) {
