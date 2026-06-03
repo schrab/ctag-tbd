@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include <cstdint>
+#include "freertos/FreeRTOS.h"
 
 namespace CTAG {
     namespace SP {
@@ -64,7 +65,7 @@ namespace CTAG {
                 bool running = false;
 
                 // Tap tempo state
-                uint32_t lastTapTime = 0;
+                TickType_t lastTapTick = 0;
                 uint32_t tapCount = 0;
             };
         } // HELPERS

@@ -28,8 +28,8 @@ namespace CTAG {
         namespace HELPERS {
             ctagTempo::ctagTempo() {
                 phase = 0.0f;
-                running = false;
-                lastTapTime = 0;
+                running = true;
+                lastTapTick = 0;
                 tapCount = 0;
             }
 
@@ -119,30 +119,30 @@ namespace CTAG {
             }
 
             void ctagTempo::OnTapTempo() {
-                uint32_t now = xTaskGetTickCount();
+                TickType_t now = xTaskGetTickCount();
                 
                 if (tapCount == 0) {
-                    lastTapTime = now;
+                    lastTapTick = now;
                     tapCount = 1;
                 } else {
-                    uint32_t delta = now - lastTapTime;
-                    lastTapTime = now;
+                    TickType_t deltaTicks = now - lastTapTick;
+                    lastTapTick = now;
                     tapCount++;
                     
+                    // Convert ticks to ms
+                    uint32_t delta_ms = deltaTicks * portTICK_PERIOD_MS;
+                    
                     // Ignore taps that are too fast (< 200ms) or too slow (> 3000ms)
-                    if (delta > 200 && delta < 3000) {
-                        // Calculate BPM: 60000 ms per minute / delta ms per beat
-                        float tapped_bpm = 60000.0f / static_cast<float>(delta);
+                    if (delta_ms > 200 && delta_ms < 3000) {
+                        float tapped_bpm = 60000.0f / static_cast<float>(delta_ms);
                         SetBPM(tapped_bpm);
                         
-                        // Reset after 4 taps to allow re-tapping
                         if (tapCount >= 4) {
                             tapCount = 0;
                         }
                     } else {
-                        // Reset if tap is out of reasonable range
                         tapCount = 1;
-                        lastTapTime = now;
+                        lastTapTick = now;
                     }
                 }
             }
