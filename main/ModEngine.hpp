@@ -51,6 +51,10 @@ public:
     static float GetLFORate(int lfo);
     static float GetLFOAmplitude(int lfo);
 
+    // Tempo sync: when true, LFO phase follows tempo engine instead of free Hz
+    static bool GetLFOSync(int lfo);
+    static void SetLFOSync(int lfo, bool sync);
+
     // Persistence: save/load config to /spiffs/data/mod-config.jsn
     static void SaveConfig();
     static void LoadConfig();
@@ -75,6 +79,7 @@ private:
     static int lfoShape[2];
     static int lfoCVSlot[2];
     static float lfoHold[2];  // for S&H
+    static bool lfoSync[2];   // true = beat-synced (follows tempo phase)
 
     // Dynamic CC mapping: slot 0-7 maps (chan, cc) → CV slot 90-97
     static int dynCC[8];   // CC number or -1 = unused

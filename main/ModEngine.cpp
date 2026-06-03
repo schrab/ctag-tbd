@@ -44,6 +44,7 @@ float ModEngine::lfoAmplitude[2] = {0.5f, 0.5f};
 int ModEngine::lfoShape[2] = {0, 0};
 int ModEngine::lfoCVSlot[2] = {LFO1_SLOT, LFO2_SLOT};
 float ModEngine::lfoHold[2] = {0, 0};
+bool ModEngine::lfoSync[2] = {false, false};
 
 int ModEngine::dynCC[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
 int ModEngine::dynChan[8] = {0};
@@ -78,8 +79,12 @@ void ModEngine::Process(float *cv_buffer) {
     tempoEngine.Tick();
     // Update LFOs
     for (int lfo = 0; lfo < 2; lfo++) {
-        lfoPhase[lfo] += lfoRate[lfo] / 1378.0f; // block rate
-        if (lfoPhase[lfo] > 1.0f) lfoPhase[lfo] -= 1.0f;
+        if (lfoSync[lfo]) {
+            lfoPhase[lfo] = tempoEngine.GetPhase();
+        } else {
+            lfoPhase[lfo] += lfoRate[lfo] / 1378.0f; // block rate
+            if (lfoPhase[lfo] > 1.0f) lfoPhase[lfo] -= 1.0f;
+        }
 
         float val;
         switch (lfoShape[lfo]) {
@@ -133,6 +138,8 @@ void ModEngine::SetLFOCVSlot(int lfo, int slot) {
 int ModEngine::GetLFOShape(int lfo) { return (lfo >= 0 && lfo < 2) ? lfoShape[lfo] : 0; }
 float ModEngine::GetLFORate(int lfo) { return (lfo >= 0 && lfo < 2) ? lfoRate[lfo] : 0; }
 float ModEngine::GetLFOAmplitude(int lfo) { return (lfo >= 0 && lfo < 2) ? lfoAmplitude[lfo] : 0; }
+bool ModEngine::GetLFOSync(int lfo) { return (lfo >= 0 && lfo < 2) ? lfoSync[lfo] : false; }
+void ModEngine::SetLFOSync(int lfo, bool sync) { if (lfo >= 0 && lfo < 2) lfoSync[lfo] = sync; }
 
 void ModEngine::StartLearn() {
     learning = true;
@@ -216,6 +223,7 @@ void ModEngine::SaveConfig() {
         lfo.AddMember("rate", lfoRate[i], alloc);
         lfo.AddMember("amp", lfoAmplitude[i], alloc);
         lfo.AddMember("cvSlot", lfoCVSlot[i], alloc);
+        lfo.AddMember("sync", lfoSync[i], alloc);
         d.AddMember(Value(key, alloc).Move(), lfo, alloc);
     }
 
@@ -270,6 +278,7 @@ void ModEngine::LoadConfig() {
         if (lfo.HasMember("rate")) lfoRate[i] = lfo["rate"].GetFloat();
         if (lfo.HasMember("amp")) lfoAmplitude[i] = lfo["amp"].GetFloat();
         if (lfo.HasMember("cvSlot")) lfoCVSlot[i] = lfo["cvSlot"].GetInt();
+        if (lfo.HasMember("sync")) lfoSync[i] = lfo["sync"].GetBool();
     }
 
     if (d.HasMember("ccSlots") && d["ccSlots"].IsArray()) {
