@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include <cstdint>
+#include "ctagTempo.hpp"
 
 namespace CTAG::DRIVERS {
 
@@ -33,6 +34,9 @@ public:
     static void Init();
     // Called each audio block (1378 Hz) to update LFO values
     static void Process(float *cv_buffer);
+
+    // Global tempo engine access
+    static SP::HELPERS::ctagTempo& GetTempoEngine();
 
     // LFO configuration
     static void SetLFOShape(int lfo, int shape);  // 0=sine,1=tri,2=saw,3=sq,4=S&H

@@ -52,6 +52,12 @@ int ModEngine::dynTargetSlot[8] = {90, 91, 92, 93, 94, 95, 96, 97};
 bool ModEngine::learning = false;
 int ModEngine::lastLearnedSlot = -1;
 
+SP::HELPERS::ctagTempo ModEngine::tempoEngine;
+
+SP::HELPERS::ctagTempo& ModEngine::GetTempoEngine() {
+    return tempoEngine;
+}
+
 void ModEngine::Init() {
     for (int i = 0; i < 8; i++) {
         dynTargetSlot[i] = DYN_SLOT_BASE + i;
@@ -60,6 +66,10 @@ void ModEngine::Init() {
     }
     lfoPhase[0] = 0;
     lfoPhase[1] = 0;
+    
+    // Initialize tempo engine (44100 Hz, 32 samples per block)
+    tempoEngine.SetSampleRate(44100.0f, 32);
+    
     LoadConfig();
     ESP_LOGI(TAG, "ModEngine initialized, slots 90-99");
 }
