@@ -1157,14 +1157,26 @@ uint8_t *Midi::Update() {
                 bool was_realtime_message = false;    // Will only become true, if we find a real-time message status byte now...
                 switch(*ptr)                          // ### MB20240911: Added Edge-case detection: Realtime-Events are no valid status-bytes that to end a possible running-status byte situation!   
                 {
-                    case 0xfa:    // Start
                     case 0xf8:    // Clock
+                        CTAG::DRIVERS::ModEngine::GetTempoEngine().OnMidiClock();
+                        was_realtime_message = true;
+                        break;
+                    case 0xfa:    // Start
+                        CTAG::DRIVERS::ModEngine::GetTempoEngine().Start();
+                        was_realtime_message = true;
+                        break;
                     case 0xfb:    // Continue
+                        CTAG::DRIVERS::ModEngine::GetTempoEngine().Continue();
+                        was_realtime_message = true;
+                        break;
                     case 0xfc:    // Stop
+                        CTAG::DRIVERS::ModEngine::GetTempoEngine().Stop();
+                        was_realtime_message = true;
+                        break;
                     case 0xfe:    // Active Sensing
                     case 0xff:    // System Reset
-                        was_realtime_message = true;    // Running-status may stay active for any Channel Voice Message that we handle!
-                        break;       
+                        was_realtime_message = true;
+                        break;
                 }               
                 if(!was_realtime_message && (*ptr & 0x80))   // Did we encounter a statusbyte, that was not a realtime event? Could be PolyPressure or System Common / SysEx
                     current_status = 0;         // This is a to us unknown statusbyte! We set it to zero, to also pass on that running-status can not be handled in next round!
