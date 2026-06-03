@@ -8,4 +8,7 @@
 - Prefer: working on existing code → analyze, reason, suggest, ask before changing. Confidence: 0.80
 - For commits: use `git commit -F - <<'EOF'` with heredoc for multi-line messages, include Co-authored-by footer. Confidence: 0.80
 - Use // region / // endregion pragma marks in C++ for code folding. Confidence: 0.80
+- Update documentation in /doc when code changes are made to ensure docs stay in sync with implementation. Confidence: 0.75
 - For ESP32 pin assignments: document in config header with SPI_ATTACH, D/C, RST, CS etc. Confidence: 0.70
+- Read agents.md for authoritative build commands and project-specific workflows. Confidence: 0.85
+- Trim long command output with `tail` to keep responses concise and avoid overwhelming output. Confidence: 0.75

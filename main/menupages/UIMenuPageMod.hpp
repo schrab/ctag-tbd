@@ -14,11 +14,14 @@ namespace CTAG {
             bool onBack() override;
 
         private:
-            enum SubPage { SP_MAIN, SP_LFO1, SP_LFO2, SP_TEMPO, SP_CC_SLOTS, SP_CC_EDIT };
+            enum SubPage { SP_MAIN, SP_LFO1, SP_LFO2, SP_TEMPO, SP_CC_SLOTS, SP_CC_EDIT, SP_SEQ1, SP_SEQ2 };
             SubPage subPage;
             int cursor;
             int ccEditSlot;
             int ccEditValue;
+            int seqEditStep;    // which step (0-15) is selected when sub-editing
+            bool seqEditParams; // true = editing global params sub-screen
+            int seqEditParamCursor;
             bool editing;
             bool dirty = false;
 
@@ -27,6 +30,7 @@ namespace CTAG {
             void redrawTempo();
             void redrawCCSlots();
             void redrawCCEdit();
+            void redrawSeq(int seq);
         };
     }
 }

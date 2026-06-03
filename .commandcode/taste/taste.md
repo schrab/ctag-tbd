@@ -8,10 +8,13 @@ See [workflow/taste.md](workflow/taste.md)
 - For C++ header files: use `#pragma once` include guard. Confidence: 0.75
 - Keep column width within 100 chars for readability. Confidence: 0.70
 
+# architecture
+- Place DSP and audio processing helper code in `components/ctagSoundProcessor/helpers/` following existing project structure. Confidence: 0.65
+
 # display (second occurrence - merged)
 See [display-(second-occurrence---merged)/taste.md](display-(second-occurrence---merged)/taste.md)
 # feedback
-- Make ONE fix at a time, commit, build, flash, then STOP and wait for user feedback before making any further changes. Do not revert to previous states without explicit instruction. Confidence: 0.95
+- Make ONE fix at a time, commit, build, flash, then STOP and wait for user feedback before making any further changes. Do not revert to previous states without explicit instruction. The commit MUST happen before build and flash, not after. Confidence: 0.97
 - Never revert a change the user explicitly requested, even if you think it might cause issues. The user knows their hardware. Confidence: 0.95
 - When a user explicitly says "don't touch [component]", stop making any edits to that component and drop that line of investigation completely. Confidence: 0.90
 

@@ -15,6 +15,9 @@ namespace CTAG {
             cursor = 0;
             ccEditSlot = 0;
             ccEditValue = 0;
+            seqEditStep = 0;
+            seqEditParams = false;
+            seqEditParamCursor = 0;
             editing = false;
         }
 
@@ -26,7 +29,7 @@ namespace CTAG {
             if (subPage == SP_MAIN) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
-                if (cursor > 3) cursor = 3;
+                if (cursor > 5) cursor = 5;
             } else if (subPage == SP_TEMPO) {
                 if (editing) {
                     if (cursor == 0) {
@@ -108,6 +111,51 @@ namespace CTAG {
                     if (cursor < 0) cursor = 0;
                     if (cursor > 2) cursor = 2;
                 }
+            } else if (subPage == SP_SEQ1 || subPage == SP_SEQ2) {
+                int seq = (subPage == SP_SEQ1) ? 0 : 1;
+                if (seqEditParams) {
+                    if (editing) {
+                        if (cursor == 0) {
+                            float len = ModEngine::GetSequencer(seq).GetStepLength() + delta * 0.25f;
+                            if (len < 0.25f) len = 0.25f;
+                            if (len > 4.0f) len = 4.0f;
+                            ModEngine::GetSequencer(seq).SetStepLength(len);
+                            dirty = true;
+                        } else if (cursor == 1) {
+                            int d = (int)ModEngine::GetSequencer(seq).GetDirection() + delta;
+                            if (d < 0) d = 0;
+                            if (d > 3) d = 3;
+                            ModEngine::GetSequencer(seq).SetDirection((SP::HELPERS::ctagSeq16::Direction)d);
+                            dirty = true;
+                        } else if (cursor == 2) {
+                            float s = ModEngine::GetSequencer(seq).GetSlew() + delta * 0.05f;
+                            if (s < 0.0f) s = 0.0f;
+                            if (s > 1.0f) s = 1.0f;
+                            ModEngine::GetSequencer(seq).SetSlew(s);
+                            dirty = true;
+                        } else if (cursor == 3) {
+                            int cv = ModEngine::GetSequencer(seq).GetCVSlot() + delta;
+                            if (cv < -1) cv = -1;
+                            if (cv >= N_CVS) cv = N_CVS - 1;
+                            ModEngine::GetSequencer(seq).SetCVSlot(cv);
+                            dirty = true;
+                        } else if (cursor == 4) {
+                            int t = ModEngine::GetSequencer(seq).GetTrigSlot() + delta;
+                            if (t < -1) t = -1;
+                            if (t >= N_TRIGS) t = N_TRIGS - 1;
+                            ModEngine::GetSequencer(seq).SetTrigSlot(t);
+                            dirty = true;
+                        }
+                    } else {
+                        cursor += delta;
+                        if (cursor < 0) cursor = 0;
+                        if (cursor > 4) cursor = 4;
+                    }
+                } else {
+                    cursor += delta;
+                    if (cursor < 0) cursor = 0;
+                    if (cursor > 16) cursor = 16; // 16 steps + "[Params]"
+                }
             }
             doRedraw();
         }
@@ -119,6 +167,8 @@ namespace CTAG {
                     else if (cursor == 1) { subPage = SP_LFO2; cursor = 0; editing = false; }
                     else if (cursor == 2) { subPage = SP_TEMPO; cursor = 0; editing = false; }
                     else if (cursor == 3) { subPage = SP_CC_SLOTS; cursor = 0; editing = false; }
+                    else if (cursor == 4) { subPage = SP_SEQ1; cursor = 0; editing = false; seqEditParams = false; }
+                    else if (cursor == 5) { subPage = SP_SEQ2; cursor = 0; editing = false; seqEditParams = false; }
                 }
             } else if (subPage == SP_TEMPO) {
                 if (btnId == 2 && !longPress) {
@@ -150,6 +200,32 @@ namespace CTAG {
                         }
                     } else {
                         editing = !editing;
+                    }
+                }
+            } else if (subPage == SP_SEQ1 || subPage == SP_SEQ2) {
+                int seq = (subPage == SP_SEQ1) ? 0 : 1;
+                if (seqEditParams) {
+                    if (btnId == 2 && !longPress) {
+                        editing = !editing;
+                    }
+                } else {
+                    if (btnId == 2 && longPress) {
+                        // Long press on a step toggles trigger
+                        if (cursor <= 15) {
+                            float curVal = ModEngine::GetSequencer(seq).GetStep(cursor);
+                            ModEngine::GetSequencer(seq).SetStep(cursor, curVal);
+                            // Toggle trig not implemented yet – just update step
+                        }
+                    } else if (btnId == 2 && !longPress) {
+                        if (cursor == 16) {
+                            // Enter params sub-screen
+                            seqEditParams = true;
+                            cursor = 0;
+                            editing = false;
+                        } else {
+                            // Toggle edit mode for step CV
+                            editing = !editing;
+                        }
                     }
                 }
             }
@@ -187,6 +263,20 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
+            if (subPage == SP_SEQ1 || subPage == SP_SEQ2) {
+                if (seqEditParams) {
+                    seqEditParams = false;
+                    cursor = 16; // back to "[Params]"
+                    doRedraw();
+                    return true;
+                }
+                int prevFocus;
+                if (subPage == SP_SEQ1) prevFocus = 4; else prevFocus = 5;
+                subPage = SP_MAIN;
+                cursor = prevFocus;
+                doRedraw();
+                return true;
+            }
             return false;
         }
 
@@ -198,6 +288,8 @@ namespace CTAG {
                 case SP_TEMPO: redrawTempo(); break;
                 case SP_CC_SLOTS: redrawCCSlots(); break;
                 case SP_CC_EDIT: redrawCCEdit(); break;
+                case SP_SEQ1: redrawSeq(0); break;
+                case SP_SEQ2: redrawSeq(1); break;
             }
         }
 
@@ -206,7 +298,7 @@ namespace CTAG {
         void UIMenuPageMod::redrawMain() {
             Display::Clear();
             char buf[32];
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 6; i++) {
                 int y = ROW(i);
                 if (i == 0) {
                     float r = ModEngine::GetLFORate(0);
@@ -219,8 +311,12 @@ namespace CTAG {
                     auto src = ModEngine::GetTempoEngine().GetSource();
                     const char* srcStr = (src == SP::HELPERS::ctagTempo::Source::INTERNAL) ? "Int" : "MIDI";
                     snprintf(buf, sizeof(buf), " Tempo:%.0f %s", bpm, srcStr);
-                } else {
+                } else if (i == 3) {
                     snprintf(buf, sizeof(buf), " CC Slots");
+                } else if (i == 4) {
+                    snprintf(buf, sizeof(buf), " Seq1");
+                } else {
+                    snprintf(buf, sizeof(buf), " Seq2");
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
@@ -373,6 +469,84 @@ namespace CTAG {
             if (!editing) {
                 int cy = ROW_HDR(cursor);
                 Display::InvertRect(0, cy, 128, 8);
+            }
+            Display::Flush();
+        }
+
+        static const char* dirNames[4] = {"Fwd", "Bwd", "Pend", "Rand"};
+
+        void UIMenuPageMod::redrawSeq(int seq) {
+            Display::Clear();
+            char buf[32];
+            auto& sq = ModEngine::GetSequencer(seq);
+
+            if (seqEditParams) {
+                snprintf(buf, sizeof(buf), "SEQ%d Params", seq + 1);
+                Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
+
+                float sl = sq.GetStepLength();
+                snprintf(buf, sizeof(buf), " Len:%.2f", sl);
+                Display::DrawString(0, ROW_HDR(0), buf, Display::FONT_5X7);
+                if (editing && cursor == 0) Display::InvertRect(6*5+1, ROW_HDR(0), 128-6*5-1, 8);
+
+                int d = (int)sq.GetDirection();
+                snprintf(buf, sizeof(buf), " Dir:%s", dirNames[d >= 0 && d < 4 ? d : 0]);
+                Display::DrawString(0, ROW_HDR(1), buf, Display::FONT_5X7);
+                if (editing && cursor == 1) Display::InvertRect(6*5+1, ROW_HDR(1), 128-6*5-1, 8);
+
+                float sw = sq.GetSlew();
+                snprintf(buf, sizeof(buf), " Slew:%.2f", sw);
+                Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
+                if (editing && cursor == 2) Display::InvertRect(6*6+1, ROW_HDR(2), 128-6*6-1, 8);
+
+                int cv = sq.GetCVSlot();
+                if (cv < 0) snprintf(buf, sizeof(buf), " CV:-");
+                else if (cv < 100) snprintf(buf, sizeof(buf), " CV:%s", cvSlotDisplayNames[cv]);
+                else snprintf(buf, sizeof(buf), " CV:%d", cv);
+                Display::DrawString(0, ROW_HDR(3), buf, Display::FONT_5X7);
+                if (editing && cursor == 3) Display::InvertRect(6*5+1, ROW_HDR(3), 128-6*5-1, 8);
+
+                int tr = sq.GetTrigSlot();
+                if (tr < 0) snprintf(buf, sizeof(buf), " Trig:-");
+                else if (tr < 100) snprintf(buf, sizeof(buf), " Trig:%s", cvSlotDisplayNames[tr]);
+                else snprintf(buf, sizeof(buf), " Trig:%d", tr);
+                Display::DrawString(0, ROW_HDR(4), buf, Display::FONT_5X7);
+                if (editing && cursor == 4) Display::InvertRect(6*6+1, ROW_HDR(4), 128-6*6-1, 8);
+
+                if (!editing) {
+                    int cy = ROW_HDR(cursor);
+                    Display::InvertRect(0, cy, 128, 8);
+                }
+            } else {
+                snprintf(buf, sizeof(buf), "SEQ%d Steps", seq + 1);
+                Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
+
+                constexpr int TOTAL = 17; // 16 steps + "[Params]"
+                int scrollOff = (cursor > VISIBLE_ITEMS_HDR - 1) ? cursor - (VISIBLE_ITEMS_HDR - 1) : 0;
+                int visible = TOTAL - scrollOff;
+                if (visible > VISIBLE_ITEMS_HDR) visible = VISIBLE_ITEMS_HDR;
+                for (int i = 0; i < visible; i++) {
+                    int idx = scrollOff + i;
+                    int y = ROW_HDR(i);
+                    if (idx <= 15) {
+                        float v = sq.GetStep(idx);
+                        char trigChar = ' ';
+                        snprintf(buf, sizeof(buf), " %2d:%+.2f", idx + 1, (double)v);
+                        if (editing && cursor == idx) {
+                            int x = 6 * 5 + 1;
+                            Display::InvertRect(x, y, 128 - x, 8);
+                        }
+                    } else {
+                        snprintf(buf, sizeof(buf), " [Params]");
+                    }
+                    Display::DrawString(0, y, buf, Display::FONT_5X7);
+                }
+                if (!editing) {
+                    int cy = ROW_HDR(cursor - scrollOff);
+                    Display::InvertRect(0, cy, 128, 8);
+                }
+                if (TOTAL > VISIBLE_ITEMS_HDR)
+                    Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VISIBLE_ITEMS_HDR * LINE_H, TOTAL, cursor);
             }
             Display::Flush();
         }
