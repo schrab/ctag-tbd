@@ -36,6 +36,8 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 - SD card: components/drivers/fs.cpp InitSD() initializes SDMMC slot 1 (4-bit, GPIO34 CD), mounts as LittleFS on /sd in v5.x (was FAT on older IDF). CONFIG_LITTLEFS_SDMMC_SUPPORT must be enabled for SD detection.
 - UIMenu task: 4096 byte stack, runs on Core 0 at idle+3, 20ms period. Created after StartSoundProcessor() completes. UserInput::Init() called from TaskFunction (not from Init()) to avoid DRAM fragmentation before task creation. Old Favorites::ui_task is DISABLED (GPIO5 conflict with encoder).
 - Panel bar: Norns-style dashed horizontal line at y=0 with active/inactive segment indicators. No text. Fades after ~1s. 128/PANEL_COUNT px per segment.
+- **Modulation system**: See doc/modulation-system.md for full documentation. 2 LFOs (beat-synced or free), 2×16-step CV sequencers (FWD/BWD/PENDULUM/RANDOM, slew), 2×16-step gate generators (probability, swing, accent). All write to cv_buffer[] / trig_buffer[] at audio block rate. Tempo engine supports INTERNAL and MIDI_CLOCK sources. 8 MIDI-learnable CC-to-CV slot mappings. Persisted to /spiffs/data/mod-config.jsn. PANEL_MOD subpages: SP_LFO1/2, SP_TEMPO, SP_CC_SLOTS, SP_CC_EDIT, SP_SEQ1/2, SP_GATE1/2.
+- **Audio task call flow** (SPManager.cpp): `ModEngine::Process(cv, trig)` → Codec::ReadBuffer → DC cut → noise gate → sp[0].Process(pd) → sp[1].Process(pd) (if stereo) → Codec::WriteBuffer. ModEngine runs first every block (~1378 Hz), writing LFO/seq/gate outputs into the CV/trig buffers before sound processors read them.
 
 ## Common Workflows
 - **Build**: `source /home/ubuntu/esp-idf/export.sh && idf.py build`

@@ -13,8 +13,11 @@
 | `main/menupages/UIMenuPageParams.hpp` / `.cpp` | Group-recursive param editor, CV map, dual-channel |
 | `main/menupages/UIMenuPageMod.hpp` / `.cpp` | LFO/CC modulation source config page |
 | `main/CVSlotNames.hpp` | 100-entry CV slot display name table (7-char max) |
-| `main/ModEngine.hpp` / `.cpp` | LFO engine, SaveConfig/LoadConfig SPIFFS persistence |
+| `main/ModEngine.hpp` / `.cpp` | LFO/tempo/sequencer/gate engine, persistence |
 | `main/IOCapabilities.hpp` | CV array extended to 100 entries (slots 90-99 = ModEngine) |
+| `components/ctagSoundProcessor/helpers/ctagTempo.hpp` / `.cpp` | BPM engine with MIDI clock sync |
+| `components/ctagSoundProcessor/helpers/ctagSeq16.hpp` / `.cpp` | 16-step CV sequencer |
+| `components/ctagSoundProcessor/helpers/ctagGate16.hpp` / `.cpp` | 16-step gate generator |
 
 ## Parameter Architecture
 Each plugin has three mapping tables defined in its `knowYourself()` method:
@@ -97,20 +100,23 @@ When two different mono plugins are loaded (detected via `GetStringID(0) != GetS
 
 ## Modulation Tab (PANEL_MOD)
 
+See [`doc/modulation-system.md`](modulation-system.md) for full details.
+
 Tab between HOME and PARAMS. Sub-pages:
-- `SP_MAIN` — overview of LFO1, LFO2, and 8 CC slots
-- `SP_LFO1` / `SP_LFO2` — shape (sine/saw/tri/square/random), rate (Hz), amp, output CV slot assignment
-- `SP_CC_SLOTS` — scrolling list of 8 CC slots
-- `SP_CC_EDIT` — CC number, channel, MIDI Learn
+- `SP_MAIN` — overview of LFO1, LFO2, Tempo, CC Slots, Seq1/2, Gate1/2
+- `SP_LFO1` / `SP_LFO2` — shape, rate, amp, CV slot, sync toggle
+- `SP_TEMPO` — BPM edit, source select (Internal/MIDI), tap tempo
+- `SP_CC_SLOTS` / `SP_CC_EDIT` — 8 MIDI-learnable CC-to-CV slots
+- `SP_SEQ1` / `SP_SEQ2` — 16-step CV sequencer + params (slew, direction, step length)
+- `SP_GATE1` / `SP_GATE2` — 16-step gate pattern + params (probability, swing, accent)
 
 ## Persistence
 
-LFO/CC config saved to SPIFFS on every encoder change in PANEL_MOD. File: `/spiffs/data/mod-config.jsn`. Format:
-```json
-{"lfo1":{"shape":0,"rate":3.0,"amp":0.5,"cvSlot":98},"lfo2":{...},
- "ccSlots":[{"cc":-1,"chan":0,"cvSlot":90},...]}
-```
-Save uses RapidJSON `FileWriteStream` with a 512B stack buffer (no heap). `ModEngine::LoadConfig()` called from `Init()`.
+Modulation config saved to `/spiffs/data/mod-config.jsn`: LFOs, tempo source,
+CC slots, sequencer steps, gate patterns. Save uses RapidJSON `FileWriteStream`.
+`ModEngine::LoadConfig()` called from `Init()`.
+
+See [`doc/modulation-system.md`](modulation-system.md) for full config schema.
 
 ## API Endpoints
 - `GET /api/v1/setPluginParam/CV?ch=0&id=cutoff&cv=12` — map CV to param
