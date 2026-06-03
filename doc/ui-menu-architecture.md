@@ -96,9 +96,10 @@ UIMenu task (Core 0, idle+3, 4096 stack, 20ms loop)
        BTN2_SHORT → pages[current]->onButton(2, false) (OK)
        BTN2_LONG  → pages[current]->onButton(2, true) (MOD)    
   → redrawNeeded? if ROOT: page->doRedraw() + drawPanelBar()
-                  if PANEL_IN: page->doRedraw()
+                  if PANEL_IN: page->doRedraw() (triggered immediately by event handlers)
   → panelBarTimer-- each tick in ROOT
 ```
+*Note: Redraws are triggered immediately by `onEncoder()` and `onButton()` event handlers. There is no periodic auto-refresh, ensuring responsive UI and saving CPU cycles.*
 
 ## Display API
 
@@ -182,6 +183,8 @@ To change fonts (e.g. to 04B_03__ at 5px), edit `FONT_H` and recompile — every
 | `MODE_PSET` | "Not implemented" placeholder | No-op | No-op | Back to MODE_SELECT |
 
 Long-press on a param in MODE_EDIT enters MODE_MAP. `ParamInfo[256]` and `GroupInfo[32]` in SPIRAM. Standalone leaf params get implicit "General" group. If only one group exists, it auto-opens into MODE_EDIT directly (skipping MODE_GROUP). MODE_MAP shows "MAPPING" title + "OK=save BACK=exit" instruction.
+
+**Encoder Acceleration:** In `MODE_VALUEEDIT`, quadratic acceleration builds momentum on consecutive same-direction turns. This momentum automatically resets whenever the cursor changes (e.g., switching to a new parameter), preventing unexpected jumps when navigating between items.
 
 ### TAPE (`UIMenuPageTape`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |

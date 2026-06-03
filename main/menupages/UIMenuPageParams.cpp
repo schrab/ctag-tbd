@@ -166,14 +166,17 @@ namespace CTAG {
 
         void UIMenuPageParams::onEncoder(int delta) {
             if (mode == MODE_SELECT) {
-                cursor += delta;
-                if (cursor < 0) cursor = 0;
-                if (cursor > 3) cursor = 3;
+                int newCursor = cursor + delta;
+                if (newCursor < 0) newCursor = 0;
+                if (newCursor > 3) newCursor = 3;
+                if (newCursor != cursor) { encoderAccel = 0; lastEncDir = 0; }
+                cursor = newCursor;
             } else if (mode == MODE_GROUP) {
                 if (groupCount == 0) return;
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
                 if (newCursor >= groupCount) newCursor = groupCount - 1;
+                if (newCursor != cursor) { encoderAccel = 0; lastEncDir = 0; }
                 cursor = newCursor;
                 ClampScroll(cursor, scrollOffset, groupCount, VISIBLE_ITEMS);
             } else if (mode == MODE_EDIT) {
@@ -183,6 +186,7 @@ namespace CTAG {
                 int startIdx = (currentGroup >= 0) ? groups[currentGroup].firstParamIdx : 0;
                 if (newCursor < startIdx) newCursor = startIdx;
                 if (newCursor >= endIdx) newCursor = endIdx - 1;
+                if (newCursor != cursor) { encoderAccel = 0; lastEncDir = 0; }
                 cursor = newCursor;
 
                 // auto-scroll
@@ -223,6 +227,7 @@ namespace CTAG {
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
                 if (newCursor >= presetCount) newCursor = presetCount - 1;
+                if (newCursor != cursor) { encoderAccel = 0; lastEncDir = 0; }
                 cursor = newCursor;
                 // auto-scroll
                 ClampScroll(cursor, scrollOffset, presetCount, VISIBLE_ITEMS);
