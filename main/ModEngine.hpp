@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include <cstdint>
 #include "ctagTempo.hpp"
 #include "ctagSeq16.hpp"
+#include "ctagGate16.hpp"
 
 namespace CTAG::DRIVERS {
 
@@ -41,6 +42,9 @@ public:
 
     // Sequencer access (2x 16-step)
     static SP::HELPERS::ctagSeq16& GetSequencer(int idx);
+
+    // Gate generator access (2x 16-step)
+    static SP::HELPERS::ctagGate16& GetGate(int idx);
 
     // LFO configuration
     static void SetLFOShape(int lfo, int shape);  // 0=sine,1=tri,2=saw,3=sq,4=S&H
@@ -78,6 +82,7 @@ public:
 private:
     static SP::HELPERS::ctagTempo tempoEngine;
     static SP::HELPERS::ctagSeq16 sequencer[2];
+    static SP::HELPERS::ctagGate16 gate[2];
     static float lfoPhase[2];
     static float lfoRate[2];
     static float lfoAmplitude[2];
