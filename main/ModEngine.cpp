@@ -256,6 +256,45 @@ void ModEngine::SaveConfig() {
         slot.AddMember("cvSlot", dynTargetSlot[i], alloc);
         ccArr.PushBack(slot, alloc);
     }
+    for (int i = 0; i < 2; i++) {
+        char key[8];
+        snprintf(key, sizeof(key), "seq%d", i);
+        Value sq(kObjectType);
+        Value stepsArr(kArrayType);
+        for (int j = 0; j < 16; j++) {
+            stepsArr.PushBack(sequencer[i].GetStep(j), alloc);
+        }
+        sq.AddMember("steps", stepsArr, alloc);
+        sq.AddMember("stepLength", sequencer[i].GetStepLength(), alloc);
+        sq.AddMember("direction", (int)sequencer[i].GetDirection(), alloc);
+        sq.AddMember("slew", sequencer[i].GetSlew(), alloc);
+        sq.AddMember("cvSlot", sequencer[i].GetCVSlot(), alloc);
+        sq.AddMember("trigSlot", sequencer[i].GetTrigSlot(), alloc);
+        d.AddMember(Value(key, alloc).Move(), sq, alloc);
+    }
+
+    for (int i = 0; i < 2; i++) {
+        char key[8];
+        snprintf(key, sizeof(key), "gate%d", i);
+        Value gt(kObjectType);
+        Value enArr(kArrayType);
+        Value probArr(kArrayType);
+        for (int j = 0; j < 16; j++) {
+            enArr.PushBack(gate[i].GetStepEnabled(j), alloc);
+            probArr.PushBack((int)gate[i].GetStepProbability(j), alloc);
+        }
+        gt.AddMember("enabled", enArr, alloc);
+        gt.AddMember("probs", probArr, alloc);
+        gt.AddMember("stepLength", gate[i].GetStepLength(), alloc);
+        gt.AddMember("direction", (int)gate[i].GetDirection(), alloc);
+        gt.AddMember("trigSlot", gate[i].GetTrigSlot(), alloc);
+        gt.AddMember("accentSlot", gate[i].GetAccentSlot(), alloc);
+        gt.AddMember("swing", gate[i].GetSwing(), alloc);
+        gt.AddMember("gateLength", gate[i].GetGateLength(), alloc);
+        gt.AddMember("accentAmount", gate[i].GetAccentAmount(), alloc);
+        d.AddMember(Value(key, alloc).Move(), gt, alloc);
+    }
+
     d.AddMember("ccSlots", ccArr, alloc);
 
     FILE *fp = fopen(MOD_CFG_PATH, "w");
@@ -263,7 +302,7 @@ void ModEngine::SaveConfig() {
         ESP_LOGE(TAG, "SaveConfig: cannot open %s", MOD_CFG_PATH);
         return;
     }
-    char writeBuf[512];
+    char writeBuf[2048];
     FileWriteStream os(fp, writeBuf, sizeof(writeBuf));
     Writer<FileWriteStream> writer(os);
     d.Accept(writer);
@@ -311,6 +350,52 @@ void ModEngine::LoadConfig() {
             if (slot.HasMember("cvSlot")) dynTargetSlot[i] = slot["cvSlot"].GetInt();
         }
     }
+
+    for (int i = 0; i < 2; i++) {
+        char key[8];
+        snprintf(key, sizeof(key), "seq%d", i);
+        if (!d.HasMember(key) || !d[key].IsObject()) continue;
+        const Value &sq = d[key];
+        if (sq.HasMember("steps") && sq["steps"].IsArray()) {
+            const Value &sarr = sq["steps"];
+            for (SizeType j = 0; j < sarr.Size() && j < 16; j++) {
+                sequencer[i].SetStep((int)j, sarr[j].GetFloat());
+            }
+        }
+        if (sq.HasMember("stepLength")) sequencer[i].SetStepLength(sq["stepLength"].GetFloat());
+        if (sq.HasMember("direction")) sequencer[i].SetDirection((SP::HELPERS::ctagSeq16::Direction)sq["direction"].GetInt());
+        if (sq.HasMember("slew")) sequencer[i].SetSlew(sq["slew"].GetFloat());
+        if (sq.HasMember("cvSlot")) sequencer[i].SetCVSlot(sq["cvSlot"].GetInt());
+        if (sq.HasMember("trigSlot")) sequencer[i].SetTrigSlot(sq["trigSlot"].GetInt());
+    }
+
+    for (int i = 0; i < 2; i++) {
+        char key[8];
+        snprintf(key, sizeof(key), "gate%d", i);
+        if (!d.HasMember(key) || !d[key].IsObject()) continue;
+        const Value &gt = d[key];
+        if (gt.HasMember("enabled") && gt["enabled"].IsArray()) {
+            const Value &earr = gt["enabled"];
+            for (SizeType j = 0; j < earr.Size() && j < 16; j++) {
+                gate[i].SetStepEnabled((int)j, earr[j].GetBool());
+            }
+        }
+        if (gt.HasMember("probs") && gt["probs"].IsArray()) {
+            const Value &parr = gt["probs"];
+            for (SizeType j = 0; j < parr.Size() && j < 16; j++) {
+                gate[i].SetStepProbability((int)j, (uint8_t)parr[j].GetInt());
+            }
+        }
+        if (gt.HasMember("stepLength")) gate[i].SetStepLength(gt["stepLength"].GetFloat());
+        if (gt.HasMember("direction")) gate[i].SetDirection((SP::HELPERS::ctagGate16::Direction)gt["direction"].GetInt());
+        if (gt.HasMember("trigSlot")) gate[i].SetTrigSlot(gt["trigSlot"].GetInt());
+        if (gt.HasMember("accentSlot")) gate[i].SetAccentSlot(gt["accentSlot"].GetInt());
+        if (gt.HasMember("swing")) gate[i].SetSwing(gt["swing"].GetFloat());
+        if (gt.HasMember("gateLength")) gate[i].SetGateLength(gt["gateLength"].GetFloat());
+        if (gt.HasMember("gateLength")) gate[i].SetGateLength(gt["gateLength"].GetFloat());
+        if (gt.HasMember("accentAmount")) gate[i].SetAccentAmount(gt["accentAmount"].GetFloat());
+    }
+
     ESP_LOGI(TAG, "LoadConfig: loaded from %s", MOD_CFG_PATH);
 }
 
