@@ -104,7 +104,7 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 
     while (runAudioTask) {
         // LFO modulation → CV slots
-        DRIVERS::ModEngine::Process(pd.cv);
+        DRIVERS::ModEngine::Process(pd.cv, pd.trig);
 
         // get normalized raw data from CODEC
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);

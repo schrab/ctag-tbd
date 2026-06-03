@@ -54,9 +54,14 @@ bool ModEngine::learning = false;
 int ModEngine::lastLearnedSlot = -1;
 
 CTAG::SP::HELPERS::ctagTempo ModEngine::tempoEngine;
+CTAG::SP::HELPERS::ctagSeq16 ModEngine::sequencer[2];
 
 CTAG::SP::HELPERS::ctagTempo& ModEngine::GetTempoEngine() {
     return tempoEngine;
+}
+
+CTAG::SP::HELPERS::ctagSeq16& ModEngine::GetSequencer(int idx) {
+    return sequencer[idx];
 }
 
 void ModEngine::Init() {
@@ -75,7 +80,7 @@ void ModEngine::Init() {
     ESP_LOGI(TAG, "ModEngine initialized, slots 90-99");
 }
 
-void ModEngine::Process(float *cv_buffer) {
+void ModEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
     tempoEngine.Tick();
     // Update LFOs
     for (int lfo = 0; lfo < 2; lfo++) {
@@ -113,6 +118,12 @@ void ModEngine::Process(float *cv_buffer) {
         if (slot >= 0 && slot < N_CVS) {
             cv_buffer[slot] = val;
         }
+    }
+
+    // Update sequencers
+    float bpm = tempoEngine.GetBPM();
+    for (int i = 0; i < 2; i++) {
+        sequencer[i].Process(bpm, cv_buffer, trig_buffer, 32);
     }
 }
 
