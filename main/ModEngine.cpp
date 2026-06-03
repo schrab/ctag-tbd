@@ -75,6 +75,7 @@ void ModEngine::Init() {
 }
 
 void ModEngine::Process(float *cv_buffer) {
+    tempoEngine.Tick();
     // Update LFOs
     for (int lfo = 0; lfo < 2; lfo++) {
         lfoPhase[lfo] += lfoRate[lfo] / 1378.0f; // block rate
