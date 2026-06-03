@@ -26,7 +26,31 @@ namespace CTAG {
             if (subPage == SP_MAIN) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
-                if (cursor > 2) cursor = 2;
+                if (cursor > 3) cursor = 3;
+            } else if (subPage == SP_TEMPO) {
+                if (editing) {
+                    if (cursor == 0) {
+                        float bpm = ModEngine::GetTempoEngine().GetBPM() + delta * 0.5f;
+                        if (bpm < 20.0f) bpm = 20.0f;
+                        if (bpm > 300.0f) bpm = 300.0f;
+                        ModEngine::GetTempoEngine().SetBPM(bpm);
+                        dirty = true;
+                    } else if (cursor == 1) {
+                        auto src = ModEngine::GetTempoEngine().GetSource();
+                        int s = (src == SP::HELPERS::ctagTempo::Source::INTERNAL) ? 0 : 1;
+                        s += delta;
+                        if (s < 0) s = 0;
+                        if (s > 1) s = 1;
+                        ModEngine::GetTempoEngine().SetSource(
+                            s == 0 ? SP::HELPERS::ctagTempo::Source::INTERNAL
+                                   : SP::HELPERS::ctagTempo::Source::MIDI_CLOCK);
+                        dirty = true;
+                    }
+                } else {
+                    cursor += delta;
+                    if (cursor < 0) cursor = 0;
+                    if (cursor > 2) cursor = 2;
+                }
             } else if (subPage == SP_LFO1 || subPage == SP_LFO2) {
                 int lfo = (subPage == SP_LFO1) ? 0 : 1;
                 if (editing) {
@@ -93,7 +117,16 @@ namespace CTAG {
                 if (btnId == 2 && !longPress) {
                     if (cursor == 0) { subPage = SP_LFO1; cursor = 0; editing = false; }
                     else if (cursor == 1) { subPage = SP_LFO2; cursor = 0; editing = false; }
-                    else if (cursor == 2) { subPage = SP_CC_SLOTS; cursor = 0; editing = false; }
+                    else if (cursor == 2) { subPage = SP_TEMPO; cursor = 0; editing = false; }
+                    else if (cursor == 3) { subPage = SP_CC_SLOTS; cursor = 0; editing = false; }
+                }
+            } else if (subPage == SP_TEMPO) {
+                if (btnId == 2 && !longPress) {
+                    if (cursor == 2) {
+                        ModEngine::GetTempoEngine().OnTapTempo();
+                    } else {
+                        editing = !editing;
+                    }
                 }
             } else if (subPage == SP_LFO1 || subPage == SP_LFO2) {
                 if (btnId == 2 && !longPress) {
@@ -129,6 +162,12 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
+            if (subPage == SP_TEMPO) {
+                subPage = SP_MAIN;
+                cursor = 2;
+                doRedraw();
+                return true;
+            }
             if (subPage == SP_LFO1 || subPage == SP_LFO2) {
                 int prev = subPage;
                 subPage = SP_MAIN;
@@ -156,6 +195,7 @@ namespace CTAG {
                 case SP_MAIN: redrawMain(); break;
                 case SP_LFO1: redrawLFO(0); break;
                 case SP_LFO2: redrawLFO(1); break;
+                case SP_TEMPO: redrawTempo(); break;
                 case SP_CC_SLOTS: redrawCCSlots(); break;
                 case SP_CC_EDIT: redrawCCEdit(); break;
             }
@@ -166,7 +206,7 @@ namespace CTAG {
         void UIMenuPageMod::redrawMain() {
             Display::Clear();
             char buf[32];
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 int y = ROW(i);
                 if (i == 0) {
                     float r = ModEngine::GetLFORate(0);
@@ -174,6 +214,11 @@ namespace CTAG {
                 } else if (i == 1) {
                     float r = ModEngine::GetLFORate(1);
                     snprintf(buf, sizeof(buf), " LFO2: %s %.1fHz", shapeNames[ModEngine::GetLFOShape(1)], r);
+                } else if (i == 2) {
+                    float bpm = ModEngine::GetTempoEngine().GetBPM();
+                    auto src = ModEngine::GetTempoEngine().GetSource();
+                    const char* srcStr = (src == SP::HELPERS::ctagTempo::Source::INTERNAL) ? "Int" : "MIDI";
+                    snprintf(buf, sizeof(buf), " Tempo:%.0f %s", bpm, srcStr);
                 } else {
                     snprintf(buf, sizeof(buf), " CC Slots");
                 }
@@ -228,6 +273,38 @@ namespace CTAG {
                 int x = 6 * 5 + 1;
                 Display::InvertRect(x, ROW_HDR(3), 128 - x, 8);
             }
+
+            if (!editing) {
+                int cy = ROW_HDR(cursor);
+                Display::InvertRect(0, cy, 128, 8);
+            }
+            Display::Flush();
+        }
+
+        void UIMenuPageMod::redrawTempo() {
+            Display::Clear();
+            char buf[32];
+            Display::DrawString(0, ROW(0), "Tempo", Display::FONT_5X7);
+
+            float bpm = ModEngine::GetTempoEngine().GetBPM();
+            snprintf(buf, sizeof(buf), " BPM:%.0f", bpm);
+            Display::DrawString(0, ROW_HDR(0), buf, Display::FONT_5X7);
+            if (editing && cursor == 0) {
+                int x = 6 * 6 + 1;
+                Display::InvertRect(x, ROW_HDR(0), 128 - x, 8);
+            }
+
+            auto src = ModEngine::GetTempoEngine().GetSource();
+            const char* srcStr = (src == SP::HELPERS::ctagTempo::Source::INTERNAL) ? "Internal" : "MIDI Clk";
+            snprintf(buf, sizeof(buf), " Source:%s", srcStr);
+            Display::DrawString(0, ROW_HDR(1), buf, Display::FONT_5X7);
+            if (editing && cursor == 1) {
+                int x = 6 * 8 + 1;
+                Display::InvertRect(x, ROW_HDR(1), 128 - x, 8);
+            }
+
+            snprintf(buf, sizeof(buf), " [Tap Tempo]");
+            Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
 
             if (!editing) {
                 int cy = ROW_HDR(cursor);

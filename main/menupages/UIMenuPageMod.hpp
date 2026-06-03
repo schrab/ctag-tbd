@@ -14,7 +14,7 @@ namespace CTAG {
             bool onBack() override;
 
         private:
-            enum SubPage { SP_MAIN, SP_LFO1, SP_LFO2, SP_CC_SLOTS, SP_CC_EDIT };
+            enum SubPage { SP_MAIN, SP_LFO1, SP_LFO2, SP_TEMPO, SP_CC_SLOTS, SP_CC_EDIT };
             SubPage subPage;
             int cursor;
             int ccEditSlot;
@@ -24,6 +24,7 @@ namespace CTAG {
 
             void redrawMain();
             void redrawLFO(int lfo);
+            void redrawTempo();
             void redrawCCSlots();
             void redrawCCEdit();
         };
