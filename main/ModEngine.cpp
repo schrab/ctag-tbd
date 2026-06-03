@@ -52,9 +52,9 @@ int ModEngine::dynTargetSlot[8] = {90, 91, 92, 93, 94, 95, 96, 97};
 bool ModEngine::learning = false;
 int ModEngine::lastLearnedSlot = -1;
 
-SP::HELPERS::ctagTempo ModEngine::tempoEngine;
+CTAG::SP::HELPERS::ctagTempo ModEngine::tempoEngine;
 
-SP::HELPERS::ctagTempo& ModEngine::GetTempoEngine() {
+CTAG::SP::HELPERS::ctagTempo& ModEngine::GetTempoEngine() {
     return tempoEngine;
 }
 

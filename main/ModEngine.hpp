@@ -59,15 +59,16 @@ public:
     static void StartLearn();
     static void StopLearn();
     static bool IsLearning();
-    static int  GetLastLearnedSlot(); // returns CV slot index that was learned
+    static int  GetLastLearnedSlot();
 
     // Dynamic CC slot 0-7 → CV slot 90-97
-    static int  GetDynamicSlotCC(int slot_idx); // returns CC number for given slot
+    static int  GetDynamicSlotCC(int slot_idx);
     static void SetDynamicSlotCC(int slot_idx, int cc);
     static void SetDynamicSlotChan(int slot_idx, int chan);
     static int  GetDynamicSlotChan(int slot_idx);
 
 private:
+    static SP::HELPERS::ctagTempo tempoEngine;
     static float lfoPhase[2];
     static float lfoRate[2];
     static float lfoAmplitude[2];
