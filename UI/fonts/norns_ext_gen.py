@@ -78,11 +78,12 @@ def generate(ttf_path, output_path, pt=8, threshold=0x7F, max_code=0x10000,
         print("ERROR: no extended glyphs found", file=sys.stderr)
         sys.exit(1)
 
-    # Compute baseline (same logic as ttf2c.py)
+    # Compute baseline from all rendered glyphs (not just standard chars)
     baseline_row = 0
-    if baseline_vals:
-        max_asc = max(v[0] for v in baseline_vals)
-        max_desc = max(v[1] - v[0] for v in baseline_vals)
+    all_vals = [(cd['bt'], cd['h']) for cd in chars.values()]
+    if all_vals:
+        max_asc = max(v[0] for v in all_vals)
+        max_desc = max(v[1] - v[0] for v in all_vals)
         ft_h = max_asc + max_desc
         if ft_h <= cell_h:
             baseline_row = (cell_h - ft_h) // 2 + max_asc

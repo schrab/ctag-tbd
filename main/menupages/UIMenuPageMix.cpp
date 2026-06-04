@@ -21,6 +21,8 @@ respective component folders / files if different from this license.
 
 #include "UIMenuPageMix.hpp"
 #include "Display.hpp"
+#include "fonts/norns_6x7.h"
+#include "fonts/norns_ext_6x7.h"
 #include <cstdio>
 
 using namespace CTAG::DRIVERS;
@@ -67,9 +69,9 @@ namespace CTAG {
             if (minCode > maxCode) minCode = maxCode;
 
             int fontH = f == Display::FONT_DIGI_SLIM_3X6 ? 6
-                      : f == Display::FONT_DIGI_ONE_5X6 ? 6
-                      : f == Display::FONT_ANALOG_ONE_3X5 ? 5
-                      : 7;
+                       : f == Display::FONT_DIGI_ONE_5X6 ? 6
+                       : f == Display::FONT_ANALOG_ONE_3X5 ? 5
+                       : 8;
             int gap = isNorns ? 1 : 2;
             int rowH = fontH + gap;
 
@@ -86,6 +88,11 @@ namespace CTAG {
             y = 10;
 
             for (int code = minCode; code <= maxCode; code++) {
+                // Skip non-existing extended chars for norns
+                if (isNorns && code >= FONT_NORNS_N_CHARS &&
+                    FontNornsExtLookup(code) >= FONT_NORNS_EXT_N_CHARS) {
+                    continue;
+                }
                 char buf[2] = {(char)code, 0};
                 Display::DrawString(x, y, buf, f);
                 x += Display::FontAdvance(f, (unsigned char)code);
