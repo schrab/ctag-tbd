@@ -370,6 +370,11 @@ int Display::FontAdvance(Font f, unsigned char c) {
         return FONT_ANALOG_ONE_ADVANCE;
     case FONT_NORNS_6X7:
         if (c < FONT_NORNS_N_CHARS) return font_norns_advances[c];
+        if (c >= 0x80) {
+            int idx = FontNornsExtLookup(c);
+            if (idx < FONT_NORNS_EXT_N_CHARS)
+                return font_norns_ext_advances[idx];
+        }
         return FONT_NORNS_ADVANCE;
     default:
         return FontAdvance(f);

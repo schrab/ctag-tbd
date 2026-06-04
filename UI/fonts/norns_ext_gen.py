@@ -14,33 +14,83 @@ from PIL import Image
 import freetype
 
 def generate(ttf_path, output_path, pt=8, threshold=0x7F, max_code=0x10000,
-             cell_h=7, ds=1):
+             cell_h=7, ds=1, ref_file=None):
     face = freetype.Face(ttf_path)
     face.set_pixel_sizes(0, pt)
     name = os.path.splitext(os.path.basename(ttf_path))[0]
     fn = name.replace('-', '_')
 
-    # Phase 1: render all extended glyphs
+        # Phase 1: determine codepoint list
+    ref_codes = None
+    if args.ref_file:
+        # Parse Norns_ext.c LVGL header for codepoint comments
+        import re
+        with open(args.ref_file) as f:
+            ref_text = f.read()
+        ref_codes = [int(m, 16) for m in re.findall(r'U\+([0-9A-Fa-f]+)', ref_text)]
+        ref_codes = sorted(set(ref_codes))
+        print(f"  Reference codepoints from {args.ref_file}: {len(ref_codes)}")
+
     chars = {}  # codepoint -> {img, bl, bt, adv, w, h}
     baseline_vals = []  # (bt, h) from standard glyphs for baseline computation
 
-    for code, gid in face.get_chars():
-        if code > max_code:
-            continue
+    def render_code(code):
+        """Render a single codepoint, return glyph dict or None."""
         try:
             face.load_char(chr(code), freetype.FT_LOAD_RENDER | freetype.FT_LOAD_TARGET_MONO)
         except Exception:
-            continue
+            return None
         g = face.glyph
         bm = g.bitmap
-        # Collect standard chars for baseline regardless of threshold
-        if (0x30 <= code <= 0x39) or (0x41 <= code <= 0x5A) or (0x61 <= code <= 0x7A):
-            baseline_vals.append((g.bitmap_top, bm.rows))
+        w, h = bm.width, bm.rows
+        bt = g.bitmap_top
+        bl = g.bitmap_left
+        adv_raw = g.advance.x / 64.0
 
-        if code < threshold or code > max_code:
-            continue
-        if bm.rows == 0 or bm.width == 0 or not bm.buffer:
-            continue
+        pil = None
+        if w > 0 and h > 0 and bm.buffer:
+            pil = Image.new('L', (w, h), 0)
+            for y in range(h):
+                for x in range(w):
+                    byte_idx = y * bm.pitch + (x >> 3)
+                    bit_idx = 7 - (x & 7)
+                    if byte_idx < len(bm.buffer) and ((bm.buffer[byte_idx] >> bit_idx) & 1):
+                        pil.putpixel((x, y), 255)
+            pil = pil.point(lambda p: 255 if p > 127 else 0, mode='1')
+
+        if ds > 1 and pil:
+            pil = pil.resize((max(1, w // ds), max(1, h // ds)), Image.NEAREST)
+            w, h = pil.width, pil.height
+            bt = round(bt / ds)
+            bl = round(bl / ds)
+            adv_raw /= ds
+
+        return {
+            'img': pil, 'bl': bl, 'bt': bt,
+            'adv': max(1, round(adv_raw)),
+            'w': w or 0, 'h': h or 0,
+        }
+
+    if ref_codes:
+        for code in ref_codes:
+            cd = render_code(code)
+            if cd:
+                chars[code] = cd
+    else:
+        for code, gid in face.get_chars():
+            if code > max_code:
+                continue
+            cd = render_code(code)
+            if cd is None:
+                continue
+            # Collect standard chars for baseline regardless of threshold
+            if (0x30 <= code <= 0x39) or (0x41 <= code <= 0x5A) or (0x61 <= code <= 0x7A):
+                baseline_vals.append((cd['bt'], cd['h']))
+            if code < threshold or code > max_code:
+                continue
+            if cd['w'] == 0 or cd['h'] == 0:
+                continue
+            chars[code] = cd
 
         w, h = bm.width, bm.rows
         bt = g.bitmap_top
@@ -232,7 +282,8 @@ if __name__ == "__main__":
                         help="Max codepoint to scan (default 0x10000)")
     parser.add_argument("--cell-h", type=int, default=7, help="Cell height (default 7)")
     parser.add_argument("--ds", type=int, default=1, help="Downsample factor")
+    parser.add_argument("--ref-file", default=None, help="LVGL C file to extract codepoint list from")
     args = parser.parse_args()
 
     generate(args.input, args.output, args.pt, args.threshold,
-             args.max_code, args.cell_h, args.ds)
+             args.max_code, args.cell_h, args.ds, args.ref_file)
