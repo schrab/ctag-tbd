@@ -29,6 +29,7 @@ respective component folders / files if different from this license.
 #include "fonts/digi_one_5x6.h"
 #include "fonts/analog_one_3x5.h"
 #include "fonts/norns_6x7.h"
+#include "fonts/norns_ext_6x7.h"
 #include "version.hpp"
 #include "esp_log.h"
 
@@ -272,11 +273,38 @@ static void drawGlyph(int &x, int y, const uint8_t *glyph, int gw, int gh, int a
     x += advance;
 }
 
+// Decode a single UTF-8 codepoint from str, advance pointer past it
+static uint16_t utf8_decode(const char *&s) {
+    uint8_t b0 = (uint8_t)*s;
+    if (b0 < 0x80) {
+        s++;
+        return b0;
+    }
+    if ((b0 & 0xE0) == 0xC0) {
+        // 2-byte sequence
+        if ((s[1] & 0xC0) != 0x80) { s++; return b0; }
+        uint16_t cp = ((uint16_t)(b0 & 0x1F) << 6) | (s[1] & 0x3F);
+        s += 2;
+        return cp;
+    }
+    if ((b0 & 0xF0) == 0xE0) {
+        // 3-byte sequence
+        if ((s[1] & 0xC0) != 0x80 || (s[2] & 0xC0) != 0x80) { s++; return b0; }
+        uint16_t cp = ((uint16_t)(b0 & 0x0F) << 12) | ((uint16_t)(s[1] & 0x3F) << 6) | (s[2] & 0x3F);
+        s += 3;
+        return cp;
+    }
+    // 4-byte or invalid lead byte — skip 1 byte
+    s++;
+    return b0;
+}
+
 void Display::DrawString(int x, int y, const char *str, Font font) {
     if (!str) return;
     while (*str) {
-        unsigned char c = (unsigned char)*str;
-        str++;
+        const char *next = str;
+        uint16_t c = utf8_decode(next);
+        str = next;
         switch (font) {
         case FONT_8X8:
             if (c < 32 || c > 127) continue;
@@ -302,9 +330,16 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
                       font_analog_one_advances[c], DrawPixel);
             break;
         case FONT_NORNS_6X7:
-            if (c >= FONT_NORNS_N_CHARS) continue;
-            drawGlyph(x, y, font_norns[c], FONT_NORNS_W, FONT_NORNS_H,
-                      font_norns_advances[c], DrawPixel);
+            if (c < FONT_NORNS_N_CHARS) {
+                drawGlyph(x, y, font_norns[c], FONT_NORNS_W, FONT_NORNS_H,
+                          font_norns_advances[c], DrawPixel);
+            } else {
+                int idx = FontNornsExtLookup(c);
+                if (idx < FONT_NORNS_EXT_N_CHARS) {
+                    drawGlyph(x, y, font_norns_ext_data[idx], FONT_NORNS_EXT_W,
+                              FONT_NORNS_EXT_H, font_norns_ext_advances[idx], DrawPixel);
+                }
+            }
             break;
         }
     }
