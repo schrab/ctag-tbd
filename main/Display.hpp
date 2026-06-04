@@ -73,10 +73,10 @@ namespace CTAG {
             static int userContrast;
 
         public:
-            static void Flush();
-
             // Font selection
-            enum Font { FONT_8X8, FONT_5X7 };
+            enum Font { FONT_8X8, FONT_5X7, FONT_DIGI_SLIM_3X6, FONT_DIGI_ONE_5X6, FONT_ANALOG_ONE_3X5, FONT_NORNS_6X7 };
+
+            static void Flush();
 
             static void Sleep();
             static void Wake();
@@ -105,6 +105,8 @@ namespace CTAG {
             static void DrawStringRight(int x, int y, const char *str, Font font = FONT_8X8);
             static void DrawVUMeter(int x, int y, int w, int h, float level);
             static void DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos);
+            static int FontAdvance(Font f);
+            static int FontAdvance(Font f, unsigned char c);
         };
     }
 }

@@ -30,6 +30,11 @@ namespace CTAG {
             void init() override;
             void deinit() override;
             void doRedraw() override;
+            void onButton(int btnId, bool longPress) override;
+            void onEncoder(int delta) override;
+        private:
+            int fontIndex = 0;
+            int pageOffset = 0;
         };
     }
 }

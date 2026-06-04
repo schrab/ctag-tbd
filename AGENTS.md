@@ -8,6 +8,14 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 - Follow existing patterns in the codebase
 - Extract complex conditions into meaningful boolean variables
 
+## Font Pipeline (ttf2c.py)
+- **Baseline anchor**: PIL 9+ defaults to `anchor='la'` (left-ascender). All font rendering uses `anchor='ls'` so the text origin IS the typographic baseline.
+- **Downsampling**: Maxpool (ANY pixel in factor×f block ON→output ON) instead of NN, preserving thin features like `,` `.` `:` that would vanish at odd hi-rez offsets with NN.
+- **Baseline positioning**: Phase 2 places each glyph relative to the baseline row (not centered in cell). Baseline row is computed from typographic extents (ascent + descent). If the cell is tall enough, content is centered; if too short, descenders are preserved and ascenders clipped.
+- **Proportional per-glyph advances**: Instead of fixed-width cells, `ttf2c.py` emits a `font_xxx_advances[]` array with each glyph's freetype advance width. `Display::DrawString` uses per-glyph advances so spacing matches the TTF designer's intent (uniform 1px right side bearing for norns/digi-one). `FontAdvance(Font)` returns the fixed max advance for layout estimation; `FontAdvance(Font, unsigned char c)` returns the per-glyph advance.
+- **Font files**: `UI/fonts/ttf2c.py` converts TTF→C header. Fonts stored in `main/fonts/`. 4 pixel fonts: digi_slim_3x6, digi_one_5x6, analog_one_3x5, norns_6x7.
+- **Norns extended range**: norns.ttf has 248 non-empty glyphs spread across codepoints up to U+ED64. Current `--max-code 0xFF` covers only 0x00-0xFF (256 entries). FIXME: need sparse codepoint lookup for characters > 0xFF.
+
 ## Known Issues
 - **GPIO0 = I2S MCLK, MUST NOT be used as GPIO input**: On BBA, GPIO0 is configured as I2S MCLK output by the I2S peripheral. Calling `gpio_config()` with `GPIO_MODE_INPUT` or `gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT)` disconnects the I2S peripheral output, killing MCLK and stopping all audio. `UserInput::Init()` and `StartSoundProcessor()` must NOT touch GPIO0. BTN2 (OK) is unavailable. Button mapping (BTN1 only, PANEL_IN state): short press = OK (BTN2_SHORT), long press = MOD mapping (BTN2_LONG), double-click = BACK. Double-click detection is in UserInput.cpp (300ms window). Single tap has 300ms delay to allow for second tap — handled by pendingShort timer in inputTask().
 - **Interrupt Watchdog**: ESP32-D0WD-V3 rev3.1 + PSRAM + dual-core requires `CONFIG_ESP_INT_WDT=y`. BT coex calibration during codec I2S init can exceed the default 300ms timeout — set `CONFIG_ESP_INT_WDT_TIMEOUT_MS=5000` in `sdkconfig.defaults.a1s`.

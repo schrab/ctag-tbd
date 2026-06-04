@@ -25,6 +25,10 @@ respective component folders / files if different from this license.
 #include "Display.hpp"
 #include "font5x7.h"
 #include "font8x8_basic.h"
+#include "fonts/digi_slim_3x6.h"
+#include "fonts/digi_one_5x6.h"
+#include "fonts/analog_one_3x5.h"
+#include "fonts/norns_6x7.h"
 #include "version.hpp"
 #include "esp_log.h"
 
@@ -257,42 +261,90 @@ void Display::InvertRect(int x, int y, int w, int h) {
     }
 }
 
+static void drawGlyph(int &x, int y, const uint8_t *glyph, int gw, int gh, int advance,
+                void (*pixel)(int, int, bool)) {
+    for (int col = 0; col < gw; col++) {
+        uint8_t byte = glyph[col];
+        for (int row = 0; row < gh; row++) {
+            pixel(x + col, y + row, (byte >> row) & 1);
+        }
+    }
+    x += advance;
+}
+
 void Display::DrawString(int x, int y, const char *str, Font font) {
     if (!str) return;
-    if (font == FONT_8X8) {
-        while (*str) {
-            if (*str < 32 || *str > 127) { str++; continue; }
-            int c = *str - 32;
-            const uint8_t *glyph = font8x8_basic_tr[c];
-            for (int col = 0; col < 8; col++) {
-                uint8_t byte = glyph[col];
-                for (int row = 0; row < 8; row++) {
-                    DrawPixel(x + col, y + row, (byte >> row) & 1);
-                }
-            }
-            x += 8;
-            str++;
+    while (*str) {
+        unsigned char c = (unsigned char)*str;
+        str++;
+        switch (font) {
+        case FONT_8X8:
+            if (c < 32 || c > 127) continue;
+            drawGlyph(x, y, font8x8_basic_tr[c - 32], 8, 8, 8, DrawPixel);
+            break;
+        case FONT_5X7:
+            if (c > 127) continue;
+            drawGlyph(x, y, font5x7[c], 5, 7, 6, DrawPixel);
+            break;
+        case FONT_DIGI_SLIM_3X6:
+            if (c >= FONT_DIGI_SLIM_N_CHARS) continue;
+            drawGlyph(x, y, font_digi_slim[c], FONT_DIGI_SLIM_W, FONT_DIGI_SLIM_H,
+                      font_digi_slim_advances[c], DrawPixel);
+            break;
+        case FONT_DIGI_ONE_5X6:
+            if (c >= FONT_DIGI_ONE_N_CHARS) continue;
+            drawGlyph(x, y, font_digi_one[c], FONT_DIGI_ONE_W, FONT_DIGI_ONE_H,
+                      font_digi_one_advances[c], DrawPixel);
+            break;
+        case FONT_ANALOG_ONE_3X5:
+            if (c >= FONT_ANALOG_ONE_N_CHARS) continue;
+            drawGlyph(x, y, font_analog_one[c], FONT_ANALOG_ONE_W, FONT_ANALOG_ONE_H,
+                      font_analog_one_advances[c], DrawPixel);
+            break;
+        case FONT_NORNS_6X7:
+            if (c >= FONT_NORNS_N_CHARS) continue;
+            drawGlyph(x, y, font_norns[c], FONT_NORNS_W, FONT_NORNS_H,
+                      font_norns_advances[c], DrawPixel);
+            break;
         }
-    } else {
-        while (*str) {
-            if ((unsigned char)*str > 127) { str++; continue; }
-            const uint8_t *glyph = font5x7[(uint8_t)*str];
-            for (int col = 0; col < 5; col++) {
-                uint8_t byte = glyph[col];
-                for (int row = 0; row < 7; row++) {
-                    DrawPixel(x + col, y + row, (byte >> row) & 1);
-                }
-            }
-            x += 6;
-            str++;
-        }
+    }
+}
+
+int Display::FontAdvance(Font f) {
+    switch (f) {
+    case FONT_8X8: return 8;
+    case FONT_5X7: return 6;
+    case FONT_DIGI_SLIM_3X6: return FONT_DIGI_SLIM_ADVANCE;
+    case FONT_DIGI_ONE_5X6: return FONT_DIGI_ONE_ADVANCE;
+    case FONT_ANALOG_ONE_3X5: return FONT_ANALOG_ONE_ADVANCE;
+    case FONT_NORNS_6X7: return FONT_NORNS_ADVANCE;
+    }
+    return 6;
+}
+
+int Display::FontAdvance(Font f, unsigned char c) {
+    switch (f) {
+    case FONT_DIGI_SLIM_3X6:
+        if (c < FONT_DIGI_SLIM_N_CHARS) return font_digi_slim_advances[c];
+        return FONT_DIGI_SLIM_ADVANCE;
+    case FONT_DIGI_ONE_5X6:
+        if (c < FONT_DIGI_ONE_N_CHARS) return font_digi_one_advances[c];
+        return FONT_DIGI_ONE_ADVANCE;
+    case FONT_ANALOG_ONE_3X5:
+        if (c < FONT_ANALOG_ONE_N_CHARS) return font_analog_one_advances[c];
+        return FONT_ANALOG_ONE_ADVANCE;
+    case FONT_NORNS_6X7:
+        if (c < FONT_NORNS_N_CHARS) return font_norns_advances[c];
+        return FONT_NORNS_ADVANCE;
+    default:
+        return FontAdvance(f);
     }
 }
 
 void Display::DrawStringRight(int x, int y, const char *str, Font font) {
     if (!str) return;
     int len = strlen(str);
-    int strWidth = (font == FONT_8X8) ? len * 8 : len * 6;
+    int strWidth = len * FontAdvance(font);
     DrawString(x - strWidth, y, str, font);
 }
 
