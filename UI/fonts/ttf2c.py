@@ -2,17 +2,19 @@
 """
 Convert TTF to C bitmap header for SSD1306/SSD1309 OLED.
 
-Column-major, LSB = top pixel. Each glyph in a fixed-size cell, centred
-both horizontally and vertically.
+Column-major, LSB = top pixel, left-aligned in cell with per-glyph advance.
 
-Phase 1: render each char at text origin (anchor='ls') in a large hi-rez
-         canvas, downsample (NN or --maxpool), find tight pixel bbox.
-Phase 2: centre each glyph horizontally and vertically within its fixed cell
-         (or position relative to baseline with --no-center).
---fixed-width W / --fixed-height H: cell size in px (required).
+Phase 1: render each char with freetype FT_LOAD_TARGET_MONO (or PIL),
+         find tight pixel bbox, store per-glyph advance & bitmap_left.
+Phase 2: cell width = max_adv (largest freetype advance), left-align
+         each glyph at dst_x = bitmap_left. Per-glyph advances array
+         emitted alongside glyph data for proportional spacing.
+--fixed-width W / --fixed-height H: cell size in px (required, but W
+         is overridden by max_adv in freetype mode).
 --max-code N: highest code point (default 0x7F).
 --maxpool: use maxpool downsample (default: NN).
 --no-center: use baseline-relative vertical positioning (default: centered).
+         Ignored in --freetype mode (always baseline-relative).
 """
 
 import sys, os
@@ -95,7 +97,7 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
     print(f"    Cell: {glyph_w}x{total_h}px")
     print(f"    Height bytes/col: {h_bytes}")
     print(f"    Glyph storage: {glyph_bytes_per} bytes")
-    print(f"    Advance: {glyph_w + 1}")
+    print(f"    Advance: {glyph_w + 1}" + (" (placeholder, overridden by max_adv)" if freetype_mode else ""))
     print(f"    Code points: 0x00-0x{max_code:02X} ({n_chars} entries)")
 
     # Large hi-rez canvas – text origin at centre, plenty of room
@@ -105,7 +107,7 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
 
     # Phase 1: render each char and find tight pixel bbox
     char_data = {}
-    advances = [glyph_w + 1] * n_chars  # default: fixed advance
+    advances = [0] * n_chars  # 0 = sentinel: not yet set
 
     if freetype_mode:
         if not HAVE_FREETYPE:
@@ -129,6 +131,7 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
             # Convert freetype bitmap to PIL Image
             w, h = bm.width, bm.rows
             bt = g.bitmap_top
+            bl = g.bitmap_left
             pil_img = Image.new('1', (w, h), 0)
             px = list(pil_img.getdata())
             for y in range(h):
@@ -145,6 +148,7 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
                 w = pil_img.width
                 h = pil_img.height
                 bt = round(bt / ds)
+                bl = round(bl / ds)
                 adv_raw /= ds
 
             char_data[code] = {
@@ -152,6 +156,7 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
                 'mc_min': 0, 'mc_max': w - 1,
                 'mr_min': 0, 'mr_max': h - 1,
                 'bt': bt,
+                'bl': bl,
             }
             advances[code] = max(1, round(adv_raw))
     else:
@@ -200,6 +205,22 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
                 'mr_min': mr_min, 'mr_max': mr_max,
             }
 
+    # Compute max_adv for freetype mode → cell width = widest advance
+    if freetype_mode and char_data:
+        rendered_advances = [a for a in advances if a > 0]
+        if rendered_advances:
+            max_adv_val = max(rendered_advances)
+            if max_adv_val < 1: max_adv_val = glyph_w + 1
+        else:
+            max_adv_val = glyph_w + 1
+        glyph_w = max_adv_val
+        glyph_bytes_per = glyph_w * h_bytes
+        # Non-rendered codes use max_adv as fallback advance
+        for code in range(n_chars):
+            if code < 0x20 or code not in char_data:
+                advances[code] = max_adv_val
+        print(f"    Freetype max advance: {max_adv_val} → cell: {glyph_w}x{total_h}px, storage: {glyph_bytes_per} B/glyph")
+
     # Phase 2: build table
     baseline_row = 0
     if freetype_mode or not center:
@@ -245,12 +266,13 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
 
         if freetype_mode:
             dst_y = baseline_row - cd['bt']
+            dst_x = max(0, cd['bl'])
         elif center:
             dst_y = (total_h - ch_h) // 2
+            dst_x = max(0, (glyph_w - cw) // 2)
         else:
             dst_y = baseline_row + (cd['mr_min'] - oy_ds)
-
-        dst_x = max(0, (glyph_w - cw) // 2)
+            dst_x = max(0, (glyph_w - cw) // 2)
 
         src_x = 0
         src_y = 0
@@ -302,7 +324,7 @@ def generate_header(ttf_path, pt, output_path, render_mult=1,
     bl_val = baseline_row if (not center or freetype_mode) else 0
     lines.append(f"static constexpr int FONT_{fn.upper()}_BASELINE = {bl_val};")
     lines.append(f"static constexpr int FONT_{fn.upper()}_H_BYTES = {h_bytes};")
-    lines.append(f"static constexpr int FONT_{fn.upper()}_ADVANCE = {glyph_w + 1};")
+    lines.append(f"static constexpr int FONT_{fn.upper()}_ADVANCE = {glyph_w};")
     lines.append(f"static constexpr int FONT_{fn.upper()}_N_CHARS = {n_chars};")
     lines.append("")
     lines.append(f"static const uint8_t font_{fn.lower()}[{n_chars}][{glyph_bytes_per}] = {{")
