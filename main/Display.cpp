@@ -27,7 +27,6 @@ respective component folders / files if different from this license.
 #include "font8x8_basic.h"
 #include "fonts/digi_slim_3x6.h"
 #include "fonts/digi_one_5x6.h"
-#include "fonts/analog_one_3x5.h"
 #include "fonts/norns_6x7.h"
 #include "fonts/norns_ext_6x7.h"
 #include "version.hpp"
@@ -324,11 +323,6 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
             drawGlyph(x, y, font_digi_one[c], FONT_DIGI_ONE_W, FONT_DIGI_ONE_H,
                       font_digi_one_advances[c], DrawPixel);
             break;
-        case FONT_ANALOG_ONE_3X5:
-            if (c >= FONT_ANALOG_ONE_N_CHARS) continue;
-            drawGlyph(x, y, font_analog_one[c], FONT_ANALOG_ONE_W, FONT_ANALOG_ONE_H,
-                      font_analog_one_advances[c], DrawPixel);
-            break;
         case FONT_NORNS_6X7:
             if (c < FONT_NORNS_N_CHARS) {
                 drawGlyph(x, y, font_norns[c], FONT_NORNS_W, FONT_NORNS_H,
@@ -351,7 +345,6 @@ int Display::FontAdvance(Font f) {
     case FONT_5X7: return 6;
     case FONT_DIGI_SLIM_3X6: return FONT_DIGI_SLIM_ADVANCE;
     case FONT_DIGI_ONE_5X6: return FONT_DIGI_ONE_ADVANCE;
-    case FONT_ANALOG_ONE_3X5: return FONT_ANALOG_ONE_ADVANCE;
     case FONT_NORNS_6X7: return FONT_NORNS_ADVANCE;
     }
     return 6;
@@ -365,9 +358,6 @@ int Display::FontAdvance(Font f, unsigned char c) {
     case FONT_DIGI_ONE_5X6:
         if (c < FONT_DIGI_ONE_N_CHARS) return font_digi_one_advances[c];
         return FONT_DIGI_ONE_ADVANCE;
-    case FONT_ANALOG_ONE_3X5:
-        if (c < FONT_ANALOG_ONE_N_CHARS) return font_analog_one_advances[c];
-        return FONT_ANALOG_ONE_ADVANCE;
     case FONT_NORNS_6X7:
         if (c < FONT_NORNS_N_CHARS) return font_norns_advances[c];
         if (c >= 0x80) {

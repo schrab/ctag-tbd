@@ -29,17 +29,15 @@ respective component folders / files if different from this license.
 using namespace CTAG::DRIVERS;
 
 namespace {
-    constexpr int numFonts = 4;
+    constexpr int numFonts = 3;
     constexpr Display::Font fonts[numFonts] = {
         Display::FONT_DIGI_SLIM_3X6,
         Display::FONT_DIGI_ONE_5X6,
-        Display::FONT_ANALOG_ONE_3X5,
         Display::FONT_NORNS_6X7,
     };
     constexpr const char* fontNames[numFonts] = {
         "digi-slim 3x6",
         "digi-one 5x6",
-        "analog-one 3x5",
         "norns 6x7",
     };
     constexpr int pageSize = 64;
@@ -93,10 +91,7 @@ namespace CTAG {
             int nBase = nBasePages(norns);
             if (pageOffset >= nTot) pageOffset = nTot - 1;
 
-            int fontH = f == Display::FONT_DIGI_SLIM_3X6 ? 6
-                       : f == Display::FONT_DIGI_ONE_5X6 ? 6
-                       : f == Display::FONT_ANALOG_ONE_3X5 ? 5
-                       : 7;
+            int fontH = (f == Display::FONT_DIGI_SLIM_3X6 || f == Display::FONT_DIGI_ONE_5X6) ? 6 : 7;
             int gap = norns ? 0 : 2;
             int rowH = fontH + gap;
             int maxAdv = Display::FontAdvance(f);

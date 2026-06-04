@@ -74,7 +74,7 @@ namespace CTAG {
 
         public:
             // Font selection
-            enum Font { FONT_8X8, FONT_5X7, FONT_DIGI_SLIM_3X6, FONT_DIGI_ONE_5X6, FONT_ANALOG_ONE_3X5, FONT_NORNS_6X7 };
+            enum Font { FONT_8X8, FONT_5X7, FONT_DIGI_SLIM_3X6, FONT_DIGI_ONE_5X6, FONT_NORNS_6X7 };
 
             static void Flush();
 

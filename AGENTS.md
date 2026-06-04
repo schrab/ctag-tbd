@@ -13,7 +13,7 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 - **Downsampling**: Maxpool (ANY pixel in factor×f block ON→output ON) instead of NN, preserving thin features like `,` `.` `:` that would vanish at odd hi-rez offsets with NN.
 - **Baseline positioning**: Phase 2 places each glyph relative to the baseline row (not centered in cell). Baseline row is computed from typographic extents (ascent + descent). If the cell is tall enough, content is centered; if too short, descenders are preserved and ascenders clipped.
 - **Proportional per-glyph advances**: Instead of fixed-width cells, `ttf2c.py` emits a `font_xxx_advances[]` array with each glyph's freetype advance width. `Display::DrawString` uses per-glyph advances so spacing matches the TTF designer's intent (uniform 1px right side bearing for norns/digi-one). `FontAdvance(Font)` returns the fixed max advance for layout estimation; `FontAdvance(Font, unsigned char c)` returns the per-glyph advance.
-- **Font files**: `UI/fonts/ttf2c.py` converts TTF→C header. Fonts stored in `main/fonts/`. 4 pixel fonts: digi_slim_3x6, digi_one_5x6, analog_one_3x5, norns_6x7.
+- **Font files**: `UI/fonts/ttf2c.py` converts TTF→C header. Fonts stored in `main/fonts/`. 3 active pixel fonts: digi_slim_3x6, digi_one_5x6, norns_6x7. `analog_one_3x5.h` is kept as reference but removed from code (identical to norns).
 - **Norns extended range**: norns.ttf has 138 non-empty glyphs > 0x7F spread across codepoints up to U+ED64. `norns_ext_gen.py` generates `norns_ext_6x7.h` with sorted codepoints array + binary search lookup. Cell width = max_adv (9px). UTF-8 decoding in `DrawString` enables rendering extended icons (`←↑→↓▶●` etc.).
 
 ## Known Issues
