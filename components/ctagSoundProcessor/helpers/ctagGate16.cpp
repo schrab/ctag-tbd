@@ -20,6 +20,7 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "ctagGate16.hpp"
+#include "ctagSlotBounds.hpp"
 #include <cstdlib>
 
 namespace CTAG {
@@ -82,9 +83,12 @@ namespace CTAG {
             void ctagGate16::SetDirection(Direction dir) { direction = dir; }
             ctagGate16::Direction ctagGate16::GetDirection() const { return direction; }
 
-            void ctagGate16::SetTrigSlot(int slot) { trigSlot = slot; }
+            // cv_buffer/trig_buffer are stack locals of audio_task, so an
+            // out-of-range index from a hand-edited mod-config.jsn would
+            // corrupt live audio-task stack variables every block.
+            void ctagGate16::SetTrigSlot(int slot) { trigSlot = ClampTrigSlot(slot); }
             int ctagGate16::GetTrigSlot() const { return trigSlot; }
-            void ctagGate16::SetAccentSlot(int slot) { accentSlot = slot; }
+            void ctagGate16::SetAccentSlot(int slot) { accentSlot = ClampCVSlot(slot); }
             int ctagGate16::GetAccentSlot() const { return accentSlot; }
 
             void ctagGate16::SetSwing(float swing) {
@@ -104,16 +108,34 @@ namespace CTAG {
 
             void ctagGate16::Process(float bpm, float *cv_buffer, uint8_t *trig_buffer, uint32_t block_size) {
                 if (bpm < 1.0f) return;
-                float beatsPerSample = bpm / 60.0f / 44100.0f;
+                // Nothing to emit: skip the whole per-sample loop. This is the
+                // factory default on every fresh boot, so the saving matters
+                // against the ~174k cycle per-block budget.
+                if (trigSlot < 0 && accentSlot < 0) return;
+
+                // Loop-invariant: hoisted out of the per-sample loop so the
+                // 1378 Hz path does not pay a soft-float division per sample.
+                const float kSampleRate = 44100.0f;
+                const float beatsPerSample = bpm / 60.0f / kSampleRate;
+                const float phaseDelta = beatsPerSample / (stepLength > 0.0f ? stepLength : 1.0f);
+
+                // Swing lengthens the off-beat rather than speeding it up.
+                // Scaling the rate instead would shorten the odd step, which is
+                // reverse swing. At full swing this yields a 1.5:1 off/on
+                // ratio (a 66% shuffle).
+                const float kSwingDepth = 0.2f;
+                const float onBeatLength = 1.0f - swingAmount * kSwingDepth;
+                const float offBeatLength = 1.0f + swingAmount * kSwingDepth;
 
                 for (uint32_t s = 0; s < block_size; s++) {
-                    float phaseDelta = beatsPerSample / (stepLength > 0.0f ? stepLength : 1.0f);
-                    int beatInStep = (currentStep % 2 == 1) ? 1 : 0;
-                    float swingOffset = swingAmount * 0.1f * beatInStep;
-                    stepPhase += phaseDelta * (1.0f + swingOffset);
+                    // The step currently playing determines how long it lasts.
+                    const float stepLengthNow = (currentStep % 2 == 0)
+                                                ? onBeatLength
+                                                : offBeatLength;
+                    stepPhase += phaseDelta;
 
-                    if (stepPhase >= 1.0f) {
-                        stepPhase -= 1.0f;
+                    if (stepPhase >= stepLengthNow) {
+                        stepPhase -= stepLengthNow;
                         int nextStep;
                         if (direction == Direction::FWD) {
                             nextStep = (currentStep + 1) % 16;

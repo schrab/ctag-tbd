@@ -203,9 +203,21 @@ namespace CTAG {
                         if (cursor > 4) cursor = 4;
                     }
                 } else {
-                    cursor += delta;
-                    if (cursor < 0) cursor = 0;
-                    if (cursor > 16) cursor = 16; // 16 steps + "[Params]"
+                    // Step list: cursor 0..15 are steps, 16 is "[Params]".
+                    // Editing a step adjusts its CV value, mirroring the gate
+                    // step list. Without this the steps could be read but
+                    // never changed from the UI.
+                    if (editing && cursor <= 15) {
+                        float v = ModEngine::GetSequencer(seq).GetStep(cursor) + delta * 0.05f;
+                        if (v < 0.0f) v = 0.0f;
+                        if (v > 1.0f) v = 1.0f;
+                        ModEngine::GetSequencer(seq).SetStep(cursor, v);
+                        dirty = true;
+                    } else {
+                        cursor += delta;
+                        if (cursor < 0) cursor = 0;
+                        if (cursor > 16) cursor = 16; // 16 steps + "[Params]"
+                    }
                 }
             }
             doRedraw();
@@ -227,6 +239,10 @@ namespace CTAG {
                 if (btnId == 2 && !longPress) {
                     if (cursor == 2) {
                         ModEngine::GetTempoEngine().OnTapTempo();
+                    } else if (cursor == 3) {
+                        // Rewind the internal transport to the downbeat. Always
+                        // available, so a stopped tempo is recoverable from the UI.
+                        ModEngine::GetTempoEngine().Reset();
                     } else {
                         editing = !editing;
                     }
@@ -381,8 +397,18 @@ namespace CTAG {
         void UIMenuPageMod::redrawMain() {
             Display::Clear();
             char buf[32];
-            for (int i = 0; i < 8; i++) {
-                int y = ROW(i);
+            // 8 items at LINE_H=8 starting at ITEM_Y0=5 would run off the
+            // 64-row display (row 7 starts at y=61). Scroll so only rows that
+            // fit are drawn, matching the other list subpages.
+            constexpr int TOTAL = 8;
+            int scrollOff = 0;
+            if (cursor >= VISIBLE_ITEMS_HDR) {
+                scrollOff = cursor - VISIBLE_ITEMS_HDR + 1;
+            }
+
+            for (int i = 0; i < TOTAL; i++) {
+                if (i < scrollOff || i >= scrollOff + VISIBLE_ITEMS_HDR) continue;
+                int y = ROW(i - scrollOff);
                 if (i == 0) {
                     float r = ModEngine::GetLFORate(0);
                     snprintf(buf, sizeof(buf), " LFO1: %s %.1fHz", shapeNames[ModEngine::GetLFOShape(0)], r);
@@ -407,8 +433,9 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
-            int cy = ROW(cursor);
+            int cy = ROW(cursor - scrollOff);
             Display::InvertRect(0, cy, 128, 8);
+            Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS_HDR * LINE_H, TOTAL, cursor);
             Display::Flush();
         }
 
@@ -488,6 +515,10 @@ namespace CTAG {
 
             snprintf(buf, sizeof(buf), " [Tap Tempo]");
             Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
+
+            snprintf(buf, sizeof(buf), " [%s]",
+                     ModEngine::GetTempoEngine().IsRunning() ? "Reset" : "Restart");
+            Display::DrawString(0, ROW_HDR(3), buf, Display::FONT_5X7);
 
             if (!editing) {
                 int cy = ROW_HDR(cursor);

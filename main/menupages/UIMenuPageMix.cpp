@@ -135,8 +135,10 @@ namespace CTAG {
 
                 for (int i = startIdx; i <= endIdx; i++) {
                     uint16_t cp = font_norns_ext_codepoints[i];
+                    // utf8_encode writes up to 3 bytes and returns the length;
+                    // DrawString scans until NUL, so the terminator is required.
                     char buf[4];
-                    utf8_encode(cp, buf);
+                    buf[utf8_encode(cp, buf)] = 0;
                     int idx = FontNornsExtLookup(cp);
                     int adv = (idx < FONT_NORNS_EXT_N_CHARS)
                         ? font_norns_ext_advances[idx] : maxAdv;

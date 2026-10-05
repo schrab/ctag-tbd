@@ -43,6 +43,10 @@ namespace CTAG {
                 void Start();
                 void Stop();
                 void Continue();
+                // Reset the internal transport. Unlike Start/Stop/Continue,
+                // which act only on an external MIDI clock, this always works
+                // and gives the UI a way to recover a stopped internal tempo.
+                void Reset();
                 bool IsRunning() const;
 
                 // Call once per audio block to advance internal phase
@@ -58,15 +62,31 @@ namespace CTAG {
                 void OnTapTempo();
 
             private:
+                // Recompute delta_phase_per_block from the configured rate.
+                void UpdatePhaseIncrement();
+
                 Source source = Source::INTERNAL;
                 float bpm = 120.0f;
                 float phase = 0.0f;
                 float delta_phase_per_block = 0.0f;
+                float blocks_per_second = 1378.125f; // 44100 / 32, TBD default
                 bool running = false;
 
-                // Tap tempo state
+                // Tap tempo state: average the recent intervals rather than
+                // letting the last tap win outright.
                 TickType_t lastTapTick = 0;
                 uint32_t tapCount = 0;
+                static constexpr int kTapHistorySize = 4;
+                uint32_t tapIntervalHistory[kTapHistorySize] = {0};
+                int tapHistoryCount = 0;
+
+                // MIDI clock tempo tracking: 24 PPQN, so the interval between
+                // clocks is one twenty-fourth of a beat.
+                TickType_t lastMidiClockTick = 0;
+                bool hasMidiClockTick = false;
+                static constexpr int kMidiClockHistorySize = 24;
+                uint32_t midiClockIntervalHistory[kMidiClockHistorySize] = {0};
+                int midiClockHistoryCount = 0;
             };
         } // HELPERS
     } // SP

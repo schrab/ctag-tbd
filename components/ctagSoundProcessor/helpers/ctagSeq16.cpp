@@ -20,6 +20,7 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "ctagSeq16.hpp"
+#include "ctagSlotBounds.hpp"
 #include <cstdlib>
 #include <cmath>
 
@@ -71,9 +72,12 @@ namespace CTAG {
 
             float ctagSeq16::GetSlew() const { return slewFactor; }
 
-            void ctagSeq16::SetCVSlot(int slot) { cvSlot = slot; }
+            // cv_buffer/trig_buffer are stack locals of audio_task, so an
+            // out-of-range index from a hand-edited mod-config.jsn would
+            // corrupt live audio-task stack variables every block.
+            void ctagSeq16::SetCVSlot(int slot) { cvSlot = ClampCVSlot(slot); }
             int ctagSeq16::GetCVSlot() const { return cvSlot; }
-            void ctagSeq16::SetTrigSlot(int slot) { trigSlot = slot; }
+            void ctagSeq16::SetTrigSlot(int slot) { trigSlot = ClampTrigSlot(slot); }
             int ctagSeq16::GetTrigSlot() const { return trigSlot; }
 
             static int nextStepFwd(int current) {
@@ -88,7 +92,11 @@ namespace CTAG {
                 if (cvSlot < 0 && trigSlot < 0) return;
 
                 // Calculate phase advance per sample
-                float blocks_per_sec = 44100.0f / static_cast<float>(block_size);
+                // blocks_per_sec comes from the caller's block size, but the
+                // sample rate itself is fixed by the codec. Keep it as a named
+                // constant so this is the single place the rate appears.
+                const float kSampleRate = 44100.0f;
+                float blocks_per_sec = kSampleRate / static_cast<float>(block_size);
                 float beats_per_sec = bpm / 60.0f;
                 float delta_phase_per_block = beats_per_sec / blocks_per_sec;
 

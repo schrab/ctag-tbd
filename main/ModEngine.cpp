@@ -38,6 +38,11 @@ static const char *TAG = "MOD";
 #define LFO1_SLOT 98
 #define LFO2_SLOT 99
 
+// TBD codec runs at 44100 Hz with 32-sample audio blocks; the tempo engine
+// derives its block rate from these.
+static constexpr float MOD_TEMPO_FS = 44100.0f;
+static constexpr uint32_t MOD_TEMPO_BLOCK = 32;
+
 float ModEngine::lfoPhase[2] = {0, 0};
 float ModEngine::lfoRate[2] = {1.0f, 2.0f};
 float ModEngine::lfoAmplitude[2] = {0.5f, 0.5f};
@@ -54,6 +59,9 @@ bool ModEngine::learning = false;
 int ModEngine::lastLearnedSlot = -1;
 
 CTAG::SP::HELPERS::ctagTempo ModEngine::tempoEngine;
+float ModEngine::tempoBpm = 120.0f;
+CTAG::SP::HELPERS::ctagTempo::Source ModEngine::tempoSource =
+    CTAG::SP::HELPERS::ctagTempo::Source::INTERNAL;
 CTAG::SP::HELPERS::ctagSeq16 ModEngine::sequencer[2];
 CTAG::SP::HELPERS::ctagGate16 ModEngine::gate[2];
 
@@ -79,7 +87,7 @@ void ModEngine::Init() {
     lfoPhase[1] = 0;
     
     // Initialize tempo engine (44100 Hz, 32 samples per block)
-    tempoEngine.SetSampleRate(44100.0f, 32);
+    tempoEngine.SetSampleRate(MOD_TEMPO_FS, MOD_TEMPO_BLOCK);
     
     LoadConfig();
     ESP_LOGI(TAG, "ModEngine initialized, slots 90-99");
@@ -256,6 +264,15 @@ void ModEngine::SaveConfig() {
         slot.AddMember("cvSlot", dynTargetSlot[i], alloc);
         ccArr.PushBack(slot, alloc);
     }
+
+    // Tempo is part of the documented saved schema, so a user does not have to
+    // re-dial the BPM after every reboot.
+    Value tempo(kObjectType);
+    tempo.AddMember("bpm", tempoEngine.GetBPM(), alloc);
+    tempo.AddMember("source",
+                    tempoEngine.GetSource() == SP::HELPERS::ctagTempo::Source::MIDI_CLOCK ? 1 : 0,
+                    alloc);
+    d.AddMember("tempo", tempo, alloc);
     for (int i = 0; i < 2; i++) {
         char key[8];
         snprintf(key, sizeof(key), "seq%d", i);
@@ -302,13 +319,38 @@ void ModEngine::SaveConfig() {
         ESP_LOGE(TAG, "SaveConfig: cannot open %s", MOD_CFG_PATH);
         return;
     }
-    char writeBuf[2048];
+    // SaveConfig runs on the UIMenu task, whose 4 KB stack is deliberately
+    // small (it only polls a queue and draws). FileWriteStream flushes in
+    // chunks, so a large buffer buys nothing and risks exhausting that stack.
+    char writeBuf[512];
     FileWriteStream os(fp, writeBuf, sizeof(writeBuf));
     Writer<FileWriteStream> writer(os);
     d.Accept(writer);
     fflush(fp);
     fclose(fp);
     ESP_LOGI(TAG, "SaveConfig: written to %s", MOD_CFG_PATH);
+}
+
+// mod-config.jsn lives on SPIFFS and is hand-editable, so every read is
+// type-checked. RapidJSON's asserts compile out under NDEBUG, which would turn
+// a wrong-typed member into undefined behaviour during ModEngine::Init() --
+// before the UI exists to report anything.
+static bool GetIntMember(const rapidjson::Value &v, const char *name, int &out) {
+    if (!v.IsObject() || !v.HasMember(name) || !v[name].IsInt()) return false;
+    out = v[name].GetInt();
+    return true;
+}
+
+static bool GetFloatMember(const rapidjson::Value &v, const char *name, float &out) {
+    if (!v.IsObject() || !v.HasMember(name) || !v[name].IsNumber()) return false;
+    out = v[name].GetFloat();
+    return true;
+}
+
+static bool GetBoolMember(const rapidjson::Value &v, const char *name, bool &out) {
+    if (!v.IsObject() || !v.HasMember(name) || !v[name].IsBool()) return false;
+    out = v[name].GetBool();
+    return true;
 }
 
 void ModEngine::LoadConfig() {
@@ -329,25 +371,42 @@ void ModEngine::LoadConfig() {
         return;
     }
 
+    if (!d.IsObject()) {
+        ESP_LOGE(TAG, "LoadConfig: root is not an object, using defaults");
+        return;
+    }
+
     for (int i = 0; i < 2; i++) {
         char key[8];
         snprintf(key, sizeof(key), "lfo%d", i + 1);
         if (!d.HasMember(key) || !d[key].IsObject()) continue;
         const Value &lfo = d[key];
-        if (lfo.HasMember("shape")) lfoShape[i] = lfo["shape"].GetInt();
-        if (lfo.HasMember("rate")) lfoRate[i] = lfo["rate"].GetFloat();
-        if (lfo.HasMember("amp")) lfoAmplitude[i] = lfo["amp"].GetFloat();
-        if (lfo.HasMember("cvSlot")) lfoCVSlot[i] = lfo["cvSlot"].GetInt();
-        if (lfo.HasMember("sync")) lfoSync[i] = lfo["sync"].GetBool();
+        GetIntMember(lfo, "shape", lfoShape[i]);
+        GetFloatMember(lfo, "rate", lfoRate[i]);
+        GetFloatMember(lfo, "amp", lfoAmplitude[i]);
+        GetIntMember(lfo, "cvSlot", lfoCVSlot[i]);
+        GetBoolMember(lfo, "sync", lfoSync[i]);
     }
 
     if (d.HasMember("ccSlots") && d["ccSlots"].IsArray()) {
         const Value &ccArr = d["ccSlots"];
         for (SizeType i = 0; i < ccArr.Size() && i < 8; i++) {
             const Value &slot = ccArr[i];
-            if (slot.HasMember("cc")) dynCC[i] = slot["cc"].GetInt();
-            if (slot.HasMember("chan")) dynChan[i] = slot["chan"].GetInt();
-            if (slot.HasMember("cvSlot")) dynTargetSlot[i] = slot["cvSlot"].GetInt();
+            if (!slot.IsObject()) continue;
+            GetIntMember(slot, "cc", dynCC[i]);
+            GetIntMember(slot, "chan", dynChan[i]);
+            GetIntMember(slot, "cvSlot", dynTargetSlot[i]);
+        }
+    }
+
+    // Tempo is documented as part of the saved schema (doc/modulation-system.md).
+    if (d.HasMember("tempo") && d["tempo"].IsObject()) {
+        const Value &tm = d["tempo"];
+        GetFloatMember(tm, "bpm", tempoBpm);
+        int src = 0;
+        if (GetIntMember(tm, "source", src)) {
+            tempoSource = (src == 1) ? SP::HELPERS::ctagTempo::Source::MIDI_CLOCK
+                                     : SP::HELPERS::ctagTempo::Source::INTERNAL;
         }
     }
 
@@ -359,14 +418,19 @@ void ModEngine::LoadConfig() {
         if (sq.HasMember("steps") && sq["steps"].IsArray()) {
             const Value &sarr = sq["steps"];
             for (SizeType j = 0; j < sarr.Size() && j < 16; j++) {
-                sequencer[i].SetStep((int)j, sarr[j].GetFloat());
+                float v = 0.5f;
+                if (!sarr[j].IsNumber()) continue;
+                v = sarr[j].GetFloat();
+                sequencer[i].SetStep((int)j, v);
             }
         }
-        if (sq.HasMember("stepLength")) sequencer[i].SetStepLength(sq["stepLength"].GetFloat());
-        if (sq.HasMember("direction")) sequencer[i].SetDirection((SP::HELPERS::ctagSeq16::Direction)sq["direction"].GetInt());
-        if (sq.HasMember("slew")) sequencer[i].SetSlew(sq["slew"].GetFloat());
-        if (sq.HasMember("cvSlot")) sequencer[i].SetCVSlot(sq["cvSlot"].GetInt());
-        if (sq.HasMember("trigSlot")) sequencer[i].SetTrigSlot(sq["trigSlot"].GetInt());
+        float f;
+        int n;
+        if (GetFloatMember(sq, "stepLength", f)) sequencer[i].SetStepLength(f);
+        if (GetIntMember(sq, "direction", n)) sequencer[i].SetDirection((SP::HELPERS::ctagSeq16::Direction)n);
+        if (GetFloatMember(sq, "slew", f)) sequencer[i].SetSlew(f);
+        if (GetIntMember(sq, "cvSlot", n)) sequencer[i].SetCVSlot(n);
+        if (GetIntMember(sq, "trigSlot", n)) sequencer[i].SetTrigSlot(n);
     }
 
     for (int i = 0; i < 2; i++) {
@@ -377,24 +441,35 @@ void ModEngine::LoadConfig() {
         if (gt.HasMember("enabled") && gt["enabled"].IsArray()) {
             const Value &earr = gt["enabled"];
             for (SizeType j = 0; j < earr.Size() && j < 16; j++) {
+                if (!earr[j].IsBool()) continue;
                 gate[i].SetStepEnabled((int)j, earr[j].GetBool());
             }
         }
         if (gt.HasMember("probs") && gt["probs"].IsArray()) {
             const Value &parr = gt["probs"];
             for (SizeType j = 0; j < parr.Size() && j < 16; j++) {
-                gate[i].SetStepProbability((int)j, (uint8_t)parr[j].GetInt());
+                if (!parr[j].IsNumber()) continue;
+                int p = parr[j].GetInt();
+                if (p < 0) p = 0;
+                if (p > 100) p = 100;
+                gate[i].SetStepProbability((int)j, (uint8_t)p);
             }
         }
-        if (gt.HasMember("stepLength")) gate[i].SetStepLength(gt["stepLength"].GetFloat());
-        if (gt.HasMember("direction")) gate[i].SetDirection((SP::HELPERS::ctagGate16::Direction)gt["direction"].GetInt());
-        if (gt.HasMember("trigSlot")) gate[i].SetTrigSlot(gt["trigSlot"].GetInt());
-        if (gt.HasMember("accentSlot")) gate[i].SetAccentSlot(gt["accentSlot"].GetInt());
-        if (gt.HasMember("swing")) gate[i].SetSwing(gt["swing"].GetFloat());
-        if (gt.HasMember("gateLength")) gate[i].SetGateLength(gt["gateLength"].GetFloat());
-        if (gt.HasMember("gateLength")) gate[i].SetGateLength(gt["gateLength"].GetFloat());
-        if (gt.HasMember("accentAmount")) gate[i].SetAccentAmount(gt["accentAmount"].GetFloat());
+        float f;
+        int n;
+        if (GetFloatMember(gt, "stepLength", f)) gate[i].SetStepLength(f);
+        if (GetIntMember(gt, "direction", n)) gate[i].SetDirection((SP::HELPERS::ctagGate16::Direction)n);
+        if (GetIntMember(gt, "trigSlot", n)) gate[i].SetTrigSlot(n);
+        if (GetIntMember(gt, "accentSlot", n)) gate[i].SetAccentSlot(n);
+        if (GetFloatMember(gt, "swing", f)) gate[i].SetSwing(f);
+        if (GetFloatMember(gt, "gateLength", f)) gate[i].SetGateLength(f);
+        if (GetFloatMember(gt, "accentAmount", f)) gate[i].SetAccentAmount(f);
     }
+
+    // Apply the loaded tempo last so the shared engine sees the final values.
+    tempoEngine.SetSampleRate(MOD_TEMPO_FS, MOD_TEMPO_BLOCK);
+    tempoEngine.SetBPM(tempoBpm);
+    tempoEngine.SetSource(tempoSource);
 
     ESP_LOGI(TAG, "LoadConfig: loaded from %s", MOD_CFG_PATH);
 }

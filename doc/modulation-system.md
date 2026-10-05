@@ -19,6 +19,25 @@ arrays, which sound processors read via their `ProcessData::cv[]` / `trig[]`.
 | `main/menupages/UIMenuPageMod.hpp` / `.cpp` | PANEL_MOD UI — all modulation source configuration |
 | `main/CVSlotNames.hpp` | 100-entry CV slot display name table (7-char max) |
 | `main/IOCapabilities.hpp` | N_CVS=100, N_TRIGS=40 array definitions |
+| `components/ctagSoundProcessor/helpers/ctagSlotBounds.hpp` | Slot-index clamping shared by every CV/trig setter |
+
+## Slot Index Safety
+
+`cv_buffer` and `trig_buffer` are **stack locals of `audio_task`**
+(`main/SPManager.cpp`). An out-of-range slot index therefore writes over live
+audio-task stack variables on every block. Every setter routes through
+`ClampCVSlot()` / `ClampTrigSlot()` in `ctagSlotBounds.hpp`, which keep valid
+indices and map anything outside `[0, N_CVS)` / `[0, N_TRIGS)` to `-1`
+(unassigned) — so a hand-edited or truncated `mod-config.jsn` cannot corrupt
+the stack. Bounds are verified by host tests in `tests/host/`.
+
+## Precedence
+
+Several sources write the same buffers and the last writer in
+`ModEngine::Process()` wins. Order is: LFOs → sequencers → gates. In particular
+trigger slots 0–39 are shared between MIDI mapping and the sequencer/gate
+outputs, so pointing a gate at a MIDI-owned slot overrides the MIDI trigger.
+Do not assign the same slot to two sources unless last-writer-wins is intended.
 
 ## CV Slot Allocation
 
@@ -56,8 +75,14 @@ Namespace: `CTAG::SP::HELPERS::ctagTempo`
 - BPM range: 20–300 (default 120)
 - Two clock sources: `INTERNAL` and `MIDI_CLOCK`
 - Phase output: `GetPhase()` returns 0.0–1.0 for one beat cycle
-- Tap tempo via `OnTapTempo()` (averages last 4 taps)
-- MIDI clock: `OnMidiClock()` (0xF8), `Start()` (0xFA), `Continue()` (0xFB), `Stop()` (0xFC)
+- Tap tempo via `OnTapTempo()` (averages the last 4 tap intervals)
+- MIDI clock: `OnMidiClock()` (0xF8) derives the tempo from the interval between
+  incoming clocks (rolling average over 24 clocks), so the sequencers and gates
+  follow the external tempo — not just the beat-synced LFOs.
+- `Start()` (0xFA), `Continue()` (0xFB) and `Stop()` (0xFC) act only when the
+  source is `MIDI_CLOCK`, so a stray transport message cannot halt the internal
+  clock. `Reset()` rewinds the internal transport and is always available from
+  the `SP_TEMPO` subpage.
 
 ### Key Methods
 ```cpp
@@ -72,19 +97,21 @@ void OnMidiClock();
 void Start();
 void Stop();
 void Continue();
+void Reset();                // always works, including with source INTERNAL
 ```
 
 ### MIDI Clock Wiring (`main/Midi.cpp:1156-1172`)
 ```
-0xF8 (Timing Clock)  →  tempoEngine.OnMidiClock()
-0xFA (Start)         →  tempoEngine.Start()
-0xFB (Continue)      →  tempoEngine.Continue()
-0xFC (Stop)          →  tempoEngine.Stop()
+0xF8 (Timing Clock)  →  tempoEngine.OnMidiClock()   // also updates BPM
+0xFA (Start)         →  tempoEngine.Start()         // ignored unless MIDI_CLOCK
+0xFB (Continue)      →  tempoEngine.Continue()      // ignored unless MIDI_CLOCK
+0xFC (Stop)          →  tempoEngine.Stop()          // ignored unless MIDI_CLOCK
 ```
 
 ### Persistence
+BPM and source are saved and restored, so the tempo survives a reboot.
 ```json
-"tempo": {"bpm": 120.0, "source": "internal"}
+"tempo": {"bpm": 120.0, "source": 0}   // source: 0 = internal, 1 = MIDI clock
 ```
 
 ## LFO Engine (built into `ModEngine`)
@@ -111,7 +138,8 @@ Namespace: `CTAG::SP::HELPERS::ctagSeq16`
 Two identical sequencers (`sequencer[0]`, `sequencer[1]`), each with 16 steps.
 
 ### Per-Step Data
-- CV value: `float` (−5V to +5V range typical)
+- CV value: `float`, stored 0.0–1.0 and written to CV as `value × 2 − 1`, i.e.
+  bipolar −1.0 to +1.0. On a ±5 V output range that corresponds to −5 V to +5 V.
 
 ### Global Parameters
 | Param | Range | Description |
@@ -153,7 +181,7 @@ Two identical gate generators (`gate[0]`, `gate[1]`), each with 16 steps.
 |-------|-------|-------------|
 | Step Length | 0.25–4.0 beats | Duration of each step in beats |
 | Direction | 0–3 | FWD, BWD, PENDULUM, RANDOM |
-| Swing | 0.0–1.0 | Timing offset on even steps (0=straight) |
+| Swing | 0.0–1.0 | Lengthens the off-beat (0=straight, 1.0 ≈ 1.5:1 shuffle) |
 | Gate Length | 0.1–1.0 | Fraction of step the gate stays high |
 | Trig Slot | -1–39 | Which trig_buffer slot to write gates to |
 | Accent Slot | -1–99 | Which cv_buffer slot to write accent CV to |
@@ -164,7 +192,10 @@ At each step boundary:
 1. If step is enabled, roll `rand() % 100` against probability
 2. If gate fires: `trig_buffer[trigSlot] = 1` for `gateLength` fraction of step
 3. Accent CV: `cv_buffer[accentSlot] = accentAmount` while gate is high
-4. Swing shifts timing on even-numbered steps by `swingAmount × 0.1`
+4. Swing lengthens the off-beat: even steps run `1 − swing × 0.2` and odd steps
+   `1 + swing × 0.2` of the nominal step length, giving a 1.5:1 off/on ratio at
+   full swing. (Scaling the rate instead would *shorten* the odd step, which is
+   reverse swing.)
 
 ## Dynamic CC Routing
 
@@ -300,3 +331,27 @@ The modulation engine uses static class members (no heap):
 | `lfoPhase/rate/amp/shape/cvSlot/hold/sync` | ~64 bytes |
 | `dynCC/dynChan/dynTargetSlot` (8 each) | ~96 bytes |
 | **Total** | **~480 bytes static DRAM** |
+
+`SaveConfig()` uses a 512-byte `FileWriteStream` buffer. It runs on the UIMenu
+task, whose 4 KB stack is deliberately small, so keep that buffer modest —
+`FileWriteStream` flushes in chunks and does not need to hold the whole
+document.
+
+## Testing
+
+`ctagTempo`, `ctagSeq16` and `ctagGate16` are pure value types with no I/O, so
+they are covered by host unit tests that need no ESP-IDF toolchain, hardware,
+or network:
+
+```bash
+tests/host/run_tests.sh
+```
+
+The script compiles the **real** helper sources against a small FreeRTOS shim
+(`tests/host/shim/`, a fake `xTaskGetTickCount` so tap tempo is deterministic)
+and runs 43 assertions covering step timing, direction modes, probability,
+slew, swing direction, MIDI-clock tempo derivation, tap averaging, transport
+gating, and out-of-range slot writes. Exit code 0 means all passed.
+
+Run it after any change to the helpers; it is the fastest way to catch a
+timing or bounds regression before flashing.

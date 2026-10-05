@@ -81,6 +81,9 @@ public:
 
 private:
     static SP::HELPERS::ctagTempo tempoEngine;
+    // Persisted tempo, applied to tempoEngine after LoadConfig.
+    static float tempoBpm;
+    static SP::HELPERS::ctagTempo::Source tempoSource;
     static SP::HELPERS::ctagSeq16 sequencer[2];
     static SP::HELPERS::ctagGate16 gate[2];
     static float lfoPhase[2];
