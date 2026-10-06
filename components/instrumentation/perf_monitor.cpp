@@ -191,8 +191,8 @@ void PerfMonitor::EnableLogging(bool enable,
             );
 
             if (result == pdPASS) {
-                ESP_LOGI(TAG, "Performance logging ENABLED (interval: %lu ms, core: %ld, priority: %lu)",
-                         interval_ms, core_id, priority);
+                ESP_LOGI(TAG, "Performance logging ENABLED (interval: %u ms, core: %d, priority: %u)",
+                         (unsigned)interval_ms, (int)core_id, (unsigned)priority);
             } else {
                 ESP_LOGE(TAG, "Failed to create logging task!");
                 registry_.logging_enabled.store(false, std::memory_order_relaxed);
