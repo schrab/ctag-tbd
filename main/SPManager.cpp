@@ -127,6 +127,13 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         max = maxl >= maxr ? maxl : maxr;
         peakIn = 0.95f * peakIn + 0.05f * max;
 
+        // VU meter: store input peaks (0..1000) for the MIX page. Only do the
+        // extra loads/stores when metering is enabled.
+        if (meteringEnabled.load(std::memory_order_relaxed)) {
+            vuInL.store(static_cast<uint32_t>(maxl * 1000.0f + 0.5f), std::memory_order_relaxed);
+            vuInR.store(static_cast<uint32_t>(maxr * 1000.0f + 0.5f), std::memory_order_relaxed);
+        }
+
         // noise gate
         if (noiseGateCfg == 1) { // both channels noise gate
             if (ngState == NG_OPEN && peakIn < NOISE_GATE_LEVEL_CLOSE) {
@@ -336,6 +343,11 @@ atomic<uint32_t> SoundProcessorManager::toStereoCH1;
 atomic<uint32_t> SoundProcessorManager::runAudioTask;
 atomic<uint32_t> SoundProcessorManager::ch0_outputSoftClip;
 atomic<uint32_t> SoundProcessorManager::ch1_outputSoftClip;
+atomic<bool> SoundProcessorManager::meteringEnabled{false};
+atomic<uint32_t> SoundProcessorManager::vuInL{0};
+atomic<uint32_t> SoundProcessorManager::vuInR{0};
+atomic<uint32_t> SoundProcessorManager::vuOutL{0};
+atomic<uint32_t> SoundProcessorManager::vuOutR{0};
 
 void SoundProcessorManager::StartSoundProcessor() {
     model = std::make_unique<SPManagerDataModel>();

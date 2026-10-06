@@ -98,6 +98,19 @@ namespace CTAG {
             static void RefreshSampleRom();
             static bool GetCPUOverload() { return cpuOverload != 0; }
 
+            // Peak metering for the MIX page. While metering is enabled the
+            // audio task stores per-block peaks scaled to 0..1000; it skips
+            // the extra pass entirely otherwise (the DSP budget is tight).
+            static void SetMeteringEnabled(bool on) { meteringEnabled = on; }
+            static uint32_t GetVUPeak(int channel) {
+                switch (channel) {
+                    case 0: return vuInL.load(std::memory_order_relaxed);
+                    case 1: return vuInR.load(std::memory_order_relaxed);
+                    case 2: return vuOutL.load(std::memory_order_relaxed);
+                    default: return vuOutR.load(std::memory_order_relaxed);
+                }
+            }
+
         private:
             static void audio_task(void *pvParams);
 
@@ -115,6 +128,11 @@ namespace CTAG {
             static atomic<uint32_t> runAudioTask;
             static atomic<uint32_t> ch0_outputSoftClip;
             static atomic<uint32_t> ch1_outputSoftClip;
+            static atomic<bool> meteringEnabled;
+            static atomic<uint32_t> vuInL;
+            static atomic<uint32_t> vuInR;
+            static atomic<uint32_t> vuOutL;
+            static atomic<uint32_t> vuOutR;
         };
     }
 }
