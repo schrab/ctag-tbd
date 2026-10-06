@@ -1,4 +1,5 @@
 #include "SerialAPI.hpp"
+#include "DebugUI.hpp"
 #include <iostream>
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
@@ -228,6 +229,19 @@ void CTAG::SAPI::SerialAPI::processAPICommand(const string &cmd) {
         sendString("{\"id\":\"" + id + "\"}");
         return;
     }
+
+    // ---- debug / bring-up helpers ----
+    // Implementation lives in DebugUI so the standalone debug UART channel
+    // (used by WIFI_UI builds, where SerialAPI never runs) and this
+    // SERIAL_UI build share exactly one copy of the logic.
+    if (s.find("/debug/") == 0) {
+        string response;
+        if (CTAG::CTRL::DebugUI::handleCommand(cmd, response)) {
+            sendString(response.c_str());
+        }
+        return;
+    }
+
     /*
 
     otaAPI

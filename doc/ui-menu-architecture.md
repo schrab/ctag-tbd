@@ -51,6 +51,8 @@ public:
     virtual void onEncoder(int delta) {}   // encoder rotation while in this page
     virtual void onButton(int btnId, bool longPress) {}
     virtual bool onBack() { return false; } // true=handled sub-page back, false=return to ROOT
+    virtual void onTick() {}              // ~4 Hz periodic pump, only if wantsTick()
+    virtual bool wantsTick() const { return false; }
 };
 ```
 
@@ -98,8 +100,11 @@ UIMenu task (Core 0, idle+3, 4096 stack, 20ms loop)
   → redrawNeeded? if ROOT: page->doRedraw() + drawPanelBar()
                   if PANEL_IN: page->doRedraw() (triggered immediately by event handlers)
   → panelBarTimer-- each tick in ROOT
+  → PANEL_IN && AWAKE && pages[current]->wantsTick()? every 5th iteration → page->onTick()
 ```
-*Note: Redraws are triggered immediately by `onEncoder()` and `onButton()` event handlers. There is no periodic auto-refresh, ensuring responsive UI and saving CPU cycles.*
+*Note: Redraws are triggered immediately by `onEncoder()` and `onButton()` event handlers. There is no periodic auto-refresh by default, ensuring responsive UI and saving CPU cycles.*
+
+**Periodic refresh (`onTick`):** pages that must animate while the encoder is idle — currently only MIX, for the VU meters — override `wantsTick()` to return `true`. `UIMenu::TaskFunction` then calls `onTick()` every 5th iteration (task runs at ~50Hz, so ~4Hz). The page repaints itself; `redrawNeeded` is not involved. `pageTickCounter` resets whenever the page doesn't want ticks, so the first pump happens promptly on entry. The 5x divider matters: `onTick()` does a full `Clear()`+`Flush()`, and at 50Hz that would saturate the I2C bus and the CPU headroom the audio task needs.
 
 ## Display API
 
@@ -111,7 +116,8 @@ UIMenu task (Core 0, idle+3, 4096 stack, 20ms loop)
 | `DrawStringRight(x,y,str,font)` | Right-aligned text |
 | `InvertRect(x,y,w,h)` | Invert region (cursor highlight) |
 | `DrawScrollbar(x,y,h,total,cursor)` | Scrollbar (visible items = h/LINE_H) |
-| `DrawVUMeter(x,y,w,h,level)` | VU bar (0.0-1.0) |
+| `DrawVUMeter(x,y,w,h,level)` | Horizontal VU bar, fills left→right (0.0-1.0) |
+| `DrawVUMeterV(x,y,w,h,level)` | Vertical VU bar, fills bottom→top (0.0-1.0); used by MIX faders |
 | `DrawPixel/HLine/VLine/Rect` | Primitives |
 
 ### Available Fonts
@@ -122,11 +128,11 @@ All fonts use column-major storage (LSB = top pixel) and proportional per-glyph 
 |-----------|------|--------|---------|-------|---------|
 | `FONT_5X7` | 5×7 | 6px | 128 | `font5x7.h` | All menu UI |
 | `FONT_8X8` | 8×8 | 8px | 96 | `font8x8_basic.h` | Legacy (`ssd1306_display_text()`) |
-| `FONT_DIGI_SLIM_3X6` | 3×6 | 5px | 127 | `digi_slim_3x6.h` | Mix test page |
-| `FONT_DIGI_ONE_5X6` | 5×6 | 6px | 127 | `digi_one_5x6.h` | Mix test page |
-| `FONT_NORNS_6X7` | 6×7 | 6px | 128 base + 138 ext | `norns_6x7.h`, `norns_ext_6x7.h` | Mix test page |
+| `FONT_DIGI_SLIM_3X6` | 3×6 | 5px | 127 | `digi_slim_3x6.h` | Unused |
+| `FONT_DIGI_ONE_5X6` | 5×6 | 6px | 127 | `digi_one_5x6.h` | Unused |
+| `FONT_NORNS_6X7` | 6×7 | 6px | 128 base + 138 ext | `norns_6x7.h`, `norns_ext_6x7.h` | Unused |
 
-`FONT_5X7` is the only font used in menu UI. The others (digi-slim, digi-one, norns) are available for future use and can be tested via the MIX font test page.
+`FONT_5X7` is the only font used in menu UI. The others (digi-slim, digi-one, norns) are compiled and available but have no page using them — MIX previously hosted a glyph browser for testing these, which was removed when it became the fader mixer.
 
 **Analog-One** (`analog_one_3x5.h`) was identical to norns in appearance and has been removed from the `Font` enum and all code. The header file is kept in `main/fonts/` for reference but is not compiled.
 
@@ -221,16 +227,64 @@ Long-press on a param in MODE_EDIT enters MODE_MAP. `ParamInfo[256]` and `GroupI
 
 **Encoder Acceleration:** In `MODE_VALUEEDIT`, quadratic acceleration builds momentum on consecutive same-direction turns. This momentum automatically resets whenever the cursor changes (e.g., switching to a new parameter), preventing unexpected jumps when navigating between items.
 
-### MIX (`UIMenuPageMix`) — Font Test Page
+### MIX (`UIMenuPageMix`) — Vertical Fader Mixer
 
-Font glyph browser that cycles through digi-slim 3×6, digi-one 5×6, and norns 6×7 (including all 138 extended norns codepoints).
+Four control strips laid out across the 128px display (30px wide each, 4px margin). Each strip is a vertical fader; the input-gain strip and both output strips carry a pair of L/R VU meters to the right of the fader.
 
-| Button | Action |
-|--------|--------|
-| OK (short) | Cycle to next font |
-| Encoder | Page through glyphs (64 per page + norns extended pages) |
+| Strip | Label | Config key | Range | Applied |
+|-------|-------|-----------|-------|---------|
+| 0 | `IN` | `input_gain` | 0–8 (+0…+24dB) | live |
+| 1 | `SRC` | `input_source` | enum `mic,line` | deferred |
+| 2 | `O L` | `ch0_codecLvlOut` | 0–33 (ES8388) / 0–63 (AIC3254) | live |
+| 3 | `O R` | `ch1_codecLvlOut` | 0–33 (ES8388) / 0–63 (AIC3254) | live |
 
-For norns font, base pages show ASCII 0x20-0x7F (2 pages) and extended pages show ext table entries in groups of 64 (3 pages, total 5). Line spacing is 7px (effective glyph height, no gap).
+| Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
+|------|--------------|---------|-----------------|------|
+| Browse | All four strips; active strip outlined around its label | Move between strips (0-3) | Enter edit mode on active strip | Return to ROOT |
+| Edit | Active fader inverted | Adjust value (quadratic accel, clamped to strip range) | Exit edit, committing deferred items | Exit edit, committing deferred items |
+
+Header shows `MIX` left and either the input source or `EDIT` right.
+
+**Output routing and mixer mode are deliberately NOT here** — `output_source`, `mixer_mode`, `ng_config`, `ch0/ch1_toStereo` and soft-clip remain on the System page. MIX is only the level faders plus the input source switch.
+
+**VU metering:**
+- `SoundProcessorManager::SetMeteringEnabled(true)` in `init()`, `false` in `deinit()` — the output peak pass costs cycles in the audio task, so it only runs while this page is open. Input peaking runs unconditionally regardless (the noise gate needs it).
+- Input peaks (`vuInL/R`) are captured during the existing DC-cut loop; output peaks (`vuOutL/R`) are captured in a separate pass **after** soft clipping and `SDAudio::MixPlayback()`, so they reflect what the codec actually emits including tape playback.
+- All four are `atomic<uint32_t>` scaled 0–1000. Read via `GetVUPeak(channel)`: 0/1 = in L/R, 2/3 = out L/R.
+- The page opts into the ~4 Hz pump with `wantsTick()` → `true`; `onTick()` re-samples and repaints. Sampling is peak-hold 2 ticks then linear decay of 120/tick, giving roughly a 1.7s release from full scale.
+
+**Persistence:** same `applyCurrent()` pattern as the System page — reads the full config JSON, overlays the four managed keys, calls `SetConfigurationFromJSON()`. `deinit()` calls `applyCurrent(true)`. Live strips re-apply on every encoder turn; `input_source` waits for OK/BACK because re-routing the codec mid-edit pops.
+
+**Note:** the ES8388 driver clamps its volume register at 33 (`es8388::setOutputVolume`), which is why `CODEC_LVL_MAX` is 33 for `CONFIG_TBD_BBA_CODEC_ES8388` and 63 for the AIC3254 build. `UIMenuPageMix.hpp` must `#include "sdkconfig.h"` before that `#ifdef` — without it the macro is undefined, the AIC3254 branch is selected silently, and the faders get a 0–63 ceiling on hardware that stops at 33.
+
+## Debug channel (screenshot + synthetic input)
+
+`main/DebugUI.cpp` exposes bring-up commands over the console UART using the same STX/ETX JSON framing as `SerialAPI`. `bin/dev_ui.py` is the host driver (needs PIL; run it with a Python that has it, e.g. `/usr/bin/env python3`).
+
+| Command | Purpose |
+|---------|---------|
+| `/debug/getDisplayFramebuffer` | Raw 1024-byte OLED framebuffer as hex, `{"screenshot":1,"w":128,"h":64,"data":"…"}`. Byte = `(y>>3)*128 + x`, bit `y&7` set = lit — identical to what `Flush()` sends the SSD1309, so the host reconstruction needs no guessing |
+| `/debug/injectEvent` | Push a semantic event: `action` = `ok` \| `mod` \| `back` \| `enc`, plus `delta`/`count` for `enc` |
+| `/debug/getUiState` | `navState` (0=ROOT, 1=PANEL_IN) and current panel |
+| `/debug/getMixState` | MIX page internals: cursor, edit flag, strip values, `CODEC_LVL_MAX` (via `UIMenuPage::DebugStateJson`) |
+
+```bash
+bin/dev_ui.py shot out.png                 # one screenshot
+bin/dev_ui.py state                        # nav + panel
+bin/dev_ui.py seq outdir/ --plan mix       # scripted walkthrough, PNG per step
+bin/dev_ui.py enc -4 --shot out.png        # turn encoder, then capture
+```
+
+**Why the channel installs its own UART driver:** a `WIFI_UI` build uses the ROM console, which is **output only** — no driver on UART0 means `uart_read_bytes()` and `STDIN` reads cannot work at all, so there is no way to *receive* a command. That is exactly why the Kconfig makes `SERIAL_UI` and `WIFI_UI` mutually exclusive: `SerialAPI::initUART()` is the code that installs the driver. `DebugUI::Start()` installs it itself and then hands `ESP_LOG` to the driver with `esp_log_set_vprintf()` so logging keeps flowing on the same wire. Consequence: **this takes UART0 away from the ROM console for the lifetime of the boot.** That's acceptable for bring-up but should be gated behind a Kconfig flag before shipping.
+
+Two constraints learned the hard way, both worth preserving:
+- `FREERTOS_HZ` is 100, so `pdMS_TO_TICKS(2)` rounds to **zero ticks**. `vTaskDelay(0)` only yields, so a poll loop written that way spins and starves IDLE into `task_wdt`. Always block for at least one full tick (`POLL_TICKS`).
+- `uart_write_bytes()` busy-waits on TX ring space *without yielding*. A partially-full ring plus a 2 KB reply spins at the task's priority and trips `task_wdt`. `writeFramed()` drains with `uart_wait_tx_done()` (which yields properly) and then pushes the frame in one call; the TX ring is sized to hold it.
+
+**Framebuffer snapshots are taken inside the UIMenu task** (`RequestFramebufferShot`/`CopyFramebufferShot` handshake) so a capture can never be torn by a half-finished redraw, and no mutex is added to the drawing hot path.
+
+**Physical input races with injected input.** A real encoder or button press lands in the same queue, so a scripted walkthrough can be silently perturbed by someone touching the device. Scripts should assert with `getUiState`/`getMixState` after each step rather than assuming — that's how the "value didn't change" class of bug becomes visible instead of being guessed at from pixels.
+
 
 ### TAPE (`UIMenuPageTape`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
@@ -272,7 +326,6 @@ Deferred items are only committed on OK or BACK, not on encoder scroll.
 - On `deinit()`, if `itemCount > 0`, calls `applyCurrent()` to persist any unsaved changes.
 - Non-deferred items are applied immediately on encoder change (`applyCurrent(false)`).
 - Deferred items are applied only on OK or BACK (`applyCurrent(true, true)` — skips non-deferred to avoid double-write).
-No sub-pages. Shows "MIX" + placeholder VU meters. No encoder/button handlers. `onBack()` returns false (ROOT directly).
 
 ### MOD (`UIMenuPageMod`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |

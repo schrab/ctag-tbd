@@ -257,9 +257,7 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             }
         }
 
-        // Out peak detection, red for output
         // limiting output
-        max = 0.f;
         for (uint32_t i = 0; i < BUF_SZ; i++) {
             // soft limiting
             if (ch0_outputSoftClip) {
@@ -268,8 +266,6 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             if (ch1_outputSoftClip) {
                 fbuf[i * 2 + 1] = stmlib::SoftClip(fbuf[i * 2 + 1]);
             }
-            //if (fbuf[i * 2] > max) max = fbuf[i * 2];
-            //if (fbuf[i * 2 + 1] > max) max = fbuf[i * 2 + 1];
         }
 
         // get cpu cycles for audio task
@@ -280,6 +276,21 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         CTAG::AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
         // SD audio: capture output for recording
         CTAG::AUDIO::SDAudio::RecordSamples(fbuf, BUF_SZ);
+
+        // VU meter: store output peaks (0..1000) for the MIX page. Sampled
+        // after soft clipping and tape playback so it reflects what the
+        // codec actually emits. Skipped entirely while metering is off.
+        if (meteringEnabled.load(std::memory_order_relaxed)) {
+            float outMaxL = 0.f, outMaxR = 0.f;
+            for (uint32_t i = 0; i < BUF_SZ; i++) {
+                float val = fabsf(fbuf[i * 2]);
+                if (val > outMaxL) outMaxL = val;
+                val = fabsf(fbuf[i * 2 + 1]);
+                if (val > outMaxR) outMaxR = val;
+            }
+            vuOutL.store(static_cast<uint32_t>(outMaxL * 1000.0f + 0.5f), std::memory_order_relaxed);
+            vuOutR.store(static_cast<uint32_t>(outMaxR * 1000.0f + 0.5f), std::memory_order_relaxed);
+        }
 
         // write raw float data back to CODEC
         DRIVERS::Codec::WriteBuffer(fbuf, BUF_SZ);

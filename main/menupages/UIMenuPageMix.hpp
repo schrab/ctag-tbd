@@ -21,10 +21,23 @@ respective component folders / files if different from this license.
 
 #pragma once
 
+// Must precede the CONFIG_TBD_BBA_CODEC_ES8388 check below. Without it the macro
+// is undefined and the #ifdef silently selects the AIC3254 branch, which builds
+// fine but gives the faders the wrong ceiling (63 instead of 33) -- a mistake
+// that is invisible until you look at the rendered page.
+#include "sdkconfig.h"
 #include "UIMenuPage.hpp"
+#include <cstdint>
+#include <cstddef>
 
 namespace CTAG {
     namespace CTRL {
+        // Vertical-fader mixer page. Four control strips (input gain, input
+        // source, output L, output R), the first and last two carrying L/R VU
+        // meters. Encoder moves between strips, OK enters edit mode on the
+        // active strip; continuous (non-deferred) strips re-apply the codec
+        // live while turning. Output routing and mixer mode stay on the
+        // System page — this page is only the level/source faders.
         class UIMenuPageMix final : public UIMenuPage {
         public:
             void init() override;
@@ -32,9 +45,73 @@ namespace CTAG {
             void doRedraw() override;
             void onButton(int btnId, bool longPress) override;
             void onEncoder(int delta) override;
+            void onTick() override;
+            bool onBack() override;
+            bool wantsTick() const override { return true; }
+
+            // Debug introspection: host-side scripts assert on these instead of
+            // inferring state from pixels (physical input races with injected
+            // events, and a silent no-op edit is otherwise invisible).
+            void DebugStateJson(std::string &out) override;
+
         private:
-            int fontIndex = 0;
-            int pageOffset = 0;
+            // Codec output level ceiling. The ES8388 clamps its volume register
+            // at 33, the AIC3254 takes 0..63 with 58 as 0 dB. Mirrors the
+            // CONFIG_TBD_BBA_CODEC_ES8388 split in SPManager::updateConfiguration.
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+            static constexpr int CODEC_LVL_MAX = 33;
+#else
+            static constexpr int CODEC_LVL_MAX = 63;
+#endif
+
+            // Layout: 4 strips across 128 px, 30 px wide with a 4 px margin.
+            static constexpr int STRIPS = 4;
+            static constexpr int SRC_STRIP = 1; // input_source, needs alias handling
+            static constexpr int STRIP_W = 30;
+            static constexpr int STRIP_X0 = 4;
+            static constexpr int LABEL_Y = 9;
+            static constexpr int FADER_Y = 19;
+            static constexpr int FADER_H = 28;
+            static constexpr int FADER_W = 7;
+            static constexpr int VU_W = 5;
+            static constexpr int VU_H = 28;
+            // Meter smoothing: sampled at ~4 Hz, so hold the peak briefly then
+            // fall at DECAY_PER_TICK for a ~1.7 s release from full scale.
+            static constexpr int VU_DECAY_PER_TICK = 120;
+            static constexpr int VU_HOLD_TICKS = 2;
+            static constexpr int VALUE_Y = 50;
+
+            enum MeterSrc : int { METER_NONE = -1, METER_IN = 0, METER_OUT = 1 };
+
+            struct Strip {
+                const char *label;
+                const char *id;
+                int min;
+                int max;
+                bool deferred;
+                const char *enumOpts; // nullptr => plain int value
+                MeterSrc meter;
+            };
+
+            static const Strip STRIP_TABLE[STRIPS];
+
+            int cursor;
+            bool editMode;
+            int value[STRIPS];
+            int meter[STRIPS][2]; // smoothed level 0..1000, [0]=L [1]=R
+            int hold[STRIPS][2];  // remaining peak-hold ticks
+
+            int encoderAccel;
+            int lastEncDir;
+            uint32_t lastEncTick;
+
+            void parseConfig();
+            void applyCurrent(bool includeDeferred);
+            void refreshMeters();
+            void drawStrip(int i);
+            void drawFader(int i);
+            void drawMeters(int i);
+            void valueText(int i, char *buf, size_t len) const;
         };
     }
 }

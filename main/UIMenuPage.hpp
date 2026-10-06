@@ -21,6 +21,8 @@ respective component folders / files if different from this license.
 
 #pragma once
 
+#include <string>
+
 namespace CTAG {
     namespace CTRL {
         class UIMenuPage {
@@ -32,6 +34,16 @@ namespace CTAG {
             virtual void onEncoder(int delta) {}
             virtual void onButton(int btnId, bool longPress) {}
             virtual bool onBack() { return false; } // true=handled, false=return to ROOT
+            // Called from UIMenu::TaskFunction at ~4 Hz while PANEL_IN and the
+            // page has requested periodic refresh (VU meters, tape timecode).
+            // Redraws itself; UIMenu's redraw flag is not involved.
+            virtual void onTick() {}
+            // Pages returning true get onTick() pumped every task iteration
+            // (20 ms). Only useful for live metering — it costs a full redraw.
+            virtual bool wantsTick() const { return false; }
+            // Debug introspection for host-side test scripts (no RTTI in this
+            // build, so pages publish their state as JSON themselves).
+            virtual void DebugStateJson(std::string &out) {}
         };
     }
 }

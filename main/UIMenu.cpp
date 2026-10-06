@@ -50,6 +50,10 @@ namespace CTAG {
         bool UIMenu::redrawNeeded = true;
         int UIMenu::panelBarTimer = 0;
         int UIMenu::screensaverTimer = 0;
+        int UIMenu::pageTickCounter = 0;
+        volatile bool UIMenu::fbShotPending = false;
+        volatile bool UIMenu::fbShotReady = false;
+        uint8_t UIMenu::fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
         UIMenu::DisplayState UIMenu::displayState = UIMenu::AWAKE;
 
         void UIMenu::Init() {
@@ -73,6 +77,28 @@ namespace CTAG {
             ESP_LOGI(TAG, "Init: done");
             // task created in main.cpp
             // UserInput::EnableISR() called after task creation in main.cpp
+        }
+
+        void UIMenu::GetDebugState(int &navOut, int &panelOut) {
+            navOut = (int)navState;
+            panelOut = (int)currentPanel;
+        }
+
+        void UIMenu::RequestFramebufferShot() {
+            fbShotReady = false;
+            fbShotPending = true;
+        }
+
+        bool UIMenu::CopyFramebufferShot(uint8_t *dst, uint32_t timeoutMs) {
+            if (dst == nullptr) return false;
+            RequestFramebufferShot();
+            uint32_t start = xTaskGetTickCount();
+            while (!fbShotReady) {
+                if ((xTaskGetTickCount() - start) > pdMS_TO_TICKS(timeoutMs)) return false;
+                vTaskDelay(pdMS_TO_TICKS(2));
+            }
+            memcpy(dst, fbShotBuf, CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE);
+            return true;
         }
 
         void UIMenu::drawPanelBar() {
@@ -175,6 +201,27 @@ namespace CTAG {
                 // Decrement panel bar timer each tick when visible
                 if (navState == ROOT && panelBarTimer > 0) {
                     panelBarTimer--;
+                }
+
+                // Periodic page refresh while a panel is open. Pages opt in via
+                // wantsTick() (MIX VU meters today, tape timecode later).
+                if (navState == PANEL_IN && displayState == AWAKE &&
+                    pages[currentPanel]->wantsTick()) {
+                    if (++pageTickCounter >= TICK_DIVIDER) {
+                        pageTickCounter = 0;
+                        pages[currentPanel]->onTick();
+                    }
+                } else {
+                    pageTickCounter = 0;
+                }
+
+                // Framebuffer snapshot request (debug screenshot command).
+                // Runs unconditionally every iteration, not just when an input
+                // event arrived, so a request is serviced within one loop.
+                if (fbShotPending) {
+                    Display::CopyFramebuffer(fbShotBuf);
+                    fbShotPending = false;
+                    fbShotReady = true;
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(20));

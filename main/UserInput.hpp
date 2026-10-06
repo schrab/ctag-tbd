@@ -43,6 +43,14 @@ namespace CTAG {
             static void EnableISR();
             static bool GetEvent(InputEvent& ev, uint32_t timeoutMs = 10);
             static bool PeekEvent(InputEvent& ev);
+
+            // Debug support: push a synthetic event straight into the same
+            // queue the hardware path writes to. This deliberately bypasses the
+            // ADC debounce, the 300ms double-click window and the stale-encoder
+            // suppression, so a host script must pace its own actions the way a
+            // human would. Events are the semantic UI actions (BTN2_SHORT = OK),
+            // not raw button transitions.
+            static bool InjectEvent(InputEvent::Type type, int16_t delta = 0);
         };
     }
 }

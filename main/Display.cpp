@@ -215,6 +215,11 @@ void Display::Flush() {
     }
 }
 
+void Display::CopyFramebuffer(uint8_t *dst) {
+    if (dst == nullptr) return;
+    memcpy(dst, fb, FRAMEBUFFER_SIZE);
+}
+
 void Display::DrawPixel(int x, int y, bool on) {
     if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
     int page = y >> 3;
@@ -386,6 +391,18 @@ void Display::DrawVUMeter(int x, int y, int w, int h, float level) {
     DrawRect(x, y, w, h, false, true);
     if (fillW > 0) {
         DrawRect(x + 1, y + 1, fillW, h - 2, true, true);
+    }
+}
+
+void Display::DrawVUMeterV(int x, int y, int w, int h, float level) {
+    if (level < 0.0f) level = 0.0f;
+    if (level > 1.0f) level = 1.0f;
+    DrawRect(x, y, w, h, false, true);
+    int fillH = (int)(level * (h - 2));
+    if (fillH > h - 2) fillH = h - 2;
+    if (fillH > 0) {
+        // fill upwards from the bottom edge
+        DrawRect(x + 1, y + h - 1 - fillH, w - 2, fillH, true, true);
     }
 }
 

@@ -33,6 +33,25 @@ namespace CTAG {
             static void Init();
             static void TaskFunction(void *);
 
+            // Debug support: grab the current OLED framebuffer. The copy is
+            // taken inside the UIMenu task so it can never be torn by a
+            // half-finished redraw. RequestFramebufferShot() is async;
+            // CopyFramebufferShot() blocks until the task has serviced it.
+            static void RequestFramebufferShot();
+            static bool CopyFramebufferShot(uint8_t *dst, uint32_t timeoutMs = 500);
+
+            // Debug introspection so host-side test scripts can assert on real
+            // state instead of inferring it from pixels.
+            // navState: 0=ROOT 1=PANEL_IN. panel: Panel enum value.
+            static void GetDebugState(int &navState, int &panel);
+
+            // Debug: reach a page instance so host scripts can assert on its
+            // internal state. Caller owns the returned pointer.
+            static UIMenuPage *GetPage(int panel) {
+                if (panel < 0 || panel >= PANEL_COUNT) return nullptr;
+                return pages[panel];
+            }
+
             enum Panel : uint8_t {
                 PANEL_MIX = 0, PANEL_TAPE = 1, PANEL_HOME = 2, PANEL_MOD = 3, PANEL_PARAMS = 4
 #if CONFIG_BT_ENABLED
@@ -56,6 +75,14 @@ namespace CTAG {
             static bool redrawNeeded;
             static int panelBarTimer;
             static int screensaverTimer;
+            // Periodic page refresh divider: task runs at ~50 Hz, a full redraw
+            // every 5th iteration gives ~4 Hz which is fast enough for VU meters.
+            static int pageTickCounter;
+            static constexpr int TICK_DIVIDER = 5;
+            // framebuffer snapshot handshake (see RequestFramebufferShot)
+            static volatile bool fbShotPending;
+            static volatile bool fbShotReady;
+            static uint8_t fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
             enum DisplayState { AWAKE, ASLEEP };
             static DisplayState displayState;
             static constexpr int SCREENSAVER_TIMEOUT = 1500;

@@ -84,6 +84,11 @@ namespace CTAG {
 
             Display() = delete;
             static void Init();
+            // framebuffer size in bytes: 128x64 mono, page-major (page = y>>3)
+            static constexpr int FRAMEBUFFER_SIZE = 1024;
+            // Copy the current framebuffer out. Must be called from the task
+            // that draws (UIMenu), otherwise the copy can be torn.
+            static void CopyFramebuffer(uint8_t *dst);
             static void Clear();
             static void ShowFavorite(int const &id, std::string const &name);
             static void ShowFWVersion();
@@ -104,6 +109,7 @@ namespace CTAG {
             static void DrawString(int x, int y, const char *str, Font font = FONT_8X8);
             static void DrawStringRight(int x, int y, const char *str, Font font = FONT_8X8);
             static void DrawVUMeter(int x, int y, int w, int h, float level);
+            static void DrawVUMeterV(int x, int y, int w, int h, float level);
             static void DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos);
             static int FontAdvance(Font f);
             static int FontAdvance(Font f, unsigned char c);

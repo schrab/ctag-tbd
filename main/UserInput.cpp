@@ -183,5 +183,13 @@ namespace CTAG {
         bool UserInput::PeekEvent(InputEvent& ev) {
             return xQueuePeek(evQueue, &ev, 0) == pdTRUE;
         }
+
+        bool UserInput::InjectEvent(InputEvent::Type type, int16_t delta) {
+            if (evQueue == nullptr) return false;
+            InputEvent ev;
+            ev.type = type;
+            ev.delta = delta;
+            return xQueueSend(evQueue, &ev, 0) == pdTRUE;
+        }
     }
 }

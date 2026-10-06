@@ -21,155 +21,340 @@ respective component folders / files if different from this license.
 
 #include "UIMenuPageMix.hpp"
 #include "Display.hpp"
-#include "fonts/norns_6x7.h"
-#include "fonts/norns_ext_6x7.h"
+#include "SPManager.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <cstdio>
-#include <algorithm>
+#include <cstring>
+#include <cstdlib>
 
 using namespace CTAG::DRIVERS;
-
-namespace {
-    constexpr int numFonts = 3;
-    constexpr Display::Font fonts[numFonts] = {
-        Display::FONT_DIGI_SLIM_3X6,
-        Display::FONT_DIGI_ONE_5X6,
-        Display::FONT_NORNS_6X7,
-    };
-    constexpr const char* fontNames[numFonts] = {
-        "digi-slim 3x6",
-        "digi-one 5x6",
-        "norns 6x7",
-    };
-    constexpr int pageSize = 64;
-
-    int nBasePages(bool isNorns) {
-        int maxCode = isNorns ? 0x7F : 126;
-        return ((maxCode - 0x20 + 1) + pageSize - 1) / pageSize;
-    }
-
-    int nExtPages() {
-        return (FONT_NORNS_EXT_N_CHARS + pageSize - 1) / pageSize;
-    }
-
-    int totalPages(bool isNorns) {
-        return nBasePages(isNorns) + (isNorns ? nExtPages() : 0);
-    }
-
-    // Encode a uint16_t codepoint as UTF-8 into buf, return byte length
-    int utf8_encode(uint16_t cp, char *buf) {
-        if (cp < 0x80) {
-            buf[0] = cp;
-            return 1;
-        } else if (cp < 0x800) {
-            buf[0] = 0xC0 | (cp >> 6);
-            buf[1] = 0x80 | (cp & 0x3F);
-            return 2;
-        } else {
-            buf[0] = 0xE0 | (cp >> 12);
-            buf[1] = 0x80 | ((cp >> 6) & 0x3F);
-            buf[2] = 0x80 | (cp & 0x3F);
-            return 3;
-        }
-    }
-}
+using namespace CTAG::AUDIO;
+using namespace rapidjson;
 
 namespace CTAG {
     namespace CTRL {
-        void UIMenuPageMix::init() {
-            fontIndex = 0;
-            pageOffset = 0;
+        // Strip order: input gain, input source, output L, output R. The level
+        // strips re-apply on every turn so the faders feel live; the source
+        // switch is deferred because re-routing the codec mid-edit pops.
+        const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
+                {"IN",  "input_gain",      0, 8,             false, nullptr,      METER_IN},
+                {"SRC", "input_source",    0, 1,             true,  "mic,line", METER_NONE},
+                {"O L", "ch0_codecLvlOut", 0, CODEC_LVL_MAX, false, nullptr,      METER_OUT},
+                {"O R", "ch1_codecLvlOut", 0, CODEC_LVL_MAX, false, nullptr,      METER_OUT},
+        };
+
+        // input_source has more spellings in the wild than the two the System
+        // page lists: SPManager::updateConfiguration accepts mic/line1 as the
+        // mono input and line/line2 as the stereo input, and existing SPIFFS
+        // configs carry the latter. Map every accepted alias onto the two
+        // canonical options so the strip shows the truth and committing it
+        // cannot silently re-route the hardware to the wrong input.
+        static int inputSourceIndex(const char *s) {
+            if (!s) return -1;
+            if (strcmp(s, "mic") == 0 || strcmp(s, "line1") == 0) return 0;
+            if (strcmp(s, "line") == 0 || strcmp(s, "line2") == 0) return 1;
+            return -1;
         }
 
-        void UIMenuPageMix::deinit() {}
+        void UIMenuPageMix::DebugStateJson(std::string &out) {
+            out = "{\"cursor\":" + to_string(cursor)
+                  + ",\"edit\":" + (editMode ? "true" : "false")
+                  + ",\"values\":[";
+            for (int i = 0; i < STRIPS; i++) {
+                if (i) out += ",";
+                out += to_string(value[i]);
+            }
+            out += "],\"max\":" + to_string(CODEC_LVL_MAX) + "}";
+        }
 
-        void UIMenuPageMix::doRedraw() {
-            Display::Clear();
+        void UIMenuPageMix::init() {
+            cursor = 0;
+            editMode = false;
+            encoderAccel = 0;
+            lastEncDir = 0;
+            lastEncTick = 0;
+            for (int i = 0; i < STRIPS; i++) {
+                value[i] = STRIP_TABLE[i].min;
+                meter[i][0] = 0;
+                meter[i][1] = 0;
+                hold[i][0] = 0;
+                hold[i][1] = 0;
+            }
+            parseConfig();
+        }
 
-            auto f = fonts[fontIndex];
-            bool norns = f == Display::FONT_NORNS_6X7;
-            int nTot = totalPages(norns);
-            int nBase = nBasePages(norns);
-            if (pageOffset >= nTot) pageOffset = nTot - 1;
+        void UIMenuPageMix::deinit() {
+            SoundProcessorManager::SetMeteringEnabled(false);
+            // Persist whatever is staged (including a deferred source switch
+            // the user left in edit mode on).
+            applyCurrent(true);
+        }
 
-            int fontH = (f == Display::FONT_DIGI_SLIM_3X6 || f == Display::FONT_DIGI_ONE_5X6) ? 6 : 7;
-            int gap = norns ? 0 : 2;
-            int rowH = fontH + gap;
-            int maxAdv = Display::FontAdvance(f);
-            int x = 0, y = 0;
+        void UIMenuPageMix::parseConfig() {
+            for (int i = 0; i < STRIPS; i++) value[i] = STRIP_TABLE[i].min;
 
-            // Header: font name + page info
-            char hdr[28];
-            if (nTot > 1)
-                snprintf(hdr, sizeof(hdr), "%s [%d/%d]", fontNames[fontIndex], pageOffset + 1, nTot);
-            else
-                snprintf(hdr, sizeof(hdr), "%s", fontNames[fontIndex]);
-            Display::DrawString(0, 0, hdr, Display::FONT_5X7);
-            y = 10;
+            const char *json = SoundProcessorManager::GetCStrJSONConfiguration();
+            if (!json) return;
 
-            if (pageOffset < nBase) {
-                // Base page: 0x20-0x7F (or 0x20-126 for non-norns)
-                int maxCode = norns ? 0x7F : 126;
-                int minCode = 0x20 + pageOffset * pageSize;
-                maxCode = std::min(minCode + pageSize - 1, maxCode);
-                if (minCode > maxCode) minCode = maxCode;
+            Document doc;
+            doc.Parse(json);
+            if (!doc.IsObject()) return;
 
-                for (int code = minCode; code <= maxCode; code++) {
-                    if (norns && code >= FONT_NORNS_N_CHARS &&
-                        FontNornsExtLookup(code) >= FONT_NORNS_EXT_N_CHARS) {
+            for (int i = 0; i < STRIPS; i++) {
+                const Strip &st = STRIP_TABLE[i];
+                if (!doc.HasMember(st.id) || !doc[st.id].IsString()) continue;
+                const char *s = doc[st.id].GetString();
+
+                if (st.enumOpts) {
+                    // input_source needs the alias table; other enums match the
+                    // option list literally.
+                    if (i == SRC_STRIP) {
+                        int idx = inputSourceIndex(s);
+                        if (idx >= 0) value[i] = idx;
                         continue;
                     }
-                    char buf[2] = {(char)code, 0};
-                    int adv = Display::FontAdvance(f, (unsigned char)code);
-                    Display::DrawString(x, y, buf, f);
-                    x += adv;
-                    if (x + maxAdv > 128) {
-                        x = 0;
-                        y += rowH;
+                    // Match against the option list; unknown values keep the min.
+                    char optCopy[32];
+                    snprintf(optCopy, sizeof(optCopy), "%s", st.enumOpts);
+                    int idx = 0;
+                    const char *p = optCopy;
+                    bool matched = false;
+                    // walk comma separated options without strtok (no need for
+                    // a second pass, keeps index in sync with the stored value)
+                    while (p != nullptr && *p != '\0') {
+                        const char *comma = strchr(p, ',');
+                        size_t len = comma ? (size_t)(comma - p) : strlen(p);
+                        if (len == strlen(s) && strncmp(p, s, len) == 0) {
+                            matched = true;
+                            break;
+                        }
+                        if (!comma) break;
+                        p = comma + 1;
+                        idx++;
                     }
+                    if (matched) value[i] = idx;
+                } else {
+                    int v = atoi(s);
+                    if (v < st.min) v = st.min;
+                    if (v > st.max) v = st.max;
+                    value[i] = v;
+                }
+            }
+        }
+
+        void UIMenuPageMix::valueText(int i, char *buf, size_t len) const {
+            const Strip &st = STRIP_TABLE[i];
+            if (st.enumOpts) {
+                char optCopy[32];
+                snprintf(optCopy, sizeof(optCopy), "%s", st.enumOpts);
+                int idx = 0;
+                const char *p = optCopy;
+                while (p != nullptr && *p != '\0' && idx < value[i]) {
+                    const char *comma = strchr(p, ',');
+                    if (!comma) break;
+                    p = comma + 1;
+                    idx++;
+                }
+                if (p == nullptr || *p == '\0') snprintf(buf, len, "off");
+                else {
+                    size_t optLen = strcspn(p, ",");
+                    snprintf(buf, len, "%.*s", (int)optLen, p);
                 }
             } else {
-                // Extended norns page: iterate ext table entries
-                int extPage = pageOffset - nBase;
-                int startIdx = extPage * pageSize;
-                int endIdx = std::min(startIdx + pageSize - 1, FONT_NORNS_EXT_N_CHARS - 1);
+                snprintf(buf, len, "%d", value[i]);
+            }
+        }
 
-                for (int i = startIdx; i <= endIdx; i++) {
-                    uint16_t cp = font_norns_ext_codepoints[i];
-                    // utf8_encode writes up to 3 bytes and returns the length;
-                    // DrawString scans until NUL, so the terminator is required.
-                    char buf[4];
-                    buf[utf8_encode(cp, buf)] = 0;
-                    int idx = FontNornsExtLookup(cp);
-                    int adv = (idx < FONT_NORNS_EXT_N_CHARS)
-                        ? font_norns_ext_advances[idx] : maxAdv;
-                    Display::DrawString(x, y, buf, f);
-                    x += adv;
-                    if (x + maxAdv > 128) {
-                        x = 0;
-                        y += rowH;
-                    }
+        void UIMenuPageMix::applyCurrent(bool includeDeferred) {
+            const char *fullJson = SoundProcessorManager::GetCStrJSONConfiguration();
+            if (!fullJson) return;
+            Document doc;
+            doc.Parse(fullJson);
+            if (!doc.IsObject()) return;
+
+            for (int i = 0; i < STRIPS; i++) {
+                const Strip &st = STRIP_TABLE[i];
+                if (st.deferred && !includeDeferred) continue;
+
+                char valStr[16];
+                if (st.enumOpts) {
+                    char tmp[16];
+                    valueText(i, tmp, sizeof(tmp));
+                    snprintf(valStr, sizeof(valStr), "%s", tmp);
+                } else {
+                    snprintf(valStr, sizeof(valStr), "%d", value[i]);
+                }
+
+                Value v(valStr, doc.GetAllocator());
+                if (doc.HasMember(st.id)) {
+                    doc[st.id].Swap(v);
+                } else {
+                    Value key(st.id, doc.GetAllocator());
+                    doc.AddMember(key, v, doc.GetAllocator());
                 }
             }
 
+            StringBuffer buf;
+            Writer<StringBuffer> writer(buf);
+            doc.Accept(writer);
+            SoundProcessorManager::SetConfigurationFromJSON(buf.GetString());
+        }
+
+        void UIMenuPageMix::refreshMeters() {
+            for (int i = 0; i < STRIPS; i++) {
+                MeterSrc src = STRIP_TABLE[i].meter;
+                for (int ch = 0; ch < 2; ch++) {
+                    int raw = 0;
+                    if (src == METER_IN) {
+                        raw = (int)SoundProcessorManager::GetVUPeak(ch); // 0=L, 1=R
+                    } else if (src == METER_OUT) {
+                        raw = (int)SoundProcessorManager::GetVUPeak(ch + 2); // 2=outL, 3=outR
+                    }
+                    if (raw > 1000) raw = 1000;
+                    if (raw > meter[i][ch]) {
+                        meter[i][ch] = raw;
+                        hold[i][ch] = VU_HOLD_TICKS;
+                    } else if (hold[i][ch] > 0) {
+                        hold[i][ch]--;
+                    } else {
+                        meter[i][ch] -= VU_DECAY_PER_TICK;
+                        if (meter[i][ch] < 0) meter[i][ch] = 0;
+                    }
+                }
+            }
+        }
+
+        void UIMenuPageMix::drawFader(int i) {
+            const Strip &st = STRIP_TABLE[i];
+            int x = STRIP_X0 + i * STRIP_W + 3;
+            // track
+            Display::DrawRect(x, FADER_Y, FADER_W, FADER_H, false, true);
+            // value height, min 1px so a zero setting still shows the cap
+            int range = st.max - st.min;
+            int fillH = range > 0 ? ((value[i] - st.min) * (FADER_H - 2)) / range : 0;
+            if (fillH < 1) fillH = 1;
+            if (fillH > FADER_H - 2) fillH = FADER_H - 2;
+            Display::DrawRect(x + 1, FADER_Y + FADER_H - 1 - fillH, FADER_W - 2, fillH, true, true);
+            if (i == cursor && editMode) Display::InvertRect(x - 1, FADER_Y - 1, FADER_W + 2, FADER_H + 2);
+        }
+
+        void UIMenuPageMix::drawMeters(int i) {
+            if (STRIP_TABLE[i].meter == METER_NONE) return;
+            int bx = STRIP_X0 + i * STRIP_W + 13;
+            for (int ch = 0; ch < 2; ch++) {
+                float lvl = (float)meter[i][ch] / 1000.0f;
+                Display::DrawVUMeterV(bx + ch * (VU_W + 2), FADER_Y, VU_W, VU_H, lvl);
+            }
+        }
+
+        void UIMenuPageMix::drawStrip(int i) {
+            const Strip &st = STRIP_TABLE[i];
+            int x = STRIP_X0 + i * STRIP_W;
+
+            Display::DrawString(x, LABEL_Y, st.label, Display::FONT_5X7);
+            if (i == cursor && !editMode) {
+                // whole-strip selection highlight, meters stay readable
+                Display::DrawRect(x - 1, LABEL_Y - 1, STRIP_W - 2, FONT_H + 2, false, true);
+            }
+
+            drawFader(i);
+            drawMeters(i);
+
+            char val[16];
+            valueText(i, val, sizeof(val));
+            Display::DrawString(x, VALUE_Y, val, Display::FONT_5X7);
+        }
+
+        void UIMenuPageMix::doRedraw() {
+            Display::Clear();
+            Display::DrawString(0, 0, "MIX", Display::FONT_5X7);
+            // source + edit hint on the right of the header
+            char val[16];
+            valueText(1, val, sizeof(val));
+            Display::DrawStringRight(127, 0, editMode ? "EDIT" : val, Display::FONT_5X7);
+            for (int i = 0; i < STRIPS; i++) drawStrip(i);
             Display::Flush();
+        }
+
+        void UIMenuPageMix::onTick() {
+            // Metering is armed here rather than in init(): UIMenu::Init()
+            // initialises *every* page at boot, so enabling in init() would
+            // leave the output peak pass running from boot until the user
+            // visits MIX and navigates away. onTick() only fires while this
+            // page is the active PANEL_IN page.
+            SoundProcessorManager::SetMeteringEnabled(true);
+            // Pumped by UIMenu at ~4 Hz while PANEL_IN. Re-sample the peaks and
+            // repaint so the meters move even with the encoder idle.
+            refreshMeters();
+            doRedraw();
+        }
+
+        void UIMenuPageMix::onEncoder(int delta) {
+            if (delta == 0) return;
+
+            if (editMode) {
+                const Strip &st = STRIP_TABLE[cursor];
+
+                // Momentum on consecutive same-direction turns, matching the
+                // parameter page, so a full 0..33 sweep is quick.
+                uint32_t now = xTaskGetTickCount();
+                if (now - lastEncTick > pdMS_TO_TICKS(100)) encoderAccel = 0;
+                lastEncTick = now;
+
+                int dir = delta > 0 ? 1 : -1;
+                if (dir != lastEncDir) encoderAccel = 0;
+                else if (encoderAccel < 10) encoderAccel++;
+                lastEncDir = dir;
+
+                int step = delta * (1 + encoderAccel * encoderAccel);
+                int v = value[cursor] + step;
+                if (v < st.min) v = st.min;
+                if (v > st.max) v = st.max;
+                value[cursor] = v;
+
+                if (!st.deferred) applyCurrent(false);
+            } else {
+                int nc = cursor + delta;
+                if (nc < 0) nc = 0;
+                if (nc >= STRIPS) nc = STRIPS - 1;
+                if (nc != cursor) {
+                    encoderAccel = 0;
+                    lastEncDir = 0;
+                }
+                cursor = nc;
+            }
+            doRedraw();
         }
 
         void UIMenuPageMix::onButton(int btnId, bool longPress) {
             if (btnId == 2 && !longPress) {
-                fontIndex = (fontIndex + 1) % numFonts;
-                pageOffset = 0;
-                doRedraw();
+                bool wasEditing = editMode;
+                editMode = !editMode;
+                encoderAccel = 0;
+                lastEncDir = 0;
+                if (wasEditing) applyCurrent(true);
             }
+            doRedraw();
         }
 
-        void UIMenuPageMix::onEncoder(int delta) {
-            auto f = fonts[fontIndex];
-            int nTot = totalPages(f == Display::FONT_NORNS_6X7);
-            int oldOffset = pageOffset;
-            pageOffset += delta;
-            if (pageOffset < 0) pageOffset = 0;
-            if (pageOffset >= nTot) pageOffset = nTot - 1;
-            if (pageOffset != oldOffset) doRedraw();
+        bool UIMenuPageMix::onBack() {
+            if (editMode) {
+                editMode = false;
+                encoderAccel = 0;
+                lastEncDir = 0;
+                applyCurrent(true);
+                doRedraw();
+                return true;
+            }
+            // Returning to ROOT. deinit() is not called here (it only runs on a
+            // panel change), so drop metering explicitly — otherwise the audio
+            // task keeps paying for output peak capture while MIX is off-screen.
+            SoundProcessorManager::SetMeteringEnabled(false);
+            return false;
         }
     }
 }
