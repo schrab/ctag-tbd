@@ -4,3 +4,6 @@ tbd4vcv/
 simulator/
 .devcontainer/
 log/
+__pycache__/
+*.pyc
+*:Zone.Identifier
