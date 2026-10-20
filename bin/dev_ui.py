@@ -11,6 +11,12 @@ default), using the existing STX/ETX JSON framing:
   {"cmd":"/debug/injectEvent","action":"ok"|"mod"|"back"|"enc","delta":n,"count":n}
       -> {"sent":n}
 
+  {"cmd":"/debug/getConfig"}
+      -> {"config":"<configuration object as an escaped JSON string>"}
+
+  {"cmd":"/debug/setConfigValue","key":"input_source","value":"line2"}
+      -> {"ok":1}          (overlays one key and commits it, like a UI page)
+
 Actions are semantic UI events, not raw button transitions:
   ok   = BTN2_SHORT  -> page->onButton(2, false)
   mod  = BTN2_LONG   -> page->onButton(2, true)
@@ -36,7 +42,6 @@ layout Display::Flush() writes to the SSD1309, so no guessing is involved.
 import argparse
 import json
 import os
-import re
 import select
 import subprocess
 import sys
@@ -71,6 +76,47 @@ def iter_frames(buf: bytes):
         frame = buf[start + 1:end]
         buf = buf[end + 1:]
         yield frame
+
+
+def iter_json_objects(text: str):
+    """Yield balanced {...} substrings, respecting strings and escapes.
+
+    A response may itself contain escaped JSON (e.g. /debug/getConfig), so a
+    flat `\\{[^{}]*\\}` regex is not enough: it would stop at the first inner
+    brace pair and never see the enclosing object.
+    """
+    i = 0
+    while True:
+        start = text.find("{", i)
+        if start < 0:
+            return
+        depth = 0
+        in_str = False
+        escaped = False
+        end = -1
+        for j in range(start, len(text)):
+            c = text[j]
+            if in_str:
+                if escaped:
+                    escaped = False
+                elif c == "\\":
+                    escaped = True
+                elif c == '"':
+                    in_str = False
+            else:
+                if c == '"':
+                    in_str = True
+                elif c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = j
+                        break
+        if end < 0:
+            return
+        yield text[start:end + 1]
+        i = end + 1
 
 
 # --------------------------------------------------------------------------
@@ -147,7 +193,7 @@ class Device:
             self.pending = self._consumed(self.pending)
 
             text = collected.decode("utf-8", "replace")
-            for cand in re.findall(r"\{[^{}]*\}", text):
+            for cand in iter_json_objects(text):
                 try:
                     obj = json.loads(cand)
                 except json.JSONDecodeError:
@@ -156,7 +202,8 @@ class Device:
                 # require a known response key rather than trusting any frame.
                 if any(k in obj for k in ("screenshot", "sent", "error",
                                           "nav", "panel", "panelName",
-                                          "cursor", "edit", "values", "max")):
+                                          "cursor", "edit", "values", "max",
+                                          "config", "ok")):
                     if self.verbose:
                         print(f"  <- {cand[:90]}", file=sys.stderr)
                     return obj
@@ -258,7 +305,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("action",
-                    choices=["shot", "seq", "enc", "ok", "mod", "back", "state"])
+                    choices=["shot", "seq", "enc", "ok", "mod", "back", "state",
+                             "config"])
     ap.add_argument("arg", nargs="?", default=None,
                     help="output png (shot/seq) | delta (enc) | plan name (seq)")
     ap.add_argument("--port", default=DEFAULT_PORT)
@@ -270,6 +318,8 @@ def main():
     ap.add_argument("--plan", default=None, help="scripted walkthrough name")
     ap.add_argument("--shot", default=None, metavar="PNG",
                     help="capture to PNG after performing the action")
+    ap.add_argument("--set", default=None, metavar="KEY=VALUE",
+                    help="with the config action: overlay one config key")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -278,6 +328,15 @@ def main():
     try:
         if args.action == "state":
             print(json.dumps(ui_state(dev)))
+
+        elif args.action == "config":
+            if args.set:
+                if "=" not in args.set:
+                    raise SystemExit("--set expects KEY=VALUE")
+                key, value = args.set.split("=", 1)
+                print(json.dumps(config_set(dev, key, value)))
+            else:
+                print(json.dumps(config_get(dev), indent=2))
 
         elif args.action == "shot":
             out = args.arg or args.shot or "screenshot.png"
@@ -316,6 +375,20 @@ def main():
 
 def ui_state(dev: Device):
     return dev.command("/debug/getUiState")
+
+
+def config_get(dev: Device) -> dict:
+    resp = dev.command("/debug/getConfig")
+    if "error" in resp:
+        raise SystemExit(f"getConfig failed: {resp}")
+    return json.loads(resp["config"])
+
+
+def config_set(dev: Device, key: str, value: str) -> dict:
+    resp = dev.command_doc({"cmd": "/debug/setConfigValue", "key": key, "value": value})
+    if "error" in resp:
+        raise SystemExit(f"setConfigValue failed: {resp}")
+    return resp
 
 
 def wait_ui_state(dev: Device, nav=None, panel=None, tries=25, delay=0.12):

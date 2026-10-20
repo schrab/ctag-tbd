@@ -23,9 +23,12 @@ respective component folders / files if different from this license.
 #include "Display.hpp"
 #include "UIMenu.hpp"
 #include "UserInput.hpp"
+#include "SPManager.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_err.h"
@@ -140,9 +143,15 @@ namespace CTAG {
                 // encoder/button input races with injected events.
                 int nav = 0, panel = 0;
                 UIMenu::GetDebugState(nav, panel);
+                // stackFree is the high-water mark (minimum ever free) in bytes.
+                // /debug/setConfigValue reaches storeJSON(), the same path a UI
+                // page's commit takes; watch this to catch a stack that only
+                // overflows intermittently (SPIFFS depth varies by path).
                 response = "{\"nav\":" + to_string(nav)
                            + ",\"panel\":" + to_string(panel)
-                           + ",\"panelName\":\"" + panelName(panel) + "\"}";
+                           + ",\"panelName\":\"" + panelName(panel) + "\""
+                           + ",\"stackFree\":" + to_string(uxTaskGetStackHighWaterMark(nullptr) * sizeof(StackType_t))
+                           + "}";
                 return true;
             }
 
@@ -153,6 +162,51 @@ namespace CTAG {
                 UIMenuPage *page = UIMenu::GetPage(0); // PANEL_MIX
                 if (page != nullptr) page->DebugStateJson(pageState);
                 response = pageState.empty() ? "{\"error\":\"no mix page\"}" : pageState;
+                return true;
+            }
+
+            if (s == "/debug/getConfig") {
+                // The stored configuration object, returned as an escaped JSON
+                // *string* so the reply is one flat object; the host unescapes
+                // and parses it. The buffer behind the pointer is shared, so
+                // serialise it before anything else can overwrite it.
+                const char *cfg = AUDIO::SoundProcessorManager::GetCStrJSONConfiguration();
+                StringBuffer escaped;
+                Writer<StringBuffer> writer(escaped);
+                writer.String(cfg ? cfg : "");
+                response = "{\"config\":" + string(escaped.GetString()) + "}";
+                return true;
+            }
+
+            if (s == "/debug/setConfigValue") {
+                // Overlay one configuration key and commit it, exactly like a
+                // UI page does. Used by host tests to plant legacy stored values
+                // (e.g. input_source "line2") and check the migration path.
+                if (!d.HasMember("key") || !d["key"].IsString() ||
+                    !d.HasMember("value") || !d["value"].IsString()) {
+                    response = "{\"error\":\"missing key/value\"}";
+                    return true;
+                }
+                const char *cfg = AUDIO::SoundProcessorManager::GetCStrJSONConfiguration();
+                Document cur;
+                cur.Parse(cfg ? cfg : "");
+                if (!cur.IsObject()) {
+                    response = "{\"error\":\"no config\"}";
+                    return true;
+                }
+                const char *key = d["key"].GetString();
+                Value v(d["value"].GetString(), cur.GetAllocator());
+                if (cur.HasMember(key)) {
+                    cur[key].Swap(v);
+                } else {
+                    Value k(key, cur.GetAllocator());
+                    cur.AddMember(k, v, cur.GetAllocator());
+                }
+                StringBuffer buf;
+                Writer<StringBuffer> writer(buf);
+                cur.Accept(writer);
+                AUDIO::SoundProcessorManager::SetConfigurationFromJSON(buf.GetString());
+                response = "{\"ok\":1}";
                 return true;
             }
 
@@ -283,9 +337,12 @@ namespace CTAG {
                 loggingRewired = true;
             }
 
-            // 3 KB: the framebuffer reply is built on the heap, but RapidJSON
-            // parsing of the incoming document plus framing still needs room.
-            if (xTaskCreatePinnedToCore(debugTask, "debug_ui", 3072, nullptr,
+            // 4 KB: matches the UIMenu task, which commits configuration through
+            // the same storeJSON() path. At 3 KB /debug/setConfigValue could
+            // overflow this stack intermittently -- the resulting reboot left
+            // spm-config.jsn truncated, and boot recovered factory defaults from
+            // the dbup/ backup. Keep this at least as large as the UI task.
+            if (xTaskCreatePinnedToCore(debugTask, "debug_ui", 4096, nullptr,
                                         tskIDLE_PRIORITY + 1, &hDebugTask, 0) != pdPASS) {
                 ESP_LOGW(TAG, "could not start debug UI task");
                 hDebugTask = nullptr;
