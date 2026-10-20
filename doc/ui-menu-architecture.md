@@ -234,9 +234,9 @@ Four control strips laid out across the 128px display (30px wide each, 4px margi
 | Strip | Label | Config key | Range | Applied |
 |-------|-------|-----------|-------|---------|
 | 0 | `IN` | `input_gain` | 0–8 (+0…+24dB) | live |
-| 1 | `SRC` | `input_source` | enum `mic,line` | deferred |
-| 2 | `O L` | `ch0_codecLvlOut` | 0–33 (ES8388) / 0–63 (AIC3254) | live |
-| 3 | `O R` | `ch1_codecLvlOut` | 0–33 (ES8388) / 0–63 (AIC3254) | live |
+| 1 | `SRC` | `input_source` | enum `mic,line` (legacy `line1`/`line2` accepted on load) | deferred |
+| 2 | `O L` | `ch0_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
+| 3 | `O R` | `ch1_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
 
 | Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |------|--------------|---------|-----------------|------|
@@ -255,7 +255,9 @@ Header shows `MIX` left and either the input source or `EDIT` right.
 
 **Persistence:** same `applyCurrent()` pattern as the System page — reads the full config JSON, overlays the four managed keys, calls `SetConfigurationFromJSON()`. `deinit()` calls `applyCurrent(true)`. Live strips re-apply on every encoder turn; `input_source` waits for OK/BACK because re-routing the codec mid-edit pops.
 
-**Note:** the ES8388 driver clamps its volume register at 33 (`es8388::setOutputVolume`), which is why `CODEC_LVL_MAX` is 33 for `CONFIG_TBD_BBA_CODEC_ES8388` and 63 for the AIC3254 build. `UIMenuPageMix.hpp` must `#include "sdkconfig.h"` before that `#ifdef` — without it the macro is undefined, the AIC3254 branch is selected silently, and the faders get a 0–63 ceiling on hardware that stops at 33.
+**Codec range has one owner.** `es8388::OUTPUT_VOLUME_MAX` (33) is the register ceiling; `Codec::MAX_OUTPUT_LEVEL` aliases it in `codec.hpp` (63 for the other codec builds) and is used by the MIX strips, the System page and `SPManager::updateConfiguration()`. Do not reintroduce a per-file `#ifdef CONFIG_TBD_BBA_CODEC_ES8388` range: a missing `sdkconfig.h` then selects the wrong branch silently, which is exactly how the faders once offered 0–63 on hardware that stops at 33. `codec.hpp` now includes `sdkconfig.h` explicitly for this reason.
+
+**Input-source vocabulary has one owner too.** `main/InputSource.hpp` holds the canonical names (`mic`, `line`), the UI option string and `Parse()`, which also accepts the pre-rename `line1`/`line2`. SPManager, the System page and the MIX page all parse through it. A page that matched only the canonical names would silently rewrite a stored `line2` to `mic` (the wrong input) whenever it committed.
 
 ## Debug channel (screenshot + synthetic input)
 
@@ -265,12 +267,16 @@ Header shows `MIX` left and either the input source or `EDIT` right.
 |---------|---------|
 | `/debug/getDisplayFramebuffer` | Raw 1024-byte OLED framebuffer as hex, `{"screenshot":1,"w":128,"h":64,"data":"…"}`. Byte = `(y>>3)*128 + x`, bit `y&7` set = lit — identical to what `Flush()` sends the SSD1309, so the host reconstruction needs no guessing |
 | `/debug/injectEvent` | Push a semantic event: `action` = `ok` \| `mod` \| `back` \| `enc`, plus `delta`/`count` for `enc` |
-| `/debug/getUiState` | `navState` (0=ROOT, 1=PANEL_IN) and current panel |
-| `/debug/getMixState` | MIX page internals: cursor, edit flag, strip values, `CODEC_LVL_MAX` (via `UIMenuPage::DebugStateJson`) |
+| `/debug/getUiState` | `navState` (0=ROOT, 1=PANEL_IN), current panel, and `stackFree` (debug task high-water mark in bytes) |
+| `/debug/getMixState` | MIX page internals: cursor, edit flag, strip values, `Codec::MAX_OUTPUT_LEVEL` (via `UIMenuPage::DebugStateJson`) |
+| `/debug/getConfig` | Stored configuration object, returned as an escaped JSON string under `config` |
+| `/debug/setConfigValue` | Overlay one config key (`key`, `value`) and commit it, exactly like a UI page; used to plant legacy values for regression tests |
 
 ```bash
 bin/dev_ui.py shot out.png                 # one screenshot
-bin/dev_ui.py state                        # nav + panel
+bin/dev_ui.py state                        # nav + panel + stack headroom
+bin/dev_ui.py config                       # dump the stored configuration
+bin/dev_ui.py config --set input_source=line2   # plant a legacy value
 bin/dev_ui.py seq outdir/ --plan mix       # scripted walkthrough, PNG per step
 bin/dev_ui.py enc -4 --shot out.png        # turn encoder, then capture
 ```
@@ -305,17 +311,17 @@ System config is entered as `SP_SYSTEM` from HOME's `SP_MAIN` (cursor=1, "SYSTEM
 
 | # | id | name | type | options | deferred | Notes |
 |---|-----|------|------|---------|----------|-------|
-| 0 | `ng_config` | Noise Gate | enum | on,off | no | |
-| 1 | `ch01_daisy` | Ch 0+1 Daisy | enum | on,off | no | |
-| 2 | `ch0_toStereo` | Ch0→Stereo | enum | on,off | no | |
-| 3 | `ch1_toStereo` | Ch1→Stereo | enum | on,off | no | |
-| 4 | `ch0_outputSoftClip` | Ch0 Soft Clip | enum | on,off | no | |
-| 5 | `ch1_outputSoftClip` | Ch1 Soft Clip | enum | on,off | no | |
-| 6 | `ch0_codecLvlOut` | Ch0 Out Level | int | — | no | 0–33 |
-| 7 | `ch1_codecLvlOut` | Ch1 Out Level | int | — | no | 0–33 |
-| 8 | `input_source` | Input Source | enum | mic,line | yes | mic=LIN1 (mono), line=LIN2/RIN2 (stereo) |
+| 0 | `ng_config` | Noise Gate | enum | off,dual,ch0,ch1 | no | |
+| 1 | `ch01_daisy` | Ch 0+1 Daisy | enum | off,on | no | |
+| 2 | `ch0_toStereo` | Ch0→Stereo | enum | off,on,mix | no | |
+| 3 | `ch1_toStereo` | Ch1→Stereo | enum | off,on,mix | no | |
+| 4 | `ch0_outputSoftClip` | Ch0 Soft Clip | enum | off,on | no | |
+| 5 | `ch1_outputSoftClip` | Ch1 Soft Clip | enum | off,on | no | |
+| 6 | `ch0_codecLvlOut` | Ch0 Out Level | int | — | no | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) |
+| 7 | `ch1_codecLvlOut` | Ch1 Out Level | int | — | no | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) |
+| 8 | `input_source` | Input Source | enum | mic,line | yes | mic=LIN1 (mono), line=LIN2/RIN2 (stereo); legacy `line1`/`line2` canonicalised on load |
 | 9 | `input_gain` | Input Gain | int | — | yes | 0–8 (+0dB to +24dB) |
-| 10 | `output_source` | Output Route | enum | hp,amp,all | yes | hp=LOUT1/ROUT1, amp=LOUT2/ROUT2 |
+| 10 | `output_source` | Output Route | enum | hp,amp,all | yes | hp=LOUT1/ROUT1, amp=LOUT2/ROUT2; legacy `headphones` canonicalised to `hp` |
 | 11 | `mixer_mode` | Mixer Mode | enum | dac,bypass,mix | yes | dac=DSP only, bypass=analog in, mix=both |
 | 12 | `oled_brightness` | OLED Brightness | int | — | yes | 0–255 |
 

@@ -125,10 +125,9 @@ Register 5 new config items in `parseConfig()` after the existing `ch1_codecLvlO
 Add handling in `updateConfiguration()` after the output level block (line ~543):
 
 ```cpp
-// input source
-string inSrc = model->GetConfigurationData("input_source");
-if (inSrc == "mic" || inSrc == "line1")  DRIVERS::Codec::SetInputSource(0);
-else if (inSrc == "line" || inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
+// input source (single alias table shared with the UI pages)
+int inSrcIdx = InputSource::Parse(model->GetConfigurationData("input_source").c_str());
+if (inSrcIdx >= 0) DRIVERS::Codec::SetInputSource(inSrcIdx);
 
 // input gain
 string inGain = model->GetConfigurationData("input_gain");
@@ -152,7 +151,10 @@ if (!oledBr.empty()) DRIVERS::Display::SetContrast(std::stoi(oledBr));
 ```
 
 Backward compatibility: old `"line1"`/`"line2"` strings in stored config still map correctly.
-`"headphones"` also accepted for `output_source` (legacy name for `"hp"`).
+The canonical names are `"mic"` and `"line"`; `main/InputSource.hpp` owns the table and both UI
+pages parse through it, so the System page displays a stored `"line2"` as `"line"` and writes the
+canonical spelling on its next commit instead of silently selecting `"mic"`.
+`"headphones"` is likewise accepted for `output_source` (legacy name for `"hp"`).
 
 ## Design Decisions
 - `analogBypass` is covered by Mixer Mode = bypass (no separate UI toggle)
