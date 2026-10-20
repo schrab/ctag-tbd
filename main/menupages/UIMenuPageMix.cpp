@@ -22,6 +22,8 @@ respective component folders / files if different from this license.
 #include "UIMenuPageMix.hpp"
 #include "Display.hpp"
 #include "SPManager.hpp"
+#include "InputSource.hpp"
+#include "codec.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -41,24 +43,11 @@ namespace CTAG {
         // strips re-apply on every turn so the faders feel live; the source
         // switch is deferred because re-routing the codec mid-edit pops.
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
-                {"IN",  "input_gain",      0, 8,             false, nullptr,      METER_IN},
-                {"SRC", "input_source",    0, 1,             true,  "mic,line", METER_NONE},
-                {"O L", "ch0_codecLvlOut", 0, CODEC_LVL_MAX, false, nullptr,      METER_OUT},
-                {"O R", "ch1_codecLvlOut", 0, CODEC_LVL_MAX, false, nullptr,      METER_OUT},
+                {"IN",  "input_gain",      0, 8,                        false, nullptr,               METER_IN},
+                {"SRC", "input_source",    0, InputSource::COUNT - 1,  true,  InputSource::OPTIONS,  METER_NONE},
+                {"O L", "ch0_codecLvlOut", 0, Codec::MAX_OUTPUT_LEVEL, false, nullptr,               METER_OUT},
+                {"O R", "ch1_codecLvlOut", 0, Codec::MAX_OUTPUT_LEVEL, false, nullptr,               METER_OUT},
         };
-
-        // input_source has more spellings in the wild than the two the System
-        // page lists: SPManager::updateConfiguration accepts mic/line1 as the
-        // mono input and line/line2 as the stereo input, and existing SPIFFS
-        // configs carry the latter. Map every accepted alias onto the two
-        // canonical options so the strip shows the truth and committing it
-        // cannot silently re-route the hardware to the wrong input.
-        static int inputSourceIndex(const char *s) {
-            if (!s) return -1;
-            if (strcmp(s, "mic") == 0 || strcmp(s, "line1") == 0) return 0;
-            if (strcmp(s, "line") == 0 || strcmp(s, "line2") == 0) return 1;
-            return -1;
-        }
 
         void UIMenuPageMix::DebugStateJson(std::string &out) {
             out = "{\"cursor\":" + to_string(cursor)
@@ -68,7 +57,7 @@ namespace CTAG {
                 if (i) out += ",";
                 out += to_string(value[i]);
             }
-            out += "],\"max\":" + to_string(CODEC_LVL_MAX) + "}";
+            out += "],\"max\":" + to_string(Codec::MAX_OUTPUT_LEVEL) + "}";
         }
 
         void UIMenuPageMix::init() {
@@ -113,7 +102,7 @@ namespace CTAG {
                     // input_source needs the alias table; other enums match the
                     // option list literally.
                     if (i == SRC_STRIP) {
-                        int idx = inputSourceIndex(s);
+                        int idx = InputSource::Parse(s);
                         if (idx >= 0) value[i] = idx;
                         continue;
                     }

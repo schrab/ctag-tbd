@@ -21,11 +21,6 @@ respective component folders / files if different from this license.
 
 #pragma once
 
-// Must precede the CONFIG_TBD_BBA_CODEC_ES8388 check below. Without it the macro
-// is undefined and the #ifdef silently selects the AIC3254 branch, which builds
-// fine but gives the faders the wrong ceiling (63 instead of 33) -- a mistake
-// that is invisible until you look at the rendered page.
-#include "sdkconfig.h"
 #include "UIMenuPage.hpp"
 #include <cstdint>
 #include <cstddef>
@@ -55,15 +50,6 @@ namespace CTAG {
             void DebugStateJson(std::string &out) override;
 
         private:
-            // Codec output level ceiling. The ES8388 clamps its volume register
-            // at 33, the AIC3254 takes 0..63 with 58 as 0 dB. Mirrors the
-            // CONFIG_TBD_BBA_CODEC_ES8388 split in SPManager::updateConfiguration.
-#ifdef CONFIG_TBD_BBA_CODEC_ES8388
-            static constexpr int CODEC_LVL_MAX = 33;
-#else
-            static constexpr int CODEC_LVL_MAX = 63;
-#endif
-
             // Layout: 4 strips across 128 px, 30 px wide with a 4 px margin.
             static constexpr int STRIPS = 4;
             static constexpr int SRC_STRIP = 1; // input_source, needs alias handling

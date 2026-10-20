@@ -274,7 +274,7 @@ bool es8388::DACmute(bool mute) {
 
 // set output volume max is 33
 bool es8388::setOutputVolume(uint8_t vol) {
-    if (vol > 33) vol = 33;
+    if (vol > OUTPUT_VOLUME_MAX) vol = OUTPUT_VOLUME_MAX;
     bool res = true;
     if (_outSel == OUTALL || _outSel == OUT1) {
         res &= write_reg(ES8388_DACCONTROL24, vol);  // LOUT1VOL
@@ -289,6 +289,11 @@ bool es8388::setOutputVolume(uint8_t vol) {
 
 
 bool es8388::setOutputVolume(uint8_t lvol, uint8_t rvol) {
+    // The register range is 0..33; 34..63 are reserved. The mono overload
+    // clamps, so the stereo one must too -- SPManager clamps as well, but this
+    // keeps an out-of-range value from ever reaching the register.
+    if (lvol > OUTPUT_VOLUME_MAX) lvol = OUTPUT_VOLUME_MAX;
+    if (rvol > OUTPUT_VOLUME_MAX) rvol = OUTPUT_VOLUME_MAX;
     bool res = true;
     if (_outSel == OUTALL || _outSel == OUT1) {
         //ESP_LOGE("ES8388", "lvol: %d, rvol: %d", lvol, rvol);

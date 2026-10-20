@@ -22,7 +22,14 @@ respective component folders / files if different from this license.
 
 #pragma once
 
+// Needed for the CONFIG_* checks below: without it every codec test silently
+// falls through to the wrong branch (the same trap UIMenuPageMix.hpp hit).
+#include "sdkconfig.h"
 #include "driver/spi_master.h"
+
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+#include "es8388.hpp"
+#endif
 
 namespace CTAG {
     namespace DRIVERS {
@@ -31,6 +38,19 @@ namespace CTAG {
 
         class Codec {
         public:
+            // Highest value the installed codec accepts for the output level
+            // setting. The ES8388 stops at 33 (0 dB); the AIC3254 maps 0..63
+            // with 58 as 0 dB, and non-BBA codecs accept 0..63 as well. The UI
+            // and the config clamp share this so an out-of-range value is
+            // never offered or written back.
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+            static constexpr int MAX_OUTPUT_LEVEL = es8388::OUTPUT_VOLUME_MAX;
+            static constexpr int DEFAULT_OUTPUT_LEVEL = es8388::OUTPUT_VOLUME_MAX; // 0 dB
+#else
+            static constexpr int MAX_OUTPUT_LEVEL = 63;
+            static constexpr int DEFAULT_OUTPUT_LEVEL = 58; // 0 dB on the AIC3254
+#endif
+
             Codec() = delete;
             static void InitCodec();
 

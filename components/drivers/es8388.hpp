@@ -48,6 +48,11 @@ private:
     bool read_reg(uint8_t reg_add, uint8_t& data);
 
 public:
+    // LOUT1/2 and ROUT1/2 volume registers top out at 33 (0 dB); higher codes
+    // are reserved. Codec::MAX_OUTPUT_LEVEL aliases this for the UI/config
+    // clamping, so keep it the only definition of the ceiling.
+    static constexpr uint8_t OUTPUT_VOLUME_MAX = 33;
+
     es8388();
     ~es8388();
     bool init();

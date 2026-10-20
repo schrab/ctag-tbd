@@ -27,6 +27,7 @@ respective component folders / files if different from this license.
 #include "stdint.h"
 #include "string.h"
 #include "codec.hpp"
+#include "InputSource.hpp"
 #include "Display.hpp"
 #include "esp_heap_caps.h"
 #include "network.hpp"
@@ -521,26 +522,21 @@ void SoundProcessorManager::updateConfiguration() {
     }
 
     // output levels of codec
-    if(model->GetConfigurationData("ch0_codecLvlOut").compare("") != 0){
-        if(model->GetConfigurationData("ch0_codecLvlOut").compare("") != 0){
-            int lLevel = std::stoi(model->GetConfigurationData("ch0_codecLvlOut"));
-            int rLevel = std::stoi(model->GetConfigurationData("ch1_codecLvlOut"));
-#ifdef CONFIG_TBD_BBA_CODEC_ES8388
-            CONSTRAIN(rLevel, 0, 36)
-            CONSTRAIN(lLevel, 0, 36)
-#else
-            CONSTRAIN(rLevel, 0, 63)
-            CONSTRAIN(lLevel, 0, 63)
-#endif
-            DRIVERS::Codec::SetOutputLevels(lLevel, rLevel);
-        }
+    string lvlL = model->GetConfigurationData("ch0_codecLvlOut");
+    string lvlR = model->GetConfigurationData("ch1_codecLvlOut");
+    if (!lvlL.empty() && !lvlR.empty()) {
+        int lLevel = std::stoi(lvlL);
+        int rLevel = std::stoi(lvlR);
+        CONSTRAIN(lLevel, 0, DRIVERS::Codec::MAX_OUTPUT_LEVEL)
+        CONSTRAIN(rLevel, 0, DRIVERS::Codec::MAX_OUTPUT_LEVEL)
+        DRIVERS::Codec::SetOutputLevels(lLevel, rLevel);
     }
 
-    // input source
+    // input source (accepts the legacy line1/line2 spellings)
     string inSrc = model->GetConfigurationData("input_source");
-    ESP_LOGI("SPM", "inSrc='%s'", inSrc.c_str());
-    if (inSrc == "mic" || inSrc == "line1")      DRIVERS::Codec::SetInputSource(0);
-    else if (inSrc == "line" || inSrc == "line2") DRIVERS::Codec::SetInputSource(1);
+    int inSrcIdx = InputSource::Parse(inSrc.c_str());
+    ESP_LOGI("SPM", "inSrc='%s' -> %d", inSrc.c_str(), inSrcIdx);
+    if (inSrcIdx >= 0) DRIVERS::Codec::SetInputSource(inSrcIdx);
 
     // input gain
     string inGain = model->GetConfigurationData("input_gain");

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Host unit tests for the modulation helpers (ctagTempo, ctagSeq16, ctagGate16).
+# Host unit tests for the modulation helpers (ctagTempo, ctagSeq16, ctagGate16)
+# and the stored input-source vocabulary.
 #
 # Builds the real helper sources -- not copies -- against a thin FreeRTOS shim,
 # so the tests exercise production code on the build host with no ESP-IDF
@@ -26,9 +27,11 @@ echo "==> Building host tests"
     -I "$SHIM" \
     -I "$HERE" \
     -I "$HELPERS" \
+    -I "$ROOT/main" \
     "$HERE/main.cpp" \
     "$HERE/test_ctagTempo.cpp" \
     "$HERE/test_ctagSeq16.cpp" \
+    "$HERE/test_input_source.cpp" \
     "$HELPERS/ctagTempo.cpp" \
     "$HELPERS/ctagSeq16.cpp" \
     "$HELPERS/ctagGate16.cpp" \

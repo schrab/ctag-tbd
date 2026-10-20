@@ -22,6 +22,8 @@ respective component folders / files if different from this license.
 #include "UIMenuPageSystem.hpp"
 #include "Display.hpp"
 #include "SPManager.hpp"
+#include "InputSource.hpp"
+#include "codec.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -34,6 +36,15 @@ using namespace rapidjson;
 
 namespace CTAG {
     namespace CTRL {
+        namespace {
+            // Stored configs can predate the current option list (or a board
+            // switch), so a value read back may be outside [min, max]. Clamp
+            // before it is displayed or written again.
+            int clampInt(int v, int lo, int hi) {
+                return v < lo ? lo : (v > hi ? hi : v);
+            }
+        }
+
         void UIMenuPageSystem::init() {
             cursor = 0;
             scrollOffset = 0;
@@ -161,10 +172,11 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "Ch0 Out Level");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = 63; it.valInt = 58;
+                it.min = 0; it.max = Codec::MAX_OUTPUT_LEVEL; it.valInt = Codec::DEFAULT_OUTPUT_LEVEL;
+                snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 if (doc.HasMember("ch0_codecLvlOut") && doc["ch0_codecLvlOut"].IsString()) {
-                    snprintf(it.value, sizeof(it.value), "%s", doc["ch0_codecLvlOut"].GetString());
-                    it.valInt = atoi(it.value);
+                    it.valInt = clampInt(atoi(doc["ch0_codecLvlOut"].GetString()), it.min, it.max);
+                    snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 }
                 itemCount++;
             }
@@ -176,10 +188,11 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "Ch1 Out Level");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = 63; it.valInt = 58;
+                it.min = 0; it.max = Codec::MAX_OUTPUT_LEVEL; it.valInt = Codec::DEFAULT_OUTPUT_LEVEL;
+                snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 if (doc.HasMember("ch1_codecLvlOut") && doc["ch1_codecLvlOut"].IsString()) {
-                    snprintf(it.value, sizeof(it.value), "%s", doc["ch1_codecLvlOut"].GetString());
-                    it.valInt = atoi(it.value);
+                    it.valInt = clampInt(atoi(doc["ch1_codecLvlOut"].GetString()), it.min, it.max);
+                    snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 }
                 itemCount++;
             }
@@ -190,13 +203,17 @@ namespace CTAG {
                 snprintf(it.id, sizeof(it.id), "input_source");
                 snprintf(it.name, sizeof(it.name), "Input Source");
                 snprintf(it.type, sizeof(it.type), "enum");
-                snprintf(it.options, sizeof(it.options), "mic,line");
-                it.min = 0; it.max = 1; it.valInt = 0; it.deferred = true;
+                snprintf(it.options, sizeof(it.options), "%s", InputSource::OPTIONS);
+                it.min = 0; it.max = InputSource::COUNT - 1; it.valInt = 0; it.deferred = true;
+                // Canonicalise on load: legacy "line1"/"line2" map onto the
+                // current "mic"/"line" names, so committing this page can no
+                // longer rewrite the stored route to the wrong input.
+                snprintf(it.value, sizeof(it.value), "%s", InputSource::NAMES[0]);
                 if (doc.HasMember("input_source") && doc["input_source"].IsString()) {
-                    snprintf(it.value, sizeof(it.value), "%s", doc["input_source"].GetString());
-                    const char *opts[] = {"mic","line"};
-                    for (int j = 0; j < 2; j++) {
-                        if (strcmp(it.value, opts[j]) == 0) { it.valInt = j; break; }
+                    int idx = InputSource::Parse(doc["input_source"].GetString());
+                    if (idx >= 0) {
+                        it.valInt = idx;
+                        snprintf(it.value, sizeof(it.value), "%s", InputSource::NAMES[idx]);
                     }
                 }
                 itemCount++;
@@ -210,9 +227,10 @@ namespace CTAG {
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
                 it.min = 0; it.max = 8; it.valInt = 0; it.deferred = true;
+                snprintf(it.value, sizeof(it.value), "0");
                 if (doc.HasMember("input_gain") && doc["input_gain"].IsString()) {
-                    snprintf(it.value, sizeof(it.value), "%s", doc["input_gain"].GetString());
-                    it.valInt = atoi(it.value);
+                    it.valInt = clampInt(atoi(doc["input_gain"].GetString()), it.min, it.max);
+                    snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 }
                 itemCount++;
             }
@@ -225,11 +243,19 @@ namespace CTAG {
                 snprintf(it.type, sizeof(it.type), "enum");
                 snprintf(it.options, sizeof(it.options), "hp,amp,all");
                 it.min = 0; it.max = 2; it.valInt = 2; it.deferred = true;
+                snprintf(it.value, sizeof(it.value), "all");
                 if (doc.HasMember("output_source") && doc["output_source"].IsString()) {
-                    snprintf(it.value, sizeof(it.value), "%s", doc["output_source"].GetString());
+                    // "headphones" is the pre-rename spelling of "hp"; mapping
+                    // it explicitly keeps the page from rewriting it to "all".
+                    const char *stored = doc["output_source"].GetString();
                     const char *opts[] = {"hp","amp","all"};
-                    for (int j = 0; j < 3; j++) {
-                        if (strcmp(it.value, opts[j]) == 0) { it.valInt = j; break; }
+                    int idx = strcmp(stored, "headphones") == 0 ? 0 : -1;
+                    for (int j = 0; idx < 0 && j < 3; j++) {
+                        if (strcmp(stored, opts[j]) == 0) idx = j;
+                    }
+                    if (idx >= 0) {
+                        it.valInt = idx;
+                        snprintf(it.value, sizeof(it.value), "%s", opts[idx]);
                     }
                 }
                 itemCount++;
