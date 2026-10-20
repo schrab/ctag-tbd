@@ -118,6 +118,11 @@ void Codec::RecalibDCOffset() {
 
 void Codec::SetInputSource(int sel) {
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    // 0 = mic: the A1S MIC1 pair used as two independent single-ended inputs.
+    //     LIN1 (MIC1N) -> left ADC, RIN1 (MIC1P) -> right ADC.
+    // 1 = line: stereo single-ended on LIN2/RIN2.
+    // 2/3 = legacy mono differential modes, kept for config compatibility.
+    // MIC2 is not a separate source: LIN2/RIN2 are shared with the line jack.
     static const insel_t map[] = {IN1, IN2, IN1DIFF, IN2DIFF};
     if (sel >= 0 && sel <= 3) codec.inputSelect(map[sel]);
 #endif
@@ -125,7 +130,9 @@ void Codec::SetInputSource(int sel) {
 
 void Codec::SetOutputSource(int sel) {
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
-    static const outsel_t map[] = {OUT1, OUT2, OUTALL};
+    // A1S hardware: HPOUTL/HPOUTR are LOUT2/ROUT2, SPOLN/SPORN are
+    // LOUT1/ROUT1. Map the UI names to the datasheet output pairs.
+    static const outsel_t map[] = {OUT2, OUT1, OUTALL};
     if (sel >= 0 && sel <= 2) codec.outputSelect(map[sel]);
 #endif
 }
@@ -164,6 +171,24 @@ void Codec::SetInputGain(int gain) {
 
 void Codec::SetOutputLevels(const uint32_t left, const uint32_t right) {
     codec.setOutputVolume(static_cast<uint8_t>(left), static_cast<uint8_t>(right));
+}
+
+const uint8_t *Codec::DebugReadAllRegs() {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    return codec.readAllReg();
+#else
+    return nullptr;
+#endif
+}
+
+bool Codec::DebugReadReg(uint8_t reg, uint8_t &val) {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    return codec.debugReadReg(reg, val);
+#else
+    (void)reg;
+    (void)val;
+    return false;
+#endif
 }
 
 void IRAM_ATTR Codec::ReadBuffer(float *buf, uint32_t sz) {

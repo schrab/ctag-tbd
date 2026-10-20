@@ -40,8 +40,9 @@ using namespace rapidjson;
 namespace CTAG {
     namespace CTRL {
         // Strip order: input gain, input source, output L, output R. The level
-        // strips re-apply on every turn so the faders feel live; the source
-        // switch is deferred because re-routing the codec mid-edit pops.
+        // strips preview the codec directly on every turn so the faders feel
+        // live; the source switch is deferred because re-routing the codec
+        // mid-edit pops.
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
                 {"IN",  "input_gain",      0, 8,                        false, nullptr,               METER_IN},
                 {"SRC", "input_source",    0, InputSource::COUNT - 1,  true,  InputSource::OPTIONS,  METER_NONE},
@@ -66,6 +67,7 @@ namespace CTAG {
             encoderAccel = 0;
             lastEncDir = 0;
             lastEncTick = 0;
+            dirty = false;
             for (int i = 0; i < STRIPS; i++) {
                 value[i] = STRIP_TABLE[i].min;
                 meter[i][0] = 0;
@@ -79,8 +81,12 @@ namespace CTAG {
         void UIMenuPageMix::deinit() {
             SoundProcessorManager::SetMeteringEnabled(false);
             // Persist whatever is staged (including a deferred source switch
-            // the user left in edit mode on).
-            applyCurrent(true);
+            // the user left in edit mode on). Skip the flash write when the
+            // page was only viewed.
+            if (dirty) {
+                applyCurrent(true);
+                dirty = false;
+            }
         }
 
         void UIMenuPageMix::parseConfig() {
@@ -303,9 +309,23 @@ namespace CTAG {
                 int v = value[cursor] + step;
                 if (v < st.min) v = st.min;
                 if (v > st.max) v = st.max;
+                const bool changed = (v != value[cursor]);
                 value[cursor] = v;
+                if (changed) dirty = true;
 
-                if (!st.deferred) applyCurrent(false);
+                // Preview only the affected codec registers. Do NOT call
+                // applyCurrent() here: that rewrites the whole config and
+                // persists it to SPIFFS while the audio mutex is held, which
+                // mutes the DSP and blocks the UI for the duration of the
+                // flash write. The full config is committed once when editing
+                // ends (OK/BACK/deinit).
+                if (!st.deferred) {
+                    if (cursor == GAIN_STRIP) {
+                        Codec::SetInputGain(value[GAIN_STRIP]);
+                    } else if (cursor == OUT_L_STRIP || cursor == OUT_R_STRIP) {
+                        Codec::SetOutputLevels(value[OUT_L_STRIP], value[OUT_R_STRIP]);
+                    }
+                }
             } else {
                 int nc = cursor + delta;
                 if (nc < 0) nc = 0;
@@ -325,7 +345,10 @@ namespace CTAG {
                 editMode = !editMode;
                 encoderAccel = 0;
                 lastEncDir = 0;
-                if (wasEditing) applyCurrent(true);
+                if (wasEditing && dirty) {
+                    applyCurrent(true);
+                    dirty = false;
+                }
             }
             doRedraw();
         }
@@ -335,7 +358,10 @@ namespace CTAG {
                 editMode = false;
                 encoderAccel = 0;
                 lastEncDir = 0;
-                applyCurrent(true);
+                if (dirty) {
+                    applyCurrent(true);
+                    dirty = false;
+                }
                 doRedraw();
                 return true;
             }

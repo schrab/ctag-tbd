@@ -319,9 +319,9 @@ System config is entered as `SP_SYSTEM` from HOME's `SP_MAIN` (cursor=1, "SYSTEM
 | 5 | `ch1_outputSoftClip` | Ch1 Soft Clip | enum | off,on | no | |
 | 6 | `ch0_codecLvlOut` | Ch0 Out Level | int | — | no | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) |
 | 7 | `ch1_codecLvlOut` | Ch1 Out Level | int | — | no | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) |
-| 8 | `input_source` | Input Source | enum | mic,line | yes | mic=LIN1 (mono), line=LIN2/RIN2 (stereo); legacy `line1`/`line2` canonicalised on load |
+| 8 | `input_source` | Input Source | enum | mic,line | yes | mic=two single-ended mics on MIC1 (`LIN1`/MIC1N left, `RIN1`/MIC1P right), line=LIN2/RIN2 stereo (MIC2 shares these pins); legacy `line1`/`line2` canonicalised on load |
 | 9 | `input_gain` | Input Gain | int | — | yes | 0–8 (+0dB to +24dB) |
-| 10 | `output_source` | Output Route | enum | hp,amp,all | yes | hp=LOUT1/ROUT1, amp=LOUT2/ROUT2; legacy `headphones` canonicalised to `hp` |
+| 10 | `output_source` | Output Route | enum | hp,amp,all | yes | hp=LOUT2/ROUT2 (A1S HPOUT), amp=LOUT1/ROUT1 (A1S speaker); legacy `headphones` canonicalised to `hp` |
 | 11 | `mixer_mode` | Mixer Mode | enum | dac,bypass,mix | yes | dac=DSP only, bypass=analog in, mix=both |
 | 12 | `oled_brightness` | OLED Brightness | int | — | yes | 0–255 |
 

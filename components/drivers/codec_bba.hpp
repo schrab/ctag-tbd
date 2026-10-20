@@ -57,6 +57,11 @@ namespace CTAG {
             static void SetAnalogBypass(bool on);
             static void SetInputGain(int gain);
 
+            // Debug/diagnostic: current ES8388 register file (53 bytes) and
+            // single-register reads (the full dump can be slow on a busy bus).
+            static const uint8_t *DebugReadAllRegs();
+            static bool DebugReadReg(uint8_t reg, uint8_t &val);
+
         private:
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
             static es8388 codec;

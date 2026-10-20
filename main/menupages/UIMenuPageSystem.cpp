@@ -50,15 +50,22 @@ namespace CTAG {
             scrollOffset = 0;
             itemCount = 0;
             editMode = false;
+            dirty = false;
             parseConfig();
         }
 
         void UIMenuPageSystem::deinit() {
-            if (itemCount > 0) applyCurrent();
+            // Commit a staged edit if the user leaves the page without OK/BACK.
+            // Avoid a SPIFFS write when the page was only viewed.
+            if (dirty && itemCount > 0) {
+                applyCurrent();
+                dirty = false;
+            }
         }
 
         void UIMenuPageSystem::parseConfig() {
             itemCount = 0;
+            memset(items, 0, sizeof(items));
             const char *json = SoundProcessorManager::GetCStrJSONConfiguration();
             if (!json) return;
 
@@ -293,9 +300,18 @@ namespace CTAG {
                 }
                 itemCount++;
             }
+
+            // Only the two codec level items preview live. Everything else is
+            // committed once when editing ends: applying a full config rewrites
+            // the model to SPIFFS while the audio mutex is held, which mutes the
+            // DSP and blocks the UI for the duration of the flash write.
+            for (int i = 0; i < itemCount; i++) {
+                items[i].deferred = strcmp(items[i].id, "ch0_codecLvlOut") != 0 &&
+                                    strcmp(items[i].id, "ch1_codecLvlOut") != 0;
+            }
         }
 
-        void UIMenuPageSystem::applyCurrent(bool includeDeferred, bool skipNonDeferred) {
+        void UIMenuPageSystem::applyCurrent() {
             // Read the full existing config, overlay only our managed keys
             const char *fullJson = SoundProcessorManager::GetCStrJSONConfiguration();
             if (!fullJson) return;
@@ -305,8 +321,6 @@ namespace CTAG {
 
             for (int i = 0; i < itemCount; i++) {
                 const ConfigItem &it = items[i];
-                if (it.deferred && !includeDeferred) continue;
-                if (!it.deferred && skipNonDeferred) continue;
                 char valStr[16];
                 if (strcmp(it.type, "int") == 0) {
                     snprintf(valStr, sizeof(valStr), "%d", it.valInt);
@@ -335,6 +349,16 @@ namespace CTAG {
             SoundProcessorManager::SetConfigurationFromJSON(buf.GetString());
         }
 
+        void UIMenuPageSystem::previewCodecLevels() {
+            int l = Codec::DEFAULT_OUTPUT_LEVEL;
+            int r = Codec::DEFAULT_OUTPUT_LEVEL;
+            for (int i = 0; i < itemCount; i++) {
+                if (strcmp(items[i].id, "ch0_codecLvlOut") == 0) l = items[i].valInt;
+                else if (strcmp(items[i].id, "ch1_codecLvlOut") == 0) r = items[i].valInt;
+            }
+            Codec::SetOutputLevels(l, r);
+        }
+
         void UIMenuPageSystem::onEncoder(int delta) {
             if (editMode) {
                 if (itemCount == 0 || cursor >= itemCount) return;
@@ -343,9 +367,11 @@ namespace CTAG {
                 if (strcmp(it.type, "int") == 0 && (it.max - it.min) > 20) {
                     step = max(1, (it.max - it.min) / 16);
                 }
+                const int oldVal = it.valInt;
                 it.valInt += delta * step;
                 if (it.valInt < it.min) it.valInt = it.min;
                 if (it.valInt > it.max) it.valInt = it.max;
+                if (it.valInt != oldVal) dirty = true;
                 // update value string
                 if (strcmp(it.type, "int") == 0) {
                     snprintf(it.value, sizeof(it.value), "%d", it.valInt);
@@ -357,8 +383,10 @@ namespace CTAG {
                     while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
                     snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
                 }
-                // real-time items applied immediately; deferred items wait for OK/BACK
-                if (!it.deferred) applyCurrent(false);
+                // Levels preview live; all other items wait for OK/BACK. Never
+                // apply the full config here -- that persists to SPIFFS while
+                // holding the audio mutex and stalls both UI and DSP.
+                if (!it.deferred) previewCodecLevels();
             } else {
                 int nc = cursor + delta;
                 if (nc < 0) nc = 0;
@@ -378,7 +406,10 @@ namespace CTAG {
                         const ConfigItem &it = items[cursor];
                         ESP_LOGI("SYS", "OK apply: id=%s valInt=%d val=%s", it.id, it.valInt, it.value);
                     }
-                    applyCurrent(true, true);
+                    if (dirty) {
+                        applyCurrent();
+                        dirty = false;
+                    }
                 }
             }
             doRedraw();
@@ -387,7 +418,10 @@ namespace CTAG {
         bool UIMenuPageSystem::onBack() {
             if (editMode) {
                 editMode = false;
-                applyCurrent(true, true);
+                if (dirty) {
+                    applyCurrent();
+                    dirty = false;
+                }
                 doRedraw();
                 return true;
             }

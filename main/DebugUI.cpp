@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include "UIMenu.hpp"
 #include "UserInput.hpp"
 #include "SPManager.hpp"
+#include "codec.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "rapidjson/document.h"
@@ -162,6 +163,26 @@ namespace CTAG {
                 UIMenuPage *page = UIMenu::GetPage(0); // PANEL_MIX
                 if (page != nullptr) page->DebugStateJson(pageState);
                 response = pageState.empty() ? "{\"error\":\"no mix page\"}" : pageState;
+                return true;
+            }
+
+            if (s == "/debug/getCodecReg") {
+                // Single-register read: fast enough for a live diagnostic even
+                // when the I2C bus is busy (unlike the 53-register dump).
+                if (!d.HasMember("reg") || !d["reg"].IsInt()) {
+                    response = "{\"error\":\"missing reg\"}";
+                    return true;
+                }
+                int reg = d["reg"].GetInt();
+                if (reg < 0 || reg > 0xFF) {
+                    response = "{\"error\":\"bad reg\"}";
+                    return true;
+                }
+                uint8_t val = 0;
+                bool ok = DRIVERS::Codec::DebugReadReg(static_cast<uint8_t>(reg), val);
+                response = "{\"reg\":" + to_string(reg)
+                           + ",\"value\":" + to_string(val)
+                           + ",\"ok\":" + (ok ? "1" : "0") + "}";
                 return true;
             }
 

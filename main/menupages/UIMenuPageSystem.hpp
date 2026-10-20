@@ -38,6 +38,7 @@ namespace CTAG {
             int cursor;
             int scrollOffset;
             bool editMode;
+            bool dirty; // staged values differ from the persisted config
 
             struct ConfigItem {
                 char id[24];
@@ -57,7 +58,8 @@ namespace CTAG {
 
             void parseConfig();
             void redrawMain();
-            void applyCurrent(bool includeDeferred = true, bool skipNonDeferred = false);
+            void previewCodecLevels();
+            void applyCurrent();
         };
     }
 }

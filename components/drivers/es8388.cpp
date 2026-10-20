@@ -103,29 +103,35 @@ static bool ensure_bus() {
     return true;
 }
 
+// Bounded retries: these helpers are called from the UI task. A codec that
+// NACKs must never spin forever and freeze the UI (and the audio mutex).
+static constexpr int ES8388_I2C_RETRIES = 3;
+static constexpr int ES8388_I2C_TIMEOUT_MS = 10;
+
 bool es8388::write_reg(uint8_t reg_add, uint8_t data)
 {
     if (!ensure_bus()) return false;
-    esp_err_t ret;
     uint8_t buf[2] = { reg_add, data };
-    do{
-        ret = i2c_master_transmit(es8388_dev, buf, 2, 100);
-    }while(ret != ESP_OK);
-    if(ret != ESP_OK)
-        ESP_LOGE("ES8388", "Error writing to register %d", reg_add);
-    return ret == ESP_OK;
+    esp_err_t ret = ESP_FAIL;
+    for (int attempt = 0; attempt < ES8388_I2C_RETRIES; ++attempt) {
+        ret = i2c_master_transmit(es8388_dev, buf, 2, ES8388_I2C_TIMEOUT_MS);
+        if (ret == ESP_OK) return true;
+    }
+    ESP_LOGE("ES8388", "Error writing register 0x%02X: %s", reg_add, esp_err_to_name(ret));
+    return false;
 }
 
 bool es8388::read_reg(uint8_t reg_add, uint8_t &data)
 {
     if (!ensure_bus()) return false;
-    esp_err_t ret;
-    do{
-        ret = i2c_master_transmit_receive(es8388_dev, &reg_add, 1, &data, 1, 100);
-    }while(ret != ESP_OK);
-    if(ret != ESP_OK)
-        ESP_LOGE("ES8388", "Error reading from register %d", reg_add);
-    return ret == ESP_OK;
+    esp_err_t ret = ESP_FAIL;
+    for (int attempt = 0; attempt < ES8388_I2C_RETRIES; ++attempt) {
+        ret = i2c_master_transmit_receive(es8388_dev, &reg_add, 1, &data, 1,
+                                          ES8388_I2C_TIMEOUT_MS);
+        if (ret == ESP_OK) return true;
+    }
+    ESP_LOGE("ES8388", "Error reading register 0x%02X: %s", reg_add, esp_err_to_name(ret));
+    return false;
 }
 
 
@@ -158,8 +164,10 @@ bool es8388::init() {
     // Power Up Analog and Ibias
     res &= write_reg(ES8388_CONTROL2, 0x00);
 
-    // Power Up ADC& enable Lout/Rout
-    res &= write_reg(ES8388_ADCPOWER, 0b00001000);
+    // Power up ADC, input PGA, ADC bias and MICBIAS. The A1S AudioKit powers
+    // its microphones from MBIAS/HBIAS, so PdnMICB must be 0 here (the ES8388
+    // recording sequence in the user guide also uses Reg 0x03 = 0x00).
+    res &= write_reg(ES8388_ADCPOWER, 0b00000000);
     // Power Up DAC& enable Lout/Rout
     res &= write_reg(ES8388_DACPOWER, 0b00111100);
 
@@ -217,46 +225,76 @@ bool es8388::init() {
 
     /* Power up DEM and STM */
     res &= write_reg(ES8388_CHIPPOWER, 0x00);
-    /* set up MCLK) */
+    /* init selects IN2 (line); keep the cached selector in sync */
     _outSel = OUTALL;
+    _inSel = IN2;
     return res;
 }
 
-// Select output sink
-// OUT1 -> Select Line OUTL/R1
-// OUT2 -> Select Line OUTL/R2
-// OUTALL -> Enable ALL
+// Select output sink.
+//
+// The ES8388 bit assignment (reg 0x04) is:
+//   bit 5 = LOUT1, bit 4 = ROUT1, bit 3 = LOUT2, bit 2 = ROUT2
+// On the ESP32-A1S module SPOLN/SPORN are wired to LOUT1/ROUT1 and
+// HPOUTL/HPOUTR to LOUT2/ROUT2, so OUT1 is the speaker pair and OUT2 is
+// the headphone pair here. Keep the enum aligned with the datasheet so
+// setOutputVolume() writes the volume registers of the pair that is on.
 bool es8388::outputSelect(outsel_t _sel) {
     bool res = true;
     if (_sel == OUTALL)
         res &= write_reg(ES8388_DACPOWER, 0x3C);
     else if (_sel == OUT1)
-        res &= write_reg(ES8388_DACPOWER, 0x0C);
+        res &= write_reg(ES8388_DACPOWER, 0x30);  // LOUT1/ROUT1 (speaker)
     else if (_sel == OUT2)
-        res &= write_reg(ES8388_DACPOWER, 0x30);
+        res &= write_reg(ES8388_DACPOWER, 0x0C);  // LOUT2/ROUT2 (headphones)
     _outSel = _sel;
     return res;
 }
 
-// Select input source
-// IN1     -> Select Line IN L/R 1
-// IN2     -> Select Line IN L/R 2
-// IN1DIFF -> differential IN L/R 1
-// IN2DIFF -> differential IN L/R 2
+// Select input source.
+// IN1      -> two single-ended inputs on LIN1/RIN1. On the A1S this is the
+//             only independent microphone pair: LIN1 = MIC1N (left ADC),
+//             RIN1 = MIC1P (right ADC). Use this for the two mics.
+// IN2      -> single-ended line-in on LIN2/RIN2. On this board LIN2 is also
+//             tied to MIC2P and RIN2 to MIC2N, so MIC2 cannot be separated
+//             from the line jack in firmware.
+// IN1DIFF  -> differential IN1 duplicated to both ADCs (mono). Only valid
+//             if both MIC1P and MIC1N are still connected as a pair.
+// IN2DIFF  -> differential IN2 duplicated to both ADCs (mono). Shares the
+//             line jack on the A1S.
+// INSTEREO -> differential stereo: IN1 -> left ADC, IN2 -> right ADC.
+//             Not usable for two mics on this board because IN2 is shared
+//             with line-in; kept for other ES8388 boards.
 bool es8388::inputSelect(insel_t sel) {
     bool res = true;
-    if (sel == IN1)
+    // Always restore the stereo 16-bit I2S ADC format. Modes that need data
+    // duplication (none currently) would override this explicitly.
+    res &= write_reg(ES8388_ADCCONTROL4, 0x0C);
+    if (sel == IN1) {
+        // Single-ended IN1: left ADC = LIN1 (MIC1N), right ADC = RIN1 (MIC1P).
         res &= write_reg(ES8388_ADCCONTROL2, 0x00);
-    else if (sel == IN2)
+        res &= write_reg(ES8388_ADCCONTROL3, 0x00);
+    } else if (sel == IN2) {
+        // Single-ended IN2: left ADC = LIN2, right ADC = RIN2.
         res &= write_reg(ES8388_ADCCONTROL2, 0x50);
-    else if (sel == IN1DIFF) {
+        res &= write_reg(ES8388_ADCCONTROL3, 0x00);
+    } else if (sel == IN1DIFF) {
         res &= write_reg(ES8388_ADCCONTROL2, 0xF0);
         res &= write_reg(ES8388_ADCCONTROL3, 0x00);
     } else if (sel == IN2DIFF) {
         res &= write_reg(ES8388_ADCCONTROL2, 0xF0);
         res &= write_reg(ES8388_ADCCONTROL3, 0x80);
+    } else if (sel == INSTEREO) {
+        // LINSEL=RINSEL=11 (L/R differential), DSSEL=1, DSR=1.
+        // Reg 0x0B DS=0 selects IN1 for the left pair, IN2 for the right.
+        res &= write_reg(ES8388_ADCCONTROL2, 0xFC);
+        res &= write_reg(ES8388_ADCCONTROL3, 0x00);
     }
     _inSel = sel;
+    uint8_t r0a = 0, r0b = 0;
+    read_reg(ES8388_ADCCONTROL2, r0a);
+    read_reg(ES8388_ADCCONTROL3, r0b);
+    ESP_LOGI("ES8388", "inputSelect(%d) -> 0x0A=0x%02X 0x0B=0x%02X", (int)sel, r0a, r0b);
     return res;
 }
 
@@ -427,10 +465,12 @@ bool es8388::mixerSourceControl(mixercontrol_t mix) {
 bool es8388::analogBypass(bool bypass) {
     bool res = true;
     if (bypass) {
-        if (_inSel == IN1)
+        if (_inSel == IN1 || _inSel == IN1DIFF)
             mixerSourceSelect(MIXIN1, MIXIN1);
-        else if (_inSel == IN2)
+        else if (_inSel == IN2 || _inSel == IN2DIFF)
             mixerSourceSelect(MIXIN2, MIXIN2);
+        else if (_inSel == INSTEREO)
+            mixerSourceSelect(MIXIN1, MIXIN2);
         mixerSourceControl(false, true, 2, false, true, 2);
     } else {
         mixerSourceControl(true, false, 2, true, false, 2);

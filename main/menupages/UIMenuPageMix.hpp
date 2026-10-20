@@ -52,7 +52,10 @@ namespace CTAG {
         private:
             // Layout: 4 strips across 128 px, 30 px wide with a 4 px margin.
             static constexpr int STRIPS = 4;
-            static constexpr int SRC_STRIP = 1; // input_source, needs alias handling
+            static constexpr int GAIN_STRIP = 0;    // input_gain
+            static constexpr int SRC_STRIP = 1;     // input_source, needs alias handling
+            static constexpr int OUT_L_STRIP = 2;   // ch0_codecLvlOut
+            static constexpr int OUT_R_STRIP = 3;   // ch1_codecLvlOut
             static constexpr int STRIP_W = 30;
             static constexpr int STRIP_X0 = 4;
             static constexpr int LABEL_Y = 9;
@@ -83,6 +86,7 @@ namespace CTAG {
 
             int cursor;
             bool editMode;
+            bool dirty; // staged values differ from the persisted config
             int value[STRIPS];
             int meter[STRIPS][2]; // smoothed level 0..1000, [0]=L [1]=R
             int hold[STRIPS][2];  // remaining peak-hold ticks

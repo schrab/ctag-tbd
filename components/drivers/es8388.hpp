@@ -13,16 +13,17 @@ typedef enum {
 } mixsel_t;
 
 typedef enum {
-    OUT1,    // Select Line OUT L/R 1
-    OUT2,    // Select Line OUT L/R 2
-    OUTALL,  // Enable ALL
+    OUT1,    // ES8388 LOUT1/ROUT1 (on the A1S module: speaker)
+    OUT2,    // ES8388 LOUT2/ROUT2 (on the A1S module: headphones)
+    OUTALL,  // Enable both output pairs
 } outsel_t;
 
 typedef enum {
-    IN1,      // Select Line IN L/R 1
-    IN2,      // Select Line IN L/R 2
-    IN1DIFF,  // differential IN L/R 1
-    IN2DIFF   // differential IN L/R 2
+    IN1,       // Single-ended LINE IN 1 (LIN1 on left, RIN1 on right)
+    IN2,       // Single-ended LINE IN 2 (LIN2 on left, RIN2 on right)
+    IN1DIFF,   // Differential IN1 on both ADCs (mono, duplicated L/R)
+    IN2DIFF,   // Differential IN2 on both ADCs (mono, duplicated L/R)
+    INSTEREO   // Differential stereo: IN1 -> left ADC, IN2 -> right ADC
 } insel_t;
 
 typedef enum {
@@ -58,6 +59,7 @@ public:
     bool init();
     bool identify();
     uint8_t* readAllReg();
+    bool debugReadReg(uint8_t reg, uint8_t &val) { return read_reg(reg, val); }
     bool outputSelect(outsel_t sel);
     bool inputSelect(insel_t sel);
     bool DACmute(bool mute);

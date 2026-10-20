@@ -7,7 +7,15 @@
 
 ## Hardware Context
 - ES8388 has two stereo input pairs: LIN1/RIN1 (LINE1) and LIN2/RIN2 (LINE2)
-- Two stereo output pairs: LOUT1/ROUT1 (headphones) and LOUT2/ROUT2 (amp/speakers)
+- ESP32-A1S module wiring: SPOLN/SPORN = LOUT1/ROUT1 (speaker amp),
+  HPOUTL/HPOUTR = LOUT2/ROUT2 (headphones)
+- On the actual A1S AudioKit, the MIC1 pair is used as two independent
+  single-ended inputs: LIN1 = MIC1N -> left ADC, RIN1 = MIC1P -> right ADC.
+  This is the `IN1` single-ended mode (reg 0x0A = 0x00).
+- MIC2P/MIC2N are tied to LINEINL/LINEINR on LIN2/RIN2. MIC2 and the line jack
+  cannot be separated in firmware, so `INSTEREO` (IN1 left, IN2 right) is not
+  usable for two mics on this board.
+- The stereo line-in jack is LINEINL/LINEINR on LIN2/RIN2, single-ended.
 - SSD1309 OLED supports contrast 0x00–0xFF via command 0x81
 
 ## Files to Modify (11 files)
@@ -15,8 +23,8 @@
 ### 1. `components/drivers/codec_bba.hpp`
 5 public static methods on the `Codec` class:
 ```cpp
-static void SetInputSource(int sel);    // 0=IN1 (mic), 1=IN2 (line)
-static void SetOutputSource(int sel);   // 0=OUT1 (hp), 1=OUT2 (amp), 2=OUTALL
+static void SetInputSource(int sel);    // 0=IN1 (two single-ended mics), 1=IN2 (line)
+static void SetOutputSource(int sel);   // 0=OUT2 (hp), 1=OUT1 (amp), 2=OUTALL
 static void SetMixerMode(int mode);     // 0=DAC, 1=BYPASS, 2=MIX
 static void SetAnalogBypass(bool on);
 static void SetInputGain(int gain);     // 0-8
@@ -33,7 +41,8 @@ void Codec::SetInputSource(int sel) {
     if (sel >= 0 && sel <= 1) codec.inputSelect(map[sel]);
 }
 void Codec::SetOutputSource(int sel) {
-    static const outsel_t map[] = {OUT1, OUT2, OUTALL};
+    // hp -> OUT2 (A1S HPOUT), amp -> OUT1 (A1S speaker), all -> both
+    static const outsel_t map[] = {OUT2, OUT1, OUTALL};
     if (sel >= 0 && sel <= 2) codec.outputSelect(map[sel]);
 }
 void Codec::SetMixerMode(int mode) {
@@ -167,21 +176,25 @@ canonical spelling on its next commit instead of silently selecting `"mic"`.
 
 ### Bypass routing must select the correct input pair
 `SetMixerMode` calls `codec.analogBypass(true)` which reads `_inSel` and writes
-`DACCONTROL16` to select MIXIN1 (LIN1 = mic) or MIXIN2 (LIN2 = line in).
-Without this, `DACCONTROL16` stays at its init value (0x00 = MIXIN1), so bypass
-always routes LIN1 regardless of the Input Source setting.
+`DACCONTROL16` to select the analog input pair. `IN1` (the A1S mic pair)
+selects MIXIN1 on both channels; `IN2` (line) selects MIXIN2 on both.
+`INSTEREO` is kept for other ES8388 boards (MIXIN1 left, MIXIN2 right).
+Without this, `DACCONTROL16` stays at its init value (0x00 = MIXIN1), so
+bypass would always route LIN1 regardless of the Input Source setting.
 
 ### OUT1/OUT2 power register values
 `ES8388_DACPOWER` register 0x04:
 | Value | Bits | Effect |
 |-------|------|--------|
 | 0x3C | 00xx11xx | Both LOUT1/ROUT1 + LOUT2/ROUT2 powered |
-| 0x0C | 00xx00xx | Only LOUT1/ROUT1 (headphones) powered |
-| 0x30 | 00xx11xx | Only LOUT2/ROUT2 (amp line out) powered |
+| 0x30 | 00xx11xx | Only LOUT1/ROUT1 (A1S: speaker amp) powered |
+| 0x0C | 00xx00xx | Only LOUT2/ROUT2 (A1S: headphones) powered |
 
-Note: bits are active-high enables (not power-down). The initial driver had these
-swapped (0x30 for OUT1, 0x0C for OUT2), which caused "hp" to enable the amp and
-"amp" to enable headphones.
+Note: bits are active-high enables (not power-down). The ES8388 enum keeps the
+datasheet meaning (OUT1 = LOUT1/ROUT1, OUT2 = LOUT2/ROUT2). Because the A1S
+module wires SPOLN/SPORN to OUT1 and HPOUTL/HPOUTR to OUT2, the UI names map
+`hp` -> OUT2 and `amp` -> OUT1. This also keeps `setOutputVolume()` writing the
+volume registers of the pair that is actually powered.
 
 ### `codec.hpp` inline stubs must not shadow real implementations
 `SPManager.cpp` includes `codec.hpp`. That header had inline empty bodies for the

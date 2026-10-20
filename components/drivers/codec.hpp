@@ -72,12 +72,16 @@ namespace CTAG {
             static void SetMixerMode(int mode);
             static void SetAnalogBypass(bool on);
             static void SetInputGain(int gain);
+            static const uint8_t *DebugReadAllRegs();
+            static bool DebugReadReg(uint8_t reg, uint8_t &val);
 #else
             static void SetInputSource(int sel) {}
             static void SetOutputSource(int sel) {}
             static void SetMixerMode(int mode) {}
             static void SetAnalogBypass(bool on) {}
             static void SetInputGain(int gain) {}
+            static const uint8_t *DebugReadAllRegs() { return nullptr; }
+            static bool DebugReadReg(uint8_t reg, uint8_t &val) { return false; }
 #endif
 
         private:
