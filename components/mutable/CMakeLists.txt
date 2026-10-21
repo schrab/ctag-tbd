@@ -87,6 +87,19 @@ file(GLOB SRCS_FILES
         eurorack/elements/dsp/tube.cc
         eurorack/elements/dsp/multistage_envelope.cc
         eurorack/elements/dsp/ominous_voice.cc
+        eurorack/beads/dsp/processor.cc
+        eurorack/beads/dsp/processor.h
+        eurorack/beads/dsp/granular_processor.h
+        eurorack/beads/dsp/trigger_generator.cc
+        eurorack/beads/dsp/trigger_generator.h
+        eurorack/beads/dsp/delay_controller.cc
+        eurorack/beads/dsp/delay_controller.h
+        eurorack/beads/dsp/delay_clock.cc
+        eurorack/beads/dsp/delay_clock.h
+        eurorack/beads/dsp/mu_law.cc
+        eurorack/beads/dsp/mu_law.h
+        eurorack/beads/resources_min.cc
+        eurorack/beads/resources.h
         )
 
 
