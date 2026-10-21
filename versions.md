@@ -2,6 +2,7 @@
 
 ## V1.0.0
 - Updated to newer mutable instruments code base, TBDaits (aka. Plaits) has now all 24 models
+- New plugin Mbeads: stereo port of Mutable Instruments Beads (Digital 44.1 kHz and Vintage 22.05 kHz, four attenuverters, runtime media switching).
 - Added WTOscDuo, dual oscillator version of WTOsc
 - Added MacOscDuo, dual oscillator version of MacOsc
 - WTOsc and WTOscDuo have improved transient response for fast wavetable changes

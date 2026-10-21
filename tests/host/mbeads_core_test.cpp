@@ -68,6 +68,7 @@ bool Expect(bool condition, const char* what) {
 // hold_gate supplies a held-high seed gate: without it the density clock is
 // gated off and no grains are produced at all.
 // time_base is the grain read position (0 = newest audio in the buffer).
+// size_base above ~0.99 ramps the engine into delay mode (1.5 s transition).
 BlockStats RunBlocks(
     beads::Processor* processor,
     int num_blocks,
@@ -81,14 +82,15 @@ BlockStats RunBlocks(
     bool hold_gate = false,
     float time_base = 0.5f,
     float reverb_amount = 0.25f,
-    bool seed_button_on = false) {
+    bool seed_button_on = false,
+    float size_base = 0.5f) {
   beads::Parameters parameters;
   parameters.time.base = time_base;
   parameters.time.attenuverter = 0.0f;
   parameters.time.has_cv = false;
   parameters.time.cv = 0.0f;
 
-  parameters.size.base = 0.5f;
+  parameters.size.base = size_base;
   parameters.size.attenuverter = 0.0f;
   parameters.size.has_cv = false;
   parameters.size.cv = 0.0f;
@@ -423,6 +425,35 @@ int main() {
   ok &= Expect(in_place.finite, "in-place (in == out) output is finite");
   ok &= Expect(in_place.rms() > 0.0, "in-place output is non-silent");
   std::printf("  in-place rms = %.6f\n", in_place.rms());
+
+  // --- Delay mode (Size above ~0.99) ---------------------------------------
+  // Size at maximum ramps the engine from grains to the 8-tap multitap delay:
+  // the transition takes 1.5 s and the wet path fades in over 0.75 s. The
+  // ramp-in run is fully wet (dry_wet = 1) with no reverb and no seed gate, so
+  // a non-silent result proves the delay wet path itself, not the dry signal or
+  // a grain tail. 3000 blocks is ~2.18 s, enough to cross the full transition.
+  std::printf("Delay mode transition:\n");
+  processor.Configure(beads::Processor::MEDIA_DIGITAL, false);
+  BlockStats delay_in = RunBlocks(
+      &processor, 3000, &phase, 1.0f, false, false, 2600, false, 0.75f,
+      false, 0.1f, 0.0f, false, 1.0f);
+  ok &= Expect(delay_in.finite, "delay mode output is finite");
+  ok &= Expect(delay_in.rms() > 0.001, "delay mode wet path is audible");
+  std::printf("  delay mode rms = %.6f\n", delay_in.rms());
+
+  // Ramp Size back down: the engine returns to grains once the transition
+  // crosses zero (~block 930) and the granular wet path fades back in over the
+  // next 0.75 s. The held seed gate is re-enabled for this run only: without it
+  // the density clock is gated off and the granular engine (unlike the delay)
+  // would stay silent. Statistics start at block 1000 so they cover that return
+  // transition and the settled granular output.
+  BlockStats delay_out = RunBlocks(
+      &processor, 3000, &phase, 1.0f, false, false, 1000, false, 0.75f,
+      true, 0.1f, 0.0f, false, 0.5f);
+  ok &= Expect(delay_out.finite, "delay-to-granular return is finite");
+  ok &= Expect(delay_out.rms() > 0.001,
+               "delay-to-granular return is non-silent");
+  std::printf("  return rms = %.6f\n", delay_out.rms());
 
   // --- Vintage digital (22.05kHz engine, 12-bit, ratio 2) ------------------
   std::printf("Vintage digital:\n");

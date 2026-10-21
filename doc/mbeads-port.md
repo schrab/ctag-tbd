@@ -489,6 +489,16 @@ Measurement:
 - UART log of cycles/block and max spike over 10 s.
 - CPU overload indicator (`drawPanelBar`) at top-right.
 
+**Known follow-ups**
+
+- The firmware glue (`ctagSoundProcessorMbeads`) is reviewed but not directly
+  unit-tested: the host test drives `beads::Processor` only. A glue-layer
+  host/simulator harness is still missing.
+- Tape modes are smoke-tested only. The tape wet path has no dedicated
+  coverage, and the tape UI is deferred.
+- Hardware CPU, audio-task stack high-water and PSRAM behaviour are still
+  unmeasured (flashing not yet approved); see §11.
+
 ---
 
 ## 9. Risks
@@ -555,6 +565,10 @@ $ bash tests/host/run_mbeads_tests.sh
   [ ok ] granular engine alone is audible (no reverb, fully wet)
   [ ok ] default patch grain settings are audible (wet only, no reverb)
   default patch wet rms = 0.037146
+  [ ok ] delay mode wet path is audible
+  delay mode rms = 0.096370
+  [ ok ] delay-to-granular return is non-silent
+  return rms = 0.042197
   wet rms = 0.136539
 ...
 PASS: mbeads core
@@ -566,8 +580,10 @@ covers: media rate table (44.1k/22.05k, ratio 1/2), trigger generator rate
 `MixParameters::output_gate` (131 grains/s for both Digital and Vintage,
 deterministic at density 0), fully wet granular output with `reverb = 0` and
 `dry_wet = 1` (RMS ~0.13, floor 0.01), the shipped default-patch grain settings
-(density 3072, seed 1, time 0.5), in-place `in == out` safety, freeze/seed, and
-Clean/Dirty Tape smoke runs.
+(density 3072, seed 1, time 0.5), in-place `in == out` safety, the delay-mode
+Size ramp to maximum and back (both directions cross the full 1.5 s transition,
+fully wet with no reverb: delay RMS ~0.096 and return-to-granular RMS ~0.042),
+freeze/seed, and Clean/Dirty Tape smoke runs.
 The existing modulation suite (`bash tests/host/run_tests.sh`) still passes.
 
 ### Default patch rationale

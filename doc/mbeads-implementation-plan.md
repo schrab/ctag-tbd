@@ -23,6 +23,12 @@ Measured (Task 3): `sizeof(beads::Processor)` 29,496 B (Xtensa) / 30,736 B
 0x380000 app partition; host core test PASS. Hardware CPU/stack measurement is
 **pending** user approval to flash (`doc/mbeads-port.md` §11 has the commands).
 
+Final whole-branch review added a delay-mode transition test to the host core
+test (Size ramps to maximum and back, both finite and audible: delay RMS
+~0.096, return-to-granular RMS ~0.042) and corrected
+`tests/host/run_mbeads_tests.sh` to mode 100755 in the index. The host core test
+is now 38 checks.
+
 ## Global Constraints
 
 - Repo root: `/home/schrab/Projects/ctag-tbd`; branch: `feat/mbeads`.
