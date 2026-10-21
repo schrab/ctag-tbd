@@ -13,6 +13,7 @@
 #include <cstring>
 
 #include "beads/dsp/processor.h"
+#include "beads/dsp/trigger_generator.h"
 
 namespace {
 
@@ -58,6 +59,9 @@ bool Expect(bool condition, const char* what) {
 // When in_place is true the same frame buffer is used for input and output,
 // which must be safe because the dry signal is captured before the wet engine
 // runs.
+// hold_gate supplies a held-high seed gate: without it the density clock is
+// gated off and no grains are produced at all.
+// time_base is the grain read position (0 = newest audio in the buffer).
 BlockStats RunBlocks(
     beads::Processor* processor,
     int num_blocks,
@@ -66,9 +70,12 @@ BlockStats RunBlocks(
     bool freeze_all,
     bool toggle_seed,
     int first_block_for_stats,
-    bool in_place = false) {
+    bool in_place = false,
+    float density_base = 0.75f,
+    bool hold_gate = false,
+    float time_base = 0.5f) {
   beads::Parameters parameters;
-  parameters.time.base = 0.5f;
+  parameters.time.base = time_base;
   parameters.time.attenuverter = 0.0f;
   parameters.time.has_cv = false;
   parameters.time.cv = 0.0f;
@@ -91,9 +98,10 @@ BlockStats RunBlocks(
   parameters.monophonic_mode = false;
 
   // 0.75: above the "manual taps" range, so the trigger generator free-runs
-  // and the granular engine is genuinely exercised.
+  // (when the seed gate is high) and the granular engine is genuinely
+  // exercised.
   beads::ModulatedParameter density;
-  density.base = 0.75f;
+  density.base = density_base;
   density.cv = 0.0f;
 
   beads::Processor::MixParameters mix;
@@ -130,7 +138,7 @@ BlockStats RunBlocks(
         out[i].r = 0.0f;
       }
       freeze[i] = freeze_all;
-      seed_input[i] = stmlib::GATE_FLAG_LOW;
+      seed_input[i] = hold_gate ? stmlib::GATE_FLAG_HIGH : stmlib::GATE_FLAG_LOW;
     }
 
     processor->Process(
@@ -160,6 +168,41 @@ BlockStats RunBlocks(
   }
 
   return stats;
+}
+
+// The trigger generator is stepped once per host sample: Processor::Process()
+// renders it over the whole 32-sample block and the half-rate media downsample
+// its output (triggers are preserved across the ratio group). Initialising it
+// with the engine rate would therefore run the grain clock at twice the
+// intended rate on Vintage/Clean/Dirty. This pins down the rate the generator
+// is clocked at.
+int CountTriggerRate(float init_sample_rate) {
+  beads::TriggerGenerator generator;
+  generator.Init(init_sample_rate);
+
+  stmlib::GateFlags held_gate[kBlockSize];
+  for (size_t i = 0; i < kBlockSize; ++i) {
+    held_gate[i] = stmlib::GATE_FLAG_HIGH;
+  }
+
+  const int one_second_of_blocks =
+      static_cast<int>(kHostSampleRate) / static_cast<int>(kBlockSize);
+  int triggers = 0;
+  for (int block = 0; block < one_second_of_blocks; ++block) {
+    beads::TriggerGenerator::Output out[kBlockSize];
+    generator.Render(
+        beads::SEED_BUTTON_STATE_OFF,
+        held_gate,
+        0.0f,  // density 0: deterministic 130.81278 Hz pulse train
+        0.0f,
+        0.0f,
+        out,
+        kBlockSize);
+    for (size_t i = 0; i < kBlockSize; ++i) {
+      triggers += out[i].trigger ? 1 : 0;
+    }
+  }
+  return triggers;
 }
 
 }  // namespace
@@ -198,6 +241,22 @@ int main() {
   ok &= Expect(sizeof(beads::Processor) <= 40 * 1024,
                "sizeof(beads::Processor) stays within budget");
 
+  // --- Trigger generator rate ---------------------------------------------
+  // The generator is stepped at the host rate (see Processor::Configure), so
+  // that is the rate it must be initialised with.
+  std::printf("Trigger generator:\n");
+  const int triggers_at_host_rate = CountTriggerRate(kHostSampleRate);
+  const int triggers_at_engine_rate = CountTriggerRate(kVintageEngineRate);
+  std::printf("  %d triggers/s at 44.1k init, %d at 22.05k init\n",
+              triggers_at_host_rate, triggers_at_engine_rate);
+  ok &= Expect(triggers_at_host_rate >= 125 && triggers_at_host_rate <= 135,
+               "~130.8 triggers/s at the rate it is stepped at");
+  const double trigger_rate_ratio =
+      static_cast<double>(triggers_at_engine_rate) /
+      static_cast<double>(triggers_at_host_rate);
+  ok &= Expect(trigger_rate_ratio > 1.95 && trigger_rate_ratio < 2.05,
+               "half-rate init doubles the grain rate");
+
   double phase = 0.0;
 
   // --- Digital (44.1kHz engine, 16-bit, ratio 1) ---------------------------
@@ -215,10 +274,13 @@ int main() {
   ok &= Expect(digital.rms() > 0.0, "output is non-silent after 100 blocks");
   std::printf("  rms = %.6f\n", digital.rms());
 
-  // Fully wet, to prove the granular engine - not just the dry path - makes
-  // sound.
+  // Fully wet with a held seed gate and density 0, so the pulse train
+  // free-runs deterministically, and with the grain read head close to the
+  // write head (time 0.02) so the grains actually read the audio already in the
+  // delay line. This proves the granular engine - not just the dry path or the
+  // reverb tail - makes sound.
   BlockStats digital_wet = RunBlocks(
-      &processor, 500, &phase, 1.0f, false, false, 0);
+      &processor, 500, &phase, 1.0f, false, false, 0, false, 0.0f, true, 0.02f);
   ok &= Expect(digital_wet.finite, "fully wet output is finite");
   ok &= Expect(digital_wet.rms() > 1e-6, "granular engine is non-silent");
   std::printf("  wet rms = %.6f\n", digital_wet.rms());
@@ -246,6 +308,15 @@ int main() {
   ok &= Expect(vintage.rms() > 0.0, "output is non-silent");
   std::printf("  rms = %.6f\n", vintage.rms());
 
+  // Fully wet Vintage: covers the half-rate granular path (sample rate
+  // conversion + downsampled triggers) with the read head near the write head.
+  BlockStats vintage_wet = RunBlocks(
+      &processor, 200, &phase, 1.0f, false, false, 0, false, 0.0f, true, 0.02f);
+  ok &= Expect(vintage_wet.finite, "fully wet Vintage output is finite");
+  ok &= Expect(vintage_wet.rms() > 1e-6,
+               "Vintage half-rate granular engine is non-silent");
+  std::printf("  wet rms = %.6f\n", vintage_wet.rms());
+
   // --- Freeze / seed ------------------------------------------------------
   std::printf("Freeze / seed:\n");
   BlockStats frozen = RunBlocks(
@@ -257,6 +328,31 @@ int main() {
       &processor, 50, &phase, 0.5f, false, true, 0);
   ok &= Expect(seeded.finite, "50 seeded blocks produce finite output");
   std::printf("  seed rms = %.6f\n", seeded.rms());
+
+  // --- Tape modes ---------------------------------------------------------
+  // Out of scope for the v1 UI, but they must keep working: Clean Tape covers
+  // the 12-bit half-rate path with a plain dry copy, Dirty Tape covers the
+  // relocated µ-law dry path and the host-rate wow and flutter.
+  std::printf("Tape modes (deferred, smoke test):\n");
+  processor.Configure(beads::Processor::MEDIA_CLEAN_TAPE, false);
+  ok &= Expect(processor.sample_rate() == kVintageEngineRate,
+               "Clean Tape engine rate == 22050");
+  ok &= Expect(processor.ratio() == 2, "Clean Tape ratio() == 2");
+  BlockStats clean_tape = RunBlocks(
+      &processor, 32, &phase, 0.5f, false, false, 0);
+  ok &= Expect(clean_tape.finite, "32 blocks of Clean Tape are finite");
+  ok &= Expect(clean_tape.rms() > 0.0, "Clean Tape output is non-silent");
+  std::printf("  rms = %.6f\n", clean_tape.rms());
+
+  processor.Configure(beads::Processor::MEDIA_DIRTY_TAPE, false);
+  ok &= Expect(processor.sample_rate() == kVintageEngineRate,
+               "Dirty Tape engine rate == 22050");
+  ok &= Expect(processor.ratio() == 2, "Dirty Tape ratio() == 2");
+  BlockStats dirty_tape = RunBlocks(
+      &processor, 32, &phase, 0.5f, false, false, 0);
+  ok &= Expect(dirty_tape.finite, "32 blocks of Dirty Tape are finite");
+  ok &= Expect(dirty_tape.rms() > 0.0, "Dirty Tape output is non-silent");
+  std::printf("  rms = %.6f\n", dirty_tape.rms());
 
   for (size_t i = 0; i < kDelayBanks; ++i) {
     std::free(buffers[i]);
