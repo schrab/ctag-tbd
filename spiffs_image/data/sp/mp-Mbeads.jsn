@@ -1,0 +1,25 @@
+{
+  "activePatch": 0,
+  "patches": [
+    {
+      "name": "Default",
+      "params": [
+        {"id": "time", "current": 2048, "cv": -1},
+        {"id": "time_mod", "current": 2047},
+        {"id": "size", "current": 2048, "cv": -1},
+        {"id": "size_mod", "current": 2047},
+        {"id": "shape", "current": 2048, "cv": -1},
+        {"id": "shape_mod", "current": 2047},
+        {"id": "pitch", "current": 0, "cv": -1},
+        {"id": "pitch_mod", "current": 2047},
+        {"id": "density", "current": 2048, "cv": -1},
+        {"id": "feedback", "current": 0, "cv": -1},
+        {"id": "dry_wet", "current": 2048, "cv": -1},
+        {"id": "reverb", "current": 0, "cv": -1},
+        {"id": "media", "current": 0},
+        {"id": "freeze", "current": 0, "trig": -1},
+        {"id": "seed", "current": 0, "trig": -1}
+      ]
+    }
+  ]
+}

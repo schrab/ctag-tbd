@@ -1,0 +1,23 @@
+{
+  "id": "Mbeads",
+  "isStereo": true,
+  "name": "Mbeads",
+  "hint": "Port of Mutable Instruments Beads",
+  "params": [
+    {"id": "time", "name": "Time", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "time_mod", "name": "Time Mod", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "size", "name": "Size", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "size_mod", "name": "Size Mod", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "shape", "name": "Shape", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "shape_mod", "name": "Shape Mod", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "pitch", "name": "Pitch", "type": "int", "min": -24, "max": 24, "step": 1},
+    {"id": "pitch_mod", "name": "Pitch Mod", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "density", "name": "Density", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "feedback", "name": "Feedback", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "dry_wet", "name": "Dry / Wet", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "reverb", "name": "Reverb", "type": "int", "min": 0, "max": 4095, "step": 1},
+    {"id": "media", "name": "Media", "type": "int", "min": 0, "max": 1, "step": 1},
+    {"id": "freeze", "name": "Freeze", "type": "bool"},
+    {"id": "seed", "name": "Seed", "type": "bool"}
+  ]
+}
