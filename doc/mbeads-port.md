@@ -85,7 +85,7 @@ in v1.
 | Internal DRAM | ~22 KB free after audio init |
 | PSRAM | 8 MB, 80 MHz quad, cached; ~3.4 MB free with no plugin loaded |
 | Audio task stack | **4,096 bytes** |
-| App partition | 3.5 MB; current image ~3.1 MB |
+| App partition | 3.5 MB; current image **3,233,968 bytes (3.23 MB, `0x3158b0`)** |
 | Codec | 44.1 kHz fixed; no runtime sample-rate change |
 
 Relevant platform facts:
@@ -122,8 +122,8 @@ What the existing port teaches:
   stereo), not one per sample.
 
 Clouds also shows the stack constraint: its engine uses fixed-size member
-buffers (`kMaxBlockSize`), while Beads uses C99 VLAs sized by the block. That
-must be changed (see §5.3).
+buffers (`kMaxBlockSize`), while upstream Beads used C99 VLAs sized by the
+block. The port replaced those with fixed 32-element members (see §5.3).
 
 ---
 
@@ -199,17 +199,21 @@ Keep an eye on the 3.5 MB limit if other plugins grow.
 
 ### 4.4 Stack
 
-`Processor::Process` uses VLAs:
+The **pre-port** `Processor::Process` allocated its scratch buffers as C99 VLAs
+on the caller's stack:
 
 - `TriggerGenerator::Output triggers_buffer[32]` → 512 B
 - `DelayController::Output taps_buffer[32]` → 2,176 B
 - `bool gate_out[32]` + `FloatFrame dry_signal[32]` → 288 B
 
-and the half-rate path in `GranularProcessor::Process` adds ~1.8 KB. Total
-~4.8 KB, which **does not fit the 4,096-byte audio task stack**. This is a
-certain crash, not a risk. Fix by replacing VLAs with fixed 32-element member
-arrays (object lives in PSRAM, so cost is negligible). Optionally raise the
-audio task stack to 6,144 bytes for margin after measuring the high-water mark.
+plus ~1.8 KB in the half-rate path of `GranularProcessor::Process`, i.e. ~4.8 KB
+total. That would not have fit the 4,096-byte audio task stack. The port moved
+`triggers_buffer_`, `taps_buffer_`, `gate_out_` and `dry_signal_` into fixed
+32-element members of `beads::Processor` (which lives in PSRAM), removing ~3 KB
+from the audio task stack. The half-rate path (Vintage/Clean/Dirty) still keeps
+~1.8 KB of fixed locals on the audio task stack, so the hardware high-water mark
+must still be measured before deciding whether to hoist those arrays or raise
+the stack to 6,144 bytes. The default Digital path does not take that branch.
 
 ---
 
@@ -242,21 +246,24 @@ TBD is fixed at 44.1 kHz; Beads hardcodes 48/32/24 kHz. Change
 
 ### 5.2 In-place processing
 
-`beads::Processor::Process` copies `dry_signal` **after** the wet processor
-writes `out`. If `in == out`, the dry signal becomes the wet signal. The glue
-must use separate `FloatFrame in[32]` and `FloatFrame out[32]`. (Clouds' port
-can process in place; Beads cannot.)
+The pre-port `beads::Processor::Process` captured `dry_signal` **after** the wet
+processor had written `out`, so `in == out` made the dry signal become the wet
+signal. The port computes the dry signal **before** the wet engine runs, so
+in-place processing is now safe (covered by an `in == out` host test). The glue
+still uses separate `FloatFrame in_[32]` and `FloatFrame out_[32]` members for
+clarity and because it copies from/to the interleaved `data.buf`.
 
 ### 5.3 Fixed block size
 
-Replace VLAs with fixed 32-element members in:
+The port replaced the VLAs with fixed 32-element members in:
 
 - `beads::Processor` (`triggers_buffer_`, `taps_buffer_`, `gate_out_`,
   `dry_signal_`)
 - `beads::GranularProcessor` half-rate path (`d_freeze`, `d_triggers`,
   `d_taps`, `d_in`, `d_out`, `downsampled`, `upsampled`)
 
-Guard `size <= 32`; TBD always passes 32.
+Both `Processor::Process` and the half-rate branch clamp `size` to 32; TBD
+always passes 32.
 
 ### 5.4 Media switching
 
@@ -279,7 +286,7 @@ modulated at audio rate. Options if that ever becomes a problem:
   and after, off the audio task.
 - **Safest:** fix media at load time, add runtime switching in a later phase.
 
-Do **not** call `Reset(false)` and keep stale data: a format change
+Do **not** skip the delay-line clear and keep stale data: a format change
 (16-bit ↔ 12-bit ↔ 8-bit) makes the old buffer sound like noise.
 
 Note: plugin load still clears more than 768 KB. `beads::Processor::Init`
@@ -291,8 +298,8 @@ for a later optimisation (`DelayLine::Init` could skip the inactive layout).
 ### 5.5 Resource trimming
 
 **Confirmed v1 decision:** drop the synth wavetables. Create a minimal
-`beads/resources.cc` (or guard the wavetable with a macro) that keeps only
-`lut_sine` and the lookup-table arrays.
+`beads/resources_min.cc` (rather than compiling the generated
+`beads/resources.cc`) that keeps only `lut_sine` and the lookup-table arrays.
 
 - `wav_integrated_waves` is 49,920 `int16_t` values = **99,840 bytes**.
 - Its only readers are `wavetable_grain.h` and `wavetable_voice.h`, used by
@@ -317,7 +324,7 @@ eurorack/beads/dsp/trigger_generator.cc
 eurorack/beads/dsp/delay_controller.cc
 eurorack/beads/dsp/delay_clock.cc
 eurorack/beads/dsp/mu_law.cc
-eurorack/beads/resources.cc
+eurorack/beads/resources_min.cc
 ```
 
 Do not compile `beads.cc`, `ui.cc`, `drivers/`, `settings.cc`, `synth.cc` or
@@ -332,13 +339,13 @@ Proposed plugin id: **`Mbeads`** (class `ctagSoundProcessorMbeads`).
 | Param | Type | Range | Notes |
 |---|---|---|---|
 | `time` | int | 0..4095 | grain read position |
-| `time_amount` | int | 0..4095 | bipolar attenuverter, 2047 ≈ 0 |
+| `time_mod` | int | 0..4095 | bipolar attenuverter, 2047 ≈ 0 |
 | `size` | int | 0..4095 | grain size; > 0.99 enters delay mode |
-| `size_amount` | int | 0..4095 | bipolar attenuverter |
+| `size_mod` | int | 0..4095 | bipolar attenuverter |
 | `shape` | int | 0..4095 | grain envelope |
-| `shape_amount` | int | 0..4095 | bipolar attenuverter |
+| `shape_mod` | int | 0..4095 | bipolar attenuverter |
 | `pitch` | int | -24..24 | semitones (Beads quantizes its knob; TBD continuous) |
-| `pitch_amount` | int | 0..4095 | bipolar attenuverter |
+| `pitch_mod` | int | 0..4095 | bipolar attenuverter |
 | `density` | int | 0..4095 | grain rate / divider |
 | `feedback` | int | 0..4095 | mix |
 | `dry_wet` | int | 0..4095 | mix |
@@ -368,8 +375,8 @@ CV mapping:
 
 JSON descriptors:
 
-- `spiffs_image/data/sp/mui-Mbeads.jsn` — groups: Granular, Modulation, Mix,
-  Config.
+- `spiffs_image/data/sp/mui-Mbeads.jsn` — a flat `params` array; there is no
+  group nesting.
 - `spiffs_image/data/sp/mp-Mbeads.jsn` — default patch.
 
 ---
@@ -490,11 +497,11 @@ Measurement:
 |---|---|---|
 | CPU over budget at 32 grains | High | Benchmark gate; drop to 24/16 grains; half-rate default; skip reverb when off |
 | PSRAM random-access stalls | Medium | Sequential grain reads; measure cache misses; reduce grains/pitch extremes |
-| Audio task stack overflow (VLAs) | High (certain) | Fixed 32-element arrays; 6,144-byte stack if needed |
+| Audio task stack overflow (pre-port VLAs, ~4.8 KB) | High (certain pre-port) | `Processor` scratch moved to fixed 32-element PSRAM members; half-rate path still ~1.8 KB, high-water measurement pending |
 | 768 KB PSRAM allocation fails/fragments | Medium | Allocate at load; test 100 cycles; reserve on first use if needed |
 | Media switch clears 768 KB in audio task | Medium | Mute + deferred switch, or fix media at load in v1 |
 | App partition overflow | Low | Trim synth wavetables; monitor 3.5 MB limit |
-| `processor.Process` in-place dry/wet bug | High if missed | Separate input/output frame buffers |
+| `processor.Process` in-place dry/wet bug (pre-port, dry captured after wet) | High if missed | Dry signal captured before the wet write; glue also uses separate buffers |
 | Attenuverter/CV semantics confusing | Medium | UI labels "Time Mod" etc.; document in hint |
 | Trig polarity mismatch | Low | Use `== 1` = active; test against gate generator |
 | Flash/IRAM cache pressure | Low | Measure; keep hot code in flash like Elements |
@@ -546,8 +553,8 @@ $ bash tests/host/run_mbeads_tests.sh
   [ ok ] Vintage delivers ~130 grains/s through the output gate
   [ ok ] Digital and Vintage trigger the same grain rate
   [ ok ] granular engine alone is audible (no reverb, fully wet)
-  [ ok ] default patch is audible (wet only, no reverb)
-  default patch wet rms = 0.038350
+  [ ok ] default patch grain settings are audible (wet only, no reverb)
+  default patch wet rms = 0.037146
   wet rms = 0.136539
 ...
 PASS: mbeads core
@@ -558,8 +565,9 @@ covers: media rate table (44.1k/22.05k, ratio 1/2), trigger generator rate
 (131 pulses/s), grain-rate integration through
 `MixParameters::output_gate` (131 grains/s for both Digital and Vintage,
 deterministic at density 0), fully wet granular output with `reverb = 0` and
-`dry_wet = 1` (RMS ~0.13, floor 0.01), the shipped default patch, in-place
-`in == out` safety, freeze/seed, and Clean/Dirty Tape smoke runs.
+`dry_wet = 1` (RMS ~0.13, floor 0.01), the shipped default-patch grain settings
+(density 3072, seed 1, time 0.5), in-place `in == out` safety, freeze/seed, and
+Clean/Dirty Tape smoke runs.
 The existing modulation suite (`bash tests/host/run_tests.sh`) still passes.
 
 ### Default patch rationale
@@ -577,8 +585,9 @@ The existing modulation suite (`bash tests/host/run_tests.sh`) still passes.
   (centre), `pitch = 0`, `feedback = 0`, `reverb = 0`, `dry_wet = 2048`,
   `media = 0` (Digital), `freeze = 0`.
 
-The host test asserts this exact combination is audible (wet RMS 0.038 with no
-reverb), and both parameters remain fully exposed in the UI.
+The host test asserts the shipped grain settings (density 3072, seed 1,
+time 0.5 = 2048) are audible (wet RMS 0.037 with no reverb), and both parameters
+remain fully exposed in the UI.
 
 ### Media-switch cost
 
@@ -629,10 +638,11 @@ The logging task runs on core 1 at priority 5, far below the audio task
 2. Density 100%, reverb 0; density 100%, reverb 100%.
 3. Delay mode (`size` at maximum).
 4. Digital (44.1 kHz) and Vintage (22.05 kHz).
-5. Audio-task stack high-water mark: not currently logged. The handle is
-   available as `SoundProcessorManager::audioTaskH`; add a one-line
-   `uxTaskGetStackHighWaterMark(audioTaskH)` log if the Vintage/Dirty half-rate
-   path needs the margin checked (Task 1 flagged ~1.8 KB of fixed locals there).
+5. Audio-task stack high-water mark: not currently logged. `audioTaskH` is
+   private to `SoundProcessorManager`; either add a getter in `SPManager` or log
+   `uxTaskGetStackHighWaterMark(nullptr)` from inside the audio task, then check
+   the Vintage/Dirty half-rate path (Task 1 flagged ~1.8 KB of fixed locals
+   there).
 
 Go/no-go thresholds from §4.2: no continuous CPU-overload indicator at the
 default patch, `Mbeads` DSP average ≤ 130k cycles/block, extreme settings

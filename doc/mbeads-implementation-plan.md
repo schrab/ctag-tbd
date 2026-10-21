@@ -8,7 +8,7 @@ Companion to `doc/mbeads-port.md`. This file is the task-level execution plan.
 |---|---|---|
 | 1. Beads DSP core at 44.1 kHz / fixed blocks | **done** | submodule `8fc52b16`, parent `ef59b5cd` |
 | 2. Mbeads plugin glue + UI descriptors | **done** | parent `6578f247` |
-| 3. Validation, instrumentation, fixes | **done (software)** | pending commit |
+| 3. Validation, instrumentation, fixes | **done (software)** | parent `5996d79e` |
 
 Task 3 follow-ups that landed: default patch `density = 3072` / `seed = 1`;
 `GranularProcessor::Reset(bool mono)` now clears only the active delay line

@@ -70,8 +70,10 @@ namespace CTAG::SP {
         uint8_t *delay_buffer_ = nullptr;
         uint16_t *reverb_buffer_ = nullptr;
         uint8_t *delay_banks_[3] = {};
-        // Beads cannot process in place: the dry signal is captured from in_
-        // while the wet engine writes out_.
+        // Separate buffers for clarity: the glue copies from/to the
+        // interleaved data.buf. beads::Processor::Process captures the dry
+        // signal before the wet engine writes out_, so in-place would also be
+        // safe.
         beads::FloatFrame in_[kBlockSize] = {};
         beads::FloatFrame out_[kBlockSize] = {};
         bool freeze_frames_[kBlockSize] = {};

@@ -30,8 +30,10 @@ const size_t kReverbSamples = 32768;
 
 const double kTwoPi = 6.283185307179586476925286766559;
 
-// Wet-only RMS floor for the granular engine (no reverb, dry_wet = 1). The
-// measured values are ~0.1..0.2, so this only catches a silent/broken engine.
+// RMS floor for the wet-only checks (no reverb, dry_wet = 1). The fully wet
+// Digital/Vintage runs measure ~0.13, so this only catches a silent/broken
+// engine. The default-patch check at time 0.5 is lower (the grain read head
+// starts in unfilled buffer), but still well above the floor.
 const double kWetRmsFloor = 0.01;
 
 // -ffast-math implies -ffinite-math-only, so std::isfinite() may be folded
@@ -399,16 +401,19 @@ int main() {
                "granular engine alone is audible (no reverb, fully wet)");
   std::printf("  wet rms = %.6f\n", digital_wet.rms());
 
-  // The shipped default patch must be audible on a fresh load: density 3072
-  // (0.75, above the manual-tap zone) and seed 1 (the seed button holds the
-  // density clock's gate high). Without the seed gate the clock never runs.
-  std::printf("Default patch (density 3072, seed 1):\n");
+  // The shipped default patch's grain settings must be audible on a fresh
+  // load: density 3072 (0.75, above the manual-tap zone) and seed 1 (the seed
+  // button holds the density clock's gate high). Without the seed gate the
+  // clock never runs. time stays at the shipped 0.5, so the run has to fill
+  // the 2.18 s read position before the grains read real audio.
+  std::printf(
+      "Default patch grain settings (density 3072, seed 1, time 0.5):\n");
   BlockStats default_patch = RunBlocks(
-      &processor, 4000, &phase, 1.0f, false, false, 400, false,
-      3072.0f / 4095.0f, false, 0.02f, 0.0f, true);
+      &processor, 5000, &phase, 1.0f, false, false, 400, false,
+      3072.0f / 4095.0f, false, 0.5f, 0.0f, true);
   ok &= Expect(default_patch.finite, "default patch output is finite");
   ok &= Expect(default_patch.rms() > kWetRmsFloor,
-               "default patch is audible (wet only, no reverb)");
+               "default patch grain settings are audible (wet only, no reverb)");
   std::printf("  default patch wet rms = %.6f\n", default_patch.rms());
 
   // In-place processing (in == out) must stay correct: the dry signal is
