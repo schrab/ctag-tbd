@@ -30,6 +30,10 @@ const size_t kReverbSamples = 32768;
 
 const double kTwoPi = 6.283185307179586476925286766559;
 
+// Wet-only RMS floor for the granular engine (no reverb, dry_wet = 1). The
+// measured values are ~0.1..0.2, so this only catches a silent/broken engine.
+const double kWetRmsFloor = 0.01;
+
 // -ffast-math implies -ffinite-math-only, so std::isfinite() may be folded
 // away by the optimizer. Inspect the IEEE-754 exponent bits instead.
 bool IsFinite(float x) {
@@ -73,7 +77,9 @@ BlockStats RunBlocks(
     bool in_place = false,
     float density_base = 0.75f,
     bool hold_gate = false,
-    float time_base = 0.5f) {
+    float time_base = 0.5f,
+    float reverb_amount = 0.25f,
+    bool seed_button_on = false) {
   beads::Parameters parameters;
   parameters.time.base = time_base;
   parameters.time.attenuverter = 0.0f;
@@ -107,7 +113,7 @@ BlockStats RunBlocks(
   beads::Processor::MixParameters mix;
   mix.feedback = 0.0f;
   mix.dry_wet = dry_wet;
-  mix.reverb_amount = 0.25f;
+  mix.reverb_amount = reverb_amount;
   mix.output_gate = false;
 
   BlockStats stats;
@@ -120,10 +126,14 @@ BlockStats RunBlocks(
     bool freeze[kBlockSize];
     stmlib::GateFlags seed_input[kBlockSize];
 
-    const beads::SeedButtonState seed_state = (toggle_seed && (block & 1))
-        ? beads::SEED_BUTTON_STATE_OFF
-        : (toggle_seed ? beads::SEED_BUTTON_STATE_ON
-                       : beads::SEED_BUTTON_STATE_OFF);
+    // seed_button_on emulates the default patch (`seed = 1`): the seed button
+    // merges a held-high gate into the trigger generator.
+    const beads::SeedButtonState seed_state = seed_button_on
+        ? beads::SEED_BUTTON_STATE_ON
+        : ((toggle_seed && (block & 1))
+               ? beads::SEED_BUTTON_STATE_OFF
+               : (toggle_seed ? beads::SEED_BUTTON_STATE_ON
+                              : beads::SEED_BUTTON_STATE_OFF));
 
     for (size_t i = 0; i < kBlockSize; ++i) {
       const float sample = 0.25f * static_cast<float>(std::sin(*phase));
@@ -205,6 +215,88 @@ int CountTriggerRate(float init_sample_rate) {
   return triggers;
 }
 
+// Counts the grains that reach the output through the whole FX chain, using
+// MixParameters::output_gate: with the gate enabled the right channel is
+// forced to -0.8f while the trigger generator's gate is high, so rising edges
+// there are exactly the grains the audio path will render. This is an
+// integration check of Processor::Process (trigger generator -> gate_out_ ->
+// output stage), not just of the generator in isolation.
+int CountOutputGates(
+    beads::Processor* processor,
+    int num_blocks,
+    float density_base) {
+  beads::Parameters parameters;
+  parameters.time.base = 0.02f;
+  parameters.time.attenuverter = 0.0f;
+  parameters.time.has_cv = false;
+  parameters.time.cv = 0.0f;
+
+  parameters.size.base = 0.5f;
+  parameters.size.attenuverter = 0.0f;
+  parameters.size.has_cv = false;
+  parameters.size.cv = 0.0f;
+
+  parameters.shape.base = 0.5f;
+  parameters.shape.attenuverter = 0.0f;
+  parameters.shape.has_cv = false;
+  parameters.shape.cv = 0.0f;
+
+  parameters.pitch.base = 0.5f;
+  parameters.pitch.attenuverter = 0.0f;
+  parameters.pitch.has_cv = false;
+  parameters.pitch.cv = 0.0f;
+
+  parameters.monophonic_mode = false;
+
+  beads::ModulatedParameter density;
+  density.base = density_base;
+  density.cv = 0.0f;
+
+  beads::Processor::MixParameters mix;
+  mix.feedback = 0.0f;
+  mix.dry_wet = 0.0f;
+  mix.reverb_amount = 0.0f;
+  mix.output_gate = true;
+
+  stmlib::GateFlags held_gate[kBlockSize];
+  bool freeze[kBlockSize];
+  for (size_t i = 0; i < kBlockSize; ++i) {
+    held_gate[i] = stmlib::GATE_FLAG_HIGH;
+    freeze[i] = false;
+  }
+
+  int edges = 0;
+  bool previous_high = false;
+  for (int block = 0; block < num_blocks; ++block) {
+    beads::FloatFrame in[kBlockSize];
+    beads::FloatFrame out[kBlockSize];
+    for (size_t i = 0; i < kBlockSize; ++i) {
+      in[i].l = 0.0f;
+      in[i].r = 0.0f;
+    }
+
+    processor->Process(
+        beads::SEED_BUTTON_STATE_OFF,
+        held_gate,
+        freeze,
+        density,
+        parameters,
+        mix,
+        in,
+        out,
+        kBlockSize);
+
+    for (size_t i = 0; i < kBlockSize; ++i) {
+      const bool high = out[i].r < -0.4f;
+      if (high && !previous_high) {
+        ++edges;
+      }
+      previous_high = high;
+    }
+  }
+  return edges;
+}
+
 }  // namespace
 
 int main() {
@@ -257,6 +349,26 @@ int main() {
   ok &= Expect(trigger_rate_ratio > 1.95 && trigger_rate_ratio < 2.05,
                "half-rate init doubles the grain rate");
 
+  // --- Output gate integration ---------------------------------------------
+  // Density 0 makes the pulse train deterministic (130.81278Hz), and the
+  // trigger generator is stepped at the host rate for every media, so both
+  // media must deliver the same number of grains to the output.
+  std::printf("Output gate (integration):\n");
+  const int one_second_of_blocks =
+      static_cast<int>(kHostSampleRate) / static_cast<int>(kBlockSize);
+  processor.Configure(beads::Processor::MEDIA_DIGITAL, false);
+  const int digital_gates = CountOutputGates(&processor, one_second_of_blocks, 0.0f);
+  processor.Configure(beads::Processor::MEDIA_VINTAGE_DIGITAL, false);
+  const int vintage_gates = CountOutputGates(&processor, one_second_of_blocks, 0.0f);
+  std::printf("  %d grains/s digital, %d grains/s vintage\n",
+              digital_gates, vintage_gates);
+  ok &= Expect(digital_gates >= 125 && digital_gates <= 135,
+               "Digital delivers ~130 grains/s through the output gate");
+  ok &= Expect(vintage_gates >= 125 && vintage_gates <= 135,
+               "Vintage delivers ~130 grains/s through the output gate");
+  ok &= Expect(std::abs(digital_gates - vintage_gates) <= 2,
+               "Digital and Vintage trigger the same grain rate");
+
   double phase = 0.0;
 
   // --- Digital (44.1kHz engine, 16-bit, ratio 1) ---------------------------
@@ -280,10 +392,24 @@ int main() {
   // delay line. This proves the granular engine - not just the dry path or the
   // reverb tail - makes sound.
   BlockStats digital_wet = RunBlocks(
-      &processor, 500, &phase, 1.0f, false, false, 0, false, 0.0f, true, 0.02f);
+      &processor, 500, &phase, 1.0f, false, false, 0, false, 0.0f, true, 0.02f,
+      0.0f);
   ok &= Expect(digital_wet.finite, "fully wet output is finite");
-  ok &= Expect(digital_wet.rms() > 1e-6, "granular engine is non-silent");
+  ok &= Expect(digital_wet.rms() > kWetRmsFloor,
+               "granular engine alone is audible (no reverb, fully wet)");
   std::printf("  wet rms = %.6f\n", digital_wet.rms());
+
+  // The shipped default patch must be audible on a fresh load: density 3072
+  // (0.75, above the manual-tap zone) and seed 1 (the seed button holds the
+  // density clock's gate high). Without the seed gate the clock never runs.
+  std::printf("Default patch (density 3072, seed 1):\n");
+  BlockStats default_patch = RunBlocks(
+      &processor, 4000, &phase, 1.0f, false, false, 400, false,
+      3072.0f / 4095.0f, false, 0.02f, 0.0f, true);
+  ok &= Expect(default_patch.finite, "default patch output is finite");
+  ok &= Expect(default_patch.rms() > kWetRmsFloor,
+               "default patch is audible (wet only, no reverb)");
+  std::printf("  default patch wet rms = %.6f\n", default_patch.rms());
 
   // In-place processing (in == out) must stay correct: the dry signal is
   // captured before the wet engine writes the output.
@@ -311,10 +437,11 @@ int main() {
   // Fully wet Vintage: covers the half-rate granular path (sample rate
   // conversion + downsampled triggers) with the read head near the write head.
   BlockStats vintage_wet = RunBlocks(
-      &processor, 200, &phase, 1.0f, false, false, 0, false, 0.0f, true, 0.02f);
+      &processor, 200, &phase, 1.0f, false, false, 0, false, 0.0f, true, 0.02f,
+      0.0f);
   ok &= Expect(vintage_wet.finite, "fully wet Vintage output is finite");
-  ok &= Expect(vintage_wet.rms() > 1e-6,
-               "Vintage half-rate granular engine is non-silent");
+  ok &= Expect(vintage_wet.rms() > kWetRmsFloor,
+               "Vintage half-rate granular engine alone is audible");
   std::printf("  wet rms = %.6f\n", vintage_wet.rms());
 
   // --- Freeze / seed ------------------------------------------------------

@@ -57,6 +57,9 @@ namespace CTAG::SP {
         void knowYourself() override;
 
         static constexpr std::size_t kBlockSize = 32;
+        // Beads' scratch buffers and block clamps are sized for 32 samples.
+        static_assert(kBlockSize <= beads::Processor::kMaxBlockSize,
+                      "Mbeads block size exceeds the Beads processor limit");
         // 3 x 256 KiB banks, shared by all four media delay lines.
         static constexpr std::size_t kDelayBufferBytes = 786432;
         static constexpr std::size_t kDelayBankBytes = 262144;
@@ -87,13 +90,13 @@ namespace CTAG::SP {
         std::atomic<int32_t> shape_mod_{2047};
         std::atomic<int32_t> pitch_{0};
         std::atomic<int32_t> pitch_mod_{2047};
-        std::atomic<int32_t> density_{2048};
+        std::atomic<int32_t> density_{3072};
         std::atomic<int32_t> feedback_{0};
         std::atomic<int32_t> dry_wet_{2048};
         std::atomic<int32_t> reverb_{0};
         std::atomic<int32_t> media_{0};
         std::atomic<int32_t> freeze_{0};
-        std::atomic<int32_t> seed_{0};
+        std::atomic<int32_t> seed_{1};
 
         std::atomic<int32_t> cv_time_{-1};
         std::atomic<int32_t> cv_size_{-1};

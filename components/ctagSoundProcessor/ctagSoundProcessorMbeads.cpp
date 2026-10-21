@@ -25,6 +25,10 @@ respective component folders / files if different from this license.
 
 #include "esp_log.h"
 
+#ifndef TBD_SIM
+#include "perf_monitor.hpp"
+#endif
+
 using namespace CTAG::SP;
 
 void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
@@ -34,6 +38,10 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
     knowYourself();
     model = std::make_unique<ctagSPDataModel>(id, isStereo);
     LoadPreset(0);
+
+    // The glue and the DSP must agree on the block size; the audio buffer is
+    // bufSz samples (32) per channel.
+    assert(static_cast<std::size_t>(bufSz) == kBlockSize);
 
     delay_buffer_ = static_cast<uint8_t *>(
         heap_caps_malloc(kDelayBufferBytes, MALLOC_CAP_SPIRAM));
@@ -65,23 +73,35 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
     delay_banks_[2] = delay_buffer_ + 2 * kDelayBankBytes;
 
     processor.Init(delay_banks_, reverb_buffer_, 44100.0f);
-    // Configure() clears the 768 KB delay buffer. It is only called again when
-    // the media parameter changes (see Process()).
-    processor.Configure(beads::Processor::MEDIA_DIGITAL, false);
+    // beads::Processor::Init already calls Configure(MEDIA_DIGITAL, false), so
+    // the 768 KB delay buffer is cleared exactly once here. Configure() only
+    // runs again when the media parameter changes (see Process()).
     last_media_ = 0;
     initialized_ = true;
+
+#ifndef TBD_SIM
+    // Performance logging is process-wide and must only be started once, no
+    // matter how often the plugin is loaded. Core 1 / priority 5 keeps the
+    // logging task well below the audio task (core 1, priority 23).
+    static bool perf_enabled = false;
+    if (!perf_enabled) {
+        CTAG::INSTRUMENTATION::PerfMonitor::EnableLogging(true, 5000, 1, 5);
+        perf_enabled = true;
+    }
+#endif
 }
 
 void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     if (!initialized_) {
-        for (int i = 0; i < 2 * bufSz; ++i) {
+        for (std::size_t i = 0; i < 2 * kBlockSize; ++i) {
             data.buf[i] = 0.0f;
         }
         return;
     }
 
-    // Media switching. Configure() clears 768 KB of PSRAM and must never run
-    // on every block; accept a two-block mute when the mode changes.
+    // Media switching. Configure() clears 768 KB of PSRAM (only the delay line
+    // of the active channel layout) and must never run on every block; accept a
+    // two-block mute when the mode changes.
     // 0 = Digital, 1 = Vintage; anything else falls back to Digital.
     int media = static_cast<int>(media_.load());
     if (media != 0 && media != 1) {
@@ -97,11 +117,17 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     }
     if (mute_blocks_ > 0) {
         --mute_blocks_;
-        for (int i = 0; i < 2 * bufSz; ++i) {
+        for (std::size_t i = 0; i < 2 * kBlockSize; ++i) {
             data.buf[i] = 0.0f;
         }
         return;
     }
+
+#ifndef TBD_SIM
+    // Measures the whole per-block plugin cost from here on, including the
+    // parameter conversion, the Beads engine and the copy back to data.buf.
+    PERF_MEASURE("Mbeads");
+#endif
 
     const int cv_time = cv_time_.load();
     const int cv_size = cv_size_.load();
@@ -200,8 +226,17 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     mix.reverb_amount = reverb;
     mix.output_gate = false;
 
-    processor.Process(seed_state, seed_input, freeze_frames_, density, p, mix,
-                      in_, out_, kBlockSize);
+#ifndef TBD_SIM
+    {
+        // Nested section: the granular engine alone, without the glue's
+        // parameter conversion and buffer copies.
+        PERF_MEASURE("MbeadsGranular");
+#endif
+        processor.Process(seed_state, seed_input, freeze_frames_, density, p,
+                          mix, in_, out_, kBlockSize);
+#ifndef TBD_SIM
+    }
+#endif
 
     for (std::size_t i = 0; i < kBlockSize; ++i) {
         data.buf[2 * i] = out_[i].l;
