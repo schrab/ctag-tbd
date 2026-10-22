@@ -296,7 +296,7 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     if (media == 0) { // Digital
         if (helper_available) {
             default_total = 16;
-            default_helper = 8;
+            default_helper = reverb_active ? 8 : 9;
         } else {
             default_total = reverb_active ? 2 : 4;
             default_helper = 0;
@@ -358,7 +358,7 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
 
     gMbeadsDebugActiveGrains.store(processor.ActiveGrains());
     gMbeadsDebugHelperActive.store(
-        helper_available ? processor.HelperActiveGrains() : -1);
+        (helper_available && media == 0) ? processor.HelperActiveGrains() : -1);
     gMbeadsDebugCoreCap.store(core);
     gMbeadsDebugHelperCap.store(helper);
 #ifndef TBD_SIM
