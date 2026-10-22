@@ -81,11 +81,18 @@ namespace CTAG {
             static constexpr BaseType_t kHelperTaskCore = 0;
             static constexpr std::size_t kHelperSlots = 2;
             static constexpr std::uint32_t kAudioBudgetCycles = 174150;
+            // V9 deadline fallback: step the modal count down after a run of
+            // consecutive misses/overloads (hysteresis, never per block).
+            static constexpr int kFallbackStreak = 8;
+            static constexpr std::size_t kResolutionSteps[] = {
+                kResolutionFull, 32, 24, 16, kResolutionFallback};
+            static constexpr std::size_t kNumResolutionSteps =
+                sizeof(kResolutionSteps) / sizeof(kResolutionSteps[0]);
 
             static void HelperTaskEntry(void *arg);
             void HelperTask();
             bool StartHelper();
-            void StopHelper();
+            bool StopHelper();
 
             TaskHandle_t helper_task_ = nullptr;
             std::atomic<bool> helper_stop_{false};
@@ -100,13 +107,20 @@ namespace CTAG {
             std::atomic<bool> helper_overload_{false};
             std::atomic<int> helper_stack_high_water_{-1};
             std::atomic<std::uint32_t> helper_misses_{0};
+            // Core 1 asks, the helper applies — core 1 never touches `part`.
+            std::atomic<std::size_t> helper_requested_resolution_{kResolutionFull};
+            std::size_t helper_applied_resolution_ = kResolutionFull;
+            std::size_t resolution_step_ = 0;
+            int helper_streak_ = 0;
 #endif
 
-            uint16_t *reverb_buffer;
+            uint16_t *reverb_buffer = nullptr;
             elements::Part part;
             elements::Patch patch;
             elements::PerformanceState perfState;
             bool prevGate = false;
+            // True once this core has taken `part` back (no helper).
+            bool direct_fallback_prepared_ = false;
 
             atomic<int32_t> frequency, cv_frequency;
             atomic<int32_t> resonator_model = 1, cv_resonator_model;

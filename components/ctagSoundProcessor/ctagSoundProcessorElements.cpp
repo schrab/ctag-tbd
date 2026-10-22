@@ -49,6 +49,7 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     } else {
         // Fallback: run on the audio core at the proven 12-mode resolution.
         part.set_resolution(kResolutionFallback);
+        direct_fallback_prepared_ = true;
         ESP_LOGE("Elements", "helper task unavailable; single-core fallback (12 modes)");
     }
 
@@ -59,6 +60,7 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     }
 #else
     part.set_resolution(kResolutionFallback);
+    direct_fallback_prepared_ = true;
 #endif
 }
 
@@ -229,8 +231,7 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
                 block.blow_in[i] = blow_in[i];
                 block.strike_in[i] = strike_in[i];
             }
-            helper_pending_slot_.store(write_slot, std::memory_order_relaxed);
-            std::atomic_thread_fence(std::memory_order_release);
+            helper_pending_slot_.store(write_slot, std::memory_order_release);
             xTaskNotifyGive(helper_task_);
         }
 
@@ -249,9 +250,33 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         } else {
             // Nothing renderable this block (first block, or the helper missed
             // its deadline). Silence, never the live input.
-            helper_misses_.fetch_add(1, std::memory_order_relaxed);
+            if (helper_block_counter_ > 0) {
+                helper_misses_.fetch_add(1, std::memory_order_relaxed);
+            }
             for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
                 data.buf[i] = 0.f;
+            }
+        }
+
+        // V9 deadline fallback: a run of consecutive misses or over-budget
+        // renders steps the modal count down (52 -> 32 -> 24 -> 16 -> 12).
+        // Core 1 only publishes the request; the helper owns `part`.
+        if (helper_block_counter_ > 0) {
+            const bool struggling =
+                !helper_ready ||
+                helper_overload_.load(std::memory_order_relaxed);
+            if (struggling) {
+                if (++helper_streak_ >= kFallbackStreak) {
+                    helper_streak_ = 0;
+                    if (resolution_step_ + 1 < kNumResolutionSteps) {
+                        ++resolution_step_;
+                        helper_requested_resolution_.store(
+                            kResolutionSteps[resolution_step_],
+                            std::memory_order_release);
+                    }
+                }
+            } else {
+                helper_streak_ = 0;
             }
         }
         ++helper_block_counter_;
@@ -260,6 +285,12 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
 #endif
 
     // Single-core fallback (also the simulator path): render on this core.
+    if (!direct_fallback_prepared_) {
+        // The helper never started, or died at runtime; this core owns `part`
+        // again and must not run it at the 52-mode budget.
+        part.set_resolution(kResolutionFallback);
+        direct_fallback_prepared_ = true;
+    }
     *part.mutable_patch() = patch;
     part.set_resonator_model((elements::ResonatorModel) rModel);
     part.set_easter_egg(ee);
@@ -275,10 +306,16 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
 
 ctagSoundProcessorElements::~ctagSoundProcessorElements() {
 #ifndef TBD_SIM
-    StopHelper();
+    // Only tear down the renderer before the buffers it writes into.
+    if (!StopHelper()) {
+        // Force-deleted; StopHelper already waited for the core to drop it.
+        ESP_LOGW("Elements", "helper task force-deleted; freeing reverb buffer");
+    }
 #endif
-    heap_caps_free(reverb_buffer);
-    reverb_buffer = nullptr;
+    if (reverb_buffer != nullptr) {
+        heap_caps_free(reverb_buffer);
+        reverb_buffer = nullptr;
+    }
 }
 
 #ifndef TBD_SIM
@@ -297,6 +334,10 @@ bool ctagSoundProcessorElements::StartHelper() {
     helper_overload_.store(false, std::memory_order_relaxed);
     helper_stack_high_water_.store(-1, std::memory_order_relaxed);
     helper_misses_.store(0, std::memory_order_relaxed);
+    helper_requested_resolution_.store(kResolutionFull, std::memory_order_relaxed);
+    helper_applied_resolution_ = kResolutionFull;
+    resolution_step_ = 0;
+    helper_streak_ = 0;
 
     BaseType_t ok = xTaskCreatePinnedToCore(
         HelperTaskEntry, "Elements", kHelperTaskStack, this,
@@ -306,10 +347,11 @@ bool ctagSoundProcessorElements::StartHelper() {
         ESP_LOGE("Elements", "helper task creation failed");
         return false;
     }
-    // Wait up to 20 ms for the task to start.
+    // Wait up to ~200 ms for the task to start. Time-based (CONFIG_FREERTOS_HZ
+    // is 100, so pdMS_TO_TICKS(1) is 0 ticks and would be a bare yield).
     for (int i = 0; i < 20; ++i) {
         if (helper_running_.load(std::memory_order_acquire)) break;
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     if (!helper_running_.load(std::memory_order_acquire)) {
         vTaskDelete(helper_task_);
@@ -320,18 +362,27 @@ bool ctagSoundProcessorElements::StartHelper() {
     return true;
 }
 
-void ctagSoundProcessorElements::StopHelper() {
-    if (helper_task_ == nullptr) return;
+bool ctagSoundProcessorElements::StopHelper() {
+    if (helper_task_ == nullptr) return true;
     helper_stop_.store(true, std::memory_order_release);
     xTaskNotifyGive(helper_task_);
-    for (int i = 0; i < 100; ++i) {
+    // Wait up to ~500 ms of real time for the helper to leave its render and
+    // delete itself. pdMS_TO_TICKS(1) == 0 at CONFIG_FREERTOS_HZ=100, so a
+    // 1 ms delay would not actually wait.
+    for (int i = 0; i < 50; ++i) {
         if (!helper_running_.load(std::memory_order_acquire)) break;
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
-    if (helper_running_.load(std::memory_order_acquire)) {
+    bool stopped = !helper_running_.load(std::memory_order_acquire);
+    if (!stopped) {
+        // Last resort: the task is wedged. Delete it, then let the other core
+        // observe the deletion before the caller frees the reverb buffer.
+        ESP_LOGE("Elements", "helper task did not stop; deleting");
         vTaskDelete(helper_task_);
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
     helper_task_ = nullptr;
+    return stopped;
 }
 
 void ctagSoundProcessorElements::HelperTaskEntry(void *arg) {
@@ -353,11 +404,18 @@ void ctagSoundProcessorElements::HelperTask() {
             HelperBlock& block = helper_blocks_[slot];
             const std::uint32_t seq = block.seq;
 
+            // Measure the whole per-block cost: resolution change, patch
+            // snapshot copy, model/EE apply, then Part::Process (V9 budget).
+            const std::uint32_t start = esp_cpu_get_cycle_count();
+            const std::size_t requested =
+                helper_requested_resolution_.load(std::memory_order_acquire);
+            if (requested != helper_applied_resolution_) {
+                part.set_resolution(requested);
+                helper_applied_resolution_ = requested;
+            }
             part.set_resonator_model((elements::ResonatorModel) block.resonator_model);
             part.set_easter_egg(block.easter_egg);
             *part.mutable_patch() = block.patch;
-
-            const std::uint32_t start = esp_cpu_get_cycle_count();
             part.Process(block.perf_state, block.blow_in, block.strike_in,
                          block.main, block.aux, kBlockSize);
             const std::uint32_t cycles = esp_cpu_get_cycle_count() - start;
