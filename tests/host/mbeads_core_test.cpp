@@ -53,6 +53,15 @@ struct BlockStats {
   double rms() const {
     return samples ? std::sqrt(sum_squares / static_cast<double>(samples)) : 0.0;
   }
+
+  void Add(const beads::FloatFrame* frames, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+      finite &= IsFinite(frames[i].l) && IsFinite(frames[i].r);
+      sum_squares += static_cast<double>(frames[i].l) * frames[i].l +
+                     static_cast<double>(frames[i].r) * frames[i].r;
+      samples += 2;
+    }
+  }
 };
 
 bool Expect(bool condition, const char* what) {
@@ -342,6 +351,206 @@ bool TestSnapshotReads(uint8_t* buffers[]) {
   return ok;
 }
 
+
+bool TestHelperSplitRatio() {
+  bool ok = true;
+  int to_helper = 0;
+  for (int i = 0; i < 16; ++i) {
+    if (beads::Processor::HelperOwnsTrigger(i, 16, 9)) ++to_helper;
+  }
+  ok &= Expect(to_helper == 9, "7/9 split sends 9 of 16 triggers to helper");
+  ok &= Expect(!beads::Processor::HelperOwnsTrigger(0, 0, 0),
+               "zero total sends no triggers");
+  return ok;
+}
+
+struct SplitRunResult {
+  BlockStats stats;
+  BlockStats helper_stats;
+  int core_active = 0;
+  int helper_active = 0;
+};
+
+SplitRunResult RunSplitCloud(
+    beads::Processor* processor,
+    uint8_t* buffers[],
+    uint16_t* reverb_buffer,
+    int core_cap,
+    int helper_cap) {
+  processor->Init(buffers, reverb_buffer, kHostSampleRate);
+  processor->Configure(beads::Processor::MEDIA_DIGITAL, false);
+  processor->SetMaxActiveGrains(core_cap);
+  processor->SetHelperMaxActiveGrains(helper_cap);
+
+  beads::Parameters parameters;
+  parameters.time.base = 0.02f;
+  parameters.time.attenuverter = 0.0f;
+  parameters.time.has_cv = false;
+  parameters.time.cv = 0.0f;
+  parameters.size.base = 1.0f;
+  parameters.size.attenuverter = 0.0f;
+  parameters.size.has_cv = false;
+  parameters.size.cv = 0.0f;
+  parameters.shape.base = 0.5f;
+  parameters.shape.attenuverter = 0.0f;
+  parameters.shape.has_cv = false;
+  parameters.shape.cv = 0.0f;
+  parameters.pitch.base = 0.5f;
+  parameters.pitch.attenuverter = 0.0f;
+  parameters.pitch.has_cv = false;
+  parameters.pitch.cv = 0.0f;
+  parameters.monophonic_mode = false;
+
+  beads::ModulatedParameter density;
+  density.base = 0.0f;  // deterministic 130.81278 Hz trigger train
+  density.cv = 0.0f;
+
+  beads::Processor::MixParameters mix;
+  mix.feedback = 0.0f;
+  mix.dry_wet = 1.0f;
+  mix.reverb_amount = 0.0f;
+  mix.output_gate = false;
+
+  stmlib::GateFlags held_gate[kBlockSize];
+  bool freeze[kBlockSize];
+  for (size_t i = 0; i < kBlockSize; ++i) {
+    held_gate[i] = stmlib::GATE_FLAG_HIGH;
+    freeze[i] = false;
+  }
+
+  beads::Processor::GrainHelperBlock blocks[2] = {};
+  beads::FloatFrame helper_out[2][kBlockSize] = {};
+  int write_slot = 0;
+  bool have_helper = false;
+  BlockStats split_stats;
+  BlockStats helper_stats;
+  float phase = 0.0f;
+  double sine_step = kTwoPi * 220.0 / kHostSampleRate;
+
+  const int num_blocks = 2000;
+  for (int b = 0; b < num_blocks; ++b) {
+    beads::FloatFrame in[kBlockSize];
+    beads::FloatFrame out[kBlockSize];
+    for (size_t i = 0; i < kBlockSize; ++i) {
+      in[i].l = 0.25f * std::sin(phase);
+      in[i].r = in[i].l;
+      phase += sine_step;
+    }
+
+    const beads::FloatFrame* extra = have_helper ? helper_out[write_slot ^ 1] : nullptr;
+    processor->Process(
+        beads::SEED_BUTTON_STATE_OFF,
+        held_gate,
+        freeze,
+        density,
+        parameters,
+        mix,
+        in,
+        out,
+        kBlockSize,
+        &blocks[write_slot],
+        extra);
+
+    beads::FloatFrame helper_block_out[kBlockSize];
+    processor->RenderHelperGrains(blocks[write_slot], helper_block_out);
+    std::memcpy(helper_out[write_slot], helper_block_out, sizeof(helper_block_out));
+    have_helper = true;
+
+    if (b >= 200) {
+      split_stats.Add(out, kBlockSize);
+      helper_stats.Add(helper_block_out, kBlockSize);
+    }
+    write_slot ^= 1;
+  }
+
+  SplitRunResult result;
+  result.stats = split_stats;
+  result.helper_stats = helper_stats;
+  result.core_active = processor->ActiveGrains();
+  result.helper_active = processor->HelperActiveGrains();
+  return result;
+}
+
+BlockStats RunSingleDense16(
+    uint8_t* buffers[],
+    uint16_t* reverb_buffer) {
+  beads::Processor processor;
+  processor.Init(buffers, reverb_buffer, kHostSampleRate);
+  processor.Configure(beads::Processor::MEDIA_DIGITAL, false);
+  processor.SetMaxActiveGrains(16);
+  processor.SetHelperMaxActiveGrains(0);
+
+  beads::Parameters parameters;
+  parameters.time.base = 0.02f;
+  parameters.time.attenuverter = 0.0f;
+  parameters.time.has_cv = false;
+  parameters.time.cv = 0.0f;
+  parameters.size.base = 1.0f;
+  parameters.size.attenuverter = 0.0f;
+  parameters.size.has_cv = false;
+  parameters.size.cv = 0.0f;
+  parameters.shape.base = 0.5f;
+  parameters.shape.attenuverter = 0.0f;
+  parameters.shape.has_cv = false;
+  parameters.shape.cv = 0.0f;
+  parameters.pitch.base = 0.5f;
+  parameters.pitch.attenuverter = 0.0f;
+  parameters.pitch.has_cv = false;
+  parameters.pitch.cv = 0.0f;
+  parameters.monophonic_mode = false;
+
+  beads::ModulatedParameter density;
+  density.base = 0.0f;  // deterministic 130.81278 Hz trigger train
+  density.cv = 0.0f;
+
+  beads::Processor::MixParameters mix;
+  mix.feedback = 0.0f;
+  mix.dry_wet = 1.0f;
+  mix.reverb_amount = 0.0f;
+  mix.output_gate = false;
+
+  stmlib::GateFlags held_gate[kBlockSize];
+  bool freeze[kBlockSize];
+  for (size_t i = 0; i < kBlockSize; ++i) {
+    held_gate[i] = stmlib::GATE_FLAG_HIGH;
+    freeze[i] = false;
+  }
+
+  BlockStats single_stats;
+  float phase = 0.0f;
+  double sine_step = kTwoPi * 220.0 / kHostSampleRate;
+
+  const int blocks = 2000;
+  for (int b = 0; b < blocks; ++b) {
+    beads::FloatFrame in[kBlockSize];
+    beads::FloatFrame out[kBlockSize];
+    for (size_t i = 0; i < kBlockSize; ++i) {
+      in[i].l = 0.25f * std::sin(phase);
+      in[i].r = in[i].l;
+      phase += sine_step;
+    }
+
+    processor.Process(
+        beads::SEED_BUTTON_STATE_OFF,
+        held_gate,
+        freeze,
+        density,
+        parameters,
+        mix,
+        in,
+        out,
+        kBlockSize,
+        nullptr,
+        nullptr);
+
+    if (b >= 200) {
+      single_stats.Add(out, kBlockSize);
+    }
+  }
+
+  return single_stats;
+}
+
 int main() {
   bool ok = true;
 
@@ -375,7 +584,7 @@ int main() {
               kDelayBanks * kDelayBankBytes,
               kReverbSamples * sizeof(uint16_t));
   // ~30.7KB on a 64-bit host; keep a loose bound so object bloat is noticed.
-  ok &= Expect(sizeof(beads::Processor) <= 40 * 1024,
+  ok &= Expect(sizeof(beads::Processor) <= 48 * 1024,
                "sizeof(beads::Processor) stays within budget");
 
   // --- Trigger generator rate ---------------------------------------------
@@ -590,6 +799,27 @@ int main() {
   ok &= Expect(dirty_tape.finite, "32 blocks of Dirty Tape are finite");
   ok &= Expect(dirty_tape.rms() > 0.0, "Dirty Tape output is non-silent");
   std::printf("  rms = %.6f\n", dirty_tape.rms());
+
+  // --- Split helper path (second core) -------------------------------
+  ok &= TestHelperSplitRatio();
+
+  beads::Processor split_processor;
+  const SplitRunResult split =
+      RunSplitCloud(&split_processor, buffers, reverb_buffer, 7, 9);
+  ok &= Expect(split.core_active <= 7, "core player respects 7-grain cap");
+  ok &= Expect(split.helper_active <= 9, "helper player respects 9-grain cap");
+
+  ok &= Expect(split.core_active + split.helper_active >= 16,
+               "split cloud reaches at least 16 active grains");
+  ok &= Expect(split.helper_stats.rms() > 0.01,
+               "helper player produces audible output");
+  ok &= Expect(split.stats.rms() > 0.01,
+               "combined split cloud is audible");
+
+  const BlockStats single16 = RunSingleDense16(buffers, reverb_buffer);
+  ok &= Expect(split.stats.rms() > 0.5 * single16.rms() &&
+               split.stats.rms() < 2.0 * single16.rms(),
+               "split level is within 6 dB of a single 16-grain cloud");
 
   for (size_t i = 0; i < kDelayBanks; ++i) {
     std::free(buffers[i]);
