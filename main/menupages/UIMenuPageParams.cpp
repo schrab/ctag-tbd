@@ -300,6 +300,13 @@ namespace CTAG {
                 }
             } else if (mode == MODE_EDIT) {
                 if (btnId == 2 && !longPress) {
+                    // Momentary trigger for "play" param: pulse instead of value edit.
+                    if (paramCount > 0 && cursor < paramCount &&
+                        strcmp(params[cursor].id, "play") == 0) {
+                        SoundProcessorManager::SetChannelParamValue(chan, "play", "current", 1);
+                        doRedraw();
+                        return;
+                    }
                     mode = MODE_VALUEEDIT;
                     encoderAccel = 0;
                     lastEncDir = 0;

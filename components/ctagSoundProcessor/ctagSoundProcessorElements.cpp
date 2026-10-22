@@ -39,6 +39,14 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     assert(reverb_buffer != nullptr);
 
     part.Init(reverb_buffer);
+
+#ifndef TBD_SIM
+    static bool perf_enabled = false;
+    if (!perf_enabled) {
+        CTAG::INSTRUMENTATION::PerfMonitor::EnableLogging(true, 5000, 1, 5);
+        perf_enabled = true;
+    }
+#endif
 }
 
 void ctagSoundProcessorElements::Process(const ProcessData &data) {
