@@ -124,4 +124,15 @@ else()
             -ffast-math
             -DTEST
             )
+
+    # TEMPORARY CPU-SPIKE: the grain renderer is inlined into processor.cc.
+    # ESP-IDF defaults to -Os; measure -O2 for the hot Beads translation unit.
+    # This must appear after -Os on the command line to take effect.
+    set_source_files_properties(eurorack/beads/dsp/processor.cc
+            PROPERTIES COMPILE_OPTIONS "-O2")
+
+    # TEMPORARY CPU-SPIKE: linear-interpolation measurement variant. Remove
+    # this block (and rebuild) to return to the shipped Hermite path.
+    # target_compile_options(${COMPONENT_LIB} PRIVATE
+    #         -DBEADS_SPIKE_LINEAR_INTERPOLATION)
 endif()

@@ -32,6 +32,33 @@ respective component folders / files if different from this license.
 
 using namespace CTAG::SP;
 
+// ============================================================================
+// TEMPORARY CPU-SPIKE HOOKS (remove after the grain-budget recon)
+//
+// Allows the debug shell to override the normal 4-dry / 2-reverb grain cap and
+// to read back how many grains were actually rendering. The override defaults
+// to -1 (disabled), so normal firmware behaviour is unchanged unless a host
+// explicitly calls /debug/setGrainCap. No user-facing parameter is added.
+// ============================================================================
+namespace {
+    std::atomic<int> gSpikeGrainCap{-1};       // -1 = use normal cap logic
+    std::atomic<int> gSpikeActiveGrains{-1};   // -1 = plugin not loaded
+}
+
+extern "C" int mbeads_spike_set_grain_cap(int cap) {
+    if (cap < -1) cap = -1;
+    if (cap > 32) cap = 32;
+    return gSpikeGrainCap.exchange(cap);
+}
+
+extern "C" int mbeads_spike_get_grain_cap() {
+    return gSpikeGrainCap.load();
+}
+
+extern "C" int mbeads_spike_get_active_grains() {
+    return gSpikeActiveGrains.load();
+}
+
 void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
     (void) blockSize;
     (void) blockPtr;
@@ -66,6 +93,7 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
             reverb_buffer_ = nullptr;
         }
         initialized_ = false;
+        gSpikeActiveGrains.store(-1);  // TEMP CPU-SPIKE
         return;
     }
 
@@ -83,6 +111,8 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
     // runs again when the media parameter changes (see Process()).
     last_media_ = 0;
     initialized_ = true;
+    // TEMP CPU-SPIKE: report 0 active grains until the first Process().
+    gSpikeActiveGrains.store(0);
 
 #ifndef TBD_SIM
     // Performance logging is process-wide and must only be started once, no
@@ -239,7 +269,11 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     // budget while leaving the default patch (0-1 grains) untouched.
     const bool reverb_active =
         reverb * reverb * 0.9f > beads::Processor::kReverbActiveThreshold;
-    processor.SetMaxActiveGrains(reverb_active ? 2 : 4);
+    // TEMP CPU-SPIKE: /debug/setGrainCap overrides the production cap. With no
+    // override the original 4-dry / 2-reverb policy is preserved exactly.
+    const int spike_cap = gSpikeGrainCap.load();
+    processor.SetMaxActiveGrains(
+        spike_cap >= 0 ? spike_cap : (reverb_active ? 2 : 4));
 
 #ifndef TBD_SIM
     {
@@ -252,6 +286,8 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
 #ifndef TBD_SIM
     }
 #endif
+    // TEMP CPU-SPIKE: expose the post-block active grain count.
+    gSpikeActiveGrains.store(processor.ActiveGrains());
 
     for (std::size_t i = 0; i < kBlockSize; ++i) {
         data.buf[2 * i] = out_[i].l;
@@ -260,6 +296,8 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
 }
 
 ctagSoundProcessorMbeads::~ctagSoundProcessorMbeads() {
+    // TEMP CPU-SPIKE: mark the debug readout invalid once the plugin is gone.
+    gSpikeActiveGrains.store(-1);
     if (delay_buffer_ != nullptr) {
         heap_caps_free(delay_buffer_);
         delay_buffer_ = nullptr;

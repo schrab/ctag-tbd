@@ -41,6 +41,12 @@ respective component folders / files if different from this license.
 using namespace std;
 using namespace rapidjson;
 
+// TEMP CPU-SPIKE: Mbeads grain-cap override/getters, implemented in
+// components/ctagSoundProcessor/ctagSoundProcessorMbeads.cpp.
+extern "C" int mbeads_spike_set_grain_cap(int cap);
+extern "C" int mbeads_spike_get_grain_cap();
+extern "C" int mbeads_spike_get_active_grains();
+
 namespace {
     const char *TAG = "DebugUI";
     const char STX = 0x02;
@@ -166,7 +172,44 @@ namespace CTAG {
                            to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0) +
                            ",\"audioCycles\":" +
                            to_string(AUDIO::SoundProcessorManager::GetLastAudioTaskCycles()) +
+                           // TEMP CPU-SPIKE: -1 = no override / plugin absent.
+                           ",\"activeGrains\":" +
+                           to_string(mbeads_spike_get_active_grains()) +
+                           ",\"grainCapOverride\":" +
+                           to_string(mbeads_spike_get_grain_cap()) +
                            "}";
+                return true;
+            }
+
+            if (s == "/debug/setGrainCap") {
+                // TEMP CPU-SPIKE: explicit Mbeads grain-cap override for the
+                // CPU budget sweep. value = -1 restores the normal cap.
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing value\"}";
+                    return true;
+                }
+                const int old_cap = mbeads_spike_set_grain_cap(d["value"].GetInt());
+                response = "{\"ok\":1,\"old\":" + to_string(old_cap) +
+                           ",\"cap\":" + to_string(mbeads_spike_get_grain_cap()) + "}";
+                return true;
+            }
+
+            if (s == "/debug/setActivePlugin") {
+                // TEMP CPU-SPIKE: deterministic plugin load for the hardware
+                // sweep (the Serial API is not compiled into this build).
+                if (!d.HasMember("id") || !d["id"].IsString()) {
+                    response = "{\"error\":\"missing id\"}";
+                    return true;
+                }
+                int ch = 0;
+                if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
+                if (ch < 0 || ch > 1) {
+                    response = "{\"error\":\"bad channel\"}";
+                    return true;
+                }
+                AUDIO::SoundProcessorManager::SetSoundProcessorChannel(
+                    ch, d["id"].GetString());
+                response = "{\"ok\":1}";
                 return true;
             }
 
