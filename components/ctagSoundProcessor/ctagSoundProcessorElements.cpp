@@ -44,6 +44,10 @@ namespace {
     std::atomic<int> gElementsDebugHelperStack{-1};   // -1 = plugin not loaded
     std::atomic<int> gElementsDebugHelperResolution{0};
     std::atomic<int> gElementsDebugHelperMisses{0};
+    // Debug-only modal-count override. -1 = production auto ladder.
+    // Deliberately global and persistent: Task 3 sets it, reloads the plugin,
+    // and expects it to still be in force. Never reset by plugin teardown.
+    std::atomic<int> gElementsDebugModeOverride{-1};
 }
 
 extern "C" int elements_debug_get_helper_cycles() {
@@ -68,6 +72,23 @@ extern "C" int elements_debug_get_helper_resolution() {
 
 extern "C" int elements_debug_get_helper_misses() {
     return gElementsDebugHelperMisses.load();
+}
+
+extern "C" int elements_debug_get_mode_override() {
+    return gElementsDebugModeOverride.load();
+}
+
+// modes <= 0 selects the production auto ladder (-1); otherwise clamp to the
+// measured-safe band [12, 56].
+extern "C" int elements_debug_set_mode_override(int modes) {
+    if (modes <= 0) {
+        modes = -1;
+    } else if (modes < 12) {
+        modes = 12;
+    } else if (modes > 56) {
+        modes = 56;
+    }
+    return gElementsDebugModeOverride.exchange(modes);
 }
 
 void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
@@ -344,12 +365,24 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
             }
         }
 
-        // V9 deadline fallback: a run of consecutive misses or over-budget
-        // renders steps the modal count down (52 -> 32 -> 24 -> 16 -> 12).
-        // Core 1 only publishes the request; the helper owns `part`. At the
-        // 12-mode floor another such run requests a stop and hands the render
-        // back to this core (the helper deletes itself; we never touch `part`).
-        if (helper_block_counter_ > 0) {
+        // Debug mode override: pin the modal count for measurement. While set,
+        // the auto ladder and the V9 single-core handoff are skipped entirely;
+        // the helper still applies the request at the top of its render, so
+        // core 1 never touches `part`. The auto ladder resumes from its old
+        // step if the override is cleared back to -1.
+        const int mode_override =
+            gElementsDebugModeOverride.load(std::memory_order_relaxed);
+        if (mode_override >= 0) {
+            const std::size_t requested = static_cast<std::size_t>(mode_override);
+            if (helper_requested_resolution_.load(std::memory_order_relaxed) !=
+                requested) {
+                helper_requested_resolution_.store(requested,
+                                                   std::memory_order_release);
+            }
+            helper_streak_ = 0;
+        } else if (helper_block_counter_ > 0) {
+            // Production auto ladder: 52 -> 32 -> 24 -> 16 -> 12 after a run of
+            // consecutive struggling blocks, then the V9 single-core handoff.
             const bool struggling =
                 !helper_ready ||
                 helper_overload_.load(std::memory_order_relaxed);

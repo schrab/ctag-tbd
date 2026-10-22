@@ -60,6 +60,8 @@ extern "C" int elements_debug_get_helper_overload();
 extern "C" int elements_debug_get_helper_stack_high_water();
 extern "C" int elements_debug_get_helper_resolution();
 extern "C" int elements_debug_get_helper_misses();
+extern "C" int elements_debug_get_mode_override();
+extern "C" int elements_debug_set_mode_override(int modes);
 
 namespace {
     const char *TAG = "DebugUI";
@@ -216,6 +218,8 @@ namespace CTAG {
                            to_string(elements_debug_get_helper_resolution()) +
                            ",\"elementsHelperMisses\":" +
                            to_string(elements_debug_get_helper_misses()) +
+                           ",\"elementsHelperModeOverride\":" +
+                           to_string(elements_debug_get_mode_override()) +
                            "}";
                 return true;
             }
@@ -239,6 +243,22 @@ namespace CTAG {
                 const int old_cap = mbeads_debug_set_helper_cap(d["value"].GetInt());
                 response = "{\"ok\":1,\"old\":" + to_string(old_cap) +
                            ",\"cap\":" + to_string(mbeads_debug_get_helper_cap()) + "}";
+                return true;
+            }
+
+            if (s == "/debug/setElementsMode") {
+                // Debug-only Elements modal-count override, e.g.
+                // {"cmd":"/debug/setElementsMode","value":32}.
+                // value <= 0 restores the production auto ladder; otherwise it
+                // is clamped to [12, 56] by the setter. Persists across plugin
+                // reloads so a measurement session survives setActivePlugin.
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing value\"}";
+                    return true;
+                }
+                const int old_mode = elements_debug_set_mode_override(d["value"].GetInt());
+                response = "{\"ok\":1,\"old\":" + to_string(old_mode) +
+                           ",\"mode\":" + to_string(elements_debug_get_mode_override()) + "}";
                 return true;
             }
 
