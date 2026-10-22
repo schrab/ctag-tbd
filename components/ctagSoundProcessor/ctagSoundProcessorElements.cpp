@@ -35,23 +35,46 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     model = std::make_unique<ctagSPDataModel>(id, isStereo);
     LoadPreset(0);
 
+    // The helper handoff carries exactly one 32-sample block.
+    assert(static_cast<std::size_t>(bufSz) == kBlockSize);
+
     reverb_buffer = (uint16_t *) heap_caps_malloc(32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
     assert(reverb_buffer != nullptr);
 
     part.Init(reverb_buffer);
 
 #ifndef TBD_SIM
+    if (StartHelper()) {
+        part.set_resolution(kResolutionFull);
+    } else {
+        // Fallback: run on the audio core at the proven 12-mode resolution.
+        part.set_resolution(kResolutionFallback);
+        ESP_LOGE("Elements", "helper task unavailable; single-core fallback (12 modes)");
+    }
+
     static bool perf_enabled = false;
     if (!perf_enabled) {
         CTAG::INSTRUMENTATION::PerfMonitor::EnableLogging(true, 5000, 1, 5);
         perf_enabled = true;
     }
+#else
+    part.set_resolution(kResolutionFallback);
 #endif
 }
 
 void ctagSoundProcessorElements::Process(const ProcessData &data) {
-    // Write into Part's internal patch_ (Part::Process reads from patch_, not a param)
-    elements::Patch* p = part.mutable_patch();
+    if (static_cast<std::size_t>(bufSz) != kBlockSize) {
+        // The helper handoff is sized for one fixed 32-sample block.
+        for (int i = 0; i < 2 * bufSz; i++) {
+            data.buf[i] = 0.f;
+        }
+        return;
+    }
+
+    // Fill the core-1 owned patch snapshot. The helper (or the single-core
+    // fallback) copies it into elements::Part; core 1 never writes to Part in
+    // helper mode.
+    elements::Patch* p = &patch;
     p->exciter_envelope_shape = exciter_envelope_shape / 4095.f;
     if (cv_exciter_envelope_shape != -1)
         p->exciter_envelope_shape = fabsf(data.cv[cv_exciter_envelope_shape]);
@@ -172,33 +195,193 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     if (cv_resonator_model != -1)
         rModel = (int)(floorf(data.cv[cv_resonator_model] * 3.f)) % 3;
     CONSTRAIN(rModel, 0, 2);
-    part.set_resonator_model((elements::ResonatorModel)rModel);
 
     bool ee = easter_egg;
     if (trig_easter_egg != -1)
         ee = data.trig[trig_easter_egg] == 1;
-    part.set_easter_egg(ee);
 
 #ifndef TBD_SIM
     PERF_MEASURE("Elements");
 #endif
-    float blow_in[bufSz], strike_in[bufSz], out[bufSz], aux[bufSz];
-    for (int i = 0; i < bufSz; i++) {
+    float blow_in[kBlockSize], strike_in[kBlockSize];
+    for (std::size_t i = 0; i < kBlockSize; i++) {
         strike_in[i] = data.buf[i * 2];
         blow_in[i] = data.buf[i * 2 + 1];
     }
 
-    part.Process(perfState, blow_in, strike_in, out, aux, bufSz);
+#ifndef TBD_SIM
+    const bool helper_available = (helper_task_ != nullptr) &&
+                                  helper_running_.load(std::memory_order_acquire);
+    if (helper_available) {
+        // Hand this block to the core-0 helper. Publishing is gated on an empty
+        // pending slot so a block can never be overwritten in flight (that
+        // would leave its slot marked busy forever).
+        const int write_slot = static_cast<int>(helper_block_counter_ & 1u);
+        if (helper_pending_slot_.load(std::memory_order_acquire) < 0 &&
+            helper_slot_free_[write_slot].exchange(false, std::memory_order_acquire)) {
+            HelperBlock& block = helper_blocks_[write_slot];
+            block.perf_state = perfState;
+            block.patch = patch;
+            block.resonator_model = rModel;
+            block.easter_egg = ee;
+            block.seq = helper_block_counter_;
+            for (std::size_t i = 0; i < kBlockSize; i++) {
+                block.blow_in[i] = blow_in[i];
+                block.strike_in[i] = strike_in[i];
+            }
+            helper_pending_slot_.store(write_slot, std::memory_order_relaxed);
+            std::atomic_thread_fence(std::memory_order_release);
+            xTaskNotifyGive(helper_task_);
+        }
 
-    for (int i = 0; i < bufSz; i++) {
+        // One block of latency: the previous block's render is read back here.
+        const int read_slot = write_slot ^ 1;
+        const bool helper_ready =
+            helper_block_counter_ > 0 &&
+            helper_done_seq_[read_slot].load(std::memory_order_acquire) ==
+                helper_block_counter_ - 1;
+        if (helper_ready) {
+            const HelperBlock& block = helper_blocks_[read_slot];
+            for (std::size_t i = 0; i < kBlockSize; i++) {
+                data.buf[i * 2] = block.main[i] * 0.125f;
+                data.buf[i * 2 + 1] = block.aux[i] * 0.125f;
+            }
+        } else {
+            // Nothing renderable this block (first block, or the helper missed
+            // its deadline). Silence, never the live input.
+            helper_misses_.fetch_add(1, std::memory_order_relaxed);
+            for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
+                data.buf[i] = 0.f;
+            }
+        }
+        ++helper_block_counter_;
+        return;
+    }
+#endif
+
+    // Single-core fallback (also the simulator path): render on this core.
+    *part.mutable_patch() = patch;
+    part.set_resonator_model((elements::ResonatorModel) rModel);
+    part.set_easter_egg(ee);
+
+    float out[kBlockSize], aux[kBlockSize];
+    part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);
+
+    for (std::size_t i = 0; i < kBlockSize; i++) {
         data.buf[i * 2] = out[i] * 0.125f;
         data.buf[i * 2 + 1] = aux[i] * 0.125f;
     }
 }
 
 ctagSoundProcessorElements::~ctagSoundProcessorElements() {
+#ifndef TBD_SIM
+    StopHelper();
+#endif
     heap_caps_free(reverb_buffer);
+    reverb_buffer = nullptr;
 }
+
+#ifndef TBD_SIM
+bool ctagSoundProcessorElements::StartHelper() {
+    if (helper_task_ != nullptr) return true;
+    helper_stop_.store(false, std::memory_order_release);
+    helper_running_.store(false, std::memory_order_release);
+    helper_pending_slot_.store(-1, std::memory_order_relaxed);
+    helper_done_seq_[0].store(UINT32_MAX, std::memory_order_relaxed);
+    helper_done_seq_[1].store(UINT32_MAX, std::memory_order_relaxed);
+    helper_slot_free_[0].store(true, std::memory_order_relaxed);
+    helper_slot_free_[1].store(true, std::memory_order_relaxed);
+    helper_block_counter_ = 0;
+    helper_cycles_.store(0, std::memory_order_relaxed);
+    helper_max_cycles_.store(0, std::memory_order_relaxed);
+    helper_overload_.store(false, std::memory_order_relaxed);
+    helper_stack_high_water_.store(-1, std::memory_order_relaxed);
+    helper_misses_.store(0, std::memory_order_relaxed);
+
+    BaseType_t ok = xTaskCreatePinnedToCore(
+        HelperTaskEntry, "Elements", kHelperTaskStack, this,
+        kHelperTaskPriority, &helper_task_, kHelperTaskCore);
+    if (ok != pdPASS) {
+        helper_task_ = nullptr;
+        ESP_LOGE("Elements", "helper task creation failed");
+        return false;
+    }
+    // Wait up to 20 ms for the task to start.
+    for (int i = 0; i < 20; ++i) {
+        if (helper_running_.load(std::memory_order_acquire)) break;
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (!helper_running_.load(std::memory_order_acquire)) {
+        vTaskDelete(helper_task_);
+        helper_task_ = nullptr;
+        ESP_LOGE("Elements", "helper task did not start");
+        return false;
+    }
+    return true;
+}
+
+void ctagSoundProcessorElements::StopHelper() {
+    if (helper_task_ == nullptr) return;
+    helper_stop_.store(true, std::memory_order_release);
+    xTaskNotifyGive(helper_task_);
+    for (int i = 0; i < 100; ++i) {
+        if (!helper_running_.load(std::memory_order_acquire)) break;
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (helper_running_.load(std::memory_order_acquire)) {
+        vTaskDelete(helper_task_);
+    }
+    helper_task_ = nullptr;
+}
+
+void ctagSoundProcessorElements::HelperTaskEntry(void *arg) {
+    static_cast<ctagSoundProcessorElements *>(arg)->HelperTask();
+}
+
+void ctagSoundProcessorElements::HelperTask() {
+    helper_running_.store(true, std::memory_order_release);
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        // Drain one publish; if core 1 managed to publish again while this
+        // render was running, pick it up immediately so no slot stays busy.
+        for (;;) {
+            if (helper_stop_.load(std::memory_order_acquire)) break;
+            const int slot = helper_pending_slot_.exchange(-1, std::memory_order_acq_rel);
+            if (slot < 0) break;
+
+            HelperBlock& block = helper_blocks_[slot];
+            const std::uint32_t seq = block.seq;
+
+            part.set_resonator_model((elements::ResonatorModel) block.resonator_model);
+            part.set_easter_egg(block.easter_egg);
+            *part.mutable_patch() = block.patch;
+
+            const std::uint32_t start = esp_cpu_get_cycle_count();
+            part.Process(block.perf_state, block.blow_in, block.strike_in,
+                         block.main, block.aux, kBlockSize);
+            const std::uint32_t cycles = esp_cpu_get_cycle_count() - start;
+
+            helper_cycles_.store(cycles, std::memory_order_relaxed);
+            if (cycles > helper_max_cycles_.load(std::memory_order_relaxed)) {
+                helper_max_cycles_.store(cycles, std::memory_order_relaxed);
+            }
+            helper_overload_.store(cycles > kAudioBudgetCycles,
+                                   std::memory_order_relaxed);
+            helper_stack_high_water_.store(
+                static_cast<int>(uxTaskGetStackHighWaterMark(nullptr) *
+                                 sizeof(StackType_t)),
+                std::memory_order_relaxed);
+
+            helper_done_seq_[slot].store(seq, std::memory_order_release);
+            helper_slot_free_[slot].store(true, std::memory_order_release);
+        }
+        if (helper_stop_.load(std::memory_order_acquire)) break;
+    }
+    helper_running_.store(false, std::memory_order_release);
+    vTaskDelete(nullptr);
+}
+#endif
 
 void ctagSoundProcessorElements::knowYourself() {
     pMapPar.emplace("frequency", [&](const int val) { frequency = val; });

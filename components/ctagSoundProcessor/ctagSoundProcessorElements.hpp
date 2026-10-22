@@ -20,11 +20,18 @@ respective component folders / files if different from this license.
 ***************/
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <cassert>
 #include "esp_heap_caps.h"
 #include "ctagSoundProcessor.hpp"
 #include "elements/dsp/part.h"
+
+#ifndef TBD_SIM
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_cpu.h>
+#endif
 
 namespace CTAG {
     namespace SP {
@@ -47,6 +54,53 @@ namespace CTAG {
 
         private:
             virtual void knowYourself() override;
+
+            static constexpr std::size_t kBlockSize = 32;
+            // Modal resonator bands: 52 = original, 12 = single-core baseline.
+            static constexpr std::size_t kResolutionFull = 52;
+            static constexpr std::size_t kResolutionFallback = 12;
+
+            // One block handed from the audio task (core 1) to the helper
+            // (core 0). The patch snapshot travels with the block so core 1
+            // never touches elements::Part while the helper renders.
+            struct HelperBlock {
+                elements::PerformanceState perf_state;
+                elements::Patch patch;
+                float blow_in[kBlockSize];
+                float strike_in[kBlockSize];
+                float main[kBlockSize];
+                float aux[kBlockSize];
+                int resonator_model;
+                bool easter_egg;
+                std::uint32_t seq;
+            };
+
+#ifndef TBD_SIM
+            static constexpr std::size_t kHelperTaskStack = 4096;
+            static constexpr UBaseType_t kHelperTaskPriority = configMAX_PRIORITIES - 2;
+            static constexpr BaseType_t kHelperTaskCore = 0;
+            static constexpr std::size_t kHelperSlots = 2;
+            static constexpr std::uint32_t kAudioBudgetCycles = 174150;
+
+            static void HelperTaskEntry(void *arg);
+            void HelperTask();
+            bool StartHelper();
+            void StopHelper();
+
+            TaskHandle_t helper_task_ = nullptr;
+            std::atomic<bool> helper_stop_{false};
+            std::atomic<bool> helper_running_{false};
+            std::atomic<int> helper_pending_slot_{-1};
+            std::atomic<std::uint32_t> helper_done_seq_[kHelperSlots] = {};
+            std::atomic<bool> helper_slot_free_[kHelperSlots] = {};
+            HelperBlock helper_blocks_[kHelperSlots] = {};
+            std::uint32_t helper_block_counter_ = 0;
+            std::atomic<std::uint32_t> helper_cycles_{0};
+            std::atomic<std::uint32_t> helper_max_cycles_{0};
+            std::atomic<bool> helper_overload_{false};
+            std::atomic<int> helper_stack_high_water_{-1};
+            std::atomic<std::uint32_t> helper_misses_{0};
+#endif
 
             uint16_t *reverb_buffer;
             elements::Part part;
