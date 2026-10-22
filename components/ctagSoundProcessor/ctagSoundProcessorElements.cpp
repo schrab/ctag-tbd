@@ -162,7 +162,11 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     CONSTRAIN(freqCv, 0.f, 127.f);
     ps.note = freqCv;
     ps.modulation = 0.f;
-    ps.strength = 0.5f;
+    float str = strength / 4095.f;
+    if (cv_strength != -1)
+        str = fabsf(data.cv[cv_strength]);
+    CONSTRAIN(str, 0.f, 1.f);
+    ps.strength = str;
 
     int rModel = resonator_model;
     if (cv_resonator_model != -1)
@@ -339,6 +343,8 @@ void ctagSoundProcessorElements::knowYourself() {
     pMapCv.emplace("space", [&](const int val) { cv_space = val; });
     pMapPar.emplace("modulation_frequency", [&](const int val) { modulation_frequency = val; });
     pMapCv.emplace("modulation_frequency", [&](const int val) { cv_modulation_frequency = val; });
+    pMapPar.emplace("strength", [&](const int val) { strength = val; });
+    pMapCv.emplace("strength", [&](const int val) { cv_strength = val; });
     pMapPar.emplace("gate", [&](const int val) { gate = val; });
     pMapTrig.emplace("gate", [&](const int val) { trig_gate = val; });
     pMapPar.emplace("easter_egg", [&](const int val) { easter_egg = val; });

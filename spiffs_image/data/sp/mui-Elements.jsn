@@ -173,6 +173,14 @@
    ]
   },
   {
+   "id": "strength",
+   "name": "Strength",
+   "type": "int",
+   "min": 0,
+   "max": 4095,
+   "step": 1
+  },
+  {
    "id": "gate",
    "type": "bool",
    "name": "Gate"

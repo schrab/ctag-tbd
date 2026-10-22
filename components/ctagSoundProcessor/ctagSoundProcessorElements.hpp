@@ -116,6 +116,7 @@ namespace CTAG {
             atomic<int32_t> reverb_lp, cv_reverb_lp;
             atomic<int32_t> space, cv_space;
             atomic<int32_t> modulation_frequency, cv_modulation_frequency;
+            atomic<int32_t> strength, cv_strength;
             atomic<int32_t> gate, trig_gate;
             atomic<int32_t> easter_egg, trig_easter_egg;
         };
