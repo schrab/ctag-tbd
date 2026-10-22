@@ -85,6 +85,7 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
 
 #ifndef TBD_SIM
     if (StartHelper()) {
+        direct_fallback_prepared_ = false;
         part.set_resolution(kResolutionFull);
         helper_applied_resolution_.store(kResolutionFull, std::memory_order_relaxed);
     } else {
@@ -298,8 +299,7 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         ++helper_block_counter_;
         return;
     }
-    const bool helper_available = helper_alive &&
-                                  !helper_stop_.load(std::memory_order_acquire);
+    const bool helper_available = helper_alive && !helper_stopping;
     if (helper_available) {
         // Hand this block to the core-0 helper. Publishing is gated on an empty
         // pending slot so a block can never be overwritten in flight (that
@@ -362,11 +362,11 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
                             kResolutionSteps[resolution_step_],
                             std::memory_order_release);
                     } else {
+                        // No logging here: this is the 32-sample audio
+                        // callback. The destructor emits the warning.
+                        helper_deadline_fallback_ = true;
                         helper_stop_.store(true, std::memory_order_release);
                         xTaskNotifyGive(helper_task_);
-                        ESP_LOGW("Elements",
-                                 "helper still missing deadlines at 12 modes; "
-                                 "falling back to single-core");
                     }
                 }
             } else {
@@ -387,6 +387,10 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
 #ifndef TBD_SIM
         helper_applied_resolution_.store(kResolutionFallback,
                                          std::memory_order_relaxed);
+        // No helper is active any more: stack -1 is the "retired" signal.
+        // Keep the last cycles/max for post-mortem diagnosis.
+        helper_stack_high_water_.store(-1, std::memory_order_relaxed);
+        helper_overload_.store(false, std::memory_order_relaxed);
 #endif
         direct_fallback_prepared_ = true;
     }
@@ -411,6 +415,10 @@ ctagSoundProcessorElements::~ctagSoundProcessorElements() {
         // Force-deleted; StopHelper already waited for the core to drop it.
         ESP_LOGW("Elements", "helper task force-deleted; freeing reverb buffer");
     }
+    if (helper_deadline_fallback_) {
+        ESP_LOGW("Elements",
+                 "helper still missed deadlines at 12 modes; ran single-core");
+    }
     // An unloaded plugin must not report stale helper stats.
     gElementsDebugHelperStack.store(-1);
     gElementsDebugHelperResolution.store(0);
@@ -423,7 +431,13 @@ ctagSoundProcessorElements::~ctagSoundProcessorElements() {
 
 #ifndef TBD_SIM
 bool ctagSoundProcessorElements::StartHelper() {
-    if (helper_task_ != nullptr) return true;
+    if (helper_task_ != nullptr) {
+        if (helper_running_.load(std::memory_order_acquire)) return true;
+        // Stale handle: the helper self-deleted (e.g. after the V9 handoff).
+        // Re-arm instead of pretending a helper exists.
+        helper_task_ = nullptr;
+        direct_fallback_prepared_ = false;
+    }
     helper_stop_.store(false, std::memory_order_release);
     helper_running_.store(false, std::memory_order_release);
     helper_pending_slot_.store(-1, std::memory_order_relaxed);
@@ -441,6 +455,7 @@ bool ctagSoundProcessorElements::StartHelper() {
     helper_applied_resolution_.store(kResolutionFull, std::memory_order_relaxed);
     resolution_step_ = 0;
     helper_streak_ = 0;
+    helper_deadline_fallback_ = false;
 
     BaseType_t ok = xTaskCreatePinnedToCore(
         HelperTaskEntry, "Elements", kHelperTaskStack, this,

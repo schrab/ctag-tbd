@@ -84,6 +84,9 @@ namespace CTAG {
             static constexpr std::uint32_t kAudioBudgetCycles = 174150;
             // V9 deadline fallback: step the modal count down after a run of
             // consecutive misses/overloads (hysteresis, never per block).
+            // The ladder is one-way per plugin instance: a transient core-0
+            // burst can pin a lower count until the plugin is reloaded, so
+            // Task 3 must not read the settled count as a hardware limit.
             static constexpr int kFallbackStreak = 8;
             static constexpr std::size_t kResolutionSteps[] = {
                 kResolutionFull, 32, 24, 16, kResolutionFallback};
@@ -115,6 +118,9 @@ namespace CTAG {
             std::atomic<std::size_t> helper_applied_resolution_{kResolutionFull};
             std::size_t resolution_step_ = 0;
             int helper_streak_ = 0;
+            // Set once when V9 hands the render back to the audio core. The
+            // warning is emitted from the destructor, never from Process().
+            bool helper_deadline_fallback_ = false;
 #endif
 
             uint16_t *reverb_buffer = nullptr;
