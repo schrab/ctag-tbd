@@ -16,7 +16,7 @@
         {"id": "feedback", "current": 0, "cv": -1},
         {"id": "dry_wet", "current": 2048, "cv": -1},
         {"id": "reverb", "current": 0, "cv": -1},
-        {"id": "media", "current": 0},
+        {"id": "quality", "current": 0},
         {"id": "freeze", "current": 0, "trig": -1},
         {"id": "seed", "current": 1, "trig": -1}
       ]

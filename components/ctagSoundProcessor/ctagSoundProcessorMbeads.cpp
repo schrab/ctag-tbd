@@ -505,7 +505,7 @@ void ctagSoundProcessorMbeads::knowYourself() {
     pMapPar.emplace("reverb", [&](const int val) { reverb_ = val; });
     pMapCv.emplace("reverb", [&](const int val) { cv_reverb_ = val; });
 
-    pMapPar.emplace("media", [&](const int val) { media_ = val; });
+    pMapPar.emplace("quality", [&](const int val) { media_ = val; });
 
     pMapPar.emplace("freeze", [&](const int val) { freeze_ = val; });
     pMapTrig.emplace("freeze", [&](const int val) { trig_freeze_ = val; });

@@ -16,7 +16,7 @@
     {"id": "feedback", "name": "Feedback", "type": "int", "min": 0, "max": 4095, "step": 1},
     {"id": "dry_wet", "name": "Dry / Wet", "type": "int", "min": 0, "max": 4095, "step": 1},
     {"id": "reverb", "name": "Reverb", "type": "int", "min": 0, "max": 4095, "step": 1},
-    {"id": "media", "name": "Media", "type": "int", "min": 0, "max": 1, "step": 1},
+    {"id": "quality", "name": "Quality", "type": "int", "min": 0, "max": 1, "step": 1},
     {"id": "freeze", "name": "Freeze", "type": "bool"},
     {"id": "seed", "name": "Seed", "type": "bool"}
   ]
