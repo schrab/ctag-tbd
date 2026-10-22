@@ -14,23 +14,27 @@ Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0).
 Details here: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 CTAG TBD is provided "as is" without any express or implied warranties.
-
-License and copyright details for specific submodules are included in their
-respective component folders / files if different from this license.
 ***************/
+
+#pragma once
 
 #include <atomic>
 #include <cstdint>
 #include <cassert>
+#include <cstring>
 #include "esp_heap_caps.h"
 #include "ctagSoundProcessor.hpp"
 #include "elements/dsp/part.h"
+
+#ifndef TBD_SIM
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#endif
 
 namespace CTAG {
     namespace SP {
         class ctagSoundProcessorElements : public ctagSoundProcessor {
         public:
-            // Allocate from PSRAM — class is too large for the 112KB DRAM arena
             static void* operator new(std::size_t sz) {
                 void* p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
                 if (!p) p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -47,6 +51,42 @@ namespace CTAG {
 
         private:
             virtual void knowYourself() override;
+
+            static constexpr std::size_t kBlockSize = 32;
+
+#ifndef TBD_SIM
+            static constexpr std::size_t kHelperTaskStack = 8192;
+            static constexpr UBaseType_t kHelperTaskPriority = configMAX_PRIORITIES - 2;
+            static constexpr BaseType_t kHelperTaskCore = 0;
+            static constexpr std::size_t kHelperSlots = 2;
+
+            struct HelperBlock {
+                elements::PerformanceState perfState = {};
+                elements::Patch patch = {};
+                elements::ResonatorModel resonator_model = elements::RESONATOR_MODEL_MODAL;
+                bool easter_egg = false;
+                float blow_in[kBlockSize] = {};
+                float strike_in[kBlockSize] = {};
+                float main[kBlockSize] = {};
+                float aux[kBlockSize] = {};
+                bool valid = false;
+            };
+
+            static void HelperTaskEntry(void* arg);
+            void HelperTask();
+            bool StartHelper();
+            void StopHelper();
+
+            TaskHandle_t helper_task_ = nullptr;
+            std::atomic<bool> helper_stop_{false};
+            std::atomic<bool> helper_running_{false};
+            std::atomic<int> helper_pending_slot_{0};
+            std::atomic<std::uint32_t> helper_pending_seq_{0};
+            std::atomic<std::uint32_t> helper_done_seq_[kHelperSlots] = {};
+            std::atomic<bool> helper_slot_free_[kHelperSlots] = {};
+            HelperBlock helper_blocks_[kHelperSlots] = {};
+            std::uint32_t helper_block_counter_ = 0;
+#endif
 
             uint16_t *reverb_buffer;
             elements::Part part;
