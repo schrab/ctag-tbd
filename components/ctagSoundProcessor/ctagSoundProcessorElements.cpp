@@ -24,6 +24,10 @@ respective component folders / files if different from this license.
 #include <cmath>
 #include "stmlib/stmlib.h"
 
+#ifndef TBD_SIM
+#include "perf_monitor.hpp"
+#endif
+
 using namespace CTAG::SP;
 
 void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
