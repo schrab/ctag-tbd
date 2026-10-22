@@ -27,6 +27,7 @@
         { "id": "space", "current": 2047, "cv": -1 },
         { "id": "modulation_frequency", "current": 0, "cv": -1 },
         { "id": "strength", "current": 2048 },
+        { "id": "play", "current": 0 },
         { "id": "gate", "current": 0, "trig": -1 },
         { "id": "easter_egg", "current": 0, "trig": -1 }
       ]

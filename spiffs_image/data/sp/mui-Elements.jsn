@@ -181,6 +181,11 @@
    "step": 1
   },
   {
+   "id": "play",
+   "name": "Play",
+   "type": "bool"
+  },
+  {
    "id": "gate",
    "type": "bool",
    "name": "Gate"

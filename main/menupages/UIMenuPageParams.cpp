@@ -216,6 +216,8 @@ namespace CTAG {
                 lastEncDir = dir;
 
                 int step = delta * (1 + encoderAccel * encoderAccel);
+                if (step > 50) step = 50;
+                if (step < -50) step = -50;
 
                 int val = pi.current + step;
                 if (val < pi.min) val = pi.min;
@@ -297,9 +299,10 @@ namespace CTAG {
                     mode = MODE_EDIT;
                 }
             } else if (mode == MODE_EDIT) {
-                if (btnId == 2 && !longPress && paramCount > 0) {
-                    // enter value edit for selected param
+                if (btnId == 2 && !longPress) {
                     mode = MODE_VALUEEDIT;
+                    encoderAccel = 0;
+                    lastEncDir = 0;
                 } else if (btnId == 2 && longPress && paramCount > 0) {
                     // long press: enter CV mapping for this param
                     mapParamIdx = cursor;

@@ -154,6 +154,8 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     bool gateVal = gate;
     if (trig_gate != -1)
         gateVal = data.trig[trig_gate] == 1;
+    if (play != 0) { gateVal = true; play = 0; }
+    if (trig_play != -1 && data.trig[trig_play] == 1) gateVal = true;
     ps.gate = gateVal;
 
     float freqCv = frequency / 4032.f * 96.f;
@@ -347,6 +349,8 @@ void ctagSoundProcessorElements::knowYourself() {
     pMapCv.emplace("strength", [&](const int val) { cv_strength = val; });
     pMapPar.emplace("gate", [&](const int val) { gate = val; });
     pMapTrig.emplace("gate", [&](const int val) { trig_gate = val; });
+    pMapPar.emplace("play", [&](const int val) { play = val; });
+    pMapTrig.emplace("play", [&](const int val) { trig_play = val; });
     pMapPar.emplace("easter_egg", [&](const int val) { easter_egg = val; });
     pMapTrig.emplace("easter_egg", [&](const int val) { trig_easter_egg = val; });
     isStereo = true;
