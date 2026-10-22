@@ -103,12 +103,12 @@ No new source files are introduced: the helper task lives in the existing Mbeads
 
 | Task | Status | Commit |
 |---|---|---|
-| 0. Freeze the recon baseline | pending | — |
-| 1. Snapshot delay-line read + write-pointer render | pending | — |
-| 2. Helper player, split, extra-wet path | pending | — |
-| 3. Core-0 helper task + 8/8 hardware gate | pending | — |
-| 4. Production 7/9 split (16 grains) + reverb + listening | pending | — |
-| 5. 20-grain tuning + cleanup + docs + final validation | pending | — |
+| 0. Freeze the recon baseline | done | 4b2f1caf |
+| 1. Snapshot delay-line read + write-pointer render | done | 22a56495 |
+| 2. Helper player, split, extra-wet path | done | 01c8e2d8 |
+| 3. Core-0 helper task + 8/8 hardware gate | done | 93b5587b |
+| 4. Production 7/9 split (16 grains) + reverb + listening | done (adaptive 9/8) | 1d410afe |
+| 5. 20-grain tuning + cleanup + docs + final validation | done | (this commit) |
 
 The SDD controller records the authoritative completion state in its ledger; this table is updated with final commits at the end of Task 5.
 

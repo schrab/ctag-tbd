@@ -223,8 +223,7 @@ namespace CTAG {
             }
 
             if (s == "/debug/setActivePlugin") {
-                // TEMP CPU-SPIKE: deterministic plugin load for the hardware
-                // sweep (the Serial API is not compiled into this build).
+                // Debug-only deterministic plugin load for bring-up.
                 if (!d.HasMember("id") || !d["id"].IsString()) {
                     response = "{\"error\":\"missing id\"}";
                     return true;

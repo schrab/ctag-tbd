@@ -773,3 +773,57 @@ inside the budget.
   host harness remain open follow-ups.
 - `cpuOverload` sampled through the debug UART is not a substitute for a
   listening test; the user’s ear is the final gate for audible dropouts.
+
+### Second-core dense mode (v1.1)
+
+The v1.1 continuation (plan:
+`docs/superpowers/plans/2026-10-22-mbeads-second-core-dense-cloud.md`) splits
+Digital grain rendering between the core-1 audio task and a core-0 helper task
+so the cloud can reach 16 simultaneous grains without exceeding the 174,150-cycle
+budget. Vintage stays single-core (16 dry / 8 with reverb); Delay mode stays
+disabled.
+
+Architecture:
+
+- `beads::Processor` gained a second `DelayGranularPlayer helper_player_` and a
+  `GrainHelperBlock` struct. `Processor::Process` gained `helper_block` and
+  `extra_wet` parameters.
+- The audio task keeps codec I/O, delay-line writes, the trigger generator,
+  reverb, dry/wet/feedback and the core player's grains. The helper task owns
+  only the second player's grain rendering.
+- The trigger generator's grains are split deterministically:
+  `HelperOwnsTrigger(counter, total, helper)` = `total > 0 && helper > 0 &&
+  (counter % total) < helper`. With the shipped 16-grain policy this is 7 core /
+  9 helper dry, 8 / 8 with reverb (adaptive on `reverb_active`).
+- The helper renders one complete 32-sample block from a start-of-block
+  delay-line write-pointer snapshot (`DelayLine::ReadFrom`) into a double
+  buffer. The audio task mixes that block, one block later, into the wet bus
+  before the DC blocker/dry-wet/reverb, so it shares feedback and FX.
+- Both players normalize amplitude and pan spread against the shared total
+  active-grain count (`external_active_grains_`), so the split cloud keeps the
+  single-16-grain level and width.
+- A missed helper deadline skips the helper block (sequence-checked double
+  buffer); a failed `xTaskCreatePinnedToCore` falls back to the safe
+  single-core cap (4 dry / 2 reverb).
+- Firmware-only code (FreeRTOS task, `esp_cpu_get_cycle_count`, `TaskHandle_t`)
+  is guarded with `#ifndef TBD_SIM`; the simulator uses the no-helper path.
+
+Helper task: core 0, priority `configMAX_PRIORITIES - 2`, stack 4096 bytes, one
+task for the plugin's lifetime. Double buffer: 2 slots, 32 `FloatFrame` each.
+
+Measured (Digital, worst case Size 4095 / Density 4095, 3 x 20 blocks):
+
+| Split | audioCycles avg | helperCycles avg | helperOverload | Notes |
+|---|---:|---:|---:|---|
+| 8 / 8 dry | ~144k | ~107k | 0 | Task 3 gate (PASS) |
+| 7 / 9 dry | ~135-146k | ~125-129k | 0 | helper over 120k guideline but no overload |
+| 8 / 8 reverb | ~162-168k | ~108-110k | 0 | 4/20 cpuOverload samples |
+| 7 / 9 reverb | ~173-180k | ~132k | 0 | over 170k core threshold; not shipped |
+
+Shipped policy: 16 grains total, 9 helper dry / 8 helper with reverb (adaptive).
+Vintage: 16 dry / 8 reverb, helper idle. Debug endpoints: `/debug/setGrainCap`,
+`/debug/setHelperGrainCap`, `/debug/getAudioStats` (extended with
+`helperActiveGrains`, `helperCycles`, `helperOverload`, `helperStackHighWater`,
+`coreGrainCap`, `helperGrainCap`, `helperGrainCapOverride`, `totalActiveGrains`).
+
+Final image: app partition 0x380000, ~13% free (~0x772b0 bytes).

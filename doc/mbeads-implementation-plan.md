@@ -585,3 +585,10 @@ status, commit, build/test summary, image size, and concerns.
 After Task 3, dispatch one whole-branch review covering the parent commits and
 the Beads submodule commit. Include the submodule diff explicitly; the parent
 diff only shows the gitlink.
+
+## v1.1 — Second-core dense grain cloud
+
+Status: implemented on branch `feat/mbeads` (commits through 1d410afe). Plan:
+`docs/superpowers/plans/2026-10-22-mbeads-second-core-dense-cloud.md`. Digital
+reaches 16 simultaneous grains via a core-0 helper task; Vintage stays
+single-core. See `doc/mbeads-port.md` §11 "Second-core dense mode (v1.1)".
