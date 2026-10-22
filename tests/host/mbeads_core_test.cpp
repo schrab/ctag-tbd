@@ -13,6 +13,7 @@
 #include <cstring>
 
 #include "beads/dsp/processor.h"
+#include "beads/dsp/delay_line.h"
 #include "beads/dsp/trigger_generator.h"
 
 namespace {
@@ -305,6 +306,42 @@ int CountOutputGates(
 
 }  // namespace
 
+bool TestSnapshotReads(uint8_t* buffers[]) {
+  static const int kMaxDelay = 1024;
+  beads::DelayLine<beads::RESOLUTION_16_BIT, kMaxDelay, 2> line;
+  line.Init(buffers);
+
+  for (int i = 0; i < 900; ++i) {
+    beads::FloatFrame frame;
+    frame.l = std::sin(kTwoPi * static_cast<double>(i) / 441.0);
+    frame.r = std::cos(kTwoPi * static_cast<double>(i) / 337.0);
+    line.Write(frame);
+  }
+
+  const int snapshot = *line.mutable_write_ptr();
+  bool ok = true;
+  for (int delay = 0; delay <= 700; delay += 37) {
+    const float fraction = 0.25f;
+    const beads::FloatFrame live =
+        line.Read<beads::INTERPOLATION_HERMITE>(delay, fraction);
+    const beads::FloatFrame from_snapshot =
+        line.ReadFrom<beads::INTERPOLATION_HERMITE>(
+            snapshot, delay, fraction);
+    ok &= Expect(live.l == from_snapshot.l && live.r == from_snapshot.r,
+                 "snapshot read matches live read");
+
+    const beads::FloatFrame shifted =
+        line.ReadFrom<beads::INTERPOLATION_HERMITE>(
+            (snapshot + 1) % kMaxDelay, delay, fraction);
+    const beads::FloatFrame delayed =
+        line.ReadFrom<beads::INTERPOLATION_HERMITE>(
+            snapshot, delay + 1, fraction);
+    ok &= Expect(shifted.l == delayed.l && shifted.r == delayed.r,
+                 "write pointer +1 is identical to one extra sample of delay");
+  }
+  return ok;
+}
+
 int main() {
   bool ok = true;
 
@@ -327,6 +364,8 @@ int main() {
     return 1;
   }
   std::memset(reverb_buffer, 0, kReverbSamples * sizeof(uint16_t));
+
+  ok &= TestSnapshotReads(buffers);
 
   beads::Processor processor;
   processor.Init(buffers, reverb_buffer, kHostSampleRate);
