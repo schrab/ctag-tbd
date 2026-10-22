@@ -14,27 +14,23 @@ Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0).
 Details here: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 CTAG TBD is provided "as is" without any express or implied warranties.
-***************/
 
-#pragma once
+License and copyright details for specific submodules are included in their
+respective component folders / files if different from this license.
+***************/
 
 #include <atomic>
 #include <cstdint>
 #include <cassert>
-#include <cstring>
 #include "esp_heap_caps.h"
 #include "ctagSoundProcessor.hpp"
 #include "elements/dsp/part.h"
-
-#ifndef TBD_SIM
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#endif
 
 namespace CTAG {
     namespace SP {
         class ctagSoundProcessorElements : public ctagSoundProcessor {
         public:
+            // Allocate from PSRAM — class is too large for the 112KB DRAM arena
             static void* operator new(std::size_t sz) {
                 void* p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
                 if (!p) p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -52,42 +48,6 @@ namespace CTAG {
         private:
             virtual void knowYourself() override;
 
-            static constexpr std::size_t kBlockSize = 32;
-
-#ifndef TBD_SIM
-            static constexpr std::size_t kHelperTaskStack = 8192;
-            static constexpr UBaseType_t kHelperTaskPriority = configMAX_PRIORITIES - 2;
-            static constexpr BaseType_t kHelperTaskCore = 0;
-            static constexpr std::size_t kHelperSlots = 2;
-
-            struct HelperBlock {
-                elements::PerformanceState perfState = {};
-                elements::Patch patch = {};
-                elements::ResonatorModel resonator_model = elements::RESONATOR_MODEL_MODAL;
-                bool easter_egg = false;
-                float blow_in[kBlockSize] = {};
-                float strike_in[kBlockSize] = {};
-                float main[kBlockSize] = {};
-                float aux[kBlockSize] = {};
-                bool valid = false;
-            };
-
-            static void HelperTaskEntry(void* arg);
-            void HelperTask();
-            bool StartHelper();
-            void StopHelper();
-
-            TaskHandle_t helper_task_ = nullptr;
-            std::atomic<bool> helper_stop_{false};
-            std::atomic<bool> helper_running_{false};
-            std::atomic<int> helper_pending_slot_{0};
-            std::atomic<std::uint32_t> helper_pending_seq_{0};
-            std::atomic<std::uint32_t> helper_done_seq_[kHelperSlots] = {};
-            std::atomic<bool> helper_slot_free_[kHelperSlots] = {};
-            HelperBlock helper_blocks_[kHelperSlots] = {};
-            std::uint32_t helper_block_counter_ = 0;
-#endif
-
             uint16_t *reverb_buffer;
             elements::Part part;
             elements::Patch patch;
@@ -95,7 +55,7 @@ namespace CTAG {
             bool prevGate = false;
 
             atomic<int32_t> frequency, cv_frequency;
-            atomic<int32_t> resonator_model, cv_resonator_model;
+            atomic<int32_t> resonator_model = 1, cv_resonator_model;
             atomic<int32_t> exciter_envelope_shape, cv_exciter_envelope_shape;
             atomic<int32_t> exciter_bow_level, cv_exciter_bow_level;
             atomic<int32_t> exciter_bow_timbre, cv_exciter_bow_timbre;
@@ -116,9 +76,7 @@ namespace CTAG {
             atomic<int32_t> reverb_lp, cv_reverb_lp;
             atomic<int32_t> space, cv_space;
             atomic<int32_t> modulation_frequency, cv_modulation_frequency;
-            atomic<int32_t> strength, cv_strength;
             atomic<int32_t> gate, trig_gate;
-            atomic<int32_t> play, trig_play;
             atomic<int32_t> easter_egg, trig_easter_egg;
         };
     }

@@ -12,13 +12,6 @@
    "max": 4032
   },
   {
-   "id": "resonator_model",
-   "name": "Resonator Model",
-   "type": "int",
-   "min": 0,
-   "max": 2
-  },
-  {
    "id": "exciter_envelope_shape",
    "name": "Envelope Shape",
    "type": "int",
@@ -189,11 +182,6 @@
    "id": "gate",
    "type": "bool",
    "name": "Gate"
-  },
-  {
-   "id": "easter_egg",
-   "type": "bool",
-   "name": "Easter Egg"
   }
  ]
 }
