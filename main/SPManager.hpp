@@ -97,6 +97,18 @@ namespace CTAG {
             static void EnablePluginProcessing();
             static void RefreshSampleRom();
             static bool GetCPUOverload() { return cpuOverload != 0; }
+            // Cycles spent in the most recent audio block after Codec::ReadBuffer
+            // (DC cut, gate, plugins, output stage). Debug/bring-up only.
+            static uint32_t GetLastAudioTaskCycles() {
+                return lastAudioTaskCycles.load(std::memory_order_relaxed);
+            }
+            // Minimum-ever-free audio-task stack, in bytes. Zero until the
+            // audio task has been created. Used by the hardware bring-up UI.
+            static uint32_t GetAudioStackHighWaterBytes() {
+                if (audioTaskH == nullptr) return 0;
+                return static_cast<uint32_t>(uxTaskGetStackHighWaterMark(audioTaskH))
+                       * sizeof(StackType_t);
+            }
 
             // Peak metering for the MIX page. While metering is enabled the
             // audio task stores per-block peaks scaled to 0..1000; it skips
@@ -121,6 +133,7 @@ namespace CTAG {
             static std::unique_ptr<SPManagerDataModel> model;
             static SemaphoreHandle_t processMutex;
             static atomic<uint32_t> cpuOverload;
+            static atomic<uint32_t> lastAudioTaskCycles;
             static atomic<uint32_t> noiseGateCfg;
             static atomic<uint32_t> ch01Daisy;
             static atomic<uint32_t> toStereoCH0;

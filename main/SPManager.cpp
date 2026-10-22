@@ -272,6 +272,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         // get cpu cycles for audio task
         diff = esp_cpu_get_cycle_count() - start;
         cpuOverload = (diff > CPU_MAX_ALLOWED_CYCLES) ? 1 : 0;
+        lastAudioTaskCycles.store(static_cast<uint32_t>(diff),
+                                  std::memory_order_relaxed);
 
         // SD audio: mix playback into output
         CTAG::AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
@@ -348,6 +350,7 @@ DRAM_ATTR ctagSoundProcessor* SoundProcessorManager::sp[2] {nullptr, nullptr};
 std::unique_ptr<SPManagerDataModel> SoundProcessorManager::model;
 DRAM_ATTR SemaphoreHandle_t SoundProcessorManager::processMutex;
 atomic<uint32_t> SoundProcessorManager::cpuOverload = 0;
+atomic<uint32_t> SoundProcessorManager::lastAudioTaskCycles = 0;
 atomic<uint32_t> SoundProcessorManager::noiseGateCfg;
 atomic<uint32_t> SoundProcessorManager::ch01Daisy;
 atomic<uint32_t> SoundProcessorManager::toStereoCH0;

@@ -68,7 +68,9 @@ bool Expect(bool condition, const char* what) {
 // hold_gate supplies a held-high seed gate: without it the density clock is
 // gated off and no grains are produced at all.
 // time_base is the grain read position (0 = newest audio in the buffer).
-// size_base above ~0.99 ramps the engine into delay mode (1.5 s transition).
+// size_base above ~0.99 ramps the engine into delay mode (1.5 s transition)
+// only when SetDelayModeEnabled(true) has been called; the v1 plugin keeps it
+// disabled.
 BlockStats RunBlocks(
     beads::Processor* processor,
     int num_blocks,
@@ -426,14 +428,18 @@ int main() {
   ok &= Expect(in_place.rms() > 0.0, "in-place output is non-silent");
   std::printf("  in-place rms = %.6f\n", in_place.rms());
 
-  // --- Delay mode (Size above ~0.99) ---------------------------------------
+  // --- Delay mode (Size above ~0.99, disabled in the v1 plugin) ------------
+  // The DSP core still implements the 8-tap multitap delay; the plugin keeps
+  // it disabled because it exceeds the TBD audio-task budget. Enable it here
+  // to keep the core path covered by the host test.
   // Size at maximum ramps the engine from grains to the 8-tap multitap delay:
   // the transition takes 1.5 s and the wet path fades in over 0.75 s. The
   // ramp-in run is fully wet (dry_wet = 1) with no reverb and no seed gate, so
   // a non-silent result proves the delay wet path itself, not the dry signal or
   // a grain tail. 3000 blocks is ~2.18 s, enough to cross the full transition.
-  std::printf("Delay mode transition:\n");
+  std::printf("Delay mode transition (DSP core):\n");
   processor.Configure(beads::Processor::MEDIA_DIGITAL, false);
+  processor.SetDelayModeEnabled(true);
   BlockStats delay_in = RunBlocks(
       &processor, 3000, &phase, 1.0f, false, false, 2600, false, 0.75f,
       false, 0.1f, 0.0f, false, 1.0f);
@@ -454,6 +460,35 @@ int main() {
   ok &= Expect(delay_out.rms() > 0.001,
                "delay-to-granular return is non-silent");
   std::printf("  return rms = %.6f\n", delay_out.rms());
+
+  // v1 plugin behavior: delay mode disabled, so Size = 1.0 must stay in the
+  // granular engine and still produce audible output. This is the regression
+  // guard for the Size-dependent CPU fix: the top of the range no longer jumps
+  // into the expensive multitap delay.
+  std::printf("Size maximum with delay mode disabled:\n");
+  processor.SetDelayModeEnabled(false);
+  processor.Configure(beads::Processor::MEDIA_DIGITAL, false);
+  BlockStats max_size = RunBlocks(
+      &processor, 800, &phase, 1.0f, false, false, 400, false, 0.75f,
+      true, 0.1f, 0.0f, false, 1.0f);
+  ok &= Expect(max_size.finite, "max Size output is finite");
+  ok &= Expect(max_size.rms() > 0.001,
+               "max Size stays granular and is audible");
+  std::printf("  max Size granular rms = %.6f\n", max_size.rms());
+
+  // The plugin caps concurrent grains so long Size / dense Density settings
+  // cannot exceed the audio-task budget. Verify the cap at a deliberately
+  // dense setting (Density 0 = fastest trigger rate, Size 1.0 = 4 s grains).
+  std::printf("Grain cap:\n");
+  processor.SetMaxActiveGrains(4);
+  BlockStats capped = RunBlocks(
+      &processor, 1200, &phase, 1.0f, false, false, 0, false, 0.0f,
+      true, 0.1f, 0.0f, false, 1.0f);
+  ok &= Expect(capped.finite, "capped dense output is finite");
+  ok &= Expect(processor.ActiveGrains() <= 4,
+               "active grains stay within the cap");
+  std::printf("  active grains = %d\n", processor.ActiveGrains());
+  processor.SetMaxActiveGrains(32);
 
   // --- Vintage digital (22.05kHz engine, 12-bit, ratio 2) ------------------
   std::printf("Vintage digital:\n");

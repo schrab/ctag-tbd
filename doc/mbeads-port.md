@@ -1,7 +1,8 @@
 # Mbeads — Port Plan (Mutable Instruments Beads → CTAG TBD)
 
-Status: **v1 implemented (Tasks 1–3); host validation green; hardware CPU/stack
-measurement pending user approval to flash.**
+Status: **v1 implemented, host-validated, and measured on hardware (A1S).**
+The Size-dependent CPU overload is fixed. Delay mode is disabled in v1 because
+its measured cost exceeds the audio-task budget (see §11).
 
 Confirmed v1 scope decisions:
 
@@ -9,9 +10,12 @@ Confirmed v1 scope decisions:
   Tape modes are deferred.
 - **Attenuverters:** all four exposed (Time/Size/Shape/Pitch Mod).
 - **Media switching:** runtime switching accepted, with a short mute.
-- **Delay mode:** kept, subject to the CPU budget.
+- **Delay mode:** **disabled in v1** after hardware measurement. The 8-tap
+  pitch-shifting delay remains in the DSP core behind
+  `SetDelayModeEnabled(false)` for tests and future work; the plugin never
+  enters it. Size at maximum stays in the granular engine.
 - **Synth mode:** out of scope; `wav_integrated_waves` is not compiled.
-  `lut_sine` is kept because delay mode needs it.
+  `lut_sine` is kept because the retained delay-mode DSP needs it.
 
 ## Verdict
 
@@ -85,7 +89,7 @@ in v1.
 | Internal DRAM | ~22 KB free after audio init |
 | PSRAM | 8 MB, 80 MHz quad, cached; ~3.4 MB free with no plugin loaded |
 | Audio task stack | **4,096 bytes** |
-| App partition | 3.5 MB; current image **3,233,968 bytes (3.23 MB, `0x3158b0`)** |
+| App partition | 3.5 MB; current image **3,235,904 bytes (3.23 MB, `0x316040`)** |
 | Codec | 44.1 kHz fixed; no runtime sample-rate change |
 
 Relevant platform facts:
@@ -135,14 +139,17 @@ block. The port replaced those with fixed 32-element members (see §5.3).
 |---|---:|
 | Granular delay buffer (3 × 256 KB banks) | 786,432 |
 | Reverb buffer (32,768 × uint16) | 65,536 |
-| `beads::Processor` object (measured on Xtensa, 32-bit, `-Os`) | 29,496 |
+| `beads::Processor` object (measured on x86-64 host, `-O2`; target allocates the same type in PSRAM) | 34,656 |
 | Block scratch (fixed arrays, included above) | — |
-| **Total** | **~881 KB** |
+| **Total** | **~886 KB** |
 
 - Fits in PSRAM (~3.4 MB free). The 112 KB sound-processor arena is not
   required for the delay buffer.
-- Measured `sizeof(beads::Processor)`: **29,496 bytes** on the Xtensa target
-  (`-Os`, `nm` symbol size) and **30,736 bytes** on the x86-64 host (`-O2`).
+- Measured `sizeof(beads::Processor)`: **34,656 bytes** on the x86-64 host
+  (`-O2`, printed by the host test); the host-test guard is 40 KB. The
+  cross-target `sizeof` is not printed by the firmware build, but the object is
+  allocated in PSRAM and the active-grain list plus `HalfRateScratch` added
+  about 2 KB to the earlier 32,784-byte host figure.
 - Recommendation: allocate delay buffer, reverb and the object from PSRAM
   (`heap_caps_malloc(..., MALLOC_CAP_SPIRAM)` + `operator new` override, as
   Elements does). This keeps the 112 KB arena free for stereo chaining.
@@ -164,32 +171,46 @@ block. The port replaced those with fixed 32-element members (see §5.3).
 | Elements DSP reference (12 modes) | ~147,000 (already over) |
 | Clouds/Claude reference | 28 grains stereo runs on this hardware |
 
-**This is the main risk.** Beads targets a 400 MHz H743; the ESP32 is 240 MHz
-with a weaker memory system. Mitigations, in order:
+**This was the main risk.** Beads targets a 400 MHz H743; the ESP32 is 240 MHz
+with a weaker memory system. The v1 mitigation, in order of measured impact:
 
-1. Reduce `NUM_GRAINS` from 32 to 24 or 16 (one-line change in
-   `delay_granular_player.h`). High-density texture is the first thing to lose.
-2. Default to `MEDIA_CLEAN_TAPE` (half-rate engine, 12-bit) or add a
-   "Low CPU" quality mode that runs the granular engine at 22.05 kHz
-   (`ratio = 2`) while keeping the dry signal at 44.1 kHz.
-3. Skip the reverb when `reverb == 0` (saves ~35k cycles/block when off).
-4. Use linear instead of Hermite interpolation (quality option).
-5. Mono delay line (halves grain sample loads); only as a last resort.
+1. **Render only active grains.** A compact per-block list replaces the
+   unconditional 32-slot `Render()` loop. Done grains are skipped without a
+   function call; newly-started grains refresh the list. Measured saving at the
+   default patch: ~23k cycles/block.
+2. **Skip the reverb network when its mix is zero.** The Dattorro network
+   measured ~43–55k cycles/block. The default patch has `reverb = 0`, so it is
+   bypassed; the reverb buffer is cleared at init and on re-enable. The bypass
+   is the largest single saving.
+3. **Cap concurrent grains.** The plugin admits at most **4 grains** when the
+   reverb is off and **2** when it is audible. Triggers that arrive at the cap
+   are dropped; lowering the cap fades excess grains out. This keeps the worst
+   case inside 174,150 cycles/block without reducing `NUM_GRAINS` or changing
+   interpolation quality.
+4. Hermite interpolation is retained (no linear-quality fallback was needed),
+   and the delay line stays stereo.
 
-**Gate:** do not build the full parameter UI until the benchmark firmware
-measures the real cost. Target no continuous CPU-overload indicator at default
-settings.
+The delay-mode path was measured separately and is not within budget: after
+skipping zero-gain pitch taps it still costs ~260k total cycles/block at the
+default pitch (100% overload). It is therefore disabled in v1.
+
+Measured totals (audio task, 32 samples @ 44.1 kHz): default ~70k, Size 3000
+~98k, Size 3500 ~123k, Size 3800 ~128k, Size maximum ~128k. The tightest path
+is Size maximum with reverb 100% at ~161k average. Full numbers and the
+measurement caveats are in §11.
 
 ### 4.3 Flash
 
 Measured on the completed v1 port (`feat/mbeads`, ESP-IDF 5.5.4):
 
-- `build/ctag-tbd.bin`: **0x3158b0 = 3,233,968 bytes**.
+- `build/ctag-tbd.bin`: **0x316040 = 3,235,904 bytes** (final v1 with the CPU
+  fix and debug instrumentation).
 - Smallest app partition: `0x380000` = 3,670,016 bytes.
-- Free: **0x6a750 = 436,048 bytes (12%)**.
-- Beads DSP baseline Task 1 image: `0x308df0`. Linking the DSP in Task 2 added
-  49,408 bytes; the Task 3 instrumentation added 2,496 bytes. Net +51,904
-  bytes, slightly above the 30–50 KB estimate below.
+- Free: **0x69fc0 = 434,112 bytes (11%)**.
+- Beads DSP baseline Task 1 image: `0x308df0`. Linking the DSP in Task 2,
+  Task 3 instrumentation, and the final CPU/stack fix brought the image to
+  `0x316040`: net **+53,840 bytes**, slightly above the 30–50 KB estimate
+  below.
 
 The Beads DSP code is small; the only large asset is `resources.cc` (~450 KB
 source, ~100 KB of wavetables). The wavetables are **only used by the synth
@@ -210,10 +231,15 @@ plus ~1.8 KB in the half-rate path of `GranularProcessor::Process`, i.e. ~4.8 KB
 total. That would not have fit the 4,096-byte audio task stack. The port moved
 `triggers_buffer_`, `taps_buffer_`, `gate_out_` and `dry_signal_` into fixed
 32-element members of `beads::Processor` (which lives in PSRAM), removing ~3 KB
-from the audio task stack. The half-rate path (Vintage/Clean/Dirty) still keeps
-~1.8 KB of fixed locals on the audio task stack, so the hardware high-water mark
-must still be measured before deciding whether to hoist those arrays or raise
-the stack to 6,144 bytes. The default Digital path does not take that branch.
+from the audio task stack.
+
+The half-rate path (Vintage/Clean/Dirty) previously kept its `d_freeze`,
+`d_triggers`, `d_taps`, `d_in`, `d_out`, `downsampled` and `upsampled` arrays
+as fixed locals, leaving only **20 bytes** of the 4,096-byte audio stack free.
+They now live in a single `beads::HalfRateScratch` member of
+`beads::Processor`, shared by the three half-rate engines. Measured worst-case
+free stack is **~1,748 bytes** (Vintage at maximum Size); the Digital path
+leaves ~1,844–1,924 bytes. No stack increase was needed.
 
 ---
 
@@ -259,8 +285,9 @@ The port replaced the VLAs with fixed 32-element members in:
 
 - `beads::Processor` (`triggers_buffer_`, `taps_buffer_`, `gate_out_`,
   `dry_signal_`)
-- `beads::GranularProcessor` half-rate path (`d_freeze`, `d_triggers`,
-  `d_taps`, `d_in`, `d_out`, `downsampled`, `upsampled`)
+- `beads::Processor::half_rate_scratch_` (`HalfRateScratch`: `freeze`,
+  `triggers`, `taps`, `in`, `out`, `downsampled`, `upsampled`), shared by the
+  Vintage/Clean/Dirty half-rate engines
 
 Both `Processor::Process` and the half-rate branch clamp `size` to 32; TBD
 always passes 32.
@@ -307,8 +334,9 @@ for a later optimisation (`DelayLine::Init` could skip the inactive layout).
 - The synth mode lives in `beads.cc` (`normalization_detector` + `Synth`) and
   is not part of `beads::Processor`, so those symbols would be linked but
   never executed.
-- `lut_sine` (used by `sine_oscillator.h` for delay mode) and the lookup-table
-  arrays stay.
+- `lut_sine` (used by `sine_oscillator.h` for the retained delay-mode DSP) and
+  the lookup-table arrays stay. Delay mode itself is disabled in the v1 plugin
+  but is kept in the DSP core for tests and future optimization.
 
 This removes a real Beads feature (the built-in synth when no input is
 present), not a granular-engine component. It can be restored later by porting
@@ -340,7 +368,7 @@ Proposed plugin id: **`Mbeads`** (class `ctagSoundProcessorMbeads`).
 |---|---|---|---|
 | `time` | int | 0..4095 | grain read position |
 | `time_mod` | int | 0..4095 | bipolar attenuverter, 2047 ≈ 0 |
-| `size` | int | 0..4095 | grain size; > 0.99 enters delay mode |
+| `size` | int | 0..4095 | grain size; delay mode is disabled in v1, so the full range stays granular |
 | `size_mod` | int | 0..4095 | bipolar attenuverter |
 | `shape` | int | 0..4095 | grain envelope |
 | `shape_mod` | int | 0..4095 | bipolar attenuverter |
@@ -411,7 +439,7 @@ JSON descriptors:
    - default patch, density 50%;
    - density 100%, reverb 0;
    - density 100%, reverb 100%;
-   - delay mode (size = max);
+   - delay mode DSP (host test only in v1);
    - Digital (44.1 kHz) and Vintage (22.05 kHz).
 4. Raise the audio task stack to 6,144 only if the high-water mark requires it.
 
@@ -446,6 +474,10 @@ v1 ships only Digital and Vintage.
 2. Measure 8-tap cost; keep if within budget, otherwise gate it behind a
    "Delay mode" bool or document it as a high-CPU mode.
 
+**Resolved (v1):** measured ~260k cycles/block dry and ~309k with reverb after
+skipping zero-gain taps; disabled in the plugin. The DSP core remains behind
+`SetDelayModeEnabled(false)` and is covered by the host test. See §11.
+
 ### Phase 5 — Polish
 
 1. Write `doc/mbeads-port.md` final version (measurements, CPU table).
@@ -467,7 +499,8 @@ Functional:
 - Seed triggers grains at the density rate.
 - Feedback is stable at 100% (limiter/soft clip).
 - Reverb tail decays; no runaway.
-- Delay mode produces 8 taps and does not read outside the buffer.
+- Delay mode DSP core (enabled explicitly in the host test) produces 8 taps and
+  does not read outside the buffer; the v1 plugin keeps delay mode disabled.
 - Media modes: 16-bit, 12-bit, 8-bit µ-law, half-rate paths.
 - CV/trig polarity: gate high = 1 = active; freeze when high; seed on rising
   edge.
@@ -496,8 +529,16 @@ Measurement:
   host/simulator harness is still missing.
 - Tape modes are smoke-tested only. The tape wet path has no dedicated
   coverage, and the tape UI is deferred.
-- Hardware CPU, audio-task stack high-water and PSRAM behaviour are still
-  unmeasured (flashing not yet approved); see §11.
+- Hardware CPU and audio-task stack high-water are measured (§11). The 30-minute
+  maximum-density/reverb endurance run and the load/unload fragmentation loop
+  have not been run yet.
+- The `cpuOverload` percentages in §11 are sampled through the debug UART,
+  which can preempt the audio task. Treat the averages, not the spike count, as
+  the steady-state load; the user listening test is the final gate for audible
+  dropouts.
+- Reverb + maximum Size is the tightest path (~161k average, 39% sampled
+  overload). It is under the 174,150-cycle budget on average but has limited
+  margin; the dry cap is 4 grains, the audible-reverb cap is 2.
 
 ---
 
@@ -505,9 +546,10 @@ Measurement:
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| CPU over budget at 32 grains | High | Benchmark gate; drop to 24/16 grains; half-rate default; skip reverb when off |
+| CPU over budget with many overlapping grains | High (observed) | Active-grain render list, reverb bypass at mix 0, and a 4-grain dry / 2-grain reverb cap; measured Size sweep in §11 |
+| Delay mode (8-tap pitch-shifting delay) over budget | High (observed) | Disabled in v1; DSP retained behind `SetDelayModeEnabled(false)` for tests/future work |
 | PSRAM random-access stalls | Medium | Sequential grain reads; measure cache misses; reduce grains/pitch extremes |
-| Audio task stack overflow (pre-port VLAs, ~4.8 KB) | High (certain pre-port) | `Processor` scratch moved to fixed 32-element PSRAM members; half-rate path still ~1.8 KB, high-water measurement pending |
+| Audio task stack overflow (pre-port VLAs, ~4.8 KB) | High (certain pre-port) | `Processor` scratch and `HalfRateScratch` moved to PSRAM members; measured worst-case free stack ~1,748 bytes |
 | 768 KB PSRAM allocation fails/fragments | Medium | Allocate at load; test 100 cycles; reserve on first use if needed |
 | Media switch clears 768 KB in audio task | Medium | Mute + deferred switch, or fix media at load in v1 |
 | App partition overflow | Low | Trim synth wavetables; monitor 3.5 MB limit |
@@ -523,14 +565,23 @@ Measurement:
 **Confirmed:**
 
 - **Synth mode / wavetables:** out of scope for v1. `wav_integrated_waves` is
-  not compiled; `lut_sine` stays for delay mode.
+  not compiled; `lut_sine` stays for the retained delay-mode DSP.
 - **Media modes:** v1 ships **Digital (44.1 kHz, 16-bit)** and **Vintage
   (22.05 kHz, 12-bit)**. Tape modes deferred.
 - **Attenuverters:** all four exposed (`time_mod`, `size_mod`, `shape_mod`,
   `pitch_mod`).
 - **Runtime media switching:** accepted, with a short mute and a one-time
   buffer clear.
-- **Delay mode:** kept, subject to the Phase 1 CPU gate.
+- **Delay mode:** **disabled in v1**. The measured 8-tap pitch-shifting delay is
+  ~260k cycles/block even after skipping zero-gain taps, far above the
+  174,150-cycle budget. The DSP core remains behind `SetDelayModeEnabled(false)`
+  (default) and is enabled explicitly by the host test. Size maximum stays in
+  the granular engine.
+- **CPU protection:** render only active grains; skip the reverb network when
+  its mix is zero; cap concurrent grains at 4 (dry) / 2 (audible reverb). These
+  are v1 behaviour, not debug-only knobs.
+- **Stack:** the half-rate scratch buffers live in a `HalfRateScratch` member of
+  `beads::Processor` (PSRAM), not on the audio-task stack.
 
 Implementation is tracked in `doc/mbeads-implementation-plan.md`.
 
@@ -538,72 +589,142 @@ Implementation is tracked in `doc/mbeads-implementation-plan.md`.
 
 ## 11. Implementation status and validation
 
-Status of the v1 port (Tasks 1–3 complete on branch `feat/mbeads`). Everything
-below is **measured**, except the hardware CPU/stack figures, which are
-explicitly pending.
+Status of the v1 port on branch `feat/mbeads`: **implemented, host-validated,
+and measured on hardware (ESP32-A1S / ESP32-Audio-Kit v2.2).** The
+Size-dependent crackle was reproduced, traced to CPU overload, and fixed.
 
 | Item | Measured value |
 |---|---|
-| `sizeof(beads::Processor)`, Xtensa, `-Os` | **29,496 bytes** (`nm` symbol size) |
-| `sizeof(beads::Processor)`, x86-64 host, `-O2` | **30,736 bytes** (printed by the host test) |
+| `sizeof(beads::Processor)`, x86-64 host, `-O2` | **34,656 bytes** (host-test guard is 40 KB) |
 | Delay buffer / reverb buffer | 786,432 / 65,536 bytes (PSRAM) |
-| PSRAM per Mbeads instance | ~861 KB (buffers + object) |
-| `build/ctag-tbd.bin` | **0x3158b0 = 3,233,968 bytes** |
-| Free in app partition (0x380000) | **0x6a750 = 436,048 bytes (12%)** |
-| Media-switch clear | **768 KB** (one channel layout), then a short mute |
-| Host core test | **PASS** |
-| Hardware CPU / stack | **not measured — flashing not yet approved** |
+| PSRAM per Mbeads instance | ~866 KB (buffers + object) |
+| `build/ctag-tbd.bin` | **0x316040 = 3,235,904 bytes** |
+| Free in app partition (`0x380000`) | **0x69fc0 = 434,112 bytes (11%)** |
+| Host core test | **PASS** (`tests/host/run_mbeads_tests.sh`) |
+| Modulation suite | **PASS** (`tests/host/run_tests.sh`) |
+| Audio-task stack, worst measured | **1,748 bytes free** (Vintage, maximum Size), up from **20 bytes** |
+| CPU budget | **174,150 cycles** per 32-sample block @ 44.1 kHz / 240 MHz |
+
+### The Size crackle: cause and fix
+
+At a fixed Density, raising Size lengthens each grain. The number of grains
+overlapping at any instant is roughly `trigger_rate * grain_duration`; at the
+default Density 3072 (~4.09 Hz), Size 3500 produces 4–5 concurrent grains and
+Size 3800 produces ~8. Each Hermite-interpolated grain costs roughly
+14–17k cycles/block, and the Dattorro reverb adds 43–55k. The audio task
+therefore crossed the 174,150-cycle budget, and the resulting I2S underruns
+were heard as harsh crackle/digital distortion. The default patch was fine
+because it uses 0–1 grains and reverb = 0.
+
+Before the fix (Digital, Density 3072, reverb 0): default ~148k, Size 3000
+~160k, Size 3500 ~217k, Size 3800 ~260k, Size maximum (delay mode) ~386k.
+Overload samples: 32/100 at default, 88/100 at Size 3800, 100/100 at maximum.
+The old default already overloaded 32% of sampled blocks but was not audibly
+broken because the spikes were short; at long Size the overload was sustained.
+
+The v1 fix has four parts:
+
+1. **Render only active grains** (`granular_player.h`,
+   `delay_granular_player.h`). A compact list is rebuilt once per block and
+   after each new trigger. Done grains are no longer passed through the
+   `Render()` call every sample. Measured: default 148k → 125k; Size 3000
+   160k → 143k.
+2. **Bypass the reverb network when its mix is zero** (`processor.cc`). The
+   reverb buffer is zeroed at plugin init and cleared again on the first
+   re-enable. The default patch has reverb = 0, so this removed the network’s
+   ~43–55k cycles. Measured: default 125k → 68.6k; Size 3000 143k → 94.3k.
+3. **Cap concurrent grains** (`SetMaxActiveGrains`). The plugin admits at most
+   **4** grains with reverb off and **2** when reverb is audible. A trigger that
+   arrives at the cap is dropped; lowering the cap fades excess grains out
+   quickly. Measured: Size 3800 211.7k → 125.0k; Size 3800 + Density 0 (fastest
+   trigger rate) 488.8k → 127.5k; Size 4095 386k → 127.5k.
+4. **Move half-rate scratch off the audio stack** (`HalfRateScratch` in
+   `processor.h`). The Vintage/Clean/Dirty path previously had ~1.8 KB of
+   fixed locals on the 4 KB audio-task stack, leaving 20 bytes free. It now
+   lives in the `beads::Processor` PSRAM object. Worst measured free stack:
+   1,748 bytes.
+
+Delay mode is a separate case. Even after skipping pitch-shifting taps whose
+gain is zero (a 3× read reduction at pitch 0), the 8-tap multitap delay costs
+~260k cycles/block dry and ~309k with reverb. It is **disabled in the v1
+plugin** (`SetDelayModeEnabled(false)` is the default); the DSP code is retained
+and the host test enables it explicitly for coverage. Size maximum now stays in
+the granular engine.
+
+### Measured CPU after the fix
+
+All figures are total audio-task cycles per 32-sample block, measured through
+`/debug/getAudioStats` while the debug UART was active. `overload` is the
+number of the 100 sampled blocks whose last-block flag exceeded the budget;
+the flag is conservative and can be set by UART/Wi-Fi preemption, so the
+average is the steady-state figure.
+
+| Case | Average | Max | Overload |
+|---|---:|---:|---:|
+| Default Digital (Size 2048, Density 3072, reverb 0) | **70.1k** | 129.6k | 0/100 |
+| Size 3000, reverb 0 | **98.1k** | 172.2k | 0/100 |
+| Size 3500, reverb 0 | **122.8k** | 234.6k | 4/100 |
+| Size 3800, reverb 0 | **128.3k** | 193.8k | 10/100 |
+| Size 3800, Density 0 (fastest) | **129.9k** | 221.6k | 12/100 |
+| Size 4095 (maximum, granular) | **127.5k** | 273.6k | 12/100 |
+| Size 4095 + reverb 4095 | **161.4k** | 304.2k | 39/100 |
+| Size 3000 + reverb 4095 | **149.5k** | 405.6k | 28/100 |
+| Vintage default | **83.4k** | 142.7k | 0/100 |
+| Vintage Size 3000 | **97.9k** | 202.1k | 1/100 |
+| Vintage Size 3800, Density 0 | **116.4k** | 168.0k | 0/100 |
+| Vintage Size 4095 | **116.0k** | 188.3k | 1/100 |
+
+Every averaged case is under the 174,150-cycle budget. The tightest path is
+**reverb + maximum Size** at ~161k average, with 39% sampled overload spikes;
+it has ~13k cycles of average headroom but limited transient margin. The
+listening test at Size 3500/3800/4095 with reverb 0 is the primary acceptance
+gate for the reported bug.
 
 ### Host validation
 
 ```
 $ bash tests/host/run_mbeads_tests.sh
 ...
-  [ ok ] Digital delivers ~130 grains/s through the output gate
-  [ ok ] Vintage delivers ~130 grains/s through the output gate
-  [ ok ] Digital and Vintage trigger the same grain rate
-  [ ok ] granular engine alone is audible (no reverb, fully wet)
   [ ok ] default patch grain settings are audible (wet only, no reverb)
-  default patch wet rms = 0.037146
   [ ok ] delay mode wet path is audible
-  delay mode rms = 0.096370
   [ ok ] delay-to-granular return is non-silent
-  return rms = 0.042197
-  wet rms = 0.136539
+  [ ok ] max Size stays granular and is audible
+  [ ok ] active grains stay within the cap
+  active grains = 4
 ...
 PASS: mbeads core
 ```
 
-The test builds the real Beads sources at 44.1 kHz in fixed 32-sample blocks and
-covers: media rate table (44.1k/22.05k, ratio 1/2), trigger generator rate
-(131 pulses/s), grain-rate integration through
-`MixParameters::output_gate` (131 grains/s for both Digital and Vintage,
-deterministic at density 0), fully wet granular output with `reverb = 0` and
-`dry_wet = 1` (RMS ~0.13, floor 0.01), the shipped default-patch grain settings
-(density 3072, seed 1, time 0.5), in-place `in == out` safety, the delay-mode
-Size ramp to maximum and back (both directions cross the full 1.5 s transition,
-fully wet with no reverb: delay RMS ~0.096 and return-to-granular RMS ~0.042),
-freeze/seed, and Clean/Dirty Tape smoke runs.
-The existing modulation suite (`bash tests/host/run_tests.sh`) still passes.
+The test builds the real Beads sources at 44.1 kHz in fixed 32-sample blocks
+and covers: media rate table (44.1k/22.05k, ratio 1/2), trigger generator rate
+(131 pulses/s), grain-rate integration through `MixParameters::output_gate`
+(131 grains/s for both Digital and Vintage, deterministic at density 0), fully
+wet granular output with `reverb = 0` and `dry_wet = 1`, the shipped default
+patch (density 3072, seed 1, time 0.5), in-place `in == out` safety, freeze/seed,
+Clean/Dirty Tape smoke runs, the delay-mode DSP core with
+`SetDelayModeEnabled(true)`, **Size maximum staying granular with delay mode
+disabled**, and **the grain cap holding at 4 with Density 0 / Size 1.0**.
+`tests/host/run_tests.sh` passes all modulation tests.
 
 ### Default patch rationale
 
 `spiffs_image/data/sp/mp-Mbeads.jsn` and the parameter atomics in
 `ctagSoundProcessorMbeads.hpp` ship:
 
-- `density = 3072` (0.75): above Beads' manual-tap zone (0.48..0.52), so the
+- `density = 3072` (0.75): above Beads’ manual-tap zone (0.48..0.52), so the
   grain clock free-runs.
-- `seed = 1`: the seed button holds the trigger generator's gate high. Upstream
+- `seed = 1`: the seed button holds the trigger generator’s gate high. Upstream
   Beads only advances the density clock while the seed gate is high, so with
-  the previous `density = 2048` / `seed = 0` defaults the wet path was silent on
-  a fresh load (dry still passed).
+  `density = 2048` / `seed = 0` the wet path was silent on a fresh load (dry
+  still passed).
 - Everything else stays neutral: `time/size/shape = 2048`, all `*_mod = 2047`
   (centre), `pitch = 0`, `feedback = 0`, `reverb = 0`, `dry_wet = 2048`,
   `media = 0` (Digital), `freeze = 0`.
 
-The host test asserts the shipped grain settings (density 3072, seed 1,
-time 0.5 = 2048) are audible (wet RMS 0.037 with no reverb), and both parameters
-remain fully exposed in the UI.
+The default `reverb = 0` is now also the reverb-bypass case, so the fresh-load
+patch has the largest CPU margin. The host test asserts the shipped grain
+settings are audible (wet RMS 0.037 with no reverb), and both `density` and
+`seed` remain exposed in the UI.
 
 ### Media-switch cost
 
@@ -616,50 +737,39 @@ no benefit. A media change therefore costs a **one-time 768 KB PSRAM clear**
 can outlast the mute, so the switch is an accepted short one-time gap, not a
 glitch-free crossfade. The parameter is not meant to be modulated at audio rate.
 
-### Hardware measurement pending
+The reverb buffer is 64 KB and is zeroed once at plugin init (outside the audio
+task). Enabling reverb after a muted period clears it again before the first
+processed block; this is a one-time 64 KB clear, not a per-block cost.
 
-Flashing has **not** been approved, so no CPU, stack or PSRAM-bandwidth numbers
-exist yet. `/dev/ttyUSB0` exists on the development machine. When approved:
+### Measurement procedure
 
-```sh
-source /home/schrab/esp/esp-idf-v5.5.4/export.sh
+The measurements used the debug firmware endpoints:
 
-# Full flash (bootloader + partition table + app + storage/SPIFFS)
-python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 \
-  --before default_reset --after hard_reset write_flash \
-  --flash_mode dio --flash_size 16MB --flash_freq 80m \
-  0x1000 build/bootloader/bootloader.bin \
-  0x8000 build/partition_table/partition-table.bin \
-  0xd000 build/ota_data_initial.bin \
-  0x10000 build/ctag-tbd.bin \
-  0x710000 build/storage.bin
+- `/debug/setPluginParam?ch=0&id=<param>&value=<0..4095>` (also used for
+  `media`: 0 = Digital, 1 = Vintage).
+- `/debug/getPluginParams?ch=0` to read back the atomics.
+- `/debug/getAudioStats` for `audioCycles`, `cpuOverload` and
+  `stackHighWater`.
 
-# UART log capture (PERF_MONITOR logs every 5 s)
-stty -F /dev/ttyUSB0 115200 raw -echo
-timeout 60 cat /dev/ttyUSB0 2>/dev/null | tee /tmp/uart-mbeads.log
-```
+The helper scripts live in `/tmp/opencode` (`mbeads_stats.py`,
+`mbeads_delay.py`, `mbeads_serial.py`) and are not part of the repository.
+Each case set the parameters, waited for the engine to settle, then sampled 100
+blocks. The `overload` count is intentionally reported rather than hidden: it
+shows where transient margin is thin, even when the average is comfortably
+inside the budget.
 
-Expected lines, repeated every 5 s while Mbeads is loaded:
+### Known limitations
 
-```
-I (....) PERF_MONITOR: === Performance Statistics (CPU: 240 MHz) ===
-I (....) PERF_MONITOR:   Mbeads                  : avg=... µs (... cyc)  min=... max=... n=...
-I (....) PERF_MONITOR:   MbeadsGranular          : avg=... µs (... cyc)  min=... max=... n=...
-```
-
-The logging task runs on core 1 at priority 5, far below the audio task
-(core 1, priority 23). Measurement checklist:
-
-1. Default patch, 30 s: `Mbeads`/`MbeadsGranular` average and max.
-2. Density 100%, reverb 0; density 100%, reverb 100%.
-3. Delay mode (`size` at maximum).
-4. Digital (44.1 kHz) and Vintage (22.05 kHz).
-5. Audio-task stack high-water mark: not currently logged. `audioTaskH` is
-   private to `SoundProcessorManager`; either add a getter in `SPManager` or log
-   `uxTaskGetStackHighWaterMark(nullptr)` from inside the audio task, then check
-   the Vintage/Dirty half-rate path (Task 1 flagged ~1.8 KB of fixed locals
-   there).
-
-Go/no-go thresholds from §4.2: no continuous CPU-overload indicator at the
-default patch, `Mbeads` DSP average ≤ 130k cycles/block, extreme settings
-≤ 165k.
+- **Delay mode is not available in v1.** It is retained in the DSP core and
+  covered by the host test, but its measured cost is far over budget.
+- **Grain-overlap cap.** At extremely dense/long settings the texture is
+  thinner than upstream Beads: 4 grains dry / 2 with audible reverb. Normal
+  settings (including the default patch and Size up to ~3500 at default
+  density) are below the cap and match the intended Beads character.
+- **Reverb + maximum Size** is the tightest CPU path (~161k average) and may
+  still show transient overload spikes in the debug build. The dry path at
+  maximum Size has substantially more margin (~128k).
+- The 30-minute endurance run, load/unload fragmentation loop, and a glue-layer
+  host harness remain open follow-ups.
+- `cpuOverload` sampled through the debug UART is not a substitute for a
+  listening test; the user’s ear is the final gate for audible dropouts.

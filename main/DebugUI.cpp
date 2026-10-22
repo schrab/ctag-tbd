@@ -156,6 +156,58 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/getAudioStats") {
+                // Audio-task stack high-water mark plus the most recent
+                // per-block CPU-overload flag. stackHighWater is the
+                // minimum-ever-free stack in bytes (0 before the task exists).
+                response = "{\"stackHighWater\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetAudioStackHighWaterBytes()) +
+                           ",\"cpuOverload\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0) +
+                           ",\"audioCycles\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetLastAudioTaskCycles()) +
+                           "}";
+                return true;
+            }
+
+            if (s == "/debug/getPluginParams") {
+                // Exact live parameter values for a channel, as the plugin
+                // data model sees them. Used by bring-up scripts instead of
+                // inferring values from the OLED.
+                int ch = 0;
+                if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
+                if (ch < 0 || ch > 1) {
+                    response = "{\"error\":\"bad channel\"}";
+                    return true;
+                }
+                const char *params =
+                    AUDIO::SoundProcessorManager::GetCStrJSONActivePluginParams(ch);
+                response = "{\"ch\":" + to_string(ch) +
+                           ",\"params\":" + (params ? params : "{}") + "}";
+                return true;
+            }
+
+            if (s == "/debug/setPluginParam") {
+                // Debug-only equivalent of a UI parameter edit. The DSP reads
+                // the same atomics as a real edit, so this is suitable for
+                // reproducible CPU/audio sweeps without fighting the encoder.
+                if (!d.HasMember("id") || !d["id"].IsString() ||
+                    !d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing id/value\"}";
+                    return true;
+                }
+                int ch = 0;
+                if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
+                if (ch < 0 || ch > 1) {
+                    response = "{\"error\":\"bad channel\"}";
+                    return true;
+                }
+                AUDIO::SoundProcessorManager::SetChannelParamValue(
+                    ch, d["id"].GetString(), "current", d["value"].GetInt());
+                response = "{\"ok\":1}";
+                return true;
+            }
+
             if (s == "/debug/getMixState") {
                 // The MIX page's internal state, so a no-op edit is detectable
                 // without reading pixels.

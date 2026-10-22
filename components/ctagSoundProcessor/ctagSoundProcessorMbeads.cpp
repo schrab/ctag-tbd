@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "ctagSoundProcessorMbeads.hpp"
 
 #include <algorithm>
+#include <cstring>
 
 #include "esp_log.h"
 
@@ -71,6 +72,10 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
     delay_banks_[0] = delay_buffer_;
     delay_banks_[1] = delay_buffer_ + kDelayBankBytes;
     delay_banks_[2] = delay_buffer_ + 2 * kDelayBankBytes;
+
+    // The reverb network is skipped while its mix is zero (the default). Clear
+    // the PSRAM buffer once so enabling it starts from silence, not garbage.
+    std::memset(reverb_buffer_, 0, kReverbBufferBytes);
 
     processor.Init(delay_banks_, reverb_buffer_, 44100.0f);
     // beads::Processor::Init already calls Configure(MEDIA_DIGITAL, false), so
@@ -225,6 +230,16 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     mix.dry_wet = dry_wet;
     mix.reverb_amount = reverb;
     mix.output_gate = false;
+
+    // CPU protection. The granular engine's cost grows with the number of
+    // simultaneously rendering grains; at long Size settings the natural
+    // overlap exceeds the audio-task budget and produces dropouts. The reverb
+    // network is also expensive, so reserve headroom for it when it is
+    // audible. These caps keep the worst case inside the 174,150-cycle block
+    // budget while leaving the default patch (0-1 grains) untouched.
+    const bool reverb_active =
+        reverb * reverb * 0.9f > beads::Processor::kReverbActiveThreshold;
+    processor.SetMaxActiveGrains(reverb_active ? 2 : 4);
 
 #ifndef TBD_SIM
     {
