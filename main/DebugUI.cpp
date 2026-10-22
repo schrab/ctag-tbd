@@ -53,6 +53,14 @@ extern "C" int mbeads_debug_get_helper_overload();
 extern "C" int mbeads_debug_get_helper_stack_high_water();
 extern "C" int mbeads_debug_get_core_cap();
 
+// Elements second-core helper stats (distinct keys from Mbeads).
+extern "C" int elements_debug_get_helper_cycles();
+extern "C" int elements_debug_get_helper_max_cycles();
+extern "C" int elements_debug_get_helper_overload();
+extern "C" int elements_debug_get_helper_stack_high_water();
+extern "C" int elements_debug_get_helper_resolution();
+extern "C" int elements_debug_get_helper_misses();
+
 namespace {
     const char *TAG = "DebugUI";
     const char STX = 0x02;
@@ -196,6 +204,18 @@ namespace CTAG {
                            to_string(mbeads_debug_get_total_cap()) +
                            ",\"helperGrainCapOverride\":" +
                            to_string(mbeads_debug_get_helper_cap()) +
+                           ",\"elementsHelperCycles\":" +
+                           to_string(elements_debug_get_helper_cycles()) +
+                           ",\"elementsHelperOverload\":" +
+                           to_string(elements_debug_get_helper_overload()) +
+                           ",\"elementsHelperStackHighWater\":" +
+                           to_string(elements_debug_get_helper_stack_high_water()) +
+                           ",\"elementsHelperMaxCycles\":" +
+                           to_string(elements_debug_get_helper_max_cycles()) +
+                           ",\"elementsHelperResolution\":" +
+                           to_string(elements_debug_get_helper_resolution()) +
+                           ",\"elementsHelperMisses\":" +
+                           to_string(elements_debug_get_helper_misses()) +
                            "}";
                 return true;
             }

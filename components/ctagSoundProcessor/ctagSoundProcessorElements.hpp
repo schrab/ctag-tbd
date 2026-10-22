@@ -54,6 +54,7 @@ namespace CTAG {
 
         private:
             virtual void knowYourself() override;
+            void PublishDebugStats();
 
             static constexpr std::size_t kBlockSize = 32;
             // Modal resonator bands: 52 = original, 12 = single-core baseline.
@@ -109,7 +110,9 @@ namespace CTAG {
             std::atomic<std::uint32_t> helper_misses_{0};
             // Core 1 asks, the helper applies — core 1 never touches `part`.
             std::atomic<std::size_t> helper_requested_resolution_{kResolutionFull};
-            std::size_t helper_applied_resolution_ = kResolutionFull;
+            // Written by the helper right after part.set_resolution(); read by
+            // PublishDebugStats() so core 1 never reads part.resolution().
+            std::atomic<std::size_t> helper_applied_resolution_{kResolutionFull};
             std::size_t resolution_step_ = 0;
             int helper_streak_ = 0;
 #endif
