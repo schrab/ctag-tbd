@@ -14,9 +14,6 @@ Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0).
 Details here: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 CTAG TBD is provided "as is" without any express or implied warranties.
-
-License and copyright details for specific submodules are included in their
-respective component folders / files if different from this license.
 ***************/
 
 #pragma once
@@ -33,11 +30,15 @@ respective component folders / files if different from this license.
 #include "beads/dsp/processor.h"
 #include "stmlib/utils/gate_flags.h"
 
+#ifndef TBD_SIM
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_cpu.h>
+#endif
+
 namespace CTAG::SP {
     class ctagSoundProcessorMbeads : public ctagSoundProcessor {
     public:
-        // The processor object is ~30 KB and the DSP buffers are allocated from
-        // PSRAM; it must not live in the 112 KB sound processor arena.
         static void *operator new(std::size_t sz) {
             void *p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
             if (!p) p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -57,23 +58,43 @@ namespace CTAG::SP {
         void knowYourself() override;
 
         static constexpr std::size_t kBlockSize = 32;
-        // Beads' scratch buffers and block clamps are sized for 32 samples.
         static_assert(kBlockSize <= beads::Processor::kMaxBlockSize,
                       "Mbeads block size exceeds the Beads processor limit");
-        // 3 x 256 KiB banks, shared by all four media delay lines.
         static constexpr std::size_t kDelayBufferBytes = 786432;
         static constexpr std::size_t kDelayBankBytes = 262144;
-        // 32768 x uint16_t Dattorro reverb buffer.
         static constexpr std::size_t kReverbBufferBytes = 65536;
+
+#ifndef TBD_SIM
+        static constexpr std::size_t kHelperTaskStack = 4096;
+        static constexpr UBaseType_t kHelperTaskPriority = configMAX_PRIORITIES - 2;
+        static constexpr BaseType_t kHelperTaskCore = 0;
+        static constexpr std::size_t kHelperSlots = 2;
+        static constexpr std::uint32_t kAudioBudgetCycles = 174150;
+
+        static void HelperTaskEntry(void *arg);
+        void HelperTask();
+        bool StartHelper();
+        void StopHelper();
+
+        TaskHandle_t helper_task_ = nullptr;
+        std::atomic<bool> helper_stop_{false};
+        std::atomic<bool> helper_running_{false};
+        std::atomic<int> helper_pending_slot_{0};
+        std::atomic<std::uint32_t> helper_pending_seq_{0};
+        std::atomic<std::uint32_t> helper_done_seq_[kHelperSlots] = {};
+        std::atomic<bool> helper_slot_free_[kHelperSlots] = {};
+        beads::Processor::GrainHelperBlock helper_blocks_[kHelperSlots] = {};
+        beads::FloatFrame helper_out_[kHelperSlots][kBlockSize] = {};
+        std::uint32_t helper_block_counter_ = 0;
+        std::atomic<std::uint32_t> helper_cycles_{0};
+        std::atomic<bool> helper_overload_{false};
+        std::atomic<int> helper_stack_high_water_{-1};
+#endif
 
         beads::Processor processor;
         uint8_t *delay_buffer_ = nullptr;
         uint16_t *reverb_buffer_ = nullptr;
         uint8_t *delay_banks_[3] = {};
-        // Separate buffers for clarity: the glue copies from/to the
-        // interleaved data.buf. beads::Processor::Process captures the dry
-        // signal before the wet engine writes out_, so in-place would also be
-        // safe.
         beads::FloatFrame in_[kBlockSize] = {};
         beads::FloatFrame out_[kBlockSize] = {};
         bool freeze_frames_[kBlockSize] = {};
@@ -82,8 +103,6 @@ namespace CTAG::SP {
         int mute_blocks_ = 0;
         bool initialized_ = false;
 
-        // Parameters, initialized to the default patch so that a missing or
-        // broken preset cannot leave them indeterminate.
         std::atomic<int32_t> time_{2048};
         std::atomic<int32_t> time_mod_{2047};
         std::atomic<int32_t> size_{2048};

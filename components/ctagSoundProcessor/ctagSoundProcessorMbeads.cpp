@@ -14,9 +14,6 @@ Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0).
 Details here: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 CTAG TBD is provided "as is" without any express or implied warranties.
-
-License and copyright details for specific submodules are included in their
-respective component folders / files if different from this license.
 ***************/
 
 #include "ctagSoundProcessorMbeads.hpp"
@@ -33,30 +30,67 @@ respective component folders / files if different from this license.
 using namespace CTAG::SP;
 
 // ============================================================================
-// TEMPORARY CPU-SPIKE HOOKS (remove after the grain-budget recon)
+// Mbeads debug hooks
 //
-// Allows the debug shell to override the normal 4-dry / 2-reverb grain cap and
-// to read back how many grains were actually rendering. The override defaults
-// to -1 (disabled), so normal firmware behaviour is unchanged unless a host
-// explicitly calls /debug/setGrainCap. No user-facing parameter is added.
+// Allows the debug shell to override the normal grain cap and to read back how
+// many grains were actually rendering. The override defaults to -1 (disabled),
+// so normal firmware behaviour is unchanged unless a host explicitly calls the
+// endpoints. No user-facing parameter is added.
 // ============================================================================
 namespace {
-    std::atomic<int> gSpikeGrainCap{-1};       // -1 = use normal cap logic
-    std::atomic<int> gSpikeActiveGrains{-1};   // -1 = plugin not loaded
+    std::atomic<int> gMbeadsDebugTotalOverride{-1};   // -1 = use production policy
+    std::atomic<int> gMbeadsDebugHelperOverride{-1};  // -1 = use production policy
+    std::atomic<int> gMbeadsDebugActiveGrains{-1};    // -1 = plugin not loaded
+    std::atomic<int> gMbeadsDebugHelperActive{-1};
+    std::atomic<int> gMbeadsDebugCoreCap{0};
+    std::atomic<int> gMbeadsDebugHelperCap{0};
+    std::atomic<int> gMbeadsDebugHelperCycles{0};
+    std::atomic<int> gMbeadsDebugHelperOverload{0};
+    std::atomic<int> gMbeadsDebugHelperStack{-1};
 }
 
-extern "C" int mbeads_spike_set_grain_cap(int cap) {
+extern "C" int mbeads_debug_set_total_cap(int cap) {
     if (cap < -1) cap = -1;
     if (cap > 32) cap = 32;
-    return gSpikeGrainCap.exchange(cap);
+    return gMbeadsDebugTotalOverride.exchange(cap);
 }
 
-extern "C" int mbeads_spike_get_grain_cap() {
-    return gSpikeGrainCap.load();
+extern "C" int mbeads_debug_get_total_cap() {
+    return gMbeadsDebugTotalOverride.load();
 }
 
-extern "C" int mbeads_spike_get_active_grains() {
-    return gSpikeActiveGrains.load();
+extern "C" int mbeads_debug_set_helper_cap(int cap) {
+    if (cap < -1) cap = -1;
+    if (cap > 32) cap = 32;
+    return gMbeadsDebugHelperOverride.exchange(cap);
+}
+
+extern "C" int mbeads_debug_get_helper_cap() {
+    return gMbeadsDebugHelperOverride.load();
+}
+
+extern "C" int mbeads_debug_get_active_grains() {
+    return gMbeadsDebugActiveGrains.load();
+}
+
+extern "C" int mbeads_debug_get_helper_active_grains() {
+    return gMbeadsDebugHelperActive.load();
+}
+
+extern "C" int mbeads_debug_get_helper_cycles() {
+    return static_cast<int>(gMbeadsDebugHelperCycles.load());
+}
+
+extern "C" int mbeads_debug_get_helper_overload() {
+    return gMbeadsDebugHelperOverload.load();
+}
+
+extern "C" int mbeads_debug_get_helper_stack_high_water() {
+    return gMbeadsDebugHelperStack.load();
+}
+
+extern "C" int mbeads_debug_get_core_cap() {
+    return gMbeadsDebugCoreCap.load();
 }
 
 void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
@@ -81,9 +115,6 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
                  "Cannot allocate PSRAM buffers (delay %p, reverb %p), "
                  "plugin will output silence",
                  delay_buffer_, reverb_buffer_);
-        // No assert here on purpose: a missing PSRAM allocation must not abort
-        // the firmware (asserts are enabled in this build). Process() checks
-        // initialized_ and outputs silence instead.
         if (delay_buffer_ != nullptr) {
             heap_caps_free(delay_buffer_);
             delay_buffer_ = nullptr;
@@ -93,7 +124,7 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
             reverb_buffer_ = nullptr;
         }
         initialized_ = false;
-        gSpikeActiveGrains.store(-1);  // TEMP CPU-SPIKE
+        gMbeadsDebugActiveGrains.store(-1);
         return;
     }
 
@@ -101,23 +132,18 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
     delay_banks_[1] = delay_buffer_ + kDelayBankBytes;
     delay_banks_[2] = delay_buffer_ + 2 * kDelayBankBytes;
 
-    // The reverb network is skipped while its mix is zero (the default). Clear
-    // the PSRAM buffer once so enabling it starts from silence, not garbage.
     std::memset(reverb_buffer_, 0, kReverbBufferBytes);
 
     processor.Init(delay_banks_, reverb_buffer_, 44100.0f);
-    // beads::Processor::Init already calls Configure(MEDIA_DIGITAL, false), so
-    // the 768 KB delay buffer is cleared exactly once here. Configure() only
-    // runs again when the media parameter changes (see Process()).
     last_media_ = 0;
     initialized_ = true;
-    // TEMP CPU-SPIKE: report 0 active grains until the first Process().
-    gSpikeActiveGrains.store(0);
+    gMbeadsDebugActiveGrains.store(0);
 
 #ifndef TBD_SIM
-    // Performance logging is process-wide and must only be started once, no
-    // matter how often the plugin is loaded. Core 1 / priority 5 keeps the
-    // logging task well below the audio task (core 1, priority 23).
+    if (!StartHelper()) {
+        ESP_LOGE("Mbeads", "helper task creation failed; using single-core cap");
+    }
+
     static bool perf_enabled = false;
     if (!perf_enabled) {
         CTAG::INSTRUMENTATION::PerfMonitor::EnableLogging(true, 5000, 1, 5);
@@ -134,10 +160,6 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
         return;
     }
 
-    // Media switching. Configure() clears 768 KB of PSRAM (only the delay line
-    // of the active channel layout) and must never run on every block; accept a
-    // two-block mute when the mode changes.
-    // 0 = Digital, 1 = Vintage; anything else falls back to Digital.
     int media = static_cast<int>(media_.load());
     if (media != 0 && media != 1) {
         media = 0;
@@ -159,8 +181,6 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     }
 
 #ifndef TBD_SIM
-    // Measures the whole per-block plugin cost from here on, including the
-    // parameter conversion, the Beads engine and the copy back to data.buf.
     PERF_MEASURE("Mbeads");
 #endif
 
@@ -187,8 +207,6 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     const float pitch_mod = std::clamp(
         (pitch_mod_.load() - 2047.5f) / 2047.5f, -1.0f, 1.0f);
 
-    // Fields are assigned explicitly; the aggregate order of
-    // beads::RandomizedParameter is base, attenuverter, cv, has_cv.
     beads::Parameters p;
     p.time.base = time;
     p.time.attenuverter = time_mod;
@@ -228,7 +246,6 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     if (cv_reverb != -1) reverb += data.cv[cv_reverb];
     reverb = std::clamp(reverb, 0.0f, 1.0f);
 
-    // TBD trigger convention: 1 means active.
     bool freeze = freeze_.load() != 0;
     const int trig_freeze = trig_freeze_.load();
     if (trig_freeze != -1) freeze = data.trig[trig_freeze] == 1;
@@ -261,33 +278,97 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
     mix.reverb_amount = reverb;
     mix.output_gate = false;
 
-    // CPU protection. The granular engine's cost grows with the number of
-    // simultaneously rendering grains; at long Size settings the natural
-    // overlap exceeds the audio-task budget and produces dropouts. The reverb
-    // network is also expensive, so reserve headroom for it when it is
-    // audible. These caps keep the worst case inside the 174,150-cycle block
-    // budget while leaving the default patch (0-1 grains) untouched.
     const bool reverb_active =
         reverb * reverb * 0.9f > beads::Processor::kReverbActiveThreshold;
-    // TEMP CPU-SPIKE: /debug/setGrainCap overrides the production cap. With no
-    // override the original 4-dry / 2-reverb policy is preserved exactly.
-    const int spike_cap = gSpikeGrainCap.load();
-    processor.SetMaxActiveGrains(
-        spike_cap >= 0 ? spike_cap : (reverb_active ? 2 : 4));
+
+#ifndef TBD_SIM
+    bool helper_available = (helper_task_ != nullptr) &&
+                            helper_running_.load(std::memory_order_acquire);
+#else
+    bool helper_available = false;
+#endif
+
+    const int total_override = gMbeadsDebugTotalOverride.load();
+    const int helper_override = gMbeadsDebugHelperOverride.load();
+
+    int default_total;
+    int default_helper;
+    if (media == 0) { // Digital
+        if (helper_available) {
+            default_total = 16;
+            default_helper = 8;
+        } else {
+            default_total = reverb_active ? 2 : 4;
+            default_helper = 0;
+        }
+    } else { // Vintage
+        default_total = reverb_active ? 8 : 16;
+        default_helper = 0;
+    }
+
+    int total = total_override >= 0 ? total_override : default_total;
+    int helper = helper_override >= 0 ? helper_override : default_helper;
+    total = std::max(0, std::min(32, total));
+    helper = std::max(0, std::min(total, helper));
+    const int core = total - helper;
+
+    processor.SetMaxActiveGrains(core);
+    processor.SetHelperMaxActiveGrains(helper);
+
+#ifndef TBD_SIM
+    const int write_slot = static_cast<int>(helper_block_counter_ & 1u);
+    const int read_slot = write_slot ^ 1;
+    const bool use_helper = helper_available && media == 0 && helper > 0;
+    const bool helper_ready =
+        use_helper && helper_block_counter_ > 0 &&
+        helper_done_seq_[read_slot].load(std::memory_order_acquire) ==
+            helper_block_counter_ - 1;
+    const beads::FloatFrame *extra_wet =
+        helper_ready ? helper_out_[read_slot] : nullptr;
+
+    const bool queue_helper =
+        use_helper &&
+        helper_slot_free_[write_slot].exchange(false, std::memory_order_acquire);
+    beads::Processor::GrainHelperBlock *helper_block =
+        queue_helper ? &helper_blocks_[write_slot] : nullptr;
+#else
+    const beads::FloatFrame *extra_wet = nullptr;
+    beads::Processor::GrainHelperBlock *helper_block = nullptr;
+#endif
 
 #ifndef TBD_SIM
     {
-        // Nested section: the granular engine alone, without the glue's
-        // parameter conversion and buffer copies.
         PERF_MEASURE("MbeadsGranular");
 #endif
         processor.Process(seed_state, seed_input, freeze_frames_, density, p,
-                          mix, in_, out_, kBlockSize);
+                          mix, in_, out_, kBlockSize, helper_block, extra_wet);
 #ifndef TBD_SIM
     }
 #endif
-    // TEMP CPU-SPIKE: expose the post-block active grain count.
-    gSpikeActiveGrains.store(processor.ActiveGrains());
+
+#ifndef TBD_SIM
+    if (queue_helper) {
+        helper_pending_slot_.store(write_slot, std::memory_order_relaxed);
+        helper_pending_seq_.store(helper_block_counter_, std::memory_order_relaxed);
+        std::atomic_thread_fence(std::memory_order_release);
+        xTaskNotifyGive(helper_task_);
+    }
+    ++helper_block_counter_;
+#endif
+
+    gMbeadsDebugActiveGrains.store(processor.ActiveGrains());
+    gMbeadsDebugHelperActive.store(
+        helper_available ? processor.HelperActiveGrains() : -1);
+    gMbeadsDebugCoreCap.store(core);
+    gMbeadsDebugHelperCap.store(helper);
+#ifndef TBD_SIM
+    gMbeadsDebugHelperCycles.store(
+        static_cast<int>(helper_cycles_.load(std::memory_order_relaxed)));
+    gMbeadsDebugHelperOverload.store(
+        helper_overload_.load(std::memory_order_relaxed) ? 1 : 0);
+    gMbeadsDebugHelperStack.store(
+        helper_stack_high_water_.load(std::memory_order_relaxed));
+#endif
 
     for (std::size_t i = 0; i < kBlockSize; ++i) {
         data.buf[2 * i] = out_[i].l;
@@ -296,8 +377,11 @@ void ctagSoundProcessorMbeads::Process(const ProcessData &data) {
 }
 
 ctagSoundProcessorMbeads::~ctagSoundProcessorMbeads() {
-    // TEMP CPU-SPIKE: mark the debug readout invalid once the plugin is gone.
-    gSpikeActiveGrains.store(-1);
+#ifndef TBD_SIM
+    StopHelper();
+#endif
+    gMbeadsDebugActiveGrains.store(-1);
+    gMbeadsDebugHelperActive.store(-1);
     if (delay_buffer_ != nullptr) {
         heap_caps_free(delay_buffer_);
         delay_buffer_ = nullptr;
@@ -308,9 +392,91 @@ ctagSoundProcessorMbeads::~ctagSoundProcessorMbeads() {
     }
 }
 
+#ifndef TBD_SIM
+bool ctagSoundProcessorMbeads::StartHelper() {
+    if (helper_task_ != nullptr) return true;
+    helper_stop_.store(false, std::memory_order_release);
+    helper_running_.store(false, std::memory_order_release);
+    helper_done_seq_[0].store(UINT32_MAX, std::memory_order_relaxed);
+    helper_done_seq_[1].store(UINT32_MAX, std::memory_order_relaxed);
+    helper_slot_free_[0].store(true, std::memory_order_relaxed);
+    helper_slot_free_[1].store(true, std::memory_order_relaxed);
+    helper_pending_slot_.store(0, std::memory_order_relaxed);
+    helper_pending_seq_.store(0, std::memory_order_relaxed);
+    helper_block_counter_ = 0;
+
+    BaseType_t ok = xTaskCreatePinnedToCore(
+        HelperTaskEntry, "MbeadsGrain", kHelperTaskStack, this,
+        kHelperTaskPriority, &helper_task_, kHelperTaskCore);
+    if (ok != pdPASS) {
+        helper_task_ = nullptr;
+        ESP_LOGE("Mbeads", "helper task creation failed");
+        return false;
+    }
+    // Wait up to 20 ms for the task to start.
+    for (int i = 0; i < 20; ++i) {
+        if (helper_running_.load(std::memory_order_acquire)) break;
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (!helper_running_.load(std::memory_order_acquire)) {
+        vTaskDelete(helper_task_);
+        helper_task_ = nullptr;
+        ESP_LOGE("Mbeads", "helper task did not start");
+        return false;
+    }
+    return true;
+}
+
+void ctagSoundProcessorMbeads::StopHelper() {
+    if (helper_task_ == nullptr) return;
+    helper_stop_.store(true, std::memory_order_release);
+    xTaskNotifyGive(helper_task_);
+    for (int i = 0; i < 100; ++i) {
+        if (!helper_running_.load(std::memory_order_acquire)) break;
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (helper_running_.load(std::memory_order_acquire)) {
+        vTaskDelete(helper_task_);
+    }
+    helper_task_ = nullptr;
+}
+
+void ctagSoundProcessorMbeads::HelperTaskEntry(void *arg) {
+    static_cast<ctagSoundProcessorMbeads *>(arg)->HelperTask();
+}
+
+void ctagSoundProcessorMbeads::HelperTask() {
+    helper_running_.store(true, std::memory_order_release);
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if (helper_stop_.load(std::memory_order_acquire)) break;
+
+        const int slot = helper_pending_slot_.load(std::memory_order_acquire);
+        const std::uint32_t seq =
+            helper_pending_seq_.load(std::memory_order_acquire);
+        std::atomic_thread_fence(std::memory_order_acquire);
+
+        const std::uint32_t start = esp_cpu_get_cycle_count();
+        processor.RenderHelperGrains(helper_blocks_[slot], helper_out_[slot]);
+        const std::uint32_t cycles = esp_cpu_get_cycle_count() - start;
+
+        helper_cycles_.store(cycles, std::memory_order_relaxed);
+        helper_overload_.store(cycles > kAudioBudgetCycles,
+                               std::memory_order_relaxed);
+        helper_stack_high_water_.store(
+            static_cast<int>(uxTaskGetStackHighWaterMark(nullptr) *
+                             sizeof(StackType_t)),
+            std::memory_order_relaxed);
+
+        helper_done_seq_[slot].store(seq, std::memory_order_release);
+        helper_slot_free_[slot].store(true, std::memory_order_release);
+    }
+    helper_running_.store(false, std::memory_order_release);
+    vTaskDelete(nullptr);
+}
+#endif
+
 void ctagSoundProcessorMbeads::knowYourself() {
-    // Granular parameters with bipolar attenuverters. Without CV the
-    // attenuverter is Beads' internal randomization depth.
     pMapPar.emplace("time", [&](const int val) { time_ = val; });
     pMapCv.emplace("time", [&](const int val) { cv_time_ = val; });
     pMapPar.emplace("time_mod", [&](const int val) { time_mod_ = val; });

@@ -41,11 +41,17 @@ respective component folders / files if different from this license.
 using namespace std;
 using namespace rapidjson;
 
-// TEMP CPU-SPIKE: Mbeads grain-cap override/getters, implemented in
-// components/ctagSoundProcessor/ctagSoundProcessorMbeads.cpp.
-extern "C" int mbeads_spike_set_grain_cap(int cap);
-extern "C" int mbeads_spike_get_grain_cap();
-extern "C" int mbeads_spike_get_active_grains();
+// Mbeads debug hooks: grain-cap override/getters.
+extern "C" int mbeads_debug_set_total_cap(int cap);
+extern "C" int mbeads_debug_get_total_cap();
+extern "C" int mbeads_debug_set_helper_cap(int cap);
+extern "C" int mbeads_debug_get_helper_cap();
+extern "C" int mbeads_debug_get_active_grains();
+extern "C" int mbeads_debug_get_helper_active_grains();
+extern "C" int mbeads_debug_get_helper_cycles();
+extern "C" int mbeads_debug_get_helper_overload();
+extern "C" int mbeads_debug_get_helper_stack_high_water();
+extern "C" int mbeads_debug_get_core_cap();
 
 namespace {
     const char *TAG = "DebugUI";
@@ -172,25 +178,47 @@ namespace CTAG {
                            to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0) +
                            ",\"audioCycles\":" +
                            to_string(AUDIO::SoundProcessorManager::GetLastAudioTaskCycles()) +
-                           // TEMP CPU-SPIKE: -1 = no override / plugin absent.
                            ",\"activeGrains\":" +
-                           to_string(mbeads_spike_get_active_grains()) +
+                           to_string(mbeads_debug_get_active_grains()) +
+                           ",\"helperActiveGrains\":" +
+                           to_string(mbeads_debug_get_helper_active_grains()) +
+                           ",\"helperCycles\":" +
+                           to_string(mbeads_debug_get_helper_cycles()) +
+                           ",\"helperOverload\":" +
+                           to_string(mbeads_debug_get_helper_overload()) +
+                           ",\"helperStackHighWater\":" +
+                           to_string(mbeads_debug_get_helper_stack_high_water()) +
+                           ",\"coreGrainCap\":" +
+                           to_string(mbeads_debug_get_core_cap()) +
+                           ",\"helperGrainCap\":" +
+                           to_string(mbeads_debug_get_helper_cap() >= 0 ? mbeads_debug_get_helper_cap() : -1) +
                            ",\"grainCapOverride\":" +
-                           to_string(mbeads_spike_get_grain_cap()) +
+                           to_string(mbeads_debug_get_total_cap()) +
+                           ",\"helperGrainCapOverride\":" +
+                           to_string(mbeads_debug_get_helper_cap()) +
                            "}";
                 return true;
             }
 
             if (s == "/debug/setGrainCap") {
-                // TEMP CPU-SPIKE: explicit Mbeads grain-cap override for the
-                // CPU budget sweep. value = -1 restores the normal cap.
                 if (!d.HasMember("value") || !d["value"].IsInt()) {
                     response = "{\"error\":\"missing value\"}";
                     return true;
                 }
-                const int old_cap = mbeads_spike_set_grain_cap(d["value"].GetInt());
+                const int old_cap = mbeads_debug_set_total_cap(d["value"].GetInt());
                 response = "{\"ok\":1,\"old\":" + to_string(old_cap) +
-                           ",\"cap\":" + to_string(mbeads_spike_get_grain_cap()) + "}";
+                           ",\"cap\":" + to_string(mbeads_debug_get_total_cap()) + "}";
+                return true;
+            }
+
+            if (s == "/debug/setHelperGrainCap") {
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing value\"}";
+                    return true;
+                }
+                const int old_cap = mbeads_debug_set_helper_cap(d["value"].GetInt());
+                response = "{\"ok\":1,\"old\":" + to_string(old_cap) +
+                           ",\"cap\":" + to_string(mbeads_debug_get_helper_cap()) + "}";
                 return true;
             }
 
