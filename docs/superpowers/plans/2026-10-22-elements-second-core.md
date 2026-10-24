@@ -6,6 +6,20 @@
 
 **Design:** `designs/elements-second-core.md` (folded into `SPEC.md` as V5–V11, T2).
 
+## Task Status
+
+| Task | Status | Commit |
+|---|---|---|
+| 0. Freeze baseline | done | 3879d043 |
+| 1. Helper task + offload (proof of concept) | done | e1b7f88c, fixes 06ad2d92, 43cc1398 |
+| 2. Restore 52 modes | done | submodule e6fbfd5, f217a53 |
+| 3. Measurement + tuning | done (hardware measurement; auto step-down) | 121d71f3, 8b42cd97 |
+| 4. Docs + final validation | done | 8478e65e, (this commit) |
+
+The SDD controller records the authoritative completion state in its ledger
+(`.superpowers/sdd/2026-10-22-elements-second-core/progress.md`); this table is
+updated with final commits after Task 4.
+
 ## Tasks
 
 ### Task 0: Freeze baseline
@@ -28,6 +42,23 @@
 
 ### Task 4: Docs + final validation
 - Update AGENTS.md, commit.
+
+## As-built outcome (2026-10-23)
+
+- Task 2 shipped as a runtime API (`Voice::set_resolution()` /
+  `Part::set_resolution()`, `Voice` default 52) instead of editing a hardcoded
+  `set_resolution(12)` call, so the single-core fallback can select 12 at runtime.
+- Task 3 measured on hardware: helper at 52 modes costs ~225k cycles/block
+  typical and ~445k–555k worst-case (budget 174,150). The one-way ladder
+  52 → 32 → 24 → 16 → 12 and the literal V9 single-core handoff engage on every
+  boot and settle at single-core 12 modes within ~25–30 ms (~40 missed blocks
+  while settling). 52 modes is not viable on this hardware; the automatic
+  fallback is the stable configuration and matches the pre-existing baseline.
+- Debug surface: `/debug/getAudioStats` reports the `elementsHelper*` fields;
+  `/debug/setElementsMode{"value":12..56}` pins a mode count for measurement
+  (`<= 0` restores the auto ladder).
+- Hardware listening sign-off is still pending (user gate); no code change is
+  expected from it.
 
 ## Constraints
 - Work on feat/mbeads branch.

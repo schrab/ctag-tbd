@@ -1,5 +1,7 @@
 # Elements Second-Core Offload
 
+**Status: implemented; 52-mode goal not met on hardware — see Outcome.**
+
 ## Problem
 
 Elements' modal resonator (originally 52 SVF modes) exceeds the 174,150-cycle audio-block budget on a single core. The port compromised to 12 modes (`voice.cc:73`, `set_resolution(12)`) and applies a 0.125 master gain to tame SoftLimit output. The result is audibly thinner than the original instrument. Goal: restore the original 52-mode resonator by moving the heavy DSP to core 0, mirroring the Mbeads second-core pattern, without audible dropouts or regressions.
@@ -26,6 +28,14 @@ Offload the entire `elements::Part::Process` call to a core-0 helper task, one f
 
 Reuse the Mbeads endpoints: `/debug/getAudioStats` extended with `helperCycles`, `helperOverload`, `helperStackHighWater`. Hardcode 52 modes and measure; if helperOverload or audio overload, step down to 32/24 and re-measure.
 
+*As built:* Elements exposes distinct keys instead (`elementsHelperCycles`,
+`elementsHelperMaxCycles`, `elementsHelperOverload`,
+`elementsHelperStackHighWater`, `elementsHelperResolution`,
+`elementsHelperMisses`, `elementsHelperModeOverride`), plus
+`/debug/setElementsMode` to pin a mode count for measurement. Distinct keys keep
+Mbeads and Elements stats from overwriting each other when both plugins are
+loaded.
+
 ## Design decisions
 
 - **Decision:** Patch snapshot into the helper block; helper copies it into `part` at render start. No mutex. **Why:** Core 1 never touches `part` during render; only the patch snapshot crosses cores. Avoids blocking and matches the Mbeads "no wait" invariant.
@@ -40,6 +50,32 @@ Reuse the Mbeads endpoints: `/debug/getAudioStats` extended with `helperCycles`,
 - No audible dropouts/crackle; user listening sign-off.
 - Mbeads and Vintage unaffected (Elements is a separate plugin).
 
+## Outcome (2026-10-23)
+
+Implemented on `feat/mbeads`: helper offload (`e1b7f88c`), review fixes
+(`06ad2d92`), hygiene (`43cc1398`), runtime resolution API with 52-mode default
+(submodule `e6fbfd5`, `f217a53`), literal V9 handoff + stats (`121d71f3`), debug
+mode override (`8b42cd97`). Design folded into SPEC.md as V5–V11 / T1–T2
+earlier.
+
+Measured on hardware (ESP32-D0WD-V3, 240 MHz, budget 174,150 cycles per
+32-sample block; UART `/debug/getAudioStats`):
+
+| Observation | Value |
+|---|---|
+| Helper at 52 modes | ~225k cycles/block typical; ~445k–555k worst-case → over budget |
+| Step-down ladder | one-way 52 → 32 → 24 → 16 → 12, 8-block hysteresis per mode |
+| Settled state | literal V9 handoff to single-core 12 modes ~25–30 ms after boot, ~40 missed blocks while settling |
+| Runtime failures | none observed; no crash, watchdog or silent wedge |
+| Audio after settle | single-core 12-mode profile that shipped before this work |
+
+Consequence: on this hardware the second-core offload does **not** make 52 modes
+viable — the helper itself is over the block budget at every attempted mode
+count. The work still pays off as a safe automatic fallback: production audio
+ends up on the proven single-core 12-mode path. The 52-mode success criterion is
+not met; the 10-minute soak was not run (boot transients only). Listening
+sign-off is pending user review.
+
 ## Out of scope
 
 - Splitting individual modes across cores (not feasible without resonator rewrite).
@@ -48,5 +84,5 @@ Reuse the Mbeads endpoints: `/debug/getAudioStats` extended with `helperCycles`,
 
 ## Next
 
-1. invoke the spec skill designs/elements-second-core.md — fold the draft into SPEC.md
-2. invoke the design skill elements-second-core — re-run for a revised draft (new file per write-new mode)
+None — folded into `SPEC.md` as V5–V11 / T1–T2 and implemented; see Outcome.
+Remaining open item is the user listening sign-off on the flashed firmware.

@@ -34,8 +34,8 @@ V11: Elements second-core reverb — reverb stays inside Part::Process on core 0
 
 | id | status | task |
 |---|---|---|
-| T1 | . | Elements second-core offload (designs/elements-second-core.md) |
-| T2 | . | Elements second-core: implement helper task, snapshot, debug endpoints, hardware gates |
+| T1 | x | Elements second-core offload (designs/elements-second-core.md) |
+| T2 | x | Elements second-core: implement helper task, snapshot, debug endpoints, hardware gates |
 
 ## B BUGS
 
