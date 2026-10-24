@@ -110,7 +110,7 @@ namespace CTAG {
             // (~115 KB, larger than the whole 112 KB DRAM arena) stays in the
             // PSRAM object.
             struct HelperShared {
-                HelperBlock blocks[kHelperSlots];
+                HelperBlock blocks_[kHelperSlots];
                 std::atomic<bool> stop_{false};
                 std::atomic<bool> running_{false};
                 std::atomic<int> pending_slot_{-1};
