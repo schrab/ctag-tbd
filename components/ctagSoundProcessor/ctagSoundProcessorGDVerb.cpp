@@ -48,51 +48,51 @@ void ctagSoundProcessorGDVerb::Process(const ProcessData &data) {
         fRevTime = 0.9f * prefRevTime + 0.1f * (0.2f + fabsf(data.cv[cv_revtime]) * 20.f);
         prefRevTime = fRevTime;
     }
-    strev.setrt60(fRevTime);
-    strev.setdccutfreq((float) dccut);
-    strev.setidiffusion1((float) idiffusion1 / 4095.f);
-    strev.setidiffusion2((float) idiffusion2 / 4095.f);
-    strev.setdiffusion1((float) diffusion1 / 4095.f);
-    strev.setdiffusion2((float) diffusion2 / 4095.f);
-    strev.setinputdamp((float) inputdamp);
-    strev.setdamp((float) damp);
-    strev.setoutputdamp((float) outputdamp);
-    strev.setspin((float) spin / 4095.f * 10.f);
-    strev.setspindiff((float) spindiff / 4095.f);
-    strev.setspinlimit((float) spinlimit / 4095.f * 50.f);
-    strev.setwander((float) wander / 4095.f);
-    strev.setmodulationnoise1((float) modnoise1 / 4095.f * 0.1f);
-    strev.setmodulationnoise2((float) modnoise2 / 4095.f * 0.1f);
-    strev.setAutoDiff(autodiff);
-    strev.setwetr((float) wet / 4095.f);
-    strev.setdryr((float) dry / 4095.f);
-    strev.setwidth((float) width / 4095.f);
-    strev.setmono((bool) mono);
+    // Merge the parameter and CV sources first, then hand each value to the
+    // engine only when it moved since the last block.
+    const float vDccut = (cv_dccut != -1)
+        ? data.cv[cv_dccut] * data.cv[cv_dccut] * 10000.f : (float) dccut;
+    const float vIdiff1 = (float) idiffusion1 / 4095.f;
+    const float vIdiff2 = (float) idiffusion2 / 4095.f;
+    const float vDiff1 = (float) diffusion1 / 4095.f;
+    const float vDiff2 = (float) diffusion2 / 4095.f;
+    const float vInputDamp = (cv_inputdamp != -1)
+        ? data.cv[cv_inputdamp] * data.cv[cv_inputdamp] * 20000.f : (float) inputdamp;
+    const float vDamp = (cv_damp != -1)
+        ? data.cv[cv_damp] * data.cv[cv_damp] * 20000.f : (float) damp;
+    const float vOutputDamp = (cv_outputdamp != -1)
+        ? data.cv[cv_outputdamp] * data.cv[cv_outputdamp] * 20000.f : (float) outputdamp;
+    const float vSpin = (float) spin / 4095.f * 10.f;
+    const float vSpinDiff = (float) spindiff / 4095.f;
+    const float vSpinLimit = (float) spinlimit / 4095.f * 50.f;
+    const float vWander = (cv_wander != -1)
+        ? data.cv[cv_wander] * data.cv[cv_wander] : (float) wander / 4095.f;
+    const float vModNoise1 = (float) modnoise1 / 4095.f * 0.1f;
+    const float vModNoise2 = (float) modnoise2 / 4095.f * 0.1f;
+    const float vWet = (cv_wet != -1) ? fabsf(data.cv[cv_wet]) : (float) wet / 4095.f;
+    const float vDry = (cv_dry != -1) ? fabsf(data.cv[cv_dry]) : (float) dry / 4095.f;
+    const float vWidth = (cv_width != -1) ? fabsf(data.cv[cv_width]) : (float) width / 4095.f;
 
-    if (cv_width != -1) {
-        strev.setwidth(fabsf(data.cv[cv_width]));
-    }
-    if (cv_wet != -1) {
-        strev.setwetr(fabs(data.cv[cv_wet]));
-    }
-    if (cv_dry != -1) {
-        strev.setdryr(fabs(data.cv[cv_dry]));
-    }
-    if (cv_dccut != -1) {
-        strev.setdccutfreq(data.cv[cv_dccut] * data.cv[cv_dccut] * 10000.f);
-    }
-    if (cv_inputdamp != -1) {
-        strev.setinputdamp(data.cv[cv_inputdamp] * data.cv[cv_inputdamp] * 20000.f);
-    }
-    if (cv_damp != -1) {
-        strev.setdamp(data.cv[cv_damp] * data.cv[cv_damp] * 20000.f);
-    }
-    if (cv_outputdamp != -1) {
-        strev.setoutputdamp(data.cv[cv_outputdamp] * data.cv[cv_outputdamp] * 20000.f);
-    }
-    if (cv_wander != -1) {
-        strev.setwander(data.cv[cv_wander] * data.cv[cv_wander]);
-    }
+    if (fRevTime != lastRt60) { strev.setrt60(fRevTime); lastRt60 = fRevTime; }
+    if (vDccut != lastDccut) { strev.setdccutfreq(vDccut); lastDccut = vDccut; }
+    if (vIdiff1 != lastIdiff1) { strev.setidiffusion1(vIdiff1); lastIdiff1 = vIdiff1; }
+    if (vIdiff2 != lastIdiff2) { strev.setidiffusion2(vIdiff2); lastIdiff2 = vIdiff2; }
+    if (vDiff1 != lastDiff1) { strev.setdiffusion1(vDiff1); lastDiff1 = vDiff1; }
+    if (vDiff2 != lastDiff2) { strev.setdiffusion2(vDiff2); lastDiff2 = vDiff2; }
+    if (vInputDamp != lastInputDamp) { strev.setinputdamp(vInputDamp); lastInputDamp = vInputDamp; }
+    if (vDamp != lastDamp) { strev.setdamp(vDamp); lastDamp = vDamp; }
+    if (vOutputDamp != lastOutputDamp) { strev.setoutputdamp(vOutputDamp); lastOutputDamp = vOutputDamp; }
+    if (vSpin != lastSpin) { strev.setspin(vSpin); lastSpin = vSpin; }
+    if (vSpinDiff != lastSpinDiff) { strev.setspindiff(vSpinDiff); lastSpinDiff = vSpinDiff; }
+    if (vSpinLimit != lastSpinLimit) { strev.setspinlimit(vSpinLimit); lastSpinLimit = vSpinLimit; }
+    if (vWander != lastWander) { strev.setwander(vWander); lastWander = vWander; }
+    if (vModNoise1 != lastModNoise1) { strev.setmodulationnoise1(vModNoise1); lastModNoise1 = vModNoise1; }
+    if (vModNoise2 != lastModNoise2) { strev.setmodulationnoise2(vModNoise2); lastModNoise2 = vModNoise2; }
+    if (autodiff != lastAutodiff) { strev.setAutoDiff(autodiff); lastAutodiff = autodiff; }
+    if (vWet != lastWet) { strev.setwetr(vWet); lastWet = vWet; }
+    if (vDry != lastDry) { strev.setdryr(vDry); lastDry = vDry; }
+    if (vWidth != lastWidth) { strev.setwidth(vWidth); lastWidth = vWidth; }
+    strev.setmono((bool) mono);
 
     // process the data
     strev.processreplace(data.buf, bufSz);

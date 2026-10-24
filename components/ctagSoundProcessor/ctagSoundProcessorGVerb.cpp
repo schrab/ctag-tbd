@@ -51,18 +51,21 @@ void ctagSoundProcessorGVerb::Process(const ProcessData &data) {
     fTailLvl = (float) taillvl / 4095.f;
     fDryWet = (float) drywet / 4095.f;
 //    if(cvRoomSz != -1) fRoomSz = data.cv[cvRoomSz] * data.cv[cvRoomSz] * maxRoomSize;
-    gverb_set_roomsize(gverb, fRoomSz);
     if (cv_revtime != -1) fRevTime = fabsf(data.cv[cv_revtime]) * 30.f;
-    gverb_set_revtime(gverb, fRevTime);
     if (cv_damping != -1) fDamping = (data.cv[cv_damping] * data.cv[cv_damping]) - 0.01f;
-    gverb_set_damping(gverb, fDamping);
     if (cv_inputbw != -1) fInputBW = data.cv[cv_inputbw] * data.cv[cv_inputbw];
-    gverb_set_inputbandwidth(gverb, fInputBW);
     if (cv_earlylvl != -1) fEarlyLvl = data.cv[cv_earlylvl] * data.cv[cv_earlylvl];
-    gverb_set_earlylevel(gverb, fEarlyLvl);
     if (cv_taillvl != -1) fTailLvl = data.cv[cv_taillvl] * data.cv[cv_taillvl];
-    gverb_set_taillevel(gverb, fTailLvl);
     if (cv_drywet != -1) fDryWet = data.cv[cv_drywet] * data.cv[cv_drywet];
+    // set_roomsize/set_revtime recompute the FDN delay lengths and gains
+    // (about a dozen powf between them) and every setter is pure in its
+    // argument: apply each only when its cooked value actually moved.
+    if (fRoomSz != lastRoomSz) { gverb_set_roomsize(gverb, fRoomSz); lastRoomSz = fRoomSz; }
+    if (fRevTime != lastRevTime) { gverb_set_revtime(gverb, fRevTime); lastRevTime = fRevTime; }
+    if (fDamping != lastDamping) { gverb_set_damping(gverb, fDamping); lastDamping = fDamping; }
+    if (fInputBW != lastInputBW) { gverb_set_inputbandwidth(gverb, fInputBW); lastInputBW = fInputBW; }
+    if (fEarlyLvl != lastEarlyLvl) { gverb_set_earlylevel(gverb, fEarlyLvl); lastEarlyLvl = fEarlyLvl; }
+    if (fTailLvl != lastTailLvl) { gverb_set_taillevel(gverb, fTailLvl); lastTailLvl = fTailLvl; }
     for (int i = 0; i < bufSz; i++) {
         if (mono) {
             gverb_do(gverb, data.buf[i * 2], &revout_l, &revout_r);

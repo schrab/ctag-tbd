@@ -46,6 +46,13 @@ namespace CTAG::SP {
         ty_gverb *gverb;
         // process only variables
         float fRoomSz, fRevTime, fDamping, fInputBW, fEarlyLvl, fTailLvl, fDryWet;
+        // last values handed to the gverb setters, for change gating in Process
+        float lastRoomSz = __builtin_nanf(""),
+              lastRevTime = __builtin_nanf(""),
+              lastDamping = __builtin_nanf(""),
+              lastInputBW = __builtin_nanf(""),
+              lastEarlyLvl = __builtin_nanf(""),
+              lastTailLvl = __builtin_nanf("");
         // sectionHpp
         atomic<int32_t> roomsize, cv_roomsize;
         atomic<int32_t> revtime, cv_revtime;

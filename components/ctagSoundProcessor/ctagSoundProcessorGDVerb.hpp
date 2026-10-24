@@ -44,6 +44,29 @@ namespace CTAG::SP {
 
         float prefRevTime = 1.f;
 
+        // Last values handed to the strev setters, for change gating in
+        // Process: every set* recomputes coefficient chains that are pure
+        // functions of their argument.
+        float lastRt60 = __builtin_nanf(""),
+              lastDccut = __builtin_nanf(""),
+              lastIdiff1 = __builtin_nanf(""),
+              lastIdiff2 = __builtin_nanf(""),
+              lastDiff1 = __builtin_nanf(""),
+              lastDiff2 = __builtin_nanf(""),
+              lastInputDamp = __builtin_nanf(""),
+              lastDamp = __builtin_nanf(""),
+              lastOutputDamp = __builtin_nanf(""),
+              lastSpin = __builtin_nanf(""),
+              lastSpinDiff = __builtin_nanf(""),
+              lastSpinLimit = __builtin_nanf(""),
+              lastWander = __builtin_nanf(""),
+              lastModNoise1 = __builtin_nanf(""),
+              lastModNoise2 = __builtin_nanf(""),
+              lastWet = __builtin_nanf(""),
+              lastDry = __builtin_nanf(""),
+              lastWidth = __builtin_nanf("");
+        int lastAutodiff = -1;
+
         // sectionHpp
         atomic<int32_t> revtime, cv_revtime;
         atomic<int32_t> dccut, cv_dccut;
