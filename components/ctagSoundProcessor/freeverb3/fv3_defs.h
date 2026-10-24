@@ -40,7 +40,7 @@
 #ifdef DISABLE_UNDENORMAL
 #define UNDENORMAL(v)
 #else
-#define UNDENORMAL(v) if(fpclassify(v) != FP_NORMAL&&fpclassify(v) != FP_ZERO){v=0;}
+#define UNDENORMAL(v) do{int fv3_fpclass_ = fpclassify(v); if(fv3_fpclass_ != FP_NORMAL && fv3_fpclass_ != FP_ZERO){v=0;}}while(0)
 #endif
 
 #ifndef LIMIT_PLUSMINUS_ONE

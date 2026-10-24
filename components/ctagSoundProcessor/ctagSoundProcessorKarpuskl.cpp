@@ -284,6 +284,12 @@ float lfo_val = 0.f;
     }
   }
   ringModCarrier.SetFrequency(modFreq);
+  // --- Delay-line sizes are fixed for the rest of this block; wrap indices
+  // with a compare instead of per-sample integer modulo (the LX6 divider is
+  // a software routine) ---
+  const size_t sizeA = m_bufferA.size(), sizeB = m_bufferB.size();
+  const size_t sizeC = m_bufferC.size(), sizeD = m_bufferD.size();
+  size_t nextA = 0, nextB = 0, nextC = 0, nextD = 0;
   // --- This is our main loop, where the generation of the Karplus Strong tones and ringmodulation takes place ---
   for (uint32_t i = 0; i < bufSz; i++)
   {
@@ -323,32 +329,36 @@ float lfo_val = 0.f;
       }
     }
     // --- Update the Karplus Strong buffer related stuff ---
+    nextA = m_indexA + 1; if (nextA >= sizeA) nextA = 0;
+    nextB = m_indexB + 1; if (nextB >= sizeB) nextB = 0;
+    nextC = m_indexC + 1; if (nextC >= sizeC) nextC = 0;
+    nextD = m_indexD + 1; if (nextD >= sizeD) nextD = 0;
     if (chord_notes > 0)                // GATE_HIGH or GATE_HIGH_NEW
     {
-      f_valA = (m_bufferA[m_indexA] + bright*m_bufferA[(m_indexA + 1) % m_bufferA.size()]) * 0.5f *  damping; // low pass filter (average) some samples
+      f_valA = (m_bufferA[m_indexA] + bright*m_bufferA[nextA]) * 0.5f *  damping; // low pass filter (average) some samples
       m_bufferA[m_indexA] = f_valA;
-      f_valB = (m_bufferB[m_indexB] + bright*m_bufferB[(m_indexB + 1) % m_bufferB.size()]) * 0.5f *  damping; // low pass filter (average) some samples
+      f_valB = (m_bufferB[m_indexB] + bright*m_bufferB[nextB]) * 0.5f *  damping; // low pass filter (average) some samples
       m_bufferB[m_indexB] = f_valB;
-      f_valC = (m_bufferC[m_indexC] + bright*m_bufferC[(m_indexC + 1) % m_bufferC.size()]) * 0.5f *  damping; // low pass filter (average) some samples
+      f_valC = (m_bufferC[m_indexC] + bright*m_bufferC[nextC]) * 0.5f *  damping; // low pass filter (average) some samples
       m_bufferC[m_indexC] = f_valC;
 
       if( fourth_note )
       {
-        f_valD = (m_bufferD[m_indexD] + bright * m_bufferD[(m_indexD + 1) % m_bufferD.size()]) * 0.5f * damping; // low pass filter (average) some samples
+        f_valD = (m_bufferD[m_indexD] + bright * m_bufferD[nextD]) * 0.5f * damping; // low pass filter (average) some samples
         m_bufferD[m_indexD] = f_valD;
-        m_indexD = (m_indexD + 1) % m_bufferD.size();
+        m_indexD = nextD;
       }
       f_valA = (f_valA + f_valB + f_valC + f_valD) * 0.5f;     // Mix all three (or four) notes and lower Volume to avoid clipping with chords
 
-      m_indexA = (m_indexA + 1) % m_bufferA.size();
-      m_indexB = (m_indexB + 1) % m_bufferB.size();
-      m_indexC = (m_indexC + 1) % m_bufferC.size();
+      m_indexA = nextA;
+      m_indexB = nextB;
+      m_indexC = nextC;
     }
     else      // Single note
     {
-      f_valA = (m_bufferA[m_indexA] + bright*m_bufferA[(m_indexA + 1) % m_bufferA.size()]) * 0.5f *  damping; // low pass filter (average) some samples
+      f_valA = (m_bufferA[m_indexA] + bright*m_bufferA[nextA]) * 0.5f *  damping; // low pass filter (average) some samples
       m_bufferA[m_indexA] = f_valA;
-      m_indexA = (m_indexA + 1) % m_bufferA.size();
+      m_indexA = nextA;
     }
     // --- Calculate the RingMod (we calculate this even if Ringmod-mix is zero, just in case it is mixed in all of a sudden) ---
     f_ringMod = ringModCarrier.Process();
@@ -391,6 +401,14 @@ void ctagSoundProcessorKarpuskl::Init(std::size_t blockSize, void *blockPtr)
     knowYourself();
     model = std::make_unique<ctagSPDataModel>(id, isStereo);
     LoadPreset(0);
+
+    // --- Pre-reserve the maximum reachable delay-line length (fifth below the
+    // lowest note, see stradella offsets): resize() at note-trigger then never
+    // reallocates, which would be a heap operation inside the audio task ---
+    m_bufferA.reserve(2048);
+    m_bufferB.reserve(2048);
+    m_bufferC.reserve(2048);
+    m_bufferD.reserve(2048);
 
     // --- Initialize buffer for the initial frequency for Karplus Strong ! This is a kind of dummy only to get realistic sized, but it will not play ---
     m_bufferA.resize(max(uint32_t(1),uint32_t(float(44100) / 440.f)));

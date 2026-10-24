@@ -258,13 +258,15 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             }
         }
 
-        // limiting output
+        // limiting output: hoist the atomic loads out of the per-sample loop
+        const bool softClip0 = ch0_outputSoftClip;
+        const bool softClip1 = ch1_outputSoftClip;
         for (uint32_t i = 0; i < BUF_SZ; i++) {
             // soft limiting
-            if (ch0_outputSoftClip) {
+            if (softClip0) {
                 fbuf[i * 2] = stmlib::SoftClip(fbuf[i * 2]);
             }
-            if (ch1_outputSoftClip) {
+            if (softClip1) {
                 fbuf[i * 2 + 1] = stmlib::SoftClip(fbuf[i * 2 + 1]);
             }
         }

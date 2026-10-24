@@ -237,13 +237,24 @@ void ctagSoundProcessorTBD03::Process(const ProcessData &data) {
     float eg = pre_eg_val;
     const int out_offset = processCh;
 
-    for (int i = 0; i < bufSz; i++) {
-        eg += eg_step;  // Simple addition instead of division+multiply per sample!
-        // apply non linearity to filter input
-        int16_t warped = ws.Transform(buffer[i]);
-        buffer[i] = stmlib::Mix(buffer[i], warped, signature);
-        // filter, EG and clip
-        data.buf[i * 2 + out_offset] = fgain * stmlib::SoftClip(eg * filter->Process(buffer[i] * div));
+    // Branch once per block instead of paying a virtual call per sample:
+    // with a concrete filter type the compiler can inline Process().
+    auto renderBlock = [&](auto &filt) {
+        for (int i = 0; i < bufSz; i++) {
+            eg += eg_step;  // Simple addition instead of division+multiply per sample!
+            // apply non linearity to filter input
+            int16_t warped = ws.Transform(buffer[i]);
+            buffer[i] = stmlib::Mix(buffer[i], warped, signature);
+            // filter, EG and clip
+            data.buf[i * 2 + out_offset] = fgain * stmlib::SoftClip(eg * filt.Process(buffer[i] * div));
+        }
+    };
+    switch (ftype) {
+        case 0: renderBlock(pirkle_zdf_boost); break;
+        case 1: renderBlock(karlson); break;
+        case 2: renderBlock(blaukraut); break;
+        case 3: renderBlock(pirkle_zdf); break;
+        default: renderBlock(zavalishin); break;
     }
     pre_eg_val = egvalVCA;
     // sync on trigger
