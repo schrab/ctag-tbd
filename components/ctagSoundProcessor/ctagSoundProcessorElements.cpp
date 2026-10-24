@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "ctagSoundProcessorElements.hpp"
 #include <iostream>
 #include <cmath>
+#include <new>
 #include "stmlib/stmlib.h"
 
 #ifndef TBD_SIM
@@ -105,14 +106,28 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     part.Init(reverb_buffer);
 
 #ifndef TBD_SIM
+    // Handoff state is copied every block in both directions and its atomics
+    // must not sit in PSRAM (S32C1I software workaround): keep it in internal
+    // DRAM when at all possible.
+    helper_shared_ = static_cast<HelperShared *>(
+        heap_caps_malloc(sizeof(HelperShared), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    if (helper_shared_ == nullptr) {
+        // Extreme DRAM pressure: PSRAM still works, it is just slower.
+        helper_shared_ = static_cast<HelperShared *>(
+            heap_caps_malloc(sizeof(HelperShared), MALLOC_CAP_SPIRAM));
+    }
+    assert(helper_shared_ != nullptr);
+    new (helper_shared_) HelperShared{};
+    HelperShared &hs = *helper_shared_;
+
     if (StartHelper()) {
         direct_fallback_prepared_ = false;
         part.set_resolution(kResolutionFull);
-        helper_applied_resolution_.store(kResolutionFull, std::memory_order_relaxed);
+        hs.applied_resolution_.store(kResolutionFull, std::memory_order_relaxed);
     } else {
         // Fallback: run on the audio core at the proven 12-mode resolution.
         part.set_resolution(kResolutionFallback);
-        helper_applied_resolution_.store(kResolutionFallback, std::memory_order_relaxed);
+        hs.applied_resolution_.store(kResolutionFallback, std::memory_order_relaxed);
         direct_fallback_prepared_ = true;
         ESP_LOGE("Elements", "helper task unavailable; single-core fallback (12 modes)");
     }
@@ -132,18 +147,19 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
 
 void ctagSoundProcessorElements::PublishDebugStats() {
 #ifndef TBD_SIM
+    HelperShared &hs = *helper_shared_;
     gElementsDebugHelperCycles.store(
-        static_cast<int>(helper_cycles_.load(std::memory_order_relaxed)));
+        static_cast<int>(hs.cycles_.load(std::memory_order_relaxed)));
     gElementsDebugHelperMaxCycles.store(
-        static_cast<int>(helper_max_cycles_.load(std::memory_order_relaxed)));
+        static_cast<int>(hs.max_cycles_.load(std::memory_order_relaxed)));
     gElementsDebugHelperOverload.store(
-        helper_overload_.load(std::memory_order_relaxed) ? 1 : 0);
+        hs.overload_.load(std::memory_order_relaxed) ? 1 : 0);
     gElementsDebugHelperStack.store(
-        helper_stack_high_water_.load(std::memory_order_relaxed));
+        hs.stack_high_water_.load(std::memory_order_relaxed));
     gElementsDebugHelperResolution.store(
-        static_cast<int>(helper_applied_resolution_.load(std::memory_order_relaxed)));
+        static_cast<int>(hs.applied_resolution_.load(std::memory_order_relaxed)));
     gElementsDebugHelperMisses.store(
-        static_cast<int>(helper_misses_.load(std::memory_order_relaxed)));
+        static_cast<int>(hs.misses_.load(std::memory_order_relaxed)));
 #else
     // Simulator: always the single-core 12-mode path, no helper task.
     gElementsDebugHelperCycles.store(0);
@@ -163,6 +179,10 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         }
         return;
     }
+
+#ifndef TBD_SIM
+    HelperShared &hs = *helper_shared_;
+#endif
 
     // Fill the core-1 owned patch snapshot. The helper (or the single-core
     // fallback) copies it into elements::Part; core 1 never writes to Part in
@@ -304,20 +324,20 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
 
 #ifndef TBD_SIM
     const bool helper_alive = (helper_task_ != nullptr) &&
-                              helper_running_.load(std::memory_order_acquire);
+                              hs.running_.load(std::memory_order_acquire);
     const bool helper_stopping = helper_alive &&
-                                 helper_stop_.load(std::memory_order_acquire);
+                                 hs.stop_.load(std::memory_order_acquire);
     if (helper_stopping) {
         // V9 last resort: the helper was asked to stop at the 12-mode floor.
         // `part` still belongs to it until it deletes itself, so stay silent.
-        if (helper_block_counter_ > 0) {
-            helper_misses_.fetch_add(1, std::memory_order_relaxed);
+        if (hs.block_counter_ > 0) {
+            hs.misses_.fetch_add(1, std::memory_order_relaxed);
         }
         for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
             data.buf[i] = 0.f;
         }
         PublishDebugStats();
-        ++helper_block_counter_;
+        ++hs.block_counter_;
         return;
     }
     const bool helper_available = helper_alive && !helper_stopping;
@@ -325,31 +345,31 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         // Hand this block to the core-0 helper. Publishing is gated on an empty
         // pending slot so a block can never be overwritten in flight (that
         // would leave its slot marked busy forever).
-        const int write_slot = static_cast<int>(helper_block_counter_ & 1u);
-        if (helper_pending_slot_.load(std::memory_order_acquire) < 0 &&
-            helper_slot_free_[write_slot].exchange(false, std::memory_order_acquire)) {
-            HelperBlock& block = helper_blocks_[write_slot];
+        const int write_slot = static_cast<int>(hs.block_counter_ & 1u);
+        if (hs.pending_slot_.load(std::memory_order_acquire) < 0 &&
+            hs.slot_free_[write_slot].exchange(false, std::memory_order_acquire)) {
+            HelperBlock& block = hs.blocks_[write_slot];
             block.perf_state = perfState;
             block.patch = patch;
             block.resonator_model = rModel;
             block.easter_egg = ee;
-            block.seq = helper_block_counter_;
+            block.seq = hs.block_counter_;
             for (std::size_t i = 0; i < kBlockSize; i++) {
                 block.blow_in[i] = blow_in[i];
                 block.strike_in[i] = strike_in[i];
             }
-            helper_pending_slot_.store(write_slot, std::memory_order_release);
+            hs.pending_slot_.store(write_slot, std::memory_order_release);
             xTaskNotifyGive(helper_task_);
         }
 
         // One block of latency: the previous block's render is read back here.
         const int read_slot = write_slot ^ 1;
         const bool helper_ready =
-            helper_block_counter_ > 0 &&
-            helper_done_seq_[read_slot].load(std::memory_order_acquire) ==
-                helper_block_counter_ - 1;
+            hs.block_counter_ > 0 &&
+            hs.done_seq_[read_slot].load(std::memory_order_acquire) ==
+                hs.block_counter_ - 1;
         if (helper_ready) {
-            const HelperBlock& block = helper_blocks_[read_slot];
+            const HelperBlock& block = hs.blocks_[read_slot];
             for (std::size_t i = 0; i < kBlockSize; i++) {
                 data.buf[i * 2] = block.main[i] * 0.125f;
                 data.buf[i * 2 + 1] = block.aux[i] * 0.125f;
@@ -357,8 +377,8 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         } else {
             // Nothing renderable this block (first block, or the helper missed
             // its deadline). Silence, never the live input.
-            if (helper_block_counter_ > 0) {
-                helper_misses_.fetch_add(1, std::memory_order_relaxed);
+            if (hs.block_counter_ > 0) {
+                hs.misses_.fetch_add(1, std::memory_order_relaxed);
             }
             for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
                 data.buf[i] = 0.f;
@@ -374,40 +394,40 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
             gElementsDebugModeOverride.load(std::memory_order_relaxed);
         if (mode_override >= 0) {
             const std::size_t requested = static_cast<std::size_t>(mode_override);
-            if (helper_requested_resolution_.load(std::memory_order_relaxed) !=
+            if (hs.requested_resolution_.load(std::memory_order_relaxed) !=
                 requested) {
-                helper_requested_resolution_.store(requested,
+                hs.requested_resolution_.store(requested,
                                                    std::memory_order_release);
             }
-            helper_streak_ = 0;
-        } else if (helper_block_counter_ > 0) {
+            hs.streak_ = 0;
+        } else if (hs.block_counter_ > 0) {
             // Production auto ladder: 52 -> 32 -> 24 -> 16 -> 12 after a run of
             // consecutive struggling blocks, then the V9 single-core handoff.
             const bool struggling =
                 !helper_ready ||
-                helper_overload_.load(std::memory_order_relaxed);
+                hs.overload_.load(std::memory_order_relaxed);
             if (struggling) {
-                if (++helper_streak_ >= kFallbackStreak) {
-                    helper_streak_ = 0;
-                    if (resolution_step_ + 1 < kNumResolutionSteps) {
-                        ++resolution_step_;
-                        helper_requested_resolution_.store(
-                            kResolutionSteps[resolution_step_],
+                if (++hs.streak_ >= kFallbackStreak) {
+                    hs.streak_ = 0;
+                    if (hs.resolution_step_ + 1 < kNumResolutionSteps) {
+                        ++hs.resolution_step_;
+                        hs.requested_resolution_.store(
+                            kResolutionSteps[hs.resolution_step_],
                             std::memory_order_release);
                     } else {
                         // No logging here: this is the 32-sample audio
                         // callback. The destructor emits the warning.
-                        helper_deadline_fallback_ = true;
-                        helper_stop_.store(true, std::memory_order_release);
+                        hs.deadline_fallback_ = true;
+                        hs.stop_.store(true, std::memory_order_release);
                         xTaskNotifyGive(helper_task_);
                     }
                 }
             } else {
-                helper_streak_ = 0;
+                hs.streak_ = 0;
             }
         }
         PublishDebugStats();
-        ++helper_block_counter_;
+        ++hs.block_counter_;
         return;
     }
 #endif
@@ -418,12 +438,12 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         // again and must not run it at the 52-mode budget.
         part.set_resolution(kResolutionFallback);
 #ifndef TBD_SIM
-        helper_applied_resolution_.store(kResolutionFallback,
+        hs.applied_resolution_.store(kResolutionFallback,
                                          std::memory_order_relaxed);
         // No helper is active any more: stack -1 is the "retired" signal.
         // Keep the last cycles/max for post-mortem diagnosis.
-        helper_stack_high_water_.store(-1, std::memory_order_relaxed);
-        helper_overload_.store(false, std::memory_order_relaxed);
+        hs.stack_high_water_.store(-1, std::memory_order_relaxed);
+        hs.overload_.store(false, std::memory_order_relaxed);
 #endif
         direct_fallback_prepared_ = true;
     }
@@ -448,7 +468,7 @@ ctagSoundProcessorElements::~ctagSoundProcessorElements() {
         // Force-deleted; StopHelper already waited for the core to drop it.
         ESP_LOGW("Elements", "helper task force-deleted; freeing reverb buffer");
     }
-    if (helper_deadline_fallback_) {
+    if (helper_shared_ != nullptr && helper_shared_->deadline_fallback_) {
         ESP_LOGW("Elements",
                  "helper still missed deadlines at 12 modes; ran single-core");
     }
@@ -460,35 +480,44 @@ ctagSoundProcessorElements::~ctagSoundProcessorElements() {
         heap_caps_free(reverb_buffer);
         reverb_buffer = nullptr;
     }
+#ifndef TBD_SIM
+    // Freed only after the helper has stopped writing into it.
+    if (helper_shared_ != nullptr) {
+        helper_shared_->~HelperShared();
+        heap_caps_free(helper_shared_);
+        helper_shared_ = nullptr;
+    }
+#endif
 }
 
 #ifndef TBD_SIM
 bool ctagSoundProcessorElements::StartHelper() {
+    HelperShared &hs = *helper_shared_;
     if (helper_task_ != nullptr) {
-        if (helper_running_.load(std::memory_order_acquire)) return true;
+        if (hs.running_.load(std::memory_order_acquire)) return true;
         // Stale handle: the helper self-deleted (e.g. after the V9 handoff).
         // Re-arm instead of pretending a helper exists.
         helper_task_ = nullptr;
         direct_fallback_prepared_ = false;
     }
-    helper_stop_.store(false, std::memory_order_release);
-    helper_running_.store(false, std::memory_order_release);
-    helper_pending_slot_.store(-1, std::memory_order_relaxed);
-    helper_done_seq_[0].store(UINT32_MAX, std::memory_order_relaxed);
-    helper_done_seq_[1].store(UINT32_MAX, std::memory_order_relaxed);
-    helper_slot_free_[0].store(true, std::memory_order_relaxed);
-    helper_slot_free_[1].store(true, std::memory_order_relaxed);
-    helper_block_counter_ = 0;
-    helper_cycles_.store(0, std::memory_order_relaxed);
-    helper_max_cycles_.store(0, std::memory_order_relaxed);
-    helper_overload_.store(false, std::memory_order_relaxed);
-    helper_stack_high_water_.store(-1, std::memory_order_relaxed);
-    helper_misses_.store(0, std::memory_order_relaxed);
-    helper_requested_resolution_.store(kResolutionFull, std::memory_order_relaxed);
-    helper_applied_resolution_.store(kResolutionFull, std::memory_order_relaxed);
-    resolution_step_ = 0;
-    helper_streak_ = 0;
-    helper_deadline_fallback_ = false;
+    hs.stop_.store(false, std::memory_order_release);
+    hs.running_.store(false, std::memory_order_release);
+    hs.pending_slot_.store(-1, std::memory_order_relaxed);
+    hs.done_seq_[0].store(UINT32_MAX, std::memory_order_relaxed);
+    hs.done_seq_[1].store(UINT32_MAX, std::memory_order_relaxed);
+    hs.slot_free_[0].store(true, std::memory_order_relaxed);
+    hs.slot_free_[1].store(true, std::memory_order_relaxed);
+    hs.block_counter_ = 0;
+    hs.cycles_.store(0, std::memory_order_relaxed);
+    hs.max_cycles_.store(0, std::memory_order_relaxed);
+    hs.overload_.store(false, std::memory_order_relaxed);
+    hs.stack_high_water_.store(-1, std::memory_order_relaxed);
+    hs.misses_.store(0, std::memory_order_relaxed);
+    hs.requested_resolution_.store(kResolutionFull, std::memory_order_relaxed);
+    hs.applied_resolution_.store(kResolutionFull, std::memory_order_relaxed);
+    hs.resolution_step_ = 0;
+    hs.streak_ = 0;
+    hs.deadline_fallback_ = false;
 
     BaseType_t ok = xTaskCreatePinnedToCore(
         HelperTaskEntry, "Elements", kHelperTaskStack, this,
@@ -501,10 +530,10 @@ bool ctagSoundProcessorElements::StartHelper() {
     // Wait up to ~200 ms for the task to start. Time-based (CONFIG_FREERTOS_HZ
     // is 100, so pdMS_TO_TICKS(1) is 0 ticks and would be a bare yield).
     for (int i = 0; i < 20; ++i) {
-        if (helper_running_.load(std::memory_order_acquire)) break;
+        if (hs.running_.load(std::memory_order_acquire)) break;
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-    if (!helper_running_.load(std::memory_order_acquire)) {
+    if (!hs.running_.load(std::memory_order_acquire)) {
         vTaskDelete(helper_task_);
         helper_task_ = nullptr;
         ESP_LOGE("Elements", "helper task did not start");
@@ -514,23 +543,24 @@ bool ctagSoundProcessorElements::StartHelper() {
 }
 
 bool ctagSoundProcessorElements::StopHelper() {
+    HelperShared &hs = *helper_shared_;
     if (helper_task_ == nullptr) return true;
-    if (!helper_running_.load(std::memory_order_acquire)) {
+    if (!hs.running_.load(std::memory_order_acquire)) {
         // The helper already deleted itself (for example after the V9 12-mode
         // handoff); the handle is stale, so neither notify nor delete it.
         helper_task_ = nullptr;
         return true;
     }
-    helper_stop_.store(true, std::memory_order_release);
+    hs.stop_.store(true, std::memory_order_release);
     xTaskNotifyGive(helper_task_);
     // Wait up to ~500 ms of real time for the helper to leave its render and
     // delete itself. pdMS_TO_TICKS(1) == 0 at CONFIG_FREERTOS_HZ=100, so a
     // 1 ms delay would not actually wait.
     for (int i = 0; i < 50; ++i) {
-        if (!helper_running_.load(std::memory_order_acquire)) break;
+        if (!hs.running_.load(std::memory_order_acquire)) break;
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-    bool stopped = !helper_running_.load(std::memory_order_acquire);
+    bool stopped = !hs.running_.load(std::memory_order_acquire);
     if (!stopped) {
         // Last resort: the task is wedged. Delete it, then let the other core
         // observe the deletion before the caller frees the reverb buffer.
@@ -547,28 +577,29 @@ void ctagSoundProcessorElements::HelperTaskEntry(void *arg) {
 }
 
 void ctagSoundProcessorElements::HelperTask() {
-    helper_running_.store(true, std::memory_order_release);
+    HelperShared &hs = *helper_shared_;
+    hs.running_.store(true, std::memory_order_release);
     for (;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         // Drain one publish; if core 1 managed to publish again while this
         // render was running, pick it up immediately so no slot stays busy.
         for (;;) {
-            if (helper_stop_.load(std::memory_order_acquire)) break;
-            const int slot = helper_pending_slot_.exchange(-1, std::memory_order_acq_rel);
+            if (hs.stop_.load(std::memory_order_acquire)) break;
+            const int slot = hs.pending_slot_.exchange(-1, std::memory_order_acq_rel);
             if (slot < 0) break;
 
-            HelperBlock& block = helper_blocks_[slot];
+            HelperBlock& block = hs.blocks_[slot];
             const std::uint32_t seq = block.seq;
 
             // Measure the whole per-block cost: resolution change, patch
             // snapshot copy, model/EE apply, then Part::Process (V9 budget).
             const std::uint32_t start = esp_cpu_get_cycle_count();
             const std::size_t requested =
-                helper_requested_resolution_.load(std::memory_order_acquire);
-            if (requested != helper_applied_resolution_.load(std::memory_order_relaxed)) {
+                hs.requested_resolution_.load(std::memory_order_acquire);
+            if (requested != hs.applied_resolution_.load(std::memory_order_relaxed)) {
                 part.set_resolution(requested);
-                helper_applied_resolution_.store(requested, std::memory_order_release);
+                hs.applied_resolution_.store(requested, std::memory_order_release);
             }
             part.set_resonator_model((elements::ResonatorModel) block.resonator_model);
             part.set_easter_egg(block.easter_egg);
@@ -577,23 +608,23 @@ void ctagSoundProcessorElements::HelperTask() {
                          block.main, block.aux, kBlockSize);
             const std::uint32_t cycles = esp_cpu_get_cycle_count() - start;
 
-            helper_cycles_.store(cycles, std::memory_order_relaxed);
-            if (cycles > helper_max_cycles_.load(std::memory_order_relaxed)) {
-                helper_max_cycles_.store(cycles, std::memory_order_relaxed);
+            hs.cycles_.store(cycles, std::memory_order_relaxed);
+            if (cycles > hs.max_cycles_.load(std::memory_order_relaxed)) {
+                hs.max_cycles_.store(cycles, std::memory_order_relaxed);
             }
-            helper_overload_.store(cycles > kAudioBudgetCycles,
+            hs.overload_.store(cycles > kAudioBudgetCycles,
                                    std::memory_order_relaxed);
-            helper_stack_high_water_.store(
+            hs.stack_high_water_.store(
                 static_cast<int>(uxTaskGetStackHighWaterMark(nullptr) *
                                  sizeof(StackType_t)),
                 std::memory_order_relaxed);
 
-            helper_done_seq_[slot].store(seq, std::memory_order_release);
-            helper_slot_free_[slot].store(true, std::memory_order_release);
+            hs.done_seq_[slot].store(seq, std::memory_order_release);
+            hs.slot_free_[slot].store(true, std::memory_order_release);
         }
-        if (helper_stop_.load(std::memory_order_acquire)) break;
+        if (hs.stop_.load(std::memory_order_acquire)) break;
     }
-    helper_running_.store(false, std::memory_order_release);
+    hs.running_.store(false, std::memory_order_release);
     vTaskDelete(nullptr);
 }
 #endif

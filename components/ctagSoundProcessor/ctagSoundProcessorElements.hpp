@@ -99,28 +99,41 @@ namespace CTAG {
             bool StopHelper();
 
             TaskHandle_t helper_task_ = nullptr;
-            std::atomic<bool> helper_stop_{false};
-            std::atomic<bool> helper_running_{false};
-            std::atomic<int> helper_pending_slot_{-1};
-            std::atomic<std::uint32_t> helper_done_seq_[kHelperSlots] = {};
-            std::atomic<bool> helper_slot_free_[kHelperSlots] = {};
-            HelperBlock helper_blocks_[kHelperSlots] = {};
-            std::uint32_t helper_block_counter_ = 0;
-            std::atomic<std::uint32_t> helper_cycles_{0};
-            std::atomic<std::uint32_t> helper_max_cycles_{0};
-            std::atomic<bool> helper_overload_{false};
-            std::atomic<int> helper_stack_high_water_{-1};
-            std::atomic<std::uint32_t> helper_misses_{0};
-            // Core 1 asks, the helper applies — core 1 never touches `part`.
-            std::atomic<std::size_t> helper_requested_resolution_{kResolutionFull};
-            // Written by the helper right after part.set_resolution(); read by
-            // PublishDebugStats() so core 1 never reads part.resolution().
-            std::atomic<std::size_t> helper_applied_resolution_{kResolutionFull};
-            std::size_t resolution_step_ = 0;
-            int helper_streak_ = 0;
-            // Set once when V9 hands the render back to the audio core. The
-            // warning is emitted from the destructor, never from Process().
-            bool helper_deadline_fallback_ = false;
+
+            // Per-block handoff state shared between the audio task (core 1)
+            // and the helper (core 0). Allocated in internal DRAM, separate
+            // from the PSRAM plugin object: the two HelperBlock copies and the
+            // seq_cst atomics run every block, and on classic ESP32 S32C1I
+            // does not work on PSRAM, so PSRAM atomics take the slow software
+            // workaround and the copies compete with the reverb/delay
+            // streaming for the shared data cache. elements::Part itself
+            // (~115 KB, larger than the whole 112 KB DRAM arena) stays in the
+            // PSRAM object.
+            struct HelperShared {
+                HelperBlock blocks[kHelperSlots];
+                std::atomic<bool> stop_{false};
+                std::atomic<bool> running_{false};
+                std::atomic<int> pending_slot_{-1};
+                std::atomic<std::uint32_t> done_seq_[kHelperSlots] = {};
+                std::atomic<bool> slot_free_[kHelperSlots] = {};
+                std::uint32_t block_counter_ = 0;
+                std::atomic<std::uint32_t> cycles_{0};
+                std::atomic<std::uint32_t> max_cycles_{0};
+                std::atomic<bool> overload_{false};
+                std::atomic<int> stack_high_water_{-1};
+                std::atomic<std::uint32_t> misses_{0};
+                // Core 1 asks, the helper applies — core 1 never touches `part`.
+                std::atomic<std::size_t> requested_resolution_{kResolutionFull};
+                // Written by the helper right after part.set_resolution(); read by
+                // PublishDebugStats() so core 1 never reads part.resolution().
+                std::atomic<std::size_t> applied_resolution_{kResolutionFull};
+                std::size_t resolution_step_ = 0;
+                int streak_ = 0;
+                // Set once when V9 hands the render back to the audio core. The
+                // warning is emitted from the destructor, never from Process().
+                bool deadline_fallback_ = false;
+            };
+            HelperShared *helper_shared_ = nullptr;
 #endif
 
             uint16_t *reverb_buffer = nullptr;
