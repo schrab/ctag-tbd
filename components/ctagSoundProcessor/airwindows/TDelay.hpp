@@ -1,4 +1,6 @@
 
+#include <cstdint>
+
 namespace airwindows{
     class TDelay {
     public:
@@ -25,6 +27,8 @@ namespace airwindows{
         const int length = 44100*2; // max dly length
 
         float fpNShape;
+        // xorshift32 state for the per-sample output dither (replaces rand()).
+        std::uint32_t ditherState = 0x9E3779B9u;
         //default stuff
 
         float A;

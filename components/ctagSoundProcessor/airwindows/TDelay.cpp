@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdlib>
 #include "esp_heap_caps.h"
+#include "helpers/ctagFastMath.hpp"
 
 namespace airwindows {
 
@@ -164,10 +165,15 @@ namespace airwindows {
             inputSample = (inputSample * dry) + (d[delay] * wet);
             //inputSampleR = (inputSampleR * dry) + (dR[delay] * wet);
 
-            //stereo 32 bit dither, made small and tidy.
+            //stereo 32 bit dither, made small and tidy: xorshift32 + bit-trick
+            //pow2 instead of rand()/powf (both were per-sample libm calls).
             int expon;
             frexpf((float) inputSample, &expon);
-            float dither = (rand() / (RAND_MAX * 7.737125245533627e+25)) * powf(2.f, expon + 62);
+            ditherState ^= ditherState << 13;
+            ditherState ^= ditherState >> 17;
+            ditherState ^= ditherState << 5;
+            float dither = ((ditherState >> 8) * (1.0f / 16777216.0f) / 7.737125245533627e+25f)
+                           * CTAG::SP::HELPERS::fasterpow2((float) expon + 62.f);
             inputSample += (dither - fpNShape);
             fpNShape = dither;
             /*

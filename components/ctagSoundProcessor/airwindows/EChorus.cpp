@@ -101,20 +101,25 @@ namespace airwindows {
 
                 inputSampleL = inputSampleR = 0.f;
                 for (int j = 0; j < stages; j++) {
-                    float mpar = sinf(sweep * static_cast<float>(j + 1));
+                    // sweep advances per sample, so each stage factor needs a
+                    // sine every sample; fastsin is plenty for a modulation
+                    // depth coefficient.
+                    float mpar = fastsin(sweep * static_cast<float>(j + 1));
                     offset = rangeL * static_cast<float>(j + 1) + modulationL * mpar;
                     count = gcount + (int) floorf(offset);
-                    inputSampleL += dL[count] * (1 - (offset - floorf(offset))); //less as value moves away from .0
+                    float frac = offset - floorf(offset);
+                    inputSampleL += dL[count] * (1 - frac); //less as value moves away from .0
                     inputSampleL += dL[count + 1]; //we can assume always using this in one way or another?
-                    inputSampleL += (dL[count + 2] * (offset - floorf(offset))); //greater as value moves away from .0
+                    inputSampleL += (dL[count + 2] * frac); //greater as value moves away from .0
                     inputSampleL -= (((dL[count] - dL[count + 1]) - (dL[count + 1] - dL[count + 2])) /
                                      50); //interpolation hacks 'r us
 
                     offset = rangeR * static_cast<float>(j + 1) + modulationR * mpar;
                     count = gcount + (int) floorf(offset);
-                    inputSampleR += dR[count] * (1 - (offset - floorf(offset))); //less as value moves away from .0
+                    frac = offset - floorf(offset);
+                    inputSampleR += dR[count] * (1 - frac); //less as value moves away from .0
                     inputSampleR += dR[count + 1]; //we can assume always using this in one way or another?
-                    inputSampleR += (dR[count + 2] * (offset - floorf(offset))); //greater as value moves away from .0
+                    inputSampleR += (dR[count + 2] * frac); //greater as value moves away from .0
                     inputSampleR -= (((dR[count] - dR[count + 1]) - (dR[count + 1] - dR[count + 2])) /
                                      50); //interpolation hacks 'r us
                 }
