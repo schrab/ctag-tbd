@@ -67,14 +67,15 @@ void ctagSoundProcessorGVerb::Process(const ProcessData &data) {
     if (fEarlyLvl != lastEarlyLvl) { gverb_set_earlylevel(gverb, fEarlyLvl); lastEarlyLvl = fEarlyLvl; }
     if (fTailLvl != lastTailLvl) { gverb_set_taillevel(gverb, fTailLvl); lastTailLvl = fTailLvl; }
     for (int i = 0; i < bufSz; i++) {
+        const float inL = data.buf[i * 2]; // mono dry path below needs the original after buf[i*2] is overwritten
         if (mono) {
-            gverb_do(gverb, data.buf[i * 2], &revout_l, &revout_r);
+            gverb_do(gverb, inL, &revout_l, &revout_r);
         } else {
-            gverb_do(gverb, (data.buf[i * 2] + data.buf[i * 2 + 1]) * 0.5f, &revout_l, &revout_r);
+            gverb_do(gverb, (inL + data.buf[i * 2 + 1]) * 0.5f, &revout_l, &revout_r);
         }
-        data.buf[i * 2] = fDryWet * revout_l + (1.f - fDryWet) * data.buf[i * 2];
+        data.buf[i * 2] = fDryWet * revout_l + (1.f - fDryWet) * inL;
         if (mono) {
-            data.buf[i * 2 + 1] = fDryWet * revout_r + (1.f - fDryWet) * data.buf[i * 2];
+            data.buf[i * 2 + 1] = fDryWet * revout_r + (1.f - fDryWet) * inL;
         } else {
             data.buf[i * 2 + 1] = fDryWet * revout_r + (1.f - fDryWet) * data.buf[i * 2 + 1];
         }
