@@ -31,25 +31,24 @@ namespace CTAG {
         };
 
         // Live output indication: T1/T2/T3 dots (filled = gate high) and
-        // X1/X2/X3/Y bipolar bars (fill from center, normalized to the
-        // active octave range so a bar always spans its full range).
+        // X1/X2/X3/Y center-fill bars (frameless, normalized to the active
+        // octave range). Seven equal 18px cells across the line.
         void UIMenuPageMod::drawOutputLine() {
             uint32_t s = MarblesEngine::GetOutputSnapshot();
             for (int i = 0; i < 3; i++) {
-                Display::DrawRect(i * 5, 57, 4, 4, (s >> i) & 1);
+                Display::DrawRect(1 + i * 18 + 6, 57, 6, 6, (s >> i) & 1);
             }
-            const int barX[4] = {16, 42, 68, 94};
             const int shifts[4] = {3, 10, 17, 24};
             for (int i = 0; i < 4; i++) {
-                int x = barX[i];
-                Display::DrawRect(x, 55, 24, 8, false);
+                int x = 1 + (i + 3) * 18;
+                int cx = x + 9;              // zero boundary of the cell
                 int q = (s >> shifts[i]) & 0x7f;
                 float n = (q - 64) / 63.5f;
-                int w = (int)(fabsf(n) * 11.0f + 0.5f);
-                if (w > 11) w = 11;
+                int w = (int)(fabsf(n) * 9.0f + 0.5f);
+                if (w > 9) w = 9;
+                Display::DrawVLine(cx, 57, 6);   // zero tick
                 if (w > 0) {
-                    int cx = x + 12;
-                    Display::DrawRect(n >= 0 ? cx : cx - w, 57, w, 4, true);
+                    Display::DrawRect(n >= 0 ? cx : cx - w, 57, w, 6, true);
                 }
             }
             lastDrawnSnapshot = s;
