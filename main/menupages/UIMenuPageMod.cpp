@@ -52,7 +52,7 @@ namespace CTAG {
                 case SP_CLOCK: return 7;  // TClk, BPM, Rate, Range, XClk, [Tap], [Reset]
                 case SP_T: return 8;      // Model, Range, PW, PWv, DV, T1..T3 slots
                 case SP_X: return 9;      // Scale, Rng, Ctl, Reg, RVal, DV, X1..X3 slots
-                case SP_Y: return 5;      // Rng, Sprd, Bias, Step, Y slot
+                case SP_Y: return 6;      // Rng, Sprd, Bias, Step, DV, Y slot
                 case SP_CC_SLOTS: return 8;
                 case SP_CC_EDIT: return 3;
                 default: return 1;
@@ -189,7 +189,8 @@ namespace CTAG {
                         case 1: MarblesEngine::SetYSpread(MarblesEngine::GetYSpread() + delta * 0.01f); break;
                         case 2: MarblesEngine::SetYBias(MarblesEngine::GetYBias() + delta * 0.01f); break;
                         case 3: MarblesEngine::SetYSteps(MarblesEngine::GetYSteps() + delta * 0.01f); break;
-                        case 4: MarblesEngine::SetYSlot(MarblesEngine::GetYSlot() + delta); break;
+                        case 4: MarblesEngine::SetYDejaVu(MarblesEngine::GetYDejaVu() + delta); break;
+                        case 5: MarblesEngine::SetYSlot(MarblesEngine::GetYSlot() + delta); break;
                     }
                     break;
                 case SP_CC_EDIT:
@@ -334,7 +335,10 @@ namespace CTAG {
                         case 3:
                             snprintf(buf, buflen, " Step:%.2f", MarblesEngine::GetYSteps());
                             break;
-                        case 4: {
+                        case 4:
+                            snprintf(buf, buflen, " DV:%s", dvNames[MarblesEngine::GetYDejaVu()]);
+                            break;
+                        case 5: {
                             int s = MarblesEngine::GetYSlot();
                             if (s < 0) snprintf(buf, buflen, " Y>-");
                             else snprintf(buf, buflen, " Y>%s", cvSlotDisplayNames[s]);

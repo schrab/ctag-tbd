@@ -114,7 +114,9 @@ header for the full list). The PANEL_MOD UI mirrors the hardware module:
 - **X Setup page**: scale, voltage range, control mode, register mode +
   value, X déjà-vu, X1–X3 slot assignment.
 - **Y Setup page**: voltage range, spread/bias/steps (hidden settings on
-  the hardware module), Y slot assignment.
+  the hardware module), **déjà-vu switch** (Off/On/Lock — upstream
+  `marbles.cc` hardcodes Y out of déjà-vu; On makes Y follow the shared
+  DV amount/length from the Knobs page), Y slot assignment.
 
 Not ported (hardware-only features): CV recording of custom scales
 (`scale_recorder`), clock self-patching detection (X clock source is a menu

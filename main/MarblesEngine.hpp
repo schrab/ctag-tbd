@@ -96,6 +96,8 @@ public:
     static float GetYBias(); static void SetYBias(float v);
     static float GetYSteps(); static void SetYSteps(float v);
     static int GetYDivider(); static void SetYDivider(int v); // 0=1/64 .. 11=1/1
+    // 0=off (upstream hardcodes this), 1=follow DV amount/length, 2=locked
+    static int GetYDejaVu(); static void SetYDejaVu(int v);
 
     // --- shared deja-vu ---
     static float GetDejaVuAmount(); static void SetDejaVuAmount(float v); // 0..1

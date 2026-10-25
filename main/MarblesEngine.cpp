@@ -129,6 +129,7 @@ static float ySpread = 0.5f;
 static float yBias = 0.5f;
 static float ySteps = 0.5f;
 static int yDivider = 11;       // 1/1
+static int yDejaVu = 0;         // 0=off (upstream default), 1=on, 2=locked
 
 static float dvAmount = 0.0f;
 static int dvLength = 8;
@@ -250,8 +251,10 @@ void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
     y.spread = ySpread;
     y.bias = yBias;
     y.steps = ySteps;
-    y.deja_vu = 0.0f;
-    y.length = 1;
+    // Upstream marbles.cc hardcodes y.deja_vu = 0 / y.length = 1; the
+    // switch lets Y join the shared deja-vu amount/length like t and X.
+    y.deja_vu = yDejaVu == 2 ? 0.5f : (yDejaVu == 1 ? dvAmount : 0.0f);
+    y.length = yDejaVu == 0 ? 1 : dvLength;
     y.ratio = y_divider_ratios[yDivider];
     y.scale_index = xScale;
 
@@ -344,6 +347,8 @@ float MarblesEngine::GetYSteps() { return ySteps; }
 void MarblesEngine::SetYSteps(float v) { ySteps = ClampFloat(v, 0.0f, 1.0f); }
 int MarblesEngine::GetYDivider() { return yDivider; }
 void MarblesEngine::SetYDivider(int v) { yDivider = ClampInt(v, 0, 11); }
+int MarblesEngine::GetYDejaVu() { return yDejaVu; }
+void MarblesEngine::SetYDejaVu(int v) { yDejaVu = ClampInt(v, 0, 2); }
 
 float MarblesEngine::GetDejaVuAmount() { return dvAmount; }
 void MarblesEngine::SetDejaVuAmount(float v) { dvAmount = ClampFloat(v, 0.0f, 1.0f); }
@@ -459,6 +464,7 @@ void MarblesEngine::SaveConfig() {
     m.AddMember("yBias", yBias, alloc);
     m.AddMember("ySteps", ySteps, alloc);
     m.AddMember("yDivider", yDivider, alloc);
+    m.AddMember("yDejaVu", yDejaVu, alloc);
     m.AddMember("dvAmount", dvAmount, alloc);
     m.AddMember("dvLength", dvLength, alloc);
     Value tArr(kArrayType);
@@ -563,6 +569,7 @@ void MarblesEngine::LoadConfig() {
         if (GetFloatMember(m, "yBias", f)) SetYBias(f);
         if (GetFloatMember(m, "ySteps", f)) SetYSteps(f);
         if (GetIntMember(m, "yDivider", n)) SetYDivider(n);
+        if (GetIntMember(m, "yDejaVu", n)) SetYDejaVu(n);
         if (GetFloatMember(m, "dvAmount", f)) SetDejaVuAmount(f);
         if (GetIntMember(m, "dvLength", n)) SetDejaVuLength(n);
         if (m.HasMember("tSlot") && m["tSlot"].IsArray()) {
