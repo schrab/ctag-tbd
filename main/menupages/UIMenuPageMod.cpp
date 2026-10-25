@@ -49,7 +49,7 @@ namespace CTAG {
             switch (subPage) {
                 case SP_MAIN: return 6;
                 case SP_PANEL: return 9;  // the module's 8 knobs + DV length button
-                case SP_CLOCK: return 8;  // Clock, BPM, [Clk Default], [Tap], Fine, Range, XClock, [Reset]
+                case SP_CLOCK: return 7;  // Clock, BPM, [Tap], Fine, Range, XClock, [Reset]
                 case SP_T: return 8;      // Model, Range, PW, PWv, DV, T1..T3 slots
                 case SP_X: return 9;      // Scale, Rng, Ctl, Reg, RVal, DV, X1..X3 slots
                 case SP_Y: return 6;      // Rng, Sprd, Bias, Step, DV, Y slot
@@ -60,23 +60,16 @@ namespace CTAG {
         }
 
         bool UIMenuPageMod::rowIsAction(int row) const {
-            if (subPage == SP_CLOCK && (row == 2 || row == 3 || row == 7)) return true;
+            if (subPage == SP_CLOCK && (row == 2 || row == 6)) return true;  // [Tap], [Reset]
             if (subPage == SP_CC_EDIT && row == 2) return true; // [Learn]
             return false;
         }
 
         void UIMenuPageMod::activateRow(int row) {
-            if (subPage == SP_CLOCK && row == 3) {
+            if (subPage == SP_CLOCK && row == 2) {
                 onTapTempo();
-            } else if (subPage == SP_CLOCK && row == 7) {
+            } else if (subPage == SP_CLOCK && row == 6) {
                 MarblesEngine::RequestReset();
-            } else if (subPage == SP_CLOCK && row == 2) {
-                // restore the factory clock: internal, 1x, 120 BPM
-                MarblesEngine::SetTExternal(false);
-                MarblesEngine::SetTRate(0.0f);
-                MarblesEngine::SetTRange(1);
-                MarblesEngine::SetXYClockSource(0);
-                dirty = true;
             } else if (subPage == SP_CC_EDIT && row == 2) {
                 if (MarblesEngine::IsLearning()) {
                     MarblesEngine::StopLearn();
@@ -154,9 +147,9 @@ namespace CTAG {
                     switch (row) {
                         case 0: MarblesEngine::SetTExternal(!MarblesEngine::GetTExternal()); break;
                         case 1: SetMasterBPM(MasterBPM() + delta); break;
-                        case 4: MarblesEngine::SetTRate(MarblesEngine::GetTRate() + delta); break;
-                        case 5: MarblesEngine::SetTRange(MarblesEngine::GetTRange() + delta); break;
-                        case 6: MarblesEngine::SetXYClockSource(MarblesEngine::GetXYClockSource() + delta); break;
+                        case 3: MarblesEngine::SetTRate(MarblesEngine::GetTRate() + delta); break;
+                        case 4: MarblesEngine::SetTRange(MarblesEngine::GetTRange() + delta); break;
+                        case 5: MarblesEngine::SetXYClockSource(MarblesEngine::GetXYClockSource() + delta); break;
                     }
                     break;
                 case SP_T:
@@ -249,23 +242,20 @@ namespace CTAG {
                         case 1:
                             snprintf(buf, buflen, " BPM:%.1f", MasterBPM());
                             break;
-                        case 4:
+                        case 3:
                             snprintf(buf, buflen, " Fine:%.2fHz", MasterHz());
                             break;
-                        case 5:
+                        case 4:
                             snprintf(buf, buflen, " Range:%s", rangeNames[MarblesEngine::GetTRange()]);
                             break;
-                        case 6:
+                        case 5:
                             snprintf(buf, buflen, " XClock:%s", xyClkNames[MarblesEngine::GetXYClockSource()]);
                             break;
-                        case 3:
+                        case 2:
                             snprintf(buf, buflen, tapHistoryCount > 0 ? " [Tap] %.0fbpm" : " [Tap]", MasterBPM());
                             break;
-                        case 7:
+                        case 6:
                             snprintf(buf, buflen, " [Reset]");
-                            break;
-                        case 2:
-                            snprintf(buf, buflen, " [Clk Default]");
                             break;
                     }
                     break;

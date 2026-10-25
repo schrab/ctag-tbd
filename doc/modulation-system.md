@@ -107,8 +107,7 @@ header for the full list). The PANEL_MOD UI mirrors the hardware module:
   clock cycle = one beat; converted to the engine's semitone rate), fine
   Rate (±60 st shown in Hz, full Marbles span), range (0.25×/1×/4×),
   X clock source (T123/T1/T2/T3/MIDI), **[Tap]** (average of last 4 taps
-  sets the BPM, 3 s gap restarts the sequence), [Reset] (pattern reset),
-  **[Clk Default]** (internal clock, 1×, 120 BPM — factory state).
+  sets the BPM, 3 s gap restarts the sequence), [Reset] (pattern reset).
 - **T Setup page** (the module's button/switch equivalents): model (incl.
   Markov), range, pulse-width mean/deviation, t déjà-vu, T1–T3 trig slot
   assignment.
