@@ -44,6 +44,7 @@ namespace CTAG {
                 int max;
                 int current;
                 int cv;
+                int trig;
             };
 
             struct GroupInfo {
@@ -77,6 +78,8 @@ namespace CTAG {
 
             int mapParamIdx;
             int mapEditSlot;
+            int mapTrigSlot;
+            int mapRow;   // MODE_MAP: 0 = CV source, 1 = trig source
 
             int chan;
             bool hasDualCh;

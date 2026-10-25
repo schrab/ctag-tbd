@@ -91,6 +91,7 @@ namespace CTAG {
                 pi.max = p.HasMember("max") ? p["max"].GetInt() : 1;
                 pi.current = p.HasMember("current") ? p["current"].GetInt() : 0;
                 pi.cv = p.HasMember("cv") ? p["cv"].GetInt() : -1;
+                pi.trig = p.HasMember("trig") ? p["trig"].GetInt() : -1;
                 paramCount++;
             }
             int standaloneCount = paramCount - standaloneStart;
@@ -125,6 +126,7 @@ namespace CTAG {
                     pi.max = leaf.HasMember("max") ? leaf["max"].GetInt() : 1;
                     pi.current = leaf.HasMember("current") ? leaf["current"].GetInt() : 0;
                     pi.cv = leaf.HasMember("cv") ? leaf["cv"].GetInt() : -1;
+                    pi.trig = leaf.HasMember("trig") ? leaf["trig"].GetInt() : -1;
                     paramCount++;
                     count++;
                 }
@@ -197,10 +199,17 @@ namespace CTAG {
                 if (scrollOffset < startIdx) scrollOffset = startIdx;
             } else if (mode == MODE_MAP) {
                 if (paramCount == 0) return;
-                int newSlot = mapEditSlot + delta;
-                if (newSlot < -1) newSlot = -1;
-                if (newSlot >= N_CVS) newSlot = N_CVS - 1;
-                mapEditSlot = newSlot;
+                if (mapRow == 0) {
+                    int newSlot = mapEditSlot + delta;
+                    if (newSlot < -1) newSlot = -1;
+                    if (newSlot >= N_CVS) newSlot = N_CVS - 1;
+                    mapEditSlot = newSlot;
+                } else {
+                    int newSlot = mapTrigSlot + delta;
+                    if (newSlot < -1) newSlot = -1;
+                    if (newSlot >= N_TRIGS) newSlot = N_TRIGS - 1;
+                    mapTrigSlot = newSlot;
+                }
             } else if (mode == MODE_VALUEEDIT) {
                 if (paramCount == 0 || cursor >= paramCount) return;
                 ParamInfo &pi = params[cursor];
@@ -311,16 +320,28 @@ namespace CTAG {
                     encoderAccel = 0;
                     lastEncDir = 0;
                 } else if (btnId == 2 && longPress && paramCount > 0) {
-                    // long press: enter CV mapping for this param
+                    // long press: enter modulation mapping for this param
                     mapParamIdx = cursor;
                     mapEditSlot = params[cursor].cv;
+                    mapTrigSlot = params[cursor].trig;
+                    mapRow = 0;
                     mode = MODE_MAP;
                 }
             } else if (mode == MODE_MAP) {
                 if (btnId == 2 && !longPress) {
-                    params[mapParamIdx].cv = mapEditSlot;
-                    SoundProcessorManager::SetChannelParamValue(chan, params[mapParamIdx].id, "cv", mapEditSlot);
-                    mode = MODE_EDIT;
+                    bool isBool = strcmp(params[mapParamIdx].type, "bool") == 0;
+                    if (mapRow == 0 && isBool) {
+                        // advance to the trig-source row
+                        mapRow = 1;
+                    } else {
+                        params[mapParamIdx].cv = mapEditSlot;
+                        SoundProcessorManager::SetChannelParamValue(chan, params[mapParamIdx].id, "cv", mapEditSlot);
+                        if (isBool) {
+                            params[mapParamIdx].trig = mapTrigSlot;
+                            SoundProcessorManager::SetChannelParamValue(chan, params[mapParamIdx].id, "trig", mapTrigSlot);
+                        }
+                        mode = MODE_EDIT;
+                    }
                 }
             } else if (mode == MODE_VALUEEDIT) {
                 if (btnId == 2 && !longPress) {
@@ -500,8 +521,10 @@ namespace CTAG {
             Display::DrawString(0, ROW(0), "MAPPING", Display::FONT_5X7);
             const ParamInfo &pi = params[mapParamIdx];
             Display::DrawString(0, ROW_HDR(0), pi.name, Display::FONT_5X7);
-            Display::DrawString(0, ROW_HDR(1), "---", Display::FONT_5X7);
+            bool isBool = strcmp(pi.type, "bool") == 0;
             char buf[32];
+
+            // CV source row (always present)
             if (mapEditSlot < 0) {
                 snprintf(buf, sizeof(buf), "CV: None");
             } else if (mapEditSlot < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0]))) {
@@ -509,9 +532,23 @@ namespace CTAG {
             } else {
                 snprintf(buf, sizeof(buf), "CV: %d", mapEditSlot);
             }
-            Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
-            Display::InvertRect(0, ROW_HDR(2), 128, 8);
-            Display::DrawString(0, ROW_HDR(3), "OK=save BACK=exit", Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(1), buf, Display::FONT_5X7);
+            if (mapRow == 0) {
+                Display::InvertRect(0, ROW_HDR(1), 128, 8);
+            }
+
+            // Trig source row (bool params only — e.g. Marbles T1/T2/T3 gates)
+            if (isBool) {
+                snprintf(buf, sizeof(buf), "TRIG: %s", TrigSlotName(mapTrigSlot));
+                Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
+                if (mapRow == 1) {
+                    Display::InvertRect(0, ROW_HDR(2), 128, 8);
+                }
+                snprintf(buf, sizeof(buf), mapRow == 0 ? "OK=next BACK=exit" : "OK=save BACK=exit");
+            } else {
+                snprintf(buf, sizeof(buf), "OK=save BACK=exit");
+            }
+            Display::DrawString(0, ROW_HDR(3), buf, Display::FONT_5X7);
             Display::Flush();
         }
 

@@ -39,9 +39,10 @@ static const char* cvSlotDisplayNames[102] = {
 // Display names for the Marbles trigger outputs at trig slots 40-42.
 static const char* marblesTrigSlotNames[3] = {"MB.T1", "MB.T2", "MB.T3"};
 
-// Render a trig slot for the UI: marbles slots by name, everything else
-// (MIDI-mapped 0-39) as its number. Uses a small static rotation so it can
-// be called several times per snprintf argument list.
+// Render a trig slot for the UI: marbles slots by name, MIDI-mapped slots
+// (0-39) by their cv-table name (same sources), anything else as its
+// number. Uses a small static rotation so it can be called several times
+// per snprintf argument list.
 inline const char* TrigSlotName(int slot) {
     static char buf[3][8];
     static uint8_t rot = 0;
@@ -50,11 +51,12 @@ inline const char* TrigSlotName(int slot) {
     if (slot < 0) {
         b[0] = '-'; b[1] = 0;
     } else if (slot >= 40 && slot < 43) {
-        // marblesTrigSlotNames entries are shorter than the buffer
         const char *s = marblesTrigSlotNames[slot - 40];
         uint8_t i = 0;
         while (s[i] && i < 7) { b[i] = s[i]; ++i; }
         b[i] = 0;
+    } else if (slot < 40) {
+        return cvSlotDisplayNames[slot];
     } else {
         // decimal into the same buffer
         int v = slot, i = 0;
