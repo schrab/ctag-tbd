@@ -107,14 +107,16 @@ header for the full list). The PANEL_MOD UI mirrors the hardware module:
   clock cycle = one beat; converted to the engine's semitone rate), fine
   Rate (±60 st shown in Hz, full Marbles span), range (0.25×/1×/4×),
   X clock source (T123/T1/T2/T3/MIDI), **[Tap]** (average of last 4 taps
-  sets the BPM, 3 s gap restarts the sequence), [Reset].
+  sets the BPM, 3 s gap restarts the sequence), [Reset] (pattern reset),
+  **[Clk Default]** (internal clock, 1×, 120 BPM — factory state).
 - **T Setup page** (the module's button/switch equivalents): model (incl.
   Markov), range, pulse-width mean/deviation, t déjà-vu, T1–T3 trig slot
   assignment.
-- **X Setup page**: scale, voltage range, control mode, register mode +
-  value, X déjà-vu, X1–X3 slot assignment.
-- **Y Setup page**: voltage range, spread/bias/steps (hidden settings on
-  the hardware module), **déjà-vu switch** (Off/On/Lock — upstream
+- **X Setup page**: scale, range in octaves (2/5/10 — the module's ±V
+  ranges expressed for 1 V/oct, since TBD slots are note-scaled), control
+  mode, register mode + value, X déjà-vu, X1–X3 slot assignment.
+- **Y Setup page**: range in octaves, spread/bias/steps (hidden settings
+  on the hardware module), **déjà-vu switch** (Off/On/Lock — upstream
   `marbles.cc` hardcodes Y out of déjà-vu; On makes Y follow the shared
   DV amount/length from the Knobs page), Y slot assignment.
 

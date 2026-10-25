@@ -599,6 +599,15 @@ void MarblesEngine::LoadConfig() {
     }
 
     ESP_LOGI(TAG, "LoadConfig: loaded from %s", MOD_CFG_PATH);
+    // Surface the clock state so a stale tRate/tRange (e.g. 4x range ->
+    // 480 BPM at rate 0) is distinguishable from the 120 BPM factory default.
+    const char *tclksrc = tExternal ? "MIDI" : "internal";
+    float bpm = 60.0f;
+    if (tRange == 0) bpm = 0.5f;
+    else if (tRange == 2) bpm = 8.0f;
+    bpm *= powf(2.0f, tRate / 12.0f) * 60.0f;
+    ESP_LOGI(TAG, "LoadConfig: clock src=%s range=%d rate=%.2fst -> %.1f BPM",
+             tclksrc, tRange, tRate, bpm);
 }
 
 } // namespace CTAG::DRIVERS

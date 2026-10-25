@@ -18,7 +18,7 @@ namespace CTAG {
             "Coins", "Cluster", "Drums", "Indep", "Divider", "3State", "Markov"
         };
         static const char* rangeNames[3] = {"0.25x", "1x", "4x"};
-        static const char* cvRangeNames[3] = {"+2V", "+5V", "+-5V"};
+        static const char* cvRangeNames[3] = {"2oct", "5oct", "10oct"};
         static const char* ctlNames[3] = {"Ident", "Bump", "Tilt"};
         static const char* dvNames[3] = {"Off", "On", "Lock"};
         static const char* xyClkNames[5] = {"T123", "T1", "T2", "T3", "MIDI"};
@@ -60,7 +60,7 @@ namespace CTAG {
         }
 
         bool UIMenuPageMod::rowIsAction(int row) const {
-            if (subPage == SP_CLOCK && (row == 5 || row == 6)) return true;  // [Tap], [Reset]
+            if (subPage == SP_CLOCK && row >= 5) return true;  // [Tap], [Reset], [Clk Default]
             if (subPage == SP_CC_EDIT && row == 2) return true; // [Learn]
             return false;
         }
@@ -70,6 +70,13 @@ namespace CTAG {
                 onTapTempo();
             } else if (subPage == SP_CLOCK && row == 6) {
                 MarblesEngine::RequestReset();
+            } else if (subPage == SP_CLOCK && row == 7) {
+                // restore the factory clock: internal, 1x, 120 BPM
+                MarblesEngine::SetTExternal(false);
+                MarblesEngine::SetTRate(0.0f);
+                MarblesEngine::SetTRange(1);
+                MarblesEngine::SetXYClockSource(0);
+                dirty = true;
             } else if (subPage == SP_CC_EDIT && row == 2) {
                 if (MarblesEngine::IsLearning()) {
                     MarblesEngine::StopLearn();
@@ -263,6 +270,9 @@ namespace CTAG {
                         case 6:
                             snprintf(buf, buflen, " [Reset]");
                             break;
+                        case 7:
+                            snprintf(buf, buflen, " [Clk Default]");
+                            break;
                     }
                     break;
                 case SP_T:
@@ -297,7 +307,7 @@ namespace CTAG {
                             snprintf(buf, buflen, " Scale:%s", scaleNames[MarblesEngine::GetXScale()]);
                             break;
                         case 1:
-                            snprintf(buf, buflen, " CVRange:%s", cvRangeNames[MarblesEngine::GetXRange()]);
+                            snprintf(buf, buflen, " Range:%s", cvRangeNames[MarblesEngine::GetXRange()]);
                             break;
                         case 2:
                             snprintf(buf, buflen, " CtlMode:%s", ctlNames[MarblesEngine::GetXControl()]);
@@ -324,7 +334,7 @@ namespace CTAG {
                 case SP_Y:
                     switch (row) {
                         case 0:
-                            snprintf(buf, buflen, " CVRange:%s", cvRangeNames[MarblesEngine::GetYRange()]);
+                            snprintf(buf, buflen, " Range:%s", cvRangeNames[MarblesEngine::GetYRange()]);
                             break;
                         case 1:
                             snprintf(buf, buflen, " Spread:%.2f", MarblesEngine::GetYSpread());

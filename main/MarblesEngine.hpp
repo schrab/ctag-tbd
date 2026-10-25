@@ -81,7 +81,7 @@ public:
 
     // --- X section ---
     static int GetXScale();  static void SetXScale(int v);    // 0..5 preset scales
-    static int GetXRange();  static void SetXRange(int v);    // 0=+2V 1=+5V 2=±5V
+    static int GetXRange();  static void SetXRange(int v);    // 0=2oct 1=5oct 2=10oct
     static int GetXControl(); static void SetXControl(int v); // 0=ident 1=bump 2=tilt
     static bool GetXRegister(); static void SetXRegister(bool v);
     static float GetXRegisterValue(); static void SetXRegisterValue(float v); // 0..1
@@ -91,7 +91,7 @@ public:
     static int GetXDejaVu(); static void SetXDejaVu(int v);
 
     // --- Y section ---
-    static int GetYRange();  static void SetYRange(int v);    // 0=+2V 1=+5V 2=±5V
+    static int GetYRange();  static void SetYRange(int v);    // 0=2oct 1=5oct 2=10oct
     static float GetYSpread(); static void SetYSpread(float v);
     static float GetYBias(); static void SetYBias(float v);
     static float GetYSteps(); static void SetYSteps(float v);
