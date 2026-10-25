@@ -64,6 +64,12 @@ public:
     // UI action: one-shot reset of t + X/Y sequences.
     static void RequestReset();
 
+    // Live output indication for the UI (lock-free, updated every block):
+    // bit 0-2   T1/T2/T3 gate states (1 = high; T2 is the master clock)
+    // bit 3-9   X1 level normalized to its octave range, 0..127 (64 = zero)
+    // bit 10-16 X2, bit 17-23 X3, bit 24-30 Y (same encoding)
+    static uint32_t GetOutputSnapshot();
+
     // --- t section ---
     static int GetTModel();  static void SetTModel(int v);    // 0..6, 6 = Markov
     static int GetTRange();  static void SetTRange(int v);    // 0=0.25x 1=1x 2=4x

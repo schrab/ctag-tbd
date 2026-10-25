@@ -30,6 +30,41 @@ namespace CTAG {
             "Major", "Minor", "Penta", "Pelog", "Bhairav", "Shri"
         };
 
+        // Live output indication: T1/T2/T3 dots (filled = gate high) and
+        // X1/X2/X3/Y bipolar bars (fill from center, normalized to the
+        // active octave range so a bar always spans its full range).
+        void UIMenuPageMod::drawOutputLine() {
+            uint32_t s = MarblesEngine::GetOutputSnapshot();
+            for (int i = 0; i < 3; i++) {
+                Display::DrawRect(i * 5, 57, 4, 4, (s >> i) & 1);
+            }
+            const int barX[4] = {16, 42, 68, 94};
+            const int shifts[4] = {3, 10, 17, 24};
+            for (int i = 0; i < 4; i++) {
+                int x = barX[i];
+                Display::DrawRect(x, 55, 24, 8, false);
+                int q = (s >> shifts[i]) & 0x7f;
+                float n = (q - 64) / 63.5f;
+                int w = (int)(fabsf(n) * 11.0f + 0.5f);
+                if (w > 11) w = 11;
+                if (w > 0) {
+                    int cx = x + 12;
+                    Display::DrawRect(n >= 0 ? cx : cx - w, 57, w, 4, true);
+                }
+            }
+            lastDrawnSnapshot = s;
+        }
+
+        void UIMenuPageMod::onTick() {
+            // Full redraws are gated on output changes: the display driver
+            // flushes per dirty page, so unchanged frames cost nothing.
+            if (MarblesEngine::GetOutputSnapshot() != lastDrawnSnapshot) {
+                doRedraw();
+            }
+        }
+
+        bool UIMenuPageMod::wantsTick() const { return true; }
+
         void UIMenuPageMod::init() {
             subPage = SP_MAIN;
             cursor = 0;
@@ -484,6 +519,7 @@ namespace CTAG {
             }
             int cy = ROW(cursor);
             Display::InvertRect(0, cy, 128, 8);
+            drawOutputLine();
             Display::Flush();
         }
 
@@ -500,9 +536,10 @@ namespace CTAG {
     }
 
             const int TOTAL = rowCount();
-            int scrollOff = (cursor > VISIBLE_ITEMS_HDR - 1) ? cursor - (VISIBLE_ITEMS_HDR - 1) : 0;
+            const int VIS = VISIBLE_ITEMS_HDR - 1;  // bottom row = output strip
+            int scrollOff = (cursor > VIS - 1) ? cursor - (VIS - 1) : 0;
             int visible = TOTAL - scrollOff;
-            if (visible > VISIBLE_ITEMS_HDR) visible = VISIBLE_ITEMS_HDR;
+            if (visible > VIS) visible = VIS;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOff + i;
                 int y = ROW_HDR(i);
@@ -521,9 +558,10 @@ namespace CTAG {
                 int cy = ROW_HDR(cursor - scrollOff);
                 Display::InvertRect(0, cy, 128, 8);
             }
-            if (TOTAL > VISIBLE_ITEMS_HDR) {
-                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VISIBLE_ITEMS_HDR * LINE_H, TOTAL, cursor);
+            if (TOTAL > VIS) {
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VIS * LINE_H, TOTAL, cursor);
             }
+            drawOutputLine();
             Display::Flush();
         }
 
@@ -531,9 +569,10 @@ namespace CTAG {
             Display::Clear();
             Display::DrawString(0, ROW(0), "CC Slots", Display::FONT_5X7);
             constexpr int TOTAL = 8;
-            int scrollOff = (cursor > VISIBLE_ITEMS_HDR - 1) ? cursor - (VISIBLE_ITEMS_HDR - 1) : 0;
+            const int VIS = VISIBLE_ITEMS_HDR - 1;  // bottom row = output strip
+            int scrollOff = (cursor > VIS - 1) ? cursor - (VIS - 1) : 0;
             int visible = TOTAL - scrollOff;
-            if (visible > VISIBLE_ITEMS_HDR) visible = VISIBLE_ITEMS_HDR;
+            if (visible > VIS) visible = VIS;
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOff + i;
                 int y = ROW_HDR(i);
@@ -549,8 +588,9 @@ namespace CTAG {
             }
             int cy = ROW_HDR(cursor - scrollOff);
             Display::InvertRect(0, cy, 128, 8);
-            if (TOTAL > VISIBLE_ITEMS_HDR)
-                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VISIBLE_ITEMS_HDR * LINE_H, TOTAL, cursor);
+            if (TOTAL > VIS)
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VIS * LINE_H, TOTAL, cursor);
+            drawOutputLine();
             Display::Flush();
         }
     }

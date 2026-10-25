@@ -150,6 +150,17 @@ static std::atomic<uint32_t> pendingClockEdges{0};
 static volatile bool resetRequest = false;
 static stmlib::GateFlags extClockFlags = stmlib::GATE_FLAG_LOW;
 static bool extGateLevel = false;
+static std::atomic<uint32_t> outSnapshot{0};
+
+// Normalize volts to -1..1 across the active output range
+// (narrow 0..2 V, positive 0..5 V, full ±5 V) and quantize to 7 bits.
+static uint32_t PackNormalized(float volts, int range) {
+    const float span = (range == 0) ? 2.0f : 5.0f;
+    float n = volts / span;
+    if (n < -1.0f) n = -1.0f;
+    if (n > 1.0f) n = 1.0f;
+    return (uint32_t)((n + 1.0f) * 63.5f) & 0x7Fu;
+}
 
 void MarblesEngine::Init() {
     for (int i = 0; i < 8; i++) {
@@ -290,6 +301,21 @@ void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
         }
         if (ySlot >= 0) cv_buffer[ySlot] = voltages[3] * VOLTS_TO_CV;
     }
+
+    // output indication snapshot for the UI (raw engine outputs, regardless
+    // of slot assignment)
+    uint32_t snap = (gates[0] ? 1u : 0u)
+                  | ((ramp_master < 0.5f ? 1u : 0u) << 1)
+                  | ((gates[1] ? 1u : 0u) << 2);
+    snap |= PackNormalized(voltages[0], xRange) << 3;
+    snap |= PackNormalized(voltages[1], xRange) << 10;
+    snap |= PackNormalized(voltages[2], xRange) << 17;
+    snap |= PackNormalized(voltages[3], yRange) << 24;
+    outSnapshot.store(snap, std::memory_order_relaxed);
+}
+
+uint32_t MarblesEngine::GetOutputSnapshot() {
+    return outSnapshot.load(std::memory_order_relaxed);
 }
 
 // ---- parameter setters/getters (clamped; slot indices via ctagSlotBounds) ----

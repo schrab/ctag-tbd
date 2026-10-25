@@ -16,6 +16,8 @@ namespace CTAG {
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
+            void onTick() override;
+            bool wantsTick() const override;
 
         private:
             // SP_PANEL mirrors the hardware module's 8 knobs + the DEJA VU
@@ -33,6 +35,10 @@ namespace CTAG {
             uint32_t tapIntervalHistory[4] = {0};
             int tapHistoryCount = 0;
             void onTapTempo();
+
+            // live output strip (T1/T2/T3 dots + X1..X3/Y bipolar bars)
+            uint32_t lastDrawnSnapshot = 0xFFFFFFFF;
+            void drawOutputLine();
 
             int rowCount() const;
             bool rowIsAction(int row) const;
