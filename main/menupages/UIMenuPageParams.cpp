@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "UIMenuPageParams.hpp"
 #include "Display.hpp"
 #include "SPManager.hpp"
+#include "MarblesEngine.hpp"
 #include "CVSlotNames.hpp"
 #include "rapidjson/document.h"
 #include "esp_heap_caps.h"
@@ -36,6 +37,44 @@ using namespace rapidjson;
 
 namespace CTAG {
     namespace CTRL {
+
+        // ---- ordered modulation-source lists for the mapping page ----
+        // Most-useful first: [Learn] (CV only, sentinel -2) -> None -> Marbles
+        // outputs -> learned CC slots -> fixed MIDI-mapped slots. A param sees
+        // exactly one of the two lists, chosen by its own capability.
+        namespace {
+            constexpr int kSourceLearn = -2;  // [Learn CC] action row
+
+            const int kCvSourceOrder[] = {
+                kSourceLearn, -1,
+                98, 99, 100, 101,                       // MB.X1..X3, MB.Y
+                90, 91, 92, 93, 94, 95, 96, 97,         // learned CC1..CC8
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+                40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+                60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+                80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
+            };
+            const int kTrigSourceOrder[] = {
+                -1,
+                40, 41, 42,                              // MB.T1..T3
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+            };
+
+            void FormatSourceName(int slot, bool isCv, char *buf, int buflen) {
+                if (slot == kSourceLearn) {
+                    snprintf(buf, buflen, "[Learn CC]");
+                } else if (slot < 0) {
+                    snprintf(buf, buflen, "None");
+                } else if (isCv && slot < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0]))) {
+                    snprintf(buf, buflen, "%s", cvSlotDisplayNames[slot]);
+                } else {
+                    snprintf(buf, buflen, "%s", TrigSlotName(slot));
+                }
+            }
+        }
+
         void UIMenuPageParams::init() {
             if (!params) {
                 params = (ParamInfo*)heap_caps_malloc(MAX_PARAMS * sizeof(ParamInfo), MALLOC_CAP_SPIRAM);
@@ -48,7 +87,11 @@ namespace CTAG {
             groupCount = 0;
             currentGroup = -1;
             mapParamIdx = 0;
-            mapEditSlot = -1;
+            mapPos = 0;
+            mapIsCv = true;
+            mapLearning = false;
+            mapLearnFull = false;
+            mapHintUntil = 0;
             presetCount = 0;
             presetChan = 0;
             chan = 0;
@@ -92,6 +135,8 @@ namespace CTAG {
                 pi.current = p.HasMember("current") ? p["current"].GetInt() : 0;
                 pi.cv = p.HasMember("cv") ? p["cv"].GetInt() : -1;
                 pi.trig = p.HasMember("trig") ? p["trig"].GetInt() : -1;
+                pi.canCv = p.HasMember("cv");
+                pi.canTrig = p.HasMember("trig");
                 paramCount++;
             }
             int standaloneCount = paramCount - standaloneStart;
@@ -127,6 +172,8 @@ namespace CTAG {
                     pi.current = leaf.HasMember("current") ? leaf["current"].GetInt() : 0;
                     pi.cv = leaf.HasMember("cv") ? leaf["cv"].GetInt() : -1;
                     pi.trig = leaf.HasMember("trig") ? leaf["trig"].GetInt() : -1;
+                    pi.canCv = leaf.HasMember("cv");
+                    pi.canTrig = leaf.HasMember("trig");
                     paramCount++;
                     count++;
                 }
@@ -199,17 +246,10 @@ namespace CTAG {
                 if (scrollOffset < startIdx) scrollOffset = startIdx;
             } else if (mode == MODE_MAP) {
                 if (paramCount == 0) return;
-                if (mapRow == 0) {
-                    int newSlot = mapEditSlot + delta;
-                    if (newSlot < -1) newSlot = -1;
-                    if (newSlot >= N_CVS) newSlot = N_CVS - 1;
-                    mapEditSlot = newSlot;
-                } else {
-                    int newSlot = mapTrigSlot + delta;
-                    if (newSlot < -1) newSlot = -1;
-                    if (newSlot >= N_TRIGS) newSlot = N_TRIGS - 1;
-                    mapTrigSlot = newSlot;
-                }
+                mapPos += delta;
+                if (mapPos < 0) mapPos = 0;
+                if (mapPos > sourceCount() - 1) mapPos = sourceCount() - 1;
+                mapLearnFull = false;
             } else if (mode == MODE_VALUEEDIT) {
                 if (paramCount == 0 || cursor >= paramCount) return;
                 ParamInfo &pi = params[cursor];
@@ -252,47 +292,24 @@ namespace CTAG {
                     // enter sub-mode
                     if (cursor == 0) {
                         chan = (hasDualCh ? 0 : 0);
-                        parseParams();
-                        if (groupCount == 1) {
-                            currentGroup = 0;
-                            cursor = groups[0].firstParamIdx;
-                            scrollOffset = groups[0].firstParamIdx;
-                            mode = MODE_EDIT;
-                        } else if (groupCount > 1) {
-                            mode = MODE_GROUP;
-                            cursor = 0;
-                            scrollOffset = 0;
-                        } else {
-                            mode = MODE_EDIT;
-                            cursor = 0;
-                            scrollOffset = 0;
-                            currentGroup = -1;
-                        }
+                        enterParamList(false);
                     }
                     else if (cursor == 1) {
                         if (hasDualCh) {
                             chan = 1;
-                            parseParams();
-                            if (groupCount == 1) {
-                                currentGroup = 0;
-                                cursor = groups[0].firstParamIdx;
-                                scrollOffset = groups[0].firstParamIdx;
-                                mode = MODE_EDIT;
-                            } else if (groupCount > 1) {
-                                mode = MODE_GROUP;
-                                cursor = 0;
-                                scrollOffset = 0;
-                            } else {
-                                mode = MODE_EDIT;
-                                cursor = 0;
-                                scrollOffset = 0;
-                                currentGroup = -1;
-                            }
+                            enterParamList(false);
                         } else {
-                            mode = MODE_MAP;
+                            enterParamList(true);
                         }
                     }
-                    else if (cursor == 2) { mode = MODE_PSET; }
+                    else if (hasDualCh && cursor == 2) {
+                        // "MAP" in the dual-channel layout: pick the param on
+                        // ch0 first (long-press maps it); previously this fell
+                        // through to MODE_PSET.
+                        chan = 0;
+                        enterParamList(true);
+                    }
+                    else if (!hasDualCh && cursor == 2) { mode = MODE_PSET; }
                     else if (cursor == 3) {
                         mode = MODE_PRESETS;
                         cursor = 0;
@@ -322,23 +339,39 @@ namespace CTAG {
                 } else if (btnId == 2 && longPress && paramCount > 0) {
                     // long press: enter modulation mapping for this param
                     mapParamIdx = cursor;
-                    mapEditSlot = params[cursor].cv;
-                    mapTrigSlot = params[cursor].trig;
-                    mapRow = 0;
+                    mapIsCv = params[cursor].canCv || !params[cursor].canTrig;
+                    mapPos = sourcePosOf(mapIsCv ? params[cursor].cv : params[cursor].trig);
+                    if (mapPos < 0) mapPos = 0;
+                    mapLearning = false;
+                    mapLearnFull = false;
                     mode = MODE_MAP;
                 }
             } else if (mode == MODE_MAP) {
                 if (btnId == 2 && !longPress) {
-                    bool isBool = strcmp(params[mapParamIdx].type, "bool") == 0;
-                    if (mapRow == 0 && isBool) {
-                        // advance to the trig-source row
-                        mapRow = 1;
-                    } else {
-                        params[mapParamIdx].cv = mapEditSlot;
-                        SoundProcessorManager::SetChannelParamValue(chan, params[mapParamIdx].id, "cv", mapEditSlot);
-                        if (isBool) {
-                            params[mapParamIdx].trig = mapTrigSlot;
-                            SoundProcessorManager::SetChannelParamValue(chan, params[mapParamIdx].id, "trig", mapTrigSlot);
+                    int slot = sourceSlotAt(mapPos);
+                    if (slot == kSourceLearn) {
+                        // Bind the next incoming MIDI CC directly to this
+                        // param: allocate a free dynamic slot on capture.
+                        bool free = false;
+                        for (int i = 0; i < 8; i++) {
+                            if (MarblesEngine::GetDynamicSlotCC(i) == -1) { free = true; break; }
+                        }
+                        if (free) {
+                            MarblesEngine::StartLearn();
+                            mapLearning = true;
+                            mapLearnFull = false;
+                        } else {
+                            mapLearnFull = true;
+                            mapLearning = false;
+                        }
+                    } else if (slot >= 0) {
+                        ParamInfo &pi = params[mapParamIdx];
+                        if (mapIsCv) {
+                            pi.cv = slot;
+                            SoundProcessorManager::SetChannelParamValue(chan, pi.id, "cv", slot);
+                        } else {
+                            pi.trig = slot;
+                            SoundProcessorManager::SetChannelParamValue(chan, pi.id, "trig", slot);
                         }
                         mode = MODE_EDIT;
                     }
@@ -395,6 +428,10 @@ namespace CTAG {
                 return true;
             }
             if (mode == MODE_MAP) {
+                if (mapLearning) {
+                    MarblesEngine::StopLearn();
+                    mapLearning = false;
+                }
                 mode = MODE_EDIT;
                 doRedraw();
                 return true;
@@ -490,7 +527,11 @@ namespace CTAG {
             int endIdx = groupEditEnd();
             int startIdx = (currentGroup >= 0) ? groups[currentGroup].firstParamIdx : 0;
             int count = endIdx - startIdx;
-            int visible = ClampVisible(count, scrollOffset - startIdx, VISIBLE_ITEMS);
+            // While the transient hint is up, keep the bottom row free.
+            bool hint = mapHintUntil != 0 &&
+                (int32_t)(xTaskGetTickCount() - mapHintUntil) < 0;
+            int maxVisible = hint ? VISIBLE_ITEMS - 1 : VISIBLE_ITEMS;
+            int visible = ClampVisible(count, scrollOffset - startIdx, maxVisible);
 
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
@@ -510,45 +551,114 @@ namespace CTAG {
             }
             int cursorY = ROW(paramIndexToScreen(cursor));
             Display::InvertRect(0, cursorY, 128, 8);
+            if (hint) {
+                Display::DrawString(0, ROW(maxVisible), " hold param = map src", Display::FONT_5X7);
+            }
             if (count > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, count, cursor);
             Display::Flush();
         }
 
+        // Pumped every task iteration while a MIDI-learn capture or the map
+        // hint is pending. Redraws only on state change (capture landed /
+        // hint expired), not per tick.
+        void UIMenuPageParams::onTick() {
+            bool changed = false;
+            if (mode == MODE_MAP && mapLearning && !MarblesEngine::IsLearning()) {
+                mapLearning = false;
+                changed = true;
+                int slot = MarblesEngine::GetLastLearnedSlot();
+                if (slot >= 0 && mapParamIdx < paramCount) {
+                    ParamInfo &pi = params[mapParamIdx];
+                    pi.cv = slot;
+                    SoundProcessorManager::SetChannelParamValue(chan, pi.id, "cv", slot);
+                    mapPos = sourcePosOf(slot);
+                    if (mapPos < 0) mapPos = 0;
+                }
+            }
+            if (mapHintUntil != 0 &&
+                (int32_t)(xTaskGetTickCount() - mapHintUntil) >= 0) {
+                mapHintUntil = 0;
+                changed = true;
+            }
+            if (changed) doRedraw();
+        }
+
+        bool UIMenuPageParams::wantsTick() const {
+            return (mode == MODE_MAP && mapLearning) || mapHintUntil != 0;
+        }
+
+        // Shared "open the parameter list" path for the EDIT and MAP menu
+        // items. withMapHint shows a transient "hold param=map" footer.
+        void UIMenuPageParams::enterParamList(bool withMapHint) {
+            parseParams();
+            if (groupCount == 1) {
+                currentGroup = 0;
+                cursor = groups[0].firstParamIdx;
+                scrollOffset = groups[0].firstParamIdx;
+                mode = MODE_EDIT;
+            } else if (groupCount > 1) {
+                mode = MODE_GROUP;
+                cursor = 0;
+                scrollOffset = 0;
+            } else {
+                mode = MODE_EDIT;
+                cursor = 0;
+                scrollOffset = 0;
+                currentGroup = -1;
+            }
+            if (withMapHint) {
+                mapHintUntil = xTaskGetTickCount() + pdMS_TO_TICKS(3000);
+            }
+        }
+
+        int UIMenuPageParams::sourceCount() const {
+            return mapIsCv ? (int)(sizeof(kCvSourceOrder) / sizeof(kCvSourceOrder[0]))
+                           : (int)(sizeof(kTrigSourceOrder) / sizeof(kTrigSourceOrder[0]));
+        }
+
+        int UIMenuPageParams::sourceSlotAt(int pos) const {
+            const int *order = mapIsCv ? kCvSourceOrder : kTrigSourceOrder;
+            int n = sourceCount();
+            return (pos >= 0 && pos < n) ? order[pos] : -1;
+        }
+
+        int UIMenuPageParams::sourcePosOf(int slot) const {
+            const int *order = mapIsCv ? kCvSourceOrder : kTrigSourceOrder;
+            int n = sourceCount();
+            for (int i = 0; i < n; i++) {
+                if (order[i] == slot) return i;
+            }
+            return -1;
+        }
+
         void UIMenuPageParams::redrawMap() {
             Display::Clear();
             if (paramCount == 0) return;
-            Display::DrawString(0, ROW(0), "MAPPING", Display::FONT_5X7);
             const ParamInfo &pi = params[mapParamIdx];
+            Display::DrawString(0, ROW(0), "MOD SOURCE", Display::FONT_5X7);
             Display::DrawString(0, ROW_HDR(0), pi.name, Display::FONT_5X7);
-            bool isBool = strcmp(pi.type, "bool") == 0;
-            char buf[32];
+            char buf[40];
 
-            // CV source row (always present)
-            if (mapEditSlot < 0) {
-                snprintf(buf, sizeof(buf), "CV: None");
-            } else if (mapEditSlot < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0]))) {
-                snprintf(buf, sizeof(buf), "CV: %s", cvSlotDisplayNames[mapEditSlot]);
-            } else {
-                snprintf(buf, sizeof(buf), "CV: %d", mapEditSlot);
-            }
+            // selected source (inverted), with the param's saved source noted
+            int cur = mapIsCv ? pi.cv : pi.trig;
+            char selName[16], curName[16];
+            FormatSourceName(sourceSlotAt(mapPos), mapIsCv, selName, sizeof(selName));
+            FormatSourceName(cur, mapIsCv, curName, sizeof(curName));
+            snprintf(buf, sizeof(buf), " %s  was:%.8s", selName, curName);
             Display::DrawString(0, ROW_HDR(1), buf, Display::FONT_5X7);
-            if (mapRow == 0) {
-                Display::InvertRect(0, ROW_HDR(1), 128, 8);
-            }
+            Display::InvertRect(0, ROW_HDR(1), 128, 8);
 
-            // Trig source row (bool params only — e.g. Marbles T1/T2/T3 gates)
-            if (isBool) {
-                snprintf(buf, sizeof(buf), "TRIG: %s", TrigSlotName(mapTrigSlot));
-                Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
-                if (mapRow == 1) {
-                    Display::InvertRect(0, ROW_HDR(2), 128, 8);
-                }
-                snprintf(buf, sizeof(buf), mapRow == 0 ? "OK=next BACK=exit" : "OK=save BACK=exit");
+            // context line: position in list / learn state
+            if (mapLearning) {
+                snprintf(buf, sizeof(buf), " Send CC now...");
+            } else if (mapLearnFull) {
+                snprintf(buf, sizeof(buf), " All 8 CC slots full!");
             } else {
-                snprintf(buf, sizeof(buf), "OK=save BACK=exit");
+                snprintf(buf, sizeof(buf), " %d/%d  OK=sel BK=exit",
+                         mapPos + 1, sourceCount());
             }
-            Display::DrawString(0, ROW_HDR(3), buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
             Display::Flush();
         }
 

@@ -405,6 +405,9 @@ void MarblesEngine_MaybeCaptureCC(uint8_t channel, uint8_t cc_num, uint8_t value
         if (MarblesEngine::GetDynamicSlotCC(i) == -1) {
             MarblesEngine::SetDynamicSlotCC(i, cc_num);
             MarblesEngine::SetDynamicSlotChan(i, channel);
+            // Record the CV slot (90+i) so a caller (e.g. the mapping page)
+            // can bind the freshly learned source to a parameter.
+            lastLearnedSlot = DYN_SLOT_BASE + i;
             MarblesEngine::StopLearn();
             return;
         }

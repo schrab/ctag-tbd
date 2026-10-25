@@ -413,10 +413,10 @@ namespace CTAG {
             char buf[32];
             if (title != nullptr) {
                 Display::DrawString(0, ROW(0), title, Display::FONT_5X7);
-            } else {
-                snprintf(buf, sizeof(buf), "Slot %d", ccEditSlot);
-                Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
-            }
+    } else {
+        snprintf(buf, sizeof(buf), "CC Slot %d", ccEditSlot + 1);
+        Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
+    }
 
             const int TOTAL = rowCount();
             int scrollOff = (cursor > VISIBLE_ITEMS_HDR - 1) ? cursor - (VISIBLE_ITEMS_HDR - 1) : 0;
@@ -460,9 +460,9 @@ namespace CTAG {
                 int ch = MarblesEngine::GetDynamicSlotChan(idx);
                 char buf[48];
                 if (cc < 0) {
-                    snprintf(buf, sizeof(buf), " %d: --", idx);
+                    snprintf(buf, sizeof(buf), " CC%d: --", idx + 1);
                 } else {
-                    snprintf(buf, sizeof(buf), " %d: CC %d (Ch%d)", idx, cc, ch);
+                    snprintf(buf, sizeof(buf), " CC%d: CC%d Ch%d", idx + 1, cc, ch);
                 }
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }

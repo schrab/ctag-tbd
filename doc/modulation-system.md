@@ -122,12 +122,49 @@ parameter instead), the external "note" CV for X register/transposition
 with MIDI learn from the CC Slots subpage — identical to the previous
 engine, and old `mod-config.jsn` `ccSlots` entries carry over.
 
+## Mapping Modulation Sources to Parameters (OLED)
+
+Long-press a parameter in the params editor (or select **MAP** in the channel
+menu, which drops into the param list with a transient "hold param = map src"
+hint). The **MOD SOURCE** page shows a single, capability-filtered list:
+
+- Numeric parameters (CV consumers) see: `[Learn CC]` → None → MB.X1/X2/X3/Y
+  → learned CC1..CC8 → the fixed MIDI CV sources (0–89).
+- Bool parameters (gate consumers) see: None → MB.T1/T2/T3 → the fixed MIDI
+  gate sources (trig 0–39).
+
+There is deliberately **one list, not separate CV/TRIG fields**: every
+parameter consumes exactly one source kind (`MK_FLT_PAR` reads `cv[]`,
+`MK_BOOL_PAR` reads `trig[]`), so the page shows only the sources that param
+can actually use. The row also shows the param's previous assignment
+(`was:…`). OK selects and saves, BACK exits without saving.
+
+**`[Learn CC]`**: OK starts a MIDI capture ("Send CC now..."); the next
+incoming CC (any channel/number) is routed through a free dynamic slot
+(90–97) and bound to the parameter automatically — no visit to the CC Slots
+page needed. Requires a free slot (all 8 taken → "All 8 CC slots full!").
+
+The MOD → **CC Slots** page remains as the review/cleanup screen for the 8
+dynamic (channel, CC) bindings — it is the only route for CCs the fixed
+MIDI table doesn't cover (~20 standard CC numbers on channels 1–4/global).
+
+### Gotchas
+
+- **Gate polarity is active-low**: `MK_BOOL_PAR` maps `trig == 1` to *false*.
+  A Marbles T gate HIGH therefore switches a bool parameter OFF. This is
+  long-standing firmware behavior (MIDI CC < 64 sets the same convention);
+  changing it would alter existing presets.
+- Trig slots 0–39 reuse the CV-table names (A.Note, G.Sust, …) — as gates
+  they mean the note-on/CC≥64 *gate*, not the value.
+
 ## UI Navigation (PANEL_MOD)
 
 Main menu: Clock / T / X / Y / CC Slots. All parameter subpages are
 scrolling row lists: encoder moves the cursor, OK toggles edit mode, encoder
 changes the value, BACK exits edit → subpage → main. `[Reset]` (Clock) and
-`[Learn]` (CC Edit) are action rows triggered with OK.
+`[Learn]` (CC Edit) are action rows triggered with OK. The CC slots are
+labelled CC1..CC8, matching their names in the parameter mapping list
+(cv slots 90–97).
 
 ## Persistence
 

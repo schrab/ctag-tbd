@@ -110,6 +110,7 @@ public:
     static void StartLearn();
     static void StopLearn();
     static bool IsLearning();
+    // CV slot (90..97) of the most recent MIDI-learn capture, -1 if none.
     static int  GetLastLearnedSlot();
     static int  GetDynamicSlotCC(int slot_idx);
     static void SetDynamicSlotCC(int slot_idx, int cc);

@@ -34,6 +34,8 @@ namespace CTAG {
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
+            void onTick() override;
+            bool wantsTick() const override;
 
         private:
             struct ParamInfo {
@@ -45,6 +47,8 @@ namespace CTAG {
                 int current;
                 int cv;
                 int trig;
+                bool canCv;    // param accepts a CV source (numeric params)
+                bool canTrig;  // param accepts a gate source (bool params)
             };
 
             struct GroupInfo {
@@ -77,9 +81,13 @@ namespace CTAG {
             int presetChan; // channel we're editing presets for
 
             int mapParamIdx;
-            int mapEditSlot;
-            int mapTrigSlot;
-            int mapRow;   // MODE_MAP: 0 = CV source, 1 = trig source
+            // MODE_MAP: one unified, capability-filtered source list per param
+            // (CV sources for numeric params, gate sources for bool params).
+            int mapPos;      // cursor into the ordered source list
+            bool mapIsCv;    // true: param maps a CV source, false: gate source
+            bool mapLearning;    // waiting for a MIDI CC to capture
+            bool mapLearnFull;   // all 8 dynamic CC slots taken
+            uint32_t mapHintUntil = 0;  // ticks: show "hold param=map" hint
 
             int chan;
             bool hasDualCh;
@@ -89,6 +97,7 @@ namespace CTAG {
 
             void parseParams();
             void parsePresets(int chan);
+            void enterParamList(bool withMapHint);
             void redrawSelect();
             void redrawGroup();
             void redrawEdit();
@@ -96,6 +105,9 @@ namespace CTAG {
             void redrawPresets();
             int paramIndexToScreen(int idx) const;
             int groupEditEnd() const;
+            int sourceCount() const;          // size of the active source list
+            int sourceSlotAt(int pos) const;  // slot index (or -2 = learn row) at list position
+            int sourcePosOf(int slot) const;  // list position of a slot (-1 if absent)
         };
     }
 }
