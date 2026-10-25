@@ -18,7 +18,10 @@ namespace CTAG {
             bool onBack() override;
 
         private:
-            enum SubPage { SP_MAIN, SP_CLOCK, SP_T, SP_X, SP_Y, SP_CC_SLOTS, SP_CC_EDIT };
+            // SP_PANEL mirrors the hardware module's 8 knobs + the DEJA VU
+            // length button; the setup pages hold the button/switch/settings
+            // equivalents (models, scales, ranges, slots).
+            enum SubPage { SP_MAIN, SP_PANEL, SP_CLOCK, SP_T, SP_X, SP_Y, SP_CC_SLOTS, SP_CC_EDIT };
             SubPage subPage;
             int cursor;
             int ccEditSlot;

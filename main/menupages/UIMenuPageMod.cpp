@@ -47,11 +47,12 @@ namespace CTAG {
 
         int UIMenuPageMod::rowCount() const {
             switch (subPage) {
-                case SP_MAIN: return 5;
-                case SP_CLOCK: return 7;   // TClk, BPM, Rate, Range, XClk, [Tap], [Reset]
-                case SP_T: return 11;
-                case SP_X: return 12;
-                case SP_Y: return 6;
+                case SP_MAIN: return 6;
+                case SP_PANEL: return 9;  // the module's 8 knobs + DV length button
+                case SP_CLOCK: return 7;  // TClk, BPM, Rate, Range, XClk, [Tap], [Reset]
+                case SP_T: return 8;      // Model, Range, PW, PWv, DV, T1..T3 slots
+                case SP_X: return 9;      // Scale, Rng, Ctl, Reg, RVal, DV, X1..X3 slots
+                case SP_Y: return 5;      // Rng, Sprd, Bias, Step, Y slot
                 case SP_CC_SLOTS: return 8;
                 case SP_CC_EDIT: return 3;
                 default: return 1;
@@ -134,6 +135,20 @@ namespace CTAG {
 
         void UIMenuPageMod::adjustRow(int row, int delta) {
             switch (subPage) {
+                case SP_PANEL:
+                    // the hardware module's 8 knobs, in panel order
+                    switch (row) {
+                        case 0: MarblesEngine::SetDejaVuAmount(MarblesEngine::GetDejaVuAmount() + delta * 0.01f); break;
+                        case 1: MarblesEngine::SetDejaVuLength(MarblesEngine::GetDejaVuLength() + delta); break;
+                        case 2: SetMasterBPM(MasterBPM() + delta); break;          // T RATE
+                        case 3: MarblesEngine::SetTBias(MarblesEngine::GetTBias() + delta * 0.01f); break;
+                        case 4: MarblesEngine::SetTJitter(MarblesEngine::GetTJitter() + delta * 0.01f); break;
+                        case 5: MarblesEngine::SetXSpread(MarblesEngine::GetXSpread() + delta * 0.01f); break;
+                        case 6: MarblesEngine::SetXBias(MarblesEngine::GetXBias() + delta * 0.01f); break;
+                        case 7: MarblesEngine::SetXSteps(MarblesEngine::GetXSteps() + delta * 0.01f); break;
+                        case 8: MarblesEngine::SetYDivider(MarblesEngine::GetYDivider() + delta); break; // Y RATE
+                    }
+                    break;
                 case SP_CLOCK:
                     switch (row) {
                         case 0: MarblesEngine::SetTExternal(!MarblesEngine::GetTExternal()); break;
@@ -146,16 +161,13 @@ namespace CTAG {
                 case SP_T:
                     switch (row) {
                         case 0: MarblesEngine::SetTModel(MarblesEngine::GetTModel() + delta); break;
-                        case 1: MarblesEngine::SetTBias(MarblesEngine::GetTBias() + delta * 0.01f); break;
-                        case 2: MarblesEngine::SetTJitter(MarblesEngine::GetTJitter() + delta * 0.01f); break;
-                        case 3: MarblesEngine::SetTPwMean(MarblesEngine::GetTPwMean() + delta * 5); break;
-                        case 4: MarblesEngine::SetTPwStd(MarblesEngine::GetTPwStd() + delta * 5); break;
-                        case 5: MarblesEngine::SetTDejaVu(MarblesEngine::GetTDejaVu() + delta); break;
-                        case 6: MarblesEngine::SetTSlot(0, MarblesEngine::GetTSlot(0) + delta); break;
-                        case 7: MarblesEngine::SetTSlot(1, MarblesEngine::GetTSlot(1) + delta); break;
-                        case 8: MarblesEngine::SetTSlot(2, MarblesEngine::GetTSlot(2) + delta); break;
-                        case 9: MarblesEngine::SetDejaVuLength(MarblesEngine::GetDejaVuLength() + delta); break;
-                        case 10: MarblesEngine::SetDejaVuAmount(MarblesEngine::GetDejaVuAmount() + delta * 0.01f); break;
+                        case 1: MarblesEngine::SetTRange(MarblesEngine::GetTRange() + delta); break;
+                        case 2: MarblesEngine::SetTPwMean(MarblesEngine::GetTPwMean() + delta * 5); break;
+                        case 3: MarblesEngine::SetTPwStd(MarblesEngine::GetTPwStd() + delta * 5); break;
+                        case 4: MarblesEngine::SetTDejaVu(MarblesEngine::GetTDejaVu() + delta); break;
+                        case 5: MarblesEngine::SetTSlot(0, MarblesEngine::GetTSlot(0) + delta); break;
+                        case 6: MarblesEngine::SetTSlot(1, MarblesEngine::GetTSlot(1) + delta); break;
+                        case 7: MarblesEngine::SetTSlot(2, MarblesEngine::GetTSlot(2) + delta); break;
                     }
                     break;
                 case SP_X:
@@ -163,25 +175,21 @@ namespace CTAG {
                         case 0: MarblesEngine::SetXScale(MarblesEngine::GetXScale() + delta); break;
                         case 1: MarblesEngine::SetXRange(MarblesEngine::GetXRange() + delta); break;
                         case 2: MarblesEngine::SetXControl(MarblesEngine::GetXControl() + delta); break;
-                        case 3: MarblesEngine::SetXSpread(MarblesEngine::GetXSpread() + delta * 0.01f); break;
-                        case 4: MarblesEngine::SetXBias(MarblesEngine::GetXBias() + delta * 0.01f); break;
-                        case 5: MarblesEngine::SetXSteps(MarblesEngine::GetXSteps() + delta * 0.01f); break;
-                        case 6: MarblesEngine::SetXRegister(!MarblesEngine::GetXRegister()); break;
-                        case 7: MarblesEngine::SetXRegisterValue(MarblesEngine::GetXRegisterValue() + delta * 0.01f); break;
-                        case 8: MarblesEngine::SetXDejaVu(MarblesEngine::GetXDejaVu() + delta); break;
-                        case 9: MarblesEngine::SetXSlot(0, MarblesEngine::GetXSlot(0) + delta); break;
-                        case 10: MarblesEngine::SetXSlot(1, MarblesEngine::GetXSlot(1) + delta); break;
-                        case 11: MarblesEngine::SetXSlot(2, MarblesEngine::GetXSlot(2) + delta); break;
+                        case 3: MarblesEngine::SetXRegister(!MarblesEngine::GetXRegister()); break;
+                        case 4: MarblesEngine::SetXRegisterValue(MarblesEngine::GetXRegisterValue() + delta * 0.01f); break;
+                        case 5: MarblesEngine::SetXDejaVu(MarblesEngine::GetXDejaVu() + delta); break;
+                        case 6: MarblesEngine::SetXSlot(0, MarblesEngine::GetXSlot(0) + delta); break;
+                        case 7: MarblesEngine::SetXSlot(1, MarblesEngine::GetXSlot(1) + delta); break;
+                        case 8: MarblesEngine::SetXSlot(2, MarblesEngine::GetXSlot(2) + delta); break;
                     }
                     break;
                 case SP_Y:
                     switch (row) {
-                        case 0: MarblesEngine::SetYDivider(MarblesEngine::GetYDivider() + delta); break;
-                        case 1: MarblesEngine::SetYRange(MarblesEngine::GetYRange() + delta); break;
-                        case 2: MarblesEngine::SetYSpread(MarblesEngine::GetYSpread() + delta * 0.01f); break;
-                        case 3: MarblesEngine::SetYBias(MarblesEngine::GetYBias() + delta * 0.01f); break;
-                        case 4: MarblesEngine::SetYSteps(MarblesEngine::GetYSteps() + delta * 0.01f); break;
-                        case 5: MarblesEngine::SetYSlot(MarblesEngine::GetYSlot() + delta); break;
+                        case 0: MarblesEngine::SetYRange(MarblesEngine::GetYRange() + delta); break;
+                        case 1: MarblesEngine::SetYSpread(MarblesEngine::GetYSpread() + delta * 0.01f); break;
+                        case 2: MarblesEngine::SetYBias(MarblesEngine::GetYBias() + delta * 0.01f); break;
+                        case 3: MarblesEngine::SetYSteps(MarblesEngine::GetYSteps() + delta * 0.01f); break;
+                        case 4: MarblesEngine::SetYSlot(MarblesEngine::GetYSlot() + delta); break;
                     }
                     break;
                 case SP_CC_EDIT:
@@ -199,6 +207,38 @@ namespace CTAG {
 
         void UIMenuPageMod::formatRow(int row, char *buf, int buflen) {
             switch (subPage) {
+                case SP_PANEL:
+                    // the hardware module's 8 knobs + DV length button, in panel order
+                    switch (row) {
+                        case 0:
+                            snprintf(buf, buflen, " DV:%.2f", MarblesEngine::GetDejaVuAmount());
+                            break;
+                        case 1:
+                            snprintf(buf, buflen, " DVLn:%d", MarblesEngine::GetDejaVuLength());
+                            break;
+                        case 2:
+                            snprintf(buf, buflen, " T.Rate:%.0fbpm", MasterBPM());
+                            break;
+                        case 3:
+                            snprintf(buf, buflen, " T.Bias:%.2f", MarblesEngine::GetTBias());
+                            break;
+                        case 4:
+                            snprintf(buf, buflen, " T.Jit:%.2f", MarblesEngine::GetTJitter());
+                            break;
+                        case 5:
+                            snprintf(buf, buflen, " X.Sprd:%.2f", MarblesEngine::GetXSpread());
+                            break;
+                        case 6:
+                            snprintf(buf, buflen, " X.Bias:%.2f", MarblesEngine::GetXBias());
+                            break;
+                        case 7:
+                            snprintf(buf, buflen, " X.Step:%.2f", MarblesEngine::GetXSteps());
+                            break;
+                        case 8:
+                            snprintf(buf, buflen, " Y.Rate:%s", yDivNames[MarblesEngine::GetYDivider()]);
+                            break;
+                    }
+                    break;
                 case SP_CLOCK:
                     switch (row) {
                         case 0:
@@ -230,33 +270,24 @@ namespace CTAG {
                             snprintf(buf, buflen, " Mode:%s", tModelNames[MarblesEngine::GetTModel()]);
                             break;
                         case 1:
-                            snprintf(buf, buflen, " Bias:%.2f", MarblesEngine::GetTBias());
+                            snprintf(buf, buflen, " Range:%s", rangeNames[MarblesEngine::GetTRange()]);
                             break;
                         case 2:
-                            snprintf(buf, buflen, " Jit:%.2f", MarblesEngine::GetTJitter());
-                            break;
-                        case 3:
                             snprintf(buf, buflen, " PW:%d%%", MarblesEngine::GetTPwMean() * 100 / 255);
                             break;
-                        case 4:
+                        case 3:
                             snprintf(buf, buflen, " PWv:%d%%", MarblesEngine::GetTPwStd() * 100 / 255);
                             break;
-                        case 5:
+                        case 4:
                             snprintf(buf, buflen, " DV:%s", dvNames[MarblesEngine::GetTDejaVu()]);
                             break;
+                        case 5:
                         case 6:
-                        case 7:
-                        case 8: {
-                            int s = MarblesEngine::GetTSlot(row - 6);
-                            snprintf(buf, buflen, " T%d>%s", row - 5, TrigSlotName(s));
+                        case 7: {
+                            int s = MarblesEngine::GetTSlot(row - 5);
+                            snprintf(buf, buflen, " T%d>%s", row - 4, TrigSlotName(s));
                             break;
                         }
-                        case 9:
-                            snprintf(buf, buflen, " DVLn:%d", MarblesEngine::GetDejaVuLength());
-                            break;
-                        case 10:
-                            snprintf(buf, buflen, " DVAmt:%.2f", MarblesEngine::GetDejaVuAmount());
-                            break;
                     }
                     break;
                 case SP_X:
@@ -271,29 +302,20 @@ namespace CTAG {
                             snprintf(buf, buflen, " Ctl:%s", ctlNames[MarblesEngine::GetXControl()]);
                             break;
                         case 3:
-                            snprintf(buf, buflen, " Sprd:%.2f", MarblesEngine::GetXSpread());
-                            break;
-                        case 4:
-                            snprintf(buf, buflen, " Bias:%.2f", MarblesEngine::GetXBias());
-                            break;
-                        case 5:
-                            snprintf(buf, buflen, " Step:%.2f", MarblesEngine::GetXSteps());
-                            break;
-                        case 6:
                             snprintf(buf, buflen, " Reg:%s", MarblesEngine::GetXRegister() ? "On" : "Off");
                             break;
-                        case 7:
+                        case 4:
                             snprintf(buf, buflen, " RVal:%.2f", MarblesEngine::GetXRegisterValue());
                             break;
-                        case 8:
+                        case 5:
                             snprintf(buf, buflen, " DV:%s", dvNames[MarblesEngine::GetXDejaVu()]);
                             break;
-                        case 9:
-                        case 10:
-                        case 11: {
-                            int s = MarblesEngine::GetXSlot(row - 9);
-                            if (s < 0) snprintf(buf, buflen, " X%d>-", row - 8);
-                            else snprintf(buf, buflen, " X%d>%s", row - 8, cvSlotDisplayNames[s]);
+                        case 6:
+                        case 7:
+                        case 8: {
+                            int s = MarblesEngine::GetXSlot(row - 6);
+                            if (s < 0) snprintf(buf, buflen, " X%d>-", row - 5);
+                            else snprintf(buf, buflen, " X%d>%s", row - 5, cvSlotDisplayNames[s]);
                             break;
                         }
                     }
@@ -301,21 +323,18 @@ namespace CTAG {
                 case SP_Y:
                     switch (row) {
                         case 0:
-                            snprintf(buf, buflen, " Rate:%s", yDivNames[MarblesEngine::GetYDivider()]);
-                            break;
-                        case 1:
                             snprintf(buf, buflen, " Rng:%s", cvRangeNames[MarblesEngine::GetYRange()]);
                             break;
-                        case 2:
+                        case 1:
                             snprintf(buf, buflen, " Sprd:%.2f", MarblesEngine::GetYSpread());
                             break;
-                        case 3:
+                        case 2:
                             snprintf(buf, buflen, " Bias:%.2f", MarblesEngine::GetYBias());
                             break;
-                        case 4:
+                        case 3:
                             snprintf(buf, buflen, " Step:%.2f", MarblesEngine::GetYSteps());
                             break;
-                        case 5: {
+                        case 4: {
                             int s = MarblesEngine::GetYSlot();
                             if (s < 0) snprintf(buf, buflen, " Y>-");
                             else snprintf(buf, buflen, " Y>%s", cvSlotDisplayNames[s]);
@@ -346,7 +365,7 @@ namespace CTAG {
             if (subPage == SP_MAIN) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
-                if (cursor > 4) cursor = 4;
+                if (cursor > 5) cursor = 5;
             } else if (editing) {
                 adjustRow(cursor, delta);
             } else {
@@ -364,13 +383,13 @@ namespace CTAG {
             }
             if (subPage == SP_MAIN) {
                 SubPage target = SP_MAIN;
-                int focus = 0;
                 switch (cursor) {
-                    case 0: target = SP_CLOCK; break;
-                    case 1: target = SP_T; focus = 1; break;
-                    case 2: target = SP_X; focus = 2; break;
-                    case 3: target = SP_Y; focus = 3; break;
-                    case 4: target = SP_CC_SLOTS; break;
+                    case 0: target = SP_PANEL; break;
+                    case 1: target = SP_CLOCK; break;
+                    case 2: target = SP_T; break;
+                    case 3: target = SP_X; break;
+                    case 4: target = SP_Y; break;
+                    case 5: target = SP_CC_SLOTS; break;
                 }
                 if (target != SP_MAIN) {
                     subPage = target;
@@ -404,11 +423,12 @@ namespace CTAG {
                     cursor = ccEditSlot;
                     doRedraw();
                     return true;
-                case SP_CLOCK: cursor = 0; break;
-                case SP_T: cursor = 1; break;
-                case SP_X: cursor = 2; break;
-                case SP_Y: cursor = 3; break;
-                case SP_CC_SLOTS: cursor = 4; break;
+                case SP_PANEL: cursor = 0; break;
+                case SP_CLOCK: cursor = 1; break;
+                case SP_T: cursor = 2; break;
+                case SP_X: cursor = 3; break;
+                case SP_Y: cursor = 4; break;
+                case SP_CC_SLOTS: cursor = 5; break;
                 default: cursor = 0; break;
             }
             subPage = SP_MAIN;
@@ -421,10 +441,11 @@ namespace CTAG {
         void UIMenuPageMod::doRedraw() {
             switch (subPage) {
                 case SP_MAIN: redrawMain(); break;
+                case SP_PANEL: redrawRows("Knobs"); break;
                 case SP_CLOCK: redrawRows("Clock"); break;
-                case SP_T: redrawRows("T Section"); break;
-                case SP_X: redrawRows("X Section"); break;
-                case SP_Y: redrawRows("Y Section"); break;
+                case SP_T: redrawRows("T Setup"); break;
+                case SP_X: redrawRows("X Setup"); break;
+                case SP_Y: redrawRows("Y Setup"); break;
                 case SP_CC_SLOTS: redrawCCSlots(); break;
                 case SP_CC_EDIT: redrawRows(nullptr); break;
                 default: break;
@@ -434,25 +455,28 @@ namespace CTAG {
         void UIMenuPageMod::redrawMain() {
             Display::Clear();
             char buf[32];
-            const int TOTAL = 5;
+            const int TOTAL = 6;
             for (int i = 0; i < TOTAL; i++) {
                 int y = ROW(i);
                 switch (i) {
                     case 0:
+                        snprintf(buf, sizeof(buf), " Knobs");
+                        break;
+                    case 1:
                         if (MarblesEngine::GetTExternal()) {
                             snprintf(buf, sizeof(buf), " Clk:MIDI");
                         } else {
                             snprintf(buf, sizeof(buf), " Clk:Int %.0fbpm", MasterBPM());
                         }
                         break;
-                    case 1:
-                        snprintf(buf, sizeof(buf), " T:%s", tModelNames[MarblesEngine::GetTModel()]);
-                        break;
                     case 2:
-                        snprintf(buf, sizeof(buf), " X:%s", scaleNames[MarblesEngine::GetXScale()]);
+                        snprintf(buf, sizeof(buf), " T Set:%s", tModelNames[MarblesEngine::GetTModel()]);
                         break;
                     case 3:
-                        snprintf(buf, sizeof(buf), " Y:%s", yDivNames[MarblesEngine::GetYDivider()]);
+                        snprintf(buf, sizeof(buf), " X Set:%s", scaleNames[MarblesEngine::GetXScale()]);
+                        break;
+                    case 4:
+                        snprintf(buf, sizeof(buf), " Y Set:%s", yDivNames[MarblesEngine::GetYDivider()]);
                         break;
                     default:
                         snprintf(buf, sizeof(buf), " CC Slots");

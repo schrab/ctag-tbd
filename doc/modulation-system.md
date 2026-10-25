@@ -98,21 +98,23 @@ Edges closer together than one block (> 1378 Hz clock rate) collapse.
 ## Parameters
 
 Engine parameters are plain clamped setters on `MarblesEngine` (see the
-header for the full list). Highlights:
+header for the full list). The PANEL_MOD UI mirrors the hardware module:
 
+- **Knobs page** — exactly the module's 8 knobs + the DEJA VU length button,
+  in panel order: DV amount, DV length, T.Rate (BPM), T.Bias, T.Jit,
+  X.Sprd, X.Bias, X.Step, Y.Rate (divider).
 - **Clock page**: t clock source (Int/MIDI), **BPM entry** (20–480, one
   clock cycle = one beat; converted to the engine's semitone rate), fine
   Rate (±60 st shown in Hz, full Marbles span), range (0.25×/1×/4×),
   X clock source (T123/T1/T2/T3/MIDI), **[Tap]** (average of last 4 taps
   sets the BPM, 3 s gap restarts the sequence), [Reset].
-- **T page**: model (incl. Markov), bias, jitter, pulse-width mean/deviation,
-  t déjà-vu (Off/On/Lock), T1/T2/T3 trig slot assignment, shared déjà-vu
-  length (1–16) and amount (0–1).
-- **X page**: scale (Major/Minor/Pentatonic/Pelog/Bhairav/Shri — the 6
-  preset scales from `marbles/settings.cc`), voltage range, control mode,
-  spread/bias/steps, register mode + register value, X déjà-vu, X1..X3 slot
+- **T Setup page** (the module's button/switch equivalents): model (incl.
+  Markov), range, pulse-width mean/deviation, t déjà-vu, T1–T3 trig slot
   assignment.
-- **Y page**: divider (1/64…1/1), voltage range, spread/bias/steps, Y slot.
+- **X Setup page**: scale, voltage range, control mode, register mode +
+  value, X déjà-vu, X1–X3 slot assignment.
+- **Y Setup page**: voltage range, spread/bias/steps (hidden settings on
+  the hardware module), Y slot assignment.
 
 Not ported (hardware-only features): CV recording of custom scales
 (`scale_recorder`), clock self-patching detection (X clock source is a menu
@@ -162,7 +164,7 @@ MIDI table doesn't cover (~20 standard CC numbers on channels 1–4/global).
 
 ## UI Navigation (PANEL_MOD)
 
-Main menu: Clock / T / X / Y / CC Slots. All parameter subpages are
+Main menu: Knobs / Clock / T Set / X Set / Y Set / CC Slots. All parameter subpages are
 scrolling row lists: encoder moves the cursor, OK toggles edit mode, encoder
 changes the value, BACK exits edit → subpage → main. `[Reset]` (Clock) and
 `[Learn]` (CC Edit) are action rows triggered with OK. The CC slots are
