@@ -504,7 +504,7 @@ namespace CTAG {
             char buf[32];
             if (mapEditSlot < 0) {
                 snprintf(buf, sizeof(buf), "CV: None");
-            } else if (mapEditSlot < 100) {
+            } else if (mapEditSlot < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0]))) {
                 snprintf(buf, sizeof(buf), "CV: %s", cvSlotDisplayNames[mapEditSlot]);
             } else {
                 snprintf(buf, sizeof(buf), "CV: %d", mapEditSlot);

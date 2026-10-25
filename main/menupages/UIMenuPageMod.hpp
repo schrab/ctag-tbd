@@ -4,6 +4,9 @@
 
 namespace CTAG {
     namespace CTRL {
+        // PANEL_MOD: configuration of the Marbles random modulator
+        // (clock, t gate section, X/Y CV sections) and the MIDI-learn
+        // dynamic CC slots.
         class UIMenuPageMod final : public UIMenuPage {
         public:
             void init() override;
@@ -14,22 +17,23 @@ namespace CTAG {
             bool onBack() override;
 
         private:
-            enum SubPage { SP_MAIN, SP_LFO1, SP_LFO2, SP_TEMPO, SP_CC_SLOTS, SP_CC_EDIT, SP_SEQ1, SP_SEQ2, SP_GATE1, SP_GATE2 };
+            enum SubPage { SP_MAIN, SP_CLOCK, SP_T, SP_X, SP_Y, SP_CC_SLOTS, SP_CC_EDIT };
             SubPage subPage;
             int cursor;
             int ccEditSlot;
-            int ccEditValue;
-            bool seqEditParams; // true = editing global params sub-screen
             bool editing;
             bool dirty = false;
 
+            int rowCount() const;
+            bool rowIsAction(int row) const;
+            void activateRow(int row);
+            void adjustRow(int row, int delta);
+            void formatRow(int row, char *buf, int buflen);
+
             void redrawMain();
-            void redrawLFO(int lfo);
-            void redrawTempo();
+            void redrawRows(const char *title);
             void redrawCCSlots();
             void redrawCCEdit();
-            void redrawSeq(int seq);
-            void redrawGate(int g);
         };
     }
 }

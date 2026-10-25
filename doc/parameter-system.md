@@ -11,13 +11,10 @@
 | `main/RestServer.cpp` | REST API for param control |
 | `main/SerialAPI.cpp` | Serial API for param control |
 | `main/menupages/UIMenuPageParams.hpp` / `.cpp` | Group-recursive param editor, CV map, dual-channel |
-| `main/menupages/UIMenuPageMod.hpp` / `.cpp` | LFO/CC modulation source config page |
-| `main/CVSlotNames.hpp` | 100-entry CV slot display name table (7-char max) |
-| `main/ModEngine.hpp` / `.cpp` | LFO/tempo/sequencer/gate engine, persistence |
-| `main/IOCapabilities.hpp` | CV array extended to 100 entries (slots 90-99 = ModEngine) |
-| `components/ctagSoundProcessor/helpers/ctagTempo.hpp` / `.cpp` | BPM engine with MIDI clock sync |
-| `components/ctagSoundProcessor/helpers/ctagSeq16.hpp` / `.cpp` | 16-step CV sequencer |
-| `components/ctagSoundProcessor/helpers/ctagGate16.hpp` / `.cpp` | 16-step gate generator |
+| `main/menupages/UIMenuPageMod.hpp` / `.cpp` | Marbles modulator + CC slot config page |
+| `main/CVSlotNames.hpp` | 102-entry CV slot display name table (7-char max) + marbles trig names |
+| `main/MarblesEngine.hpp` / `.cpp` | Marbles random modulator engine, persistence |
+| `main/IOCapabilities.hpp` | CV array extended to 102 entries (slots 90-101 = mod engine) |
 
 ## Parameter Architecture
 Each plugin has three mapping tables defined in its `knowYourself()` method:
@@ -28,7 +25,7 @@ pMapTrig.emplace("gain", [&](const int val){ trig_gain = val; }); // Trig source
 ```
 
 ### CV Slot Range (BBA)
-N_CVS=100: slots 0-89 are MIDI-mapped (G_*, A_*, B_*, C_*, D_*), slots 90-97 are ModEngine dynamic CC outputs (CC1..CC8), slots 98-99 are LFO1/LFO2 outputs.
+N_CVS=102: slots 0-89 are MIDI-mapped (G_*, A_*, B_*, C_*, D_*), slots 90-97 are MIDI-learn dynamic CC outputs (CC1..CC8), slots 98-101 are Marbles random CVs (MB.X1..X3, MB.Y). N_TRIGS=43 with Marbles gates at 40-42 (MB.T1..T3).
 
 ### ParamInfo / GroupInfo (SPIRAM)
 `ParamInfo[256]` and `GroupInfo[32]` are allocated from SPIRAM via `heap_caps_malloc(MALLOC_CAP_SPIRAM)` in `UIMenuPageParams::init()`, keeping DRAM usage low (~21 KB freed vs static allocation).
@@ -114,7 +111,7 @@ Tab between HOME and PARAMS. Sub-pages:
 
 Modulation config saved to `/spiffs/data/mod-config.jsn`: LFOs, tempo source,
 CC slots, sequencer steps, gate patterns. Save uses RapidJSON `FileWriteStream`.
-`ModEngine::LoadConfig()` called from `Init()`.
+`MarblesEngine::LoadConfig()` called from `Init()` (see doc/modulation-system.md).
 
 See [`doc/modulation-system.md`](modulation-system.md) for full config schema.
 

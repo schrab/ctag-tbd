@@ -100,6 +100,22 @@ file(GLOB SRCS_FILES
         eurorack/beads/dsp/mu_law.h
         eurorack/beads/resources_min.cc
         eurorack/beads/resources.h
+        eurorack/marbles/resources.cc
+        eurorack/marbles/resources.h
+        eurorack/marbles/random/t_generator.cc
+        eurorack/marbles/random/t_generator.h
+        eurorack/marbles/random/x_y_generator.cc
+        eurorack/marbles/random/x_y_generator.h
+        eurorack/marbles/random/output_channel.cc
+        eurorack/marbles/random/output_channel.h
+        eurorack/marbles/random/quantizer.cc
+        eurorack/marbles/random/quantizer.h
+        eurorack/marbles/random/discrete_distribution_quantizer.cc
+        eurorack/marbles/random/discrete_distribution_quantizer.h
+        eurorack/marbles/random/lag_processor.cc
+        eurorack/marbles/random/lag_processor.h
+        eurorack/marbles/ramp/ramp_extractor.cc
+        eurorack/marbles/ramp/ramp_extractor.h
         )
 
 

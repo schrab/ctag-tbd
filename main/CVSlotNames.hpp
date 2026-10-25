@@ -1,6 +1,11 @@
 #pragma once
 
-static const char* cvSlotDisplayNames[100] = {
+#include <cstdint>
+
+// Display names for CV slots (7-char max). 0-89 mirror the MIDI-mapped
+// sources, 90-97 are the MIDI-learn dynamic CC slots, 98-101 are the
+// Marbles random CV outputs (X1..X3, Y).
+static const char* cvSlotDisplayNames[102] = {
     // Slots 0-39: Voice A/B/C/D note/velocity/control params
     "A.Note", "A.Velo", "A.Bank", "A.SBnk", "A.Prog",
     "A.PB",   "A.PBLg", "A.AT",   "A.MW1",  "A.BC2",
@@ -25,7 +30,39 @@ static const char* cvSlotDisplayNames[100] = {
     "Bal",   "Pan",   "Expr",  "FX1",
     "FX2",   "Sust",  "Port",  "Sost",
     "Soft",  "Hold",
-    // Slots 90-99: ModEngine dynamic CC + LFOs
+    // Slots 90-97: dynamic CC (MIDI learn)
     "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8",
-    "LFO1", "LFO2"
+    // Slots 98-101: Marbles random CV outputs
+    "MB.X1", "MB.X2", "MB.X3", "MB.Y"
 };
+
+// Display names for the Marbles trigger outputs at trig slots 40-42.
+static const char* marblesTrigSlotNames[3] = {"MB.T1", "MB.T2", "MB.T3"};
+
+// Render a trig slot for the UI: marbles slots by name, everything else
+// (MIDI-mapped 0-39) as its number. Uses a small static rotation so it can
+// be called several times per snprintf argument list.
+inline const char* TrigSlotName(int slot) {
+    static char buf[3][8];
+    static uint8_t rot = 0;
+    char *b = buf[rot];
+    rot = (rot + 1) % 3;
+    if (slot < 0) {
+        b[0] = '-'; b[1] = 0;
+    } else if (slot >= 40 && slot < 43) {
+        // marblesTrigSlotNames entries are shorter than the buffer
+        const char *s = marblesTrigSlotNames[slot - 40];
+        uint8_t i = 0;
+        while (s[i] && i < 7) { b[i] = s[i]; ++i; }
+        b[i] = 0;
+    } else {
+        // decimal into the same buffer
+        int v = slot, i = 0;
+        char tmp[8]; uint8_t n = 0;
+        if (v == 0) tmp[n++] = '0';
+        while (v > 0 && n < 7) { tmp[n++] = '0' + (v % 10); v /= 10; }
+        while (n > 0) b[i++] = tmp[--n];
+        b[i] = 0;
+    }
+    return b;
+}

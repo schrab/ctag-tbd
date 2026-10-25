@@ -1,24 +1,42 @@
-# Modulation System
+# Modulation System (Marbles port)
 
 ## Overview
 
-The modulation system provides tempo-synced CV and trigger sources for sound
-processor modulation. It runs at audio block rate (~1378 Hz) from within
-`ModEngine::Process()`, called at the top of the audio task loop. All outputs
-write into the shared `cv_buffer[0..N_CVS-1]` and `trig_buffer[0..N_TRIGS-1]`
-arrays, which sound processors read via their `ProcessData::cv[]` / `trig[]`.
+The modulation system is a port of Mutable Instruments **Marbles** (Émilie
+Gillet, MIT license) replacing the former home-grown LFO / CV-sequencer /
+gate-generator engine. It generates random **clocks, gates and quantized CV**
+and writes them into the shared `cv_buffer[]` / `trig_buffer[]` arrays at
+audio block rate (~1378 Hz), which sound processors read via
+`ProcessData::cv[]` / `trig[]`.
+
+Sections (same structure as the hardware module):
+
+| Section | Outputs | What it does |
+|---------|---------|--------------|
+| **t** | T1, T2, T3 → trig slots 40–42 | T2 is the master clock (50 % duty). T1/T3 are random gates derived from it: 7 models — Coins (complementary Bernoulli), Clusters, Drums, Independent Bernoulli, Divider, 3-States and **Markov** (implemented upstream but unreachable from the panel UI; exposed here as model 6). |
+| **X** | X1, X2, X3 → cv slots 98–100 | Random CV quantized to a selectable scale, with spread/bias/steps (distribution shape), register (ASR) mode, control mode (identical/bump/tilt) and déjà-vu loop. |
+| **Y** | Y → cv slot 101 | Random CV derived from X2's clock through a divider (1/64 … 1/1), with its own spread/bias/steps/range. |
+
+Clocking: the t master clock is either **internal** (rate ±60 semitones
+around 0.5 / 2 / 8 Hz by range) or **external = MIDI clock** (24 PPQN, fed
+through Marbles' own `RampExtractor`, which tolerates jitter and predicts the
+next edge). The X section can clock on T1, T2, T3, all three, or MIDI clock.
+MIDI Start/Continue reset the patterns to the downbeat.
+
+CV scaling: Marbles thinks in volts (±5 V full range). TBD's cv slots are
+roughly ±1.0, so outputs are scaled by **0.2** (FULL ±5 V → ±1.0, POSITIVE
+0…5 V → 0…1, NARROW 0…2 V → 0…0.4).
 
 ## Key Files
 
 | File | Role |
 |------|------|
-| `main/ModEngine.hpp` / `.cpp` | Central modulation engine — LFOs, tempo, sequencers, gates, CC routing, persistence |
-| `components/ctagSoundProcessor/helpers/ctagTempo.hpp` / `.cpp` | BPM engine with MIDI clock sync, tap tempo |
-| `components/ctagSoundProcessor/helpers/ctagSeq16.hpp` / `.cpp` | 16-step CV sequencer with slew and direction modes |
-| `components/ctagSoundProcessor/helpers/ctagGate16.hpp` / `.cpp` | 16-step gate generator with probability, swing, accent |
-| `main/menupages/UIMenuPageMod.hpp` / `.cpp` | PANEL_MOD UI — all modulation source configuration |
-| `main/CVSlotNames.hpp` | 100-entry CV slot display name table (7-char max) |
-| `main/IOCapabilities.hpp` | N_CVS=100, N_TRIGS=40 array definitions |
+| `main/MarblesEngine.hpp` / `.cpp` | Engine wrapper: parameter state, MIDI-clock input, cv/trig output mapping, JSON persistence, CC-slot routing |
+| `components/mutable/eurorack/marbles/` | Original Marbles sources compiled directly (random/, ramp/, resources.cc) |
+| `components/mutable/CMakeLists.txt` | Adds the marbles sources to the build |
+| `main/menupages/UIMenuPageMod.hpp` / `.cpp` | PANEL_MOD UI — Clock / T / X / Y / CC Slots subpages |
+| `main/CVSlotNames.hpp` | 102-entry CV slot name table + marbles trig slot names |
+| `main/IOCapabilities.hpp` | N_CVS=102, N_TRIGS=43 (BBA); web-UI slot lists include MB_* entries |
 | `components/ctagSoundProcessor/helpers/ctagSlotBounds.hpp` | Slot-index clamping shared by every CV/trig setter |
 
 ## Slot Index Safety
@@ -31,327 +49,126 @@ indices and map anything outside `[0, N_CVS)` / `[0, N_TRIGS)` to `-1`
 (unassigned) — so a hand-edited or truncated `mod-config.jsn` cannot corrupt
 the stack. Bounds are verified by host tests in `tests/host/`.
 
-## Precedence
-
-Several sources write the same buffers and the last writer in
-`ModEngine::Process()` wins. Order is: LFOs → sequencers → gates. In particular
-trigger slots 0–39 are shared between MIDI mapping and the sequencer/gate
-outputs, so pointing a gate at a MIDI-owned slot overrides the MIDI trigger.
-Do not assign the same slot to two sources unless last-writer-wins is intended.
-
-## CV Slot Allocation
+## Slot Allocation
 
 | Slots | Source | Description |
 |-------|--------|-------------|
 | 0–89 | MIDI-mapped | G_*, A_*, B_*, C_*, D_* from MIDI CC/note events |
-| 90–97 | Dynamic CC | 8 MIDI-learnable CC-to-CV mappings, configurable channel+CC |
-| 98 | LFO1 | Beat-synced or free-running LFO output |
-| 99 | LFO2 | Beat-synced or free-running LFO output |
+| 90–97 | Dynamic CC | 8 MIDI-learnable CC-to-CV mappings (unchanged from the old engine) |
+| 98–100 | Marbles X1–X3 | Quantized random CV |
+| 101 | Marbles Y | Divided random CV |
+| 40–41–42 (trig) | Marbles T1/T2/T3 | T1 random gate, T2 master clock, T3 random gate |
 
-**Sequencer and Gate CV outputs** are configurable via their CV/trig slot
-assignments (default: -1 = unassigned). They can write to any slot 0–99.
+All Marbles output slots are re-assignable (−1 = off) from the UI; pointing
+them at MIDI-owned slots follows last-writer-wins (Marbles writes first in
+the block, before the sound processors run).
 
 ## Audio Call Flow
 
 ```
 SPManager::audio_task()
-  └─ ModEngine::Process(cv_buffer, trig_buffer)
-       ├─ tempoEngine.Tick()                  // advance BPM phase
-       ├─ LFO update (lfo0, lfo1)             // write to cv[lfoCVSlot]
-       ├─ sequencer[0..1].Process(bpm, ...)   // write CV + trig to assigned slots
-       └─ gate[0..1].Process(bpm, ...)        // write trig + accent to assigned slots
-  └─ Codec::ReadBuffer()
-  └─ DC cut, noise gate
-  └─ sp[0]->Process(pd)                       // reads cv[] and trig[]
-  └─ (stereo) sp[1]->Process(pd)
+  └─ MarblesEngine::Process(cv_buffer, trig_buffer)   // ~1378 Hz
+       ├─ MIDI clock edges → GateFlags stream (1-tick pulses)
+       ├─ t_generator_.Process(...)        // master clock + T1/T3 gates
+       ├─ xy_generator_.Process(...)       // X1..X3 + Y voltages
+       └─ write cv 98..101 (volts × 0.2), trig 40..42
+  └─ Codec::ReadBuffer() → DC cut → noise gate
+  └─ sp[0]->Process(pd)                    // reads cv[] and trig[]
+  └─ (mono) sp[1]->Process(pd)
   └─ Codec::WriteBuffer()
 ```
 
-## Tempo Engine (`ctagTempo`)
+The marbles generators are initialized with `sr = 44100/32 = 1378.125` and
+run with `size == 1`, so all their internal rate constants stay in absolute
+Hz at the block tick.
 
-Namespace: `CTAG::SP::HELPERS::ctagTempo`
+## MIDI Wiring (`main/Midi.cpp`)
 
-### Features
-- BPM range: 20–300 (default 120)
-- Two clock sources: `INTERNAL` and `MIDI_CLOCK`
-- Phase output: `GetPhase()` returns 0.0–1.0 for one beat cycle
-- Tap tempo via `OnTapTempo()` (averages the last 4 tap intervals)
-- MIDI clock: `OnMidiClock()` (0xF8) derives the tempo from the interval between
-  incoming clocks (rolling average over 24 clocks), so the sequencers and gates
-  follow the external tempo — not just the beat-synced LFOs.
-- `Start()` (0xFA), `Continue()` (0xFB) and `Stop()` (0xFC) act only when the
-  source is `MIDI_CLOCK`, so a stray transport message cannot halt the internal
-  clock. `Reset()` rewinds the internal transport and is always available from
-  the `SP_TEMPO` subpage.
-
-### Key Methods
-```cpp
-void SetBPM(float bpm);
-float GetBPM() const;
-void SetSource(Source src);  // INTERNAL or MIDI_CLOCK
-Source GetSource() const;
-float GetPhase() const;      // 0.0–1.0, one beat
-void Tick();                 // called every audio block
-void OnTapTempo();
-void OnMidiClock();
-void Start();
-void Stop();
-void Continue();
-void Reset();                // always works, including with source INTERNAL
+```
+0xF8 (Timing Clock) → MarblesEngine::OnMidiClock()   // queues a clock edge
+0xFA (Start)        → MarblesEngine::OnMidiStart()   // one-shot pattern reset
+0xFB (Continue)     → MarblesEngine::OnMidiStart()
+0xFC (Stop)         → (edges simply stop arriving)
 ```
 
-### MIDI Clock Wiring (`main/Midi.cpp:1156-1172`)
-```
-0xF8 (Timing Clock)  →  tempoEngine.OnMidiClock()   // also updates BPM
-0xFA (Start)         →  tempoEngine.Start()         // ignored unless MIDI_CLOCK
-0xFB (Continue)      →  tempoEngine.Continue()      // ignored unless MIDI_CLOCK
-0xFC (Stop)          →  tempoEngine.Stop()          // ignored unless MIDI_CLOCK
-```
+Clock edges are queued in an atomic counter by the MIDI task and drained one
+per block tick by the audio task into a gate stream for `RampExtractor`.
+Edges closer together than one block (> 1378 Hz clock rate) collapse.
 
-### Persistence
-BPM and source are saved and restored, so the tempo survives a reboot.
-```json
-"tempo": {"bpm": 120.0, "source": 0}   // source: 0 = internal, 1 = MIDI clock
-```
+## Parameters
 
-## LFO Engine (built into `ModEngine`)
+Engine parameters are plain clamped setters on `MarblesEngine` (see the
+header for the full list). Highlights:
 
-Two independent LFOs, each configurable:
+- **Clock page**: t clock source (Int/MIDI), rate (±60 st, shown as Hz),
+  range (0.25×/1×/4×), X clock source (T123/T1/T2/T3/MIDI), [Reset].
+- **T page**: model (incl. Markov), bias, jitter, pulse-width mean/deviation,
+  t déjà-vu (Off/On/Lock), T1/T2/T3 trig slot assignment, shared déjà-vu
+  length (1–16) and amount (0–1).
+- **X page**: scale (Major/Minor/Pentatonic/Pelog/Bhairav/Shri — the 6
+  preset scales from `marbles/settings.cc`), voltage range, control mode,
+  spread/bias/steps, register mode + register value, X déjà-vu, X1..X3 slot
+  assignment.
+- **Y page**: divider (1/64…1/1), voltage range, spread/bias/steps, Y slot.
 
-| Param | Range | Description |
-|-------|-------|-------------|
-| Shape | 0–4 | Sine, Triangle, Saw, Square, S&H |
-| Rate | 0.01–100 Hz | Free-running oscillation frequency |
-| Amplitude | 0.0–1.0 | Output scaling |
-| CV Slot | -1–99 | Which cv_buffer slot to write to |
-| Sync | on/off | When on, phase follows tempo engine (one beat = one cycle) |
+Not ported (hardware-only features): CV recording of custom scales
+(`scale_recorder`), clock self-patching detection (X clock source is a menu
+parameter instead), the external "note" CV for X register/transposition
+(replaced by the register-value parameter).
 
-### LFO Sync Mode
-When `lfoSync=true`, the LFO phase is replaced by `tempoEngine.GetPhase()`
-every audio block, making the LFO beat-synced. The rate parameter is ignored
-in sync mode.
+## Dynamic CC Routing (unchanged)
 
-## Sequencers (`ctagSeq16`)
-
-Namespace: `CTAG::SP::HELPERS::ctagSeq16`
-
-Two identical sequencers (`sequencer[0]`, `sequencer[1]`), each with 16 steps.
-
-### Per-Step Data
-- CV value: `float`, stored 0.0–1.0 and written to CV as `value × 2 − 1`, i.e.
-  bipolar −1.0 to +1.0. On a ±5 V output range that corresponds to −5 V to +5 V.
-
-### Global Parameters
-| Param | Range | Description |
-|-------|-------|-------------|
-| Step Length | 0.25–4.0 beats | Duration of each step in beats |
-| Direction | 0–3 | FWD, BWD, PENDULUM, RANDOM |
-| Slew | 0.0–1.0 | Linear interpolation between step values (0 = instant) |
-| CV Slot | -1–99 | Which cv_buffer slot to write to |
-| Trig Slot | -1–39 | Which trig_buffer slot to fire on step change |
-
-### Direction Modes
-- `FWD`: steps 0→1→2→...→15→0
-- `BWD`: steps 15→14→...→0→15
-- `PENDULUM`: 0→1→...→15→14→...→0 (back and forth)
-- `RANDOM`: random step each time
-
-### Process
-`Process(bpm, cv_buffer, trig_buffer, block_size)` advances an internal phase
-accumulator proportional to BPM × step length. At each step boundary:
-1. Direction determines next step index
-2. `currentOutput` slews toward `targetOutput` (new step's value)
-3. CV written to `cv_buffer[cvSlot]`
-4. Trigger fired on `trig_buffer[trigSlot]`
-
-## Gate Generators (`ctagGate16`)
-
-Namespace: `CTAG::SP::HELPERS::ctagGate16`
-
-Two identical gate generators (`gate[0]`, `gate[1]`), each with 16 steps.
-
-### Per-Step Data
-| Field | Range | Description |
-|-------|-------|-------------|
-| Enabled | bool | Whether this step can fire a gate |
-| Probability | 0–100% | Chance that gate fires when this step is reached |
-
-### Global Parameters
-| Param | Range | Description |
-|-------|-------|-------------|
-| Step Length | 0.25–4.0 beats | Duration of each step in beats |
-| Direction | 0–3 | FWD, BWD, PENDULUM, RANDOM |
-| Swing | 0.0–1.0 | Lengthens the off-beat (0=straight, 1.0 ≈ 1.5:1 shuffle) |
-| Gate Length | 0.1–1.0 | Fraction of step the gate stays high |
-| Trig Slot | -1–39 | Which trig_buffer slot to write gates to |
-| Accent Slot | -1–99 | Which cv_buffer slot to write accent CV to |
-| Accent Amount | 0.0–1.0 | CV level written when gate fires |
-
-### Process
-At each step boundary:
-1. If step is enabled, roll `rand() % 100` against probability
-2. If gate fires: `trig_buffer[trigSlot] = 1` for `gateLength` fraction of step
-3. Accent CV: `cv_buffer[accentSlot] = accentAmount` while gate is high
-4. Swing lengthens the off-beat: even steps run `1 − swing × 0.2` and odd steps
-   `1 + swing × 0.2` of the nominal step length, giving a 1.5:1 off/on ratio at
-   full swing. (Scaling the rate instead would *shorten* the odd step, which is
-   reverse swing.)
-
-## Dynamic CC Routing
-
-8 slots (0–7) that map incoming MIDI CC messages to CV buffer positions 90–97.
-
-| Config | Range | Description |
-|--------|-------|-------------|
-| CC | -1–127 | MIDI CC number to listen for (−1 = disabled) |
-| Channel | 0–15 | MIDI channel to listen on |
-
-### MIDI Learn
-```cpp
-ModEngine::StartLearn();  // enters learn mode
-ModEngine::StopLearn();   // captures next CC into first free slot
-ModEngine::IsLearning();
-```
-
-When a CC arrives matching a configured slot:
-```cpp
-cv_buffer[90 + slot_idx] = value / 127.0f;
-```
+8 slots (0–7) map incoming MIDI CC messages to CV buffer positions 90–97,
+with MIDI learn from the CC Slots subpage — identical to the previous
+engine, and old `mod-config.jsn` `ccSlots` entries carry over.
 
 ## UI Navigation (PANEL_MOD)
 
-`main/menupages/UIMenuPageMod.cpp` — the modulation configuration panel.
-
-### Main Menu (SP_MAIN)
-8 items, scrollable:
-| # | Label | Navigates to |
-|---|-------|-------------|
-| 0 | LFO1 | SP_LFO1 |
-| 1 | LFO2 | SP_LFO2 |
-| 2 | Tempo | SP_TEMPO |
-| 3 | CC Slots | SP_CC_SLOTS |
-| 4 | Seq1 | SP_SEQ1 |
-| 5 | Seq2 | SP_SEQ2 |
-| 6 | Gate1 | SP_GATE1 |
-| 7 | Gate2 | SP_GATE2 |
-
-### Subpage: LFO1/LFO2
-- Shape (encoder-select, OK to edit)
-- Rate (Hz, OK to edit)
-- Amplitude (0–1, OK to edit)
-- Output CV slot (−1–99, OK to edit)
-
-### Subpage: Tempo
-- BPM (edit: 20–300)
-- Source (Internal / MIDI Clk)
-- [Tap Tempo] (action)
-
-### Subpage: CC Slots
-Scrollable list of 8 slots. OK enters CC Edit for selected slot.
-
-### Subpage: CC Edit
-- CC number (−1 = disabled, 0–127)
-- MIDI Channel (0–15)
-- [Learn] / [StopLearn] toggle
-
-### Subpage: SEQ1/SEQ2 — Step List
-Scrollable list of 16 steps + [Params]. Each step shows CV value.
-- OK: enter CV edit mode (encoder adjusts value)
-- Long press: (reserved for trig toggle)
-- OK on [Params]: enter global params sub-screen
-
-### Subpage: SEQ1/SEQ2 — Params
-- Step Length (0.25–4.0 beats)
-- Direction (Fwd/Bwd/Pend/Rand)
-- Slew (0.0–1.0)
-- CV Slot (−1–99)
-- Trig Slot (−1–39)
-
-### Subpage: GATE1/GATE2 — Step List
-Scrollable list of 16 steps + [Params]. Each step shows ON/OFF + probability.
-- OK: toggle step enabled
-- Long press: enter probability edit mode (encoder adjusts 0–100%)
-- OK on [Params]: enter global params sub-screen
-
-### Subpage: GATE1/GATE2 — Params
-- Step Length (0.25–4.0 beats)
-- Direction (Fwd/Bwd/Pend/Rand)
-- Swing (0.0–1.0)
-- Gate Length (0.1–1.0)
-- Trig Slot (−1–39)
-- Accent Amount (0.0–1.0)
+Main menu: Clock / T / X / Y / CC Slots. All parameter subpages are
+scrolling row lists: encoder moves the cursor, OK toggles edit mode, encoder
+changes the value, BACK exits edit → subpage → main. `[Reset]` (Clock) and
+`[Learn]` (CC Edit) are action rows triggered with OK.
 
 ## Persistence
 
-All modulation config saved to `/spiffs/data/mod-config.jsn` via RapidJSON.
+`/spiffs/data/mod-config.jsn` via RapidJSON (type-checked reads, 512-byte
+stream buffers — SaveConfig runs on the 4 KB UIMenu task stack):
 
 ```json
 {
-  "lfo1": {"shape": 0, "rate": 1.0, "amp": 0.5, "cvSlot": 98, "sync": false},
-  "lfo2": {"shape": 0, "rate": 2.0, "amp": 0.5, "cvSlot": 99, "sync": false},
-  "tempo": {"bpm": 120.0, "source": "internal"},
-  "ccSlots": [
-    {"cc": -1, "chan": 0, "cvSlot": 90},
-    {"cc": -1, "chan": 0, "cvSlot": 91}
-  ],
-  "seq0": {
-    "steps": [0.0, 0.1, ...],
-    "stepLength": 1.0,
-    "direction": 0,
-    "slew": 0.0,
-    "cvSlot": -1,
-    "trigSlot": -1
+  "marbles": {
+    "tExternal": false, "tModel": 0, "tRange": 1, "tRate": 0.0,
+    "tBias": 0.5, "tJitter": 0.0, "tPwMean": 90, "tPwStd": 0, "tDejaVu": 0,
+    "xyClockSource": 0,
+    "xScale": 0, "xRange": 2, "xControl": 0, "xRegister": false,
+    "xRegisterValue": 0.5, "xSpread": 0.5, "xBias": 0.5, "xSteps": 0.5,
+    "xDejaVu": 0,
+    "yRange": 2, "ySpread": 0.5, "yBias": 0.5, "ySteps": 0.5, "yDivider": 11,
+    "dvAmount": 0.0, "dvLength": 8,
+    "tSlot": [40, 41, 42], "xSlot": [98, 99, 100], "ySlot": 101
   },
-  "gate0": {
-    "enabled": [true, false, ...],
-    "probs": [100, 0, ...],
-    "stepLength": 1.0,
-    "direction": 0,
-    "trigSlot": -1,
-    "accentSlot": -1,
-    "swing": 0.0,
-    "gateLength": 0.5,
-    "accentAmount": 0.5
-  }
+  "ccSlots": [ { "cc": -1, "chan": 0, "cvSlot": 90 }, ... ]
 }
 ```
 
-`ModEngine::SaveConfig()` called from `deinit()` when `dirty=true` (any
-encoder change). `ModEngine::LoadConfig()` called from `Init()`.
+`MarblesEngine::SaveConfig()` runs from the page's `deinit()` when dirty;
+`LoadConfig()` runs from `Init()` (called from `Midi::Init()`). Old config
+files with `lfo1/2`, `seq*`, `gate*`, `tempo` keys simply ignore them.
 
-## DRAM Usage
-
-The modulation engine uses static class members (no heap):
+## DRAM / flash
 
 | Object | Size |
 |--------|------|
-| `tempoEngine` | ~32 bytes |
-| `sequencer[2]` | ~160 bytes |
-| `gate[2]` | ~120 bytes |
-| `lfoPhase/rate/amp/shape/cvSlot/hold/sync` | ~64 bytes |
-| `dynCC/dynChan/dynTargetSlot` (8 each) | ~96 bytes |
-| **Total** | **~480 bytes static DRAM** |
-
-`SaveConfig()` uses a 512-byte `FileWriteStream` buffer. It runs on the UIMenu
-task, whose 4 KB stack is deliberately small, so keep that buffer modest —
-`FileWriteStream` flushes in chunks and does not need to hold the whole
-document.
+| `TGenerator` (incl. `RampExtractor` ~1.5 KB) | ~2.2 KB static DRAM |
+| `XYGenerator` (4 × `OutputChannel`, 2nd `RampExtractor`) | ~6.5 KB static DRAM |
+| `RandomStream` (128-word ring) + misc | ~0.6 KB |
+| `resources.cc` LUTs (60 × 387-float ICDF tables etc.) | ~95 KB flash (.rodata) |
 
 ## Testing
 
-`ctagTempo`, `ctagSeq16` and `ctagGate16` are pure value types with no I/O, so
-they are covered by host unit tests that need no ESP-IDF toolchain, hardware,
-or network:
-
-```bash
-tests/host/run_tests.sh
-```
-
-The script compiles the **real** helper sources against a small FreeRTOS shim
-(`tests/host/shim/`, a fake `xTaskGetTickCount` so tap tempo is deterministic)
-and runs 43 assertions covering step timing, direction modes, probability,
-slew, swing direction, MIDI-clock tempo derivation, tap averaging, transport
-gating, and out-of-range slot writes. Exit code 0 means all passed.
-
-Run it after any change to the helpers; it is the fastest way to catch a
-timing or bounds regression before flashing.
+`tests/host/run_tests.sh` compiles the **real marbles submodule sources**
+with plain g++ and runs 7 marbles tests + 4 input-source tests: determinism
+(same seed → same sequence), internal master clock rate (2 Hz at default),
+external clock extraction from a synthetic 24-PPQN gate stream, X
+quantization to the major-scale grid, Markov model reachability/variation,
+déjà-vu period-N looping, and slot bounds for the new 98–101 / 40–42 slots.

@@ -26,8 +26,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     pd.trig = defaultTrig;
 
     while (runAudioTask) {
-        // 1. Modulation engine → CV + trig slots
-        DRIVERS::ModEngine::Process(pd.cv, pd.trig);
+        // 1. Marbles random modulator → CV + trig slots
+        DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
         // 2. Read interleaved float samples from codec (ADC)
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);

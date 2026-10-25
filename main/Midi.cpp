@@ -22,7 +22,7 @@ respective component folders / files if different from this license.
 
 #include "Midi.hpp"
 #include "Favorites.hpp"
-#include "ModEngine.hpp"
+#include "MarblesEngine.hpp"
 #include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED
 #include "BtMidiReceiver.hpp"
@@ -425,9 +425,9 @@ void Midi::controlChange(uint8_t* msg)
         }
     }
 
-    // After fixed distributor, apply dynamic CC mapping (MIDI Learn + ModEngine)
-    CTAG::DRIVERS::ModEngine_MaybeCaptureCC(channel, cc_num, msg[2]);
-    CTAG::DRIVERS::ModEngine_ApplyDynamicCC(channel, cc_num, msg[2], midi_cvs);
+    // After fixed distributor, apply dynamic CC mapping (MIDI Learn + Marbles engine)
+    CTAG::DRIVERS::MarblesEngine_MaybeCaptureCC(channel, cc_num, msg[2]);
+    CTAG::DRIVERS::MarblesEngine_ApplyDynamicCC(channel, cc_num, msg[2], midi_cvs);
 }
 
 // --- Process incoming Pressure events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
@@ -832,7 +832,7 @@ void Midi::Init() {
     memset(midi_note_trig, 1, N_TRIGS);
     distribute.setCVandTriggerPointers(midi_data, midi_note_trig);
     // CTAG::DRIVERS::tusbmidi::Init();
-    CTAG::DRIVERS::ModEngine::Init();
+    CTAG::DRIVERS::MarblesEngine::Init();
     CTAG::AUDIO::SDAudio::Init();
 }
 
@@ -1157,20 +1157,19 @@ uint8_t *Midi::Update() {
                 bool was_realtime_message = false;    // Will only become true, if we find a real-time message status byte now...
                 switch(*ptr)                          // ### MB20240911: Added Edge-case detection: Realtime-Events are no valid status-bytes that to end a possible running-status byte situation!   
                 {
-                    case 0xf8:    // Clock
-                        CTAG::DRIVERS::ModEngine::GetTempoEngine().OnMidiClock();
+                    case 0xf8:    // Clock — feeds the Marbles external clock inputs
+                        CTAG::DRIVERS::MarblesEngine::OnMidiClock();
                         was_realtime_message = true;
                         break;
-                    case 0xfa:    // Start
-                        CTAG::DRIVERS::ModEngine::GetTempoEngine().Start();
+                    case 0xfa:    // Start — reset Marbles patterns to the downbeat
+                        CTAG::DRIVERS::MarblesEngine::OnMidiStart();
                         was_realtime_message = true;
                         break;
-                    case 0xfb:    // Continue
-                        CTAG::DRIVERS::ModEngine::GetTempoEngine().Continue();
+                    case 0xfb:    // Continue — re-align to the downbeat
+                        CTAG::DRIVERS::MarblesEngine::OnMidiStart();
                         was_realtime_message = true;
                         break;
-                    case 0xfc:    // Stop
-                        CTAG::DRIVERS::ModEngine::GetTempoEngine().Stop();
+                    case 0xfc:    // Stop — clock edges simply stop arriving
                         was_realtime_message = true;
                         break;
                     case 0xfe:    // Active Sensing

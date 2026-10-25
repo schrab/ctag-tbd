@@ -35,7 +35,7 @@ respective component folders / files if different from this license.
 #include "RestServer.hpp"
 #include "Control.hpp"
 #include "Favorites.hpp"
-#include "ModEngine.hpp"
+#include "MarblesEngine.hpp"
 #include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED
 #include "BtMidiReceiver.hpp"
@@ -104,8 +104,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     }
 
     while (runAudioTask) {
-        // LFO modulation → CV slots
-        DRIVERS::ModEngine::Process(pd.cv, pd.trig);
+        // Marbles random modulation → CV/trig slots
+        DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
         // get normalized raw data from CODEC
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);

@@ -18,12 +18,14 @@ UART1 (GPIO19) → Midi::Update() → cv/trig buffers → Control::Update()
 ```
 
 ## CV/Trigger Buffer
-- BBA (Black Box Audio): N_CVS=100, N_TRIGS=40 (defined in root CMakeLists.txt)
+- BBA (Black Box Audio): N_CVS=102, N_TRIGS=43 (defined in root CMakeLists.txt)
 - MIDI events are mapped to fixed CV buffer indices via compile-time constexpr tables
 - Slots 0-89: MIDI-mapped (G_*, A_*, B_*, C_*, D_*)
-- Slots 90-97: ModEngine dynamic CC outputs (CC1..CC8, MIDI-learnable)
-- Slots 98-99: LFO1/LFO2 outputs
-- Trigger slots 0-39: shared between MIDI trigger mapping and ModEngine sequencer/gate generators (configurable per sequencer/gate)
+- Slots 90-97: dynamic CC outputs (CC1..CC8, MIDI-learnable)
+- Slots 98-101: Marbles random CVs (MB.X1..X3, MB.Y) — not MIDI-driven, generated at audio block rate
+- Trigger slots 0-39: MIDI trigger mapping
+- Trigger slots 40-42: Marbles gates (MB.T1..T3)
+- MIDI Clock (0xF8) feeds the Marbles external clock; Start/Continue reset its patterns
 
 ## MIDI Channel Architecture
 | Channel | Mode |
