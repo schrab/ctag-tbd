@@ -5,6 +5,8 @@
 #include <cstring>
 #include <cstdio>
 #include <cmath>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 using namespace CTAG::DRIVERS;
 
@@ -33,6 +35,8 @@ namespace CTAG {
             cursor = 0;
             ccEditSlot = 0;
             editing = false;
+            lastTapTick = 0;
+            tapHistoryCount = 0;
         }
 
         void UIMenuPageMod::deinit() {
@@ -44,7 +48,7 @@ namespace CTAG {
         int UIMenuPageMod::rowCount() const {
             switch (subPage) {
                 case SP_MAIN: return 5;
-                case SP_CLOCK: return 5;
+                case SP_CLOCK: return 7;   // TClk, BPM, Rate, Range, XClk, [Tap], [Reset]
                 case SP_T: return 11;
                 case SP_X: return 12;
                 case SP_Y: return 6;
@@ -55,13 +59,15 @@ namespace CTAG {
         }
 
         bool UIMenuPageMod::rowIsAction(int row) const {
-            if (subPage == SP_CLOCK && row == 4) return true;   // [Reset]
+            if (subPage == SP_CLOCK && (row == 5 || row == 6)) return true;  // [Tap], [Reset]
             if (subPage == SP_CC_EDIT && row == 2) return true; // [Learn]
             return false;
         }
 
         void UIMenuPageMod::activateRow(int row) {
-            if (subPage == SP_CLOCK && row == 4) {
+            if (subPage == SP_CLOCK && row == 5) {
+                onTapTempo();
+            } else if (subPage == SP_CLOCK && row == 6) {
                 MarblesEngine::RequestReset();
             } else if (subPage == SP_CC_EDIT && row == 2) {
                 if (MarblesEngine::IsLearning()) {
@@ -72,12 +78,58 @@ namespace CTAG {
             }
         }
 
-        // Master clock frequency in Hz for the current t range/rate.
-        static float MasterHz() {
+        // ---- internal clock helpers (BPM <-> marbles semitone rate) ----
+        // One t-clock cycle = one beat, so BPM = Hz * 60. BPM entry is
+        // clamped to 20..480 (musical range, reachable in all three ranges);
+        // the fine Rate row keeps the full +-60 semitone span.
+        static float MasterBaseHz() {
             float base = 2.0f;
             if (MarblesEngine::GetTRange() == 0) base = 0.5f;
             else if (MarblesEngine::GetTRange() == 2) base = 8.0f;
-            return base * powf(2.0f, MarblesEngine::GetTRate() / 12.0f);
+            return base;
+        }
+
+        static float MasterHz() {
+            return MasterBaseHz() * powf(2.0f, MarblesEngine::GetTRate() / 12.0f);
+        }
+
+        static float MasterBPM() {
+            return MasterHz() * 60.0f;
+        }
+
+        static void SetMasterBPM(float bpm) {
+            if (bpm < 20.0f) bpm = 20.0f;
+            if (bpm > 480.0f) bpm = 480.0f;
+            float st = 12.0f * log2f((bpm / 60.0f) / MasterBaseHz());
+            MarblesEngine::SetTRate(st);  // engine clamps to +-60 st
+        }
+
+        // ---- tap tempo: average the last 4 tap intervals (ms -> BPM) ----
+        void UIMenuPageMod::onTapTempo() {
+            uint32_t now = xTaskGetTickCount();
+            uint32_t stale = pdMS_TO_TICKS(3000);
+            if (tapHistoryCount > 0 && (now - lastTapTick) > stale) {
+                tapHistoryCount = 0;  // previous sequence expired, start over
+            }
+            if (tapHistoryCount > 0) {
+                uint32_t interval = now - lastTapTick;
+                uint32_t minInterval = pdMS_TO_TICKS(125);   // 480 BPM
+                if (interval < minInterval) {
+                    lastTapTick = now;
+                    return;  // too fast to be a deliberate tap
+                }
+                for (int i = 3; i > 0; i--) tapIntervalHistory[i] = tapIntervalHistory[i - 1];
+                tapIntervalHistory[0] = interval;
+                if (tapHistoryCount < 4) tapHistoryCount++;
+                uint32_t sum = 0;
+                for (int i = 0; i < tapHistoryCount; i++) sum += tapIntervalHistory[i];
+                float avgMs = (float)sum * portTICK_PERIOD_MS / tapHistoryCount;
+                SetMasterBPM(60000.0f / avgMs);
+                dirty = true;
+            } else {
+                tapHistoryCount = 0;  // first tap just marks time
+            }
+            lastTapTick = now;
         }
 
         void UIMenuPageMod::adjustRow(int row, int delta) {
@@ -85,9 +137,10 @@ namespace CTAG {
                 case SP_CLOCK:
                     switch (row) {
                         case 0: MarblesEngine::SetTExternal(!MarblesEngine::GetTExternal()); break;
-                        case 1: MarblesEngine::SetTRate(MarblesEngine::GetTRate() + delta); break;
-                        case 2: MarblesEngine::SetTRange(MarblesEngine::GetTRange() + delta); break;
-                        case 3: MarblesEngine::SetXYClockSource(MarblesEngine::GetXYClockSource() + delta); break;
+                        case 1: SetMasterBPM(MasterBPM() + delta); break;
+                        case 2: MarblesEngine::SetTRate(MarblesEngine::GetTRate() + delta); break;
+                        case 3: MarblesEngine::SetTRange(MarblesEngine::GetTRange() + delta); break;
+                        case 4: MarblesEngine::SetXYClockSource(MarblesEngine::GetXYClockSource() + delta); break;
                     }
                     break;
                 case SP_T:
@@ -152,15 +205,21 @@ namespace CTAG {
                             snprintf(buf, buflen, " TClk:%s", MarblesEngine::GetTExternal() ? "MIDI" : "Int");
                             break;
                         case 1:
-                            snprintf(buf, buflen, " Rate:%.2fHz", MasterHz());
+                            snprintf(buf, buflen, " BPM:%.1f", MasterBPM());
                             break;
                         case 2:
-                            snprintf(buf, buflen, " Range:%s", rangeNames[MarblesEngine::GetTRange()]);
+                            snprintf(buf, buflen, " Rate:%.2fHz", MasterHz());
                             break;
                         case 3:
-                            snprintf(buf, buflen, " XClk:%s", xyClkNames[MarblesEngine::GetXYClockSource()]);
+                            snprintf(buf, buflen, " Range:%s", rangeNames[MarblesEngine::GetTRange()]);
                             break;
                         case 4:
+                            snprintf(buf, buflen, " XClk:%s", xyClkNames[MarblesEngine::GetXYClockSource()]);
+                            break;
+                        case 5:
+                            snprintf(buf, buflen, tapHistoryCount > 0 ? " [Tap] %.0fbpm" : " [Tap]", MasterBPM());
+                            break;
+                        case 6:
                             snprintf(buf, buflen, " [Reset]");
                             break;
                     }
@@ -383,7 +442,7 @@ namespace CTAG {
                         if (MarblesEngine::GetTExternal()) {
                             snprintf(buf, sizeof(buf), " Clk:MIDI");
                         } else {
-                            snprintf(buf, sizeof(buf), " Clk:Int %.1fHz", MasterHz());
+                            snprintf(buf, sizeof(buf), " Clk:Int %.0fbpm", MasterBPM());
                         }
                         break;
                     case 1:

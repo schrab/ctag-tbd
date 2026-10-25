@@ -100,8 +100,11 @@ Edges closer together than one block (> 1378 Hz clock rate) collapse.
 Engine parameters are plain clamped setters on `MarblesEngine` (see the
 header for the full list). Highlights:
 
-- **Clock page**: t clock source (Int/MIDI), rate (±60 st, shown as Hz),
-  range (0.25×/1×/4×), X clock source (T123/T1/T2/T3/MIDI), [Reset].
+- **Clock page**: t clock source (Int/MIDI), **BPM entry** (20–480, one
+  clock cycle = one beat; converted to the engine's semitone rate), fine
+  Rate (±60 st shown in Hz, full Marbles span), range (0.25×/1×/4×),
+  X clock source (T123/T1/T2/T3/MIDI), **[Tap]** (average of last 4 taps
+  sets the BPM, 3 s gap restarts the sequence), [Reset].
 - **T page**: model (incl. Markov), bias, jitter, pulse-width mean/deviation,
   t déjà-vu (Off/On/Lock), T1/T2/T3 trig slot assignment, shared déjà-vu
   length (1–16) and amount (0–1).

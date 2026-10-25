@@ -1,6 +1,7 @@
 #pragma once
 
 #include "UIMenuPage.hpp"
+#include <cstdint>
 
 namespace CTAG {
     namespace CTRL {
@@ -23,6 +24,12 @@ namespace CTAG {
             int ccEditSlot;
             bool editing;
             bool dirty = false;
+
+            // tap tempo (Clock page): average of the last 4 tap intervals
+            uint32_t lastTapTick = 0;
+            uint32_t tapIntervalHistory[4] = {0};
+            int tapHistoryCount = 0;
+            void onTapTempo();
 
             int rowCount() const;
             bool rowIsAction(int row) const;
