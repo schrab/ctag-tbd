@@ -16,6 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 HELPERS="$ROOT/components/ctagSoundProcessor/helpers"
 EURORACK="$ROOT/components/mutable/eurorack"
+PROTOCOL="$ROOT/protocol"
 SHIM="$HERE/shim"
 OUT="$HERE/build"
 
@@ -29,10 +30,13 @@ echo "==> Building host tests"
     -I "$HERE" \
     -I "$HELPERS" \
     -I "$ROOT/main" \
+    -I "$PROTOCOL/include" \
     -I "$EURORACK" \
     "$HERE/main.cpp" \
     "$HERE/test_marbles_core.cpp" \
     "$HERE/test_input_source.cpp" \
+    "$HERE/test_link_protocol.cpp" \
+    "$PROTOCOL/src/protocol.cpp" \
     "$EURORACK/marbles/resources.cc" \
     "$EURORACK/marbles/random/t_generator.cc" \
     "$EURORACK/marbles/random/x_y_generator.cc" \

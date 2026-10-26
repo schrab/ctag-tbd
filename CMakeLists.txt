@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 # pull in idf specific items, config vars etc.
+
+# Shared UI↔DSP link protocol (doc/ui-split-sdd.md §7), also compiled by
+# tests/host with plain g++ and by the uimcu C3 panel project.
+list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/protocol")
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 
