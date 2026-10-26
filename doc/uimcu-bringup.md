@@ -51,7 +51,45 @@ Design: `doc/ui-split-sdd.md` §4/§5/§8 (P3), §11 (bench channels).
 | Encoder E2 (panel) | A=4, B=5 | |
 | BTN_A + BTN_B | GPIO0 (ADC1_CH0) | resistor ladder mirroring the A1S BTN design; calibrate thresholds in `main/input/UserInput.cpp` |
 | Link to A1S | RX=20, TX=21 | **C3-side pins** (UART0, 921600 8N1) — the A1S end is on the A1S's MIDI pins 18/19, see below |
+| TRS MIDI IN | TIP→opto→GPIO10 | UART1 RX, 31250 — wire now; firmware reads it from P4 |
+| TRS MIDI OUT | GPIO1→TIP | UART1 TX, 31250 — same, P4 |
 | USB | GPIO18/19 | console + flashing |
+
+## TRS MIDI jacks (P4 hardware — wire now, firmware follows)
+
+MIDI TRS **Type A** (RP-054: Tip = data, Ring = +V, Sleeve = GND). The
+A1S's old MIDI DIN jacks move here; electrically identical, just 3.5 mm.
+
+**TRS IN** (receiver side, opto-isolated per SDD §2.1 — H11L1, PC900V or
+6N138; check the part's datasheet for its pin numbers):
+
+```
+jack RING ──220Ω── opto LED anode
+jack TIP  ───────── opto LED cathode     (1N4148 anti-parallel across the
+jack SLEEVE ─────── GND                    LED for polarity safety)
+opto output (open collector) ──┬── GPIO10 (UART1 RX)
+                               └──10kΩ── 3.3V pull-up
+opto VCC = 3.3V, opto GND = GND
+```
+
+The current loop (sender 33Ω + receiver 220Ω) is sized for 3.3 V — about
+6–8 mA through the opto LED. A 5 V sender still isolates fine; keep the
+receiver side at 3.3 V.
+
+**TRS OUT** (driver side, direct drive is fine at 31250):
+
+```
+GPIO1 (UART1 TX) ──33Ω── jack TIP
+3.3V ──33Ω── jack RING
+GND ────────── jack SLEEVE
+```
+
+Idle-high TX = no loop current; a start bit sinks the loop exactly like a
+DIN out. Type B gear (old Roland) needs a tip/ring swap adapter.
+
+Firmware status: GPIO1/10 are reserved in the SDD pin map, but the C3
+firmware does not read them until P4 (UART1 @31250 + forwarding over the
+link into the A1S parser). Wiring the jacks now is safe — the pins idle.
 
 Pin-ownership sanity check, since the link crosses two different chips:
 on the **C3**, GPIO20/21 are plain header pins (silk RX/TX) — the USB-C
