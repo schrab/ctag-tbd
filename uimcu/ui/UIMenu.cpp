@@ -48,6 +48,7 @@ namespace CTAG {
         volatile bool UIMenu::fbShotReady = false;
         uint8_t UIMenu::fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
         UIMenu::DisplayState UIMenu::displayState = UIMenu::AWAKE;
+        bool UIMenu::screensaverEnabled = false; // bring-up default; see TaskFunction
 
         void UIMenu::Init() {
             ESP_LOGI(TAG, "Init: creating pages...");
@@ -175,7 +176,11 @@ namespace CTAG {
                     }
                 } else {
                     screensaverTimer++;
-                    if (displayState == AWAKE && screensaverTimer >= SCREENSAVER_TIMEOUT) {
+                    // Bring-up: the screensaver is disabled by default — it
+                    // kept masquerading as a dead panel. Re-enable via the
+                    // bench once the hardware is proven.
+                    if (screensaverEnabled && displayState == AWAKE &&
+                        screensaverTimer >= SCREENSAVER_TIMEOUT) {
                         Display::Sleep();
                         displayState = ASLEEP;
                     }

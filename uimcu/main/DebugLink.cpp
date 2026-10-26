@@ -210,6 +210,25 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/setScreensaver") {
+                bool en = d.HasMember("enable") && d["enable"].IsInt() && d["enable"].GetInt() != 0;
+                UIMenu::SetScreensaverEnabled(en);
+                response = string("{\"ok\":1,\"enabled\":") + (en ? "1}" : "0}");
+                return true;
+            }
+
+            if (s == "/debug/displayPins") {
+                int cs = d.HasMember("cs") && d["cs"].IsInt() ? d["cs"].GetInt() : 2;
+                int dc = d.HasMember("dc") && d["dc"].IsInt() ? d["dc"].GetInt() : 3;
+                if (cs < 0 || cs > 21 || dc < 0 || dc > 21) {
+                    response = "{\"error\":\"bad pins\"}";
+                    return true;
+                }
+                DRIVERS::Display::BenchPins(cs, dc);
+                response = "{\"ok\":1,\"cs\":" + to_string(cs) + ",\"dc\":" + to_string(dc) + "}";
+                return true;
+            }
+
             if (s == "/debug/displayReinit") {
                 DRIVERS::Display::Reinit();
                 response = "{\"ok\":1}";

@@ -47,6 +47,10 @@ namespace CTAG {
             // navState: 0=ROOT 1=PANEL_IN. panel: Panel enum value.
             static void GetDebugState(int &navState, int &panel);
 
+            // Bring-up control: the screensaver blanks the panel 15 s after
+            // the last input, which looks exactly like a dead display.
+            static void SetScreensaverEnabled(bool en) { screensaverEnabled = en; }
+
             // Debug: reach a page instance so host scripts can assert on its
             // internal state. Caller owns the returned pointer.
             static UIMenuPage *GetPage(int panel) {
@@ -79,6 +83,7 @@ namespace CTAG {
             static uint8_t fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
             enum DisplayState { AWAKE, ASLEEP };
             static DisplayState displayState;
+            static bool screensaverEnabled; // bring-up: off (bench can enable)
             static constexpr int SCREENSAVER_TIMEOUT = 1500;
 
             static void drawPanelBar();

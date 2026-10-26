@@ -72,20 +72,40 @@ uint8_t Display::fb[1024];
 bool Display::dirtyPages[8] {false};
 int Display::userContrast = 0xFF;
 
+// CS is driven as a plain GPIO (software CS) and DC pin is runtime — the
+// panel's CS/DC pin assignment was the last bring-up unknown (the bit-bang
+// scan is symmetric under a CS/DC swap, hardware CS is not). Defaults =
+// SDD §2.1; /debug/displayPins retargets them on the bench.
+// CS=3 / DC=2: the panel's CS and DC pins are crossed vs SDD §2.1 —
+// proven on hardware via /debug/displayPins (the doc assignment drove the
+// panel dark; the crossed one responds). Swap the two wires to revert.
+static int oledCsGpio = 3;
+static int oledDcGpio = 2;
+
+static void csLow() { gpio_set_level((gpio_num_t)oledCsGpio, 0); }
+static void csHigh() { gpio_set_level((gpio_num_t)oledCsGpio, 1); }
+static void dcCmd() { gpio_set_level((gpio_num_t)oledDcGpio, 0); }
+static void dcData() { gpio_set_level((gpio_num_t)oledDcGpio, 1); }
+
 bool Display::sendCommand(uint8_t cmd) {
-    gpio_set_level((gpio_num_t)OLED_DC_GPIO, 0);
+    dcCmd();
+    csLow();
     spi_transaction_t t = {};
     t.length = 8;
     t.tx_buffer = &cmd;
-    return spi_device_polling_transmit(spiHandle, &t) == ESP_OK;
+    bool ok = spi_device_polling_transmit(spiHandle, &t) == ESP_OK;
+    csHigh();
+    return ok;
 }
 
 bool Display::sendData(const uint8_t *data, size_t len) {
-    gpio_set_level((gpio_num_t)OLED_DC_GPIO, 1);
+    dcData();
+    csLow();
     spi_transaction_t t = {};
     t.length = len * 8;
     t.tx_buffer = data;
     esp_err_t err = spi_device_polling_transmit(spiHandle, &t);
+    csHigh();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "spi data tx: %s", esp_err_to_name(err));
         return false;
@@ -110,14 +130,14 @@ void Display::Init() {
         spi_device_interface_config_t dev = {};
         dev.clock_speed_hz = OLED_SPI_CLOCK_HZ;
         dev.mode = 0;
-        dev.spics_io_num = OLED_CS_GPIO;
+        dev.spics_io_num = -1; // software CS (see above)
         dev.queue_size = 1;
         ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &dev, &spiHandle));
 
-        gpio_config_t dc = {};
-        dc.pin_bit_mask = 1ULL << OLED_DC_GPIO;
-        dc.mode = GPIO_MODE_OUTPUT;
-        gpio_config(&dc);
+        gpio_config_t io = {};
+        io.pin_bit_mask = (1ULL << OLED_DC_GPIO) | (1ULL << OLED_CS_GPIO);
+        io.mode = GPIO_MODE_OUTPUT;
+        gpio_config(&io);
         busReady = true;
     }
 
@@ -198,6 +218,16 @@ namespace {
         }
         bbCmd(sck, mosi, dc, cs, 0xA5);
     }
+}
+
+void Display::BenchPins(int cs, int dc) {
+    oledCsGpio = cs;
+    oledDcGpio = dc;
+    gpio_config_t io = {};
+    io.pin_bit_mask = (1ULL << cs) | (1ULL << dc);
+    io.mode = GPIO_MODE_OUTPUT;
+    gpio_config(&io);
+    Init(); // re-sends the panel init + flushes with the new assignment
 }
 
 void Display::BenchScan(int mode) {

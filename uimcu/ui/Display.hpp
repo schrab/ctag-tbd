@@ -85,6 +85,8 @@ namespace CTAG {
             // right one. mode 0 = as documented, 1 = SDA/SCLK swapped,
             // 2 = CS/DC swapped, 3 = both swapped. Diagnostic only.
             static void BenchScan(int mode);
+            // Retarget CS/DC GPIOs + reinit (CS/DC swap diagnostic).
+            static void BenchPins(int cs, int dc);
             // framebuffer size in bytes: 128x64 mono, page-major (page = y>>3)
             static constexpr int FRAMEBUFFER_SIZE = 1024;
             // Copy the current framebuffer out. Must be called from the task
