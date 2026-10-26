@@ -1,0 +1,120 @@
+# uimcu bring-up (P2): ESP32-C3 panel controller on stub DspProxy
+
+Status: **validated on hardware 2026-10-27** — firmware flashed to the bare
+C3, full menu navigation proven over the USB bench channel (panel switching,
+OK/BACK transitions, page-internal navigation, stub plugin switch, live
+framebuffer shots). Design: `doc/ui-split-sdd.md` §2.1/§5.1/§8 (P2), §11.
+
+## Hard-won gotchas (all hit and fixed during bring-up)
+
+1. **RapidJSON allocations must not be SPIRAM-only.** The repo's RapidJSON
+   routes `CrtAllocator` through `heap_caps_malloc(MALLOC_CAP_SPIRAM)`;
+   on the PSRAM-less C3 every allocation returned NULL and the first parse
+   asserted (`Stack::PushUnsafe` boot-loop). Fixed with an explicit
+   SPIRAM→internal fallback in `components/rapidjson/rapidjson/allocators.h`
+   (A1S behavior unchanged — PSRAM still wins there).
+2. **Bench transport = usb_serial_jtag DRIVER, not the console VFS.** The
+   VFS path only flowed while the boot-log burst kept the wire busy, then
+   stalled to a ~600 ms one-reply cadence and worse. DebugLink installs
+   `usb_serial_jtag_driver_install()` (4 KB RX/TX rings) and routes ESP_LOG
+   through `esp_log_set_vprintf` — the A1S DebugUI pattern applied to USJ.
+3. **DTR/RTS transitions reset the C3** (rst:0x15 USB_UART_CHIP_RESET).
+   Host scripts must set `dtr`/`rts` *before* `serial.open()` and never
+   toggle them afterwards; `cat /dev/ttyACM0` sees nothing because it never
+   asserts the lines.
+4. **Floating ADC/button pin floods the event queue.** GPIO0 gets the weak
+   internal pull-up in `UserInput::Init()` so the bare board idles at
+   BTN_NONE; the wired ladder overdrives it.
+5. **Injected `enc` deltas >1 are halved** (A1S ROOT encoder acceleration,
+   faithfully ported) — a host script sending `delta:2` moves ONE panel, and
+   that is correct.
+
+## What runs on the C3 (P2)
+
+- The full menu port: UIMenu core, 5 panels (MIX/TAPE/HOME/MOD/PARAMS),
+  ported pages calling `DspProxy` instead of the A1S engines.
+- `DspProxy` **stub**: fake plugin bundle (Elements + 5 more), fake params
+  with groups/bool/enum/play, config, presets, favorites, an animated
+  Marbles output snapshot, fake VU meters, and a fake SD tree
+  (`/sd/drums/kick.wav` …). No link, no DSP needed.
+- Display: SSD1309 over SPI (10 MHz — raise to 20 MHz once wiring is proven).
+- Input: 2 GPIO-ISR quadrature encoders + A1S-style ADC-ladder buttons.
+- Bench channel: STX/ETX JSON on the USB console (see below).
+
+## Wiring (SDD §2.1 — verify against the physical board revision first)
+
+| Function | Pins | Notes |
+|---|---|---|
+| OLED SSD1309 SPI | SCK=6, MOSI=7, CS=2, DC=3 | RST tied 3V3 via RC |
+| Encoder E1 (value) | A=8, B=9 | **strapping pins**: external pull-ups, never hold at reset |
+| Encoder E2 (panel) | A=4, B=5 | |
+| BTN_A + BTN_B | GPIO0 (ADC1_CH0) | resistor ladder mirroring the A1S BTN design; calibrate thresholds in `main/input/UserInput.cpp` |
+| Link (P3, not yet) | RX=20, TX=21 | UART0, 921600 — reserved, console must not use it |
+| USB | GPIO18/19 | console + flashing |
+
+If the OLED image is shifted 2 px, set `OLED_COLUMN_OFFSET 2` in
+`uimcu/ui/Display.cpp`.
+
+## Build + flash
+
+```bash
+source /home/schrab/esp/esp-idf-v5.5.4/export.sh
+# export.sh only exports toolchains for the target of the project you were
+# in; the RISC-V toolchain must be added by hand (already installed):
+export PATH="$HOME/.espressif/tools/riscv32-esp-elf/esp-14.2.0_20260121/riscv32-esp-elf/bin:$PATH"
+cd uimcu && idf.py build
+idf.py -p /dev/ttyACM0 flash monitor
+```
+
+Console = USB-Serial-JTAG only (UART0/GPIO20/21 is reserved for the link;
+`sdkconfig.defaults` pins this).
+
+## Bench validation without any panel hardware wired
+
+The USB console serves the same STX/ETX JSON as the A1S UART0 bench
+(`DebugUI`), so host scripts only change their port. **Open the port with
+`dtr=False, rts=False` set before `open()`** (line transitions reset the
+chip). Every command may carry an integer `"seq"` which the reply echoes —
+use it to correlate responses; replies can interleave with ESP_LOG bytes.
+
+```
+{"cmd":"/debug/getUiState","seq":N}
+{"cmd":"/debug/getDisplayFramebuffer","seq":N}
+{"cmd":"/debug/injectEvent","action":"ok"|"mod"|"back"|"enc"|"enc2",
+                "delta":n,"count":n,"seq":N}
+{"cmd":"/debug/setActivePlugin","ch":0,"id":"...","seq":N}
+{"cmd":"/debug/getProxyState","seq":N}
+```
+
+Verified-on-hardware smoke sequence (see session log for the full script):
+getUiState → `enc2` steps move the panel (deltas >1 halve) → `ok` sets
+nav=1 → `back` returns → `setActivePlugin` reflects in `getProxyState` →
+`getDisplayFramebuffer` returns 1024 B with real content.
+
+## Expected behavior on the bare board (nothing wired)
+
+- Boots, draws the fw-version splash to the (unconnected) SPI bus without
+  erroring, then the HOME panel.
+- Encoders/buttons float — use `injectEvent` for navigation.
+- ADC floats may inject random button events; harmless for bench work.
+
+## Known bring-up risks (SDD §10)
+
+- E1 on strapping pins 8/9: power-on with encoders in random states must
+  still boot (download-mode entry needs GPIO9 sampled with pull-up).
+- ADC ladder thresholds are the A1S values — recalibrate to the panel's
+  actual resistors when wired (`uimcu/main/input/UserInput.cpp`).
+- SSD1309 init sequence/column offset varies by module; adjust
+  `OLED_COLUMN_OFFSET` / init commands in `Display.cpp` if the image looks
+  wrong.
+
+## What changed vs. the A1S UI sources (single copy lives in `uimcu/ui/`)
+
+- Pages call `DspProxy` (one class cataloguing every DSP-side call, SDD §6)
+  instead of SPManager/MarblesEngine/Codec/SDAudio/Favorites/FileSystem; SD
+  listing goes through `DspProxy::ListSdDir` (link proxy from P3).
+- `InputEvent` gained `ENC2_DELTA`; UIMenu accepts it (and ENC_DELTA) for
+  panel switching in ROOT.
+- Display: same framebuffer API, direct SSD1309 SPI backend.
+- The A1S `main/` copies stay until P6 cutover deletes them; after that
+  `uimcu/ui/` is the single source.

@@ -79,10 +79,27 @@ concept Allocator {
 class CrtAllocator {
 public:
     static const bool kNeedFree = true;
+    // heap_caps_malloc matches only heaps carrying ALL requested caps, so
+    // MALLOC_CAP_SPIRAM|8BIT matches nothing on PSRAM-less targets (ESP32-C3
+    // uimcu) and returned NULL — asserting in Stack::PushUnsafe on the first
+    // parse. Prefer SPIRAM when it exists (A1S, big JSON in PSRAM), fall
+    // back to internal 8BIT RAM otherwise.
+    static void* capsMalloc(size_t size) {
+        if (size == 0) return NULL;
+        void *p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+        if (p == nullptr) p = heap_caps_malloc(size, MALLOC_CAP_8BIT);
+        return p;
+    }
+    static void* capsRealloc(void *originalPtr, size_t newSize) {
+        if (newSize == 0) return NULL;
+        void *p = heap_caps_realloc(originalPtr, newSize, MALLOC_CAP_SPIRAM);
+        if (p == nullptr) p = heap_caps_realloc(originalPtr, newSize, MALLOC_CAP_8BIT);
+        return p;
+    }
     void* Malloc(size_t size) {
         //ESP_LOGI("CrtAllocator", "Allocating %d bytes", size);
         if (size) //  behavior of malloc(0) is implementation defined.
-            return heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+            return capsMalloc(size);
         else
             return NULL; // standardize to returning NULL.
     }
@@ -93,7 +110,7 @@ public:
             heap_caps_free(originalPtr);
             return NULL;
         }
-        return heap_caps_realloc(originalPtr, newSize, MALLOC_CAP_SPIRAM);
+        return capsRealloc(originalPtr, newSize);
     }
     static void Free(void *ptr) {
         //ESP_LOGI("CrtAllocator", "Freeing");
