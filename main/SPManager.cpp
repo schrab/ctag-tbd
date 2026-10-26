@@ -31,6 +31,7 @@ respective component folders / files if different from this license.
 #include "Display.hpp"
 #include "esp_heap_caps.h"
 #include "network.hpp"
+#include "nvs_flash.h"
 #include "SerialAPI.hpp"
 #include "RestServer.hpp"
 #include "Control.hpp"
@@ -386,15 +387,21 @@ void SoundProcessorManager::StartSoundProcessor() {
     CTRL::Control::Init();
     // init codec
     DRIVERS::Codec::InitCodec();
+    // NVS is needed beyond the radios (config storage); both radio paths
+    // used to own this init, so it is hoisted here for TBD_RADIO_FREE.
+    nvs_flash_init();
+#ifndef TBD_RADIO_FREE
 #if CONFIG_BT_ENABLED
     // BT MIDI must init after I2S codec — BT coex calibration can lock I2C/I2S critical sections
     CTAG::DRIVERS::BtMidiReceiver::Init();
+#endif
 #endif
 #endif
     // generate internal data
     updateConfiguration();
 
 #ifdef CONFIG_WIFI_UI
+#ifndef TBD_RADIO_FREE
     // boot network
     NET::Network::SetSSID(model->GetNetworkConfigurationData("ssid"));
     NET::Network::SetPWD(model->GetNetworkConfigurationData("pwd"));
@@ -403,6 +410,9 @@ void SoundProcessorManager::StartSoundProcessor() {
     NET::Network::SetMDNSName(model->GetNetworkConfigurationData("mdns_name"));
     NET::Network::Up();
     REST::RestServer::StartRestServer();
+#else
+    ESP_LOGW("SPM", "TBD_RADIO_FREE: WiFi/REST/BLE-MIDI never initialized");
+#endif
 #elif CONFIG_SERIAL_UI
     SAPI::SerialAPI::StartSerialAPI();
 #endif
@@ -412,6 +422,7 @@ void SoundProcessorManager::StartSoundProcessor() {
     updateConfiguration();
 
 #ifdef CONFIG_WIFI_UI
+#ifndef TBD_RADIO_FREE
     // boot network
     NET::Network::SetSSID(model->GetNetworkConfigurationData("ssid"));
     NET::Network::SetPWD(model->GetNetworkConfigurationData("pwd"));
@@ -420,6 +431,9 @@ void SoundProcessorManager::StartSoundProcessor() {
     NET::Network::SetMDNSName(model->GetNetworkConfigurationData("mdns_name"));
     NET::Network::Up();
     REST::RestServer::StartRestServer();
+#else
+    ESP_LOGW("SPM", "TBD_RADIO_FREE: WiFi/REST/BLE-MIDI never initialized");
+#endif
 #elif CONFIG_SERIAL_UI
     SAPI::SerialAPI::StartSerialAPI();
 #endif
