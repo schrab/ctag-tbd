@@ -47,6 +47,13 @@ namespace CTAG {
                 return model->GetCStrJSONSoundProcessors();
             }
 
+            // Remove a plugin from the bundle's available list (deletes its
+            // mui-/mp- descriptor files on SPIFFS and refreshes the model).
+            static bool RemovePlugin(const string &id) {
+                if (!model) return false;
+                return model->RemovePlugin(id);
+            }
+
             static const char *GetCStrJSONActivePluginParams(const int chan) {
                 if (sp[chan] == nullptr) return "{}";
                 return sp[chan]->GetCStrJSONParamSpecs();

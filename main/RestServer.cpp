@@ -128,6 +128,28 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// Maintenance: remove a plugin from the bundle (deletes its mui-/mp-
+// descriptor files on SPIFFS and refreshes the model). Query: ?id=NAME
+esp_err_t RestServer::remove_plugin_get_handler(httpd_req_t *req) {
+    char s[128];
+    char v[128];
+    httpd_resp_set_type(req, "application/json");
+    size_t qlen = httpd_req_get_url_query_len(req);
+    if (qlen == 0 || qlen >= sizeof(s)) {
+        httpd_resp_sendstr(req, "{\"ok\":false,\"error\":\"missing id\"}");
+        return ESP_OK;
+    }
+    httpd_req_get_url_query_str(req, s, sizeof(s));
+    if (httpd_query_key_value(s, "id", v, sizeof(v)) != ESP_OK) {
+        httpd_resp_sendstr(req, "{\"ok\":false,\"error\":\"missing id\"}");
+        return ESP_OK;
+    }
+    bool ok = CTAG::AUDIO::SoundProcessorManager::RemovePlugin(std::string(v));
+    ESP_LOGI(REST_TAG, "removeProcessor id=%s ok=%d", v, ok);
+    httpd_resp_sendstr(req, ok ? "{\"ok\":true}" : "{\"ok\":false,\"error\":\"not found\"}");
+    return ESP_OK;
+}
+
 esp_err_t RestServer::get_plugins_get_handler(httpd_req_t *req) {
     ESP_LOGD("get_plugins_get_handler", "1: Mem freesize internal %d, largest block %d, free SPIRAM %d, largest block SPIRAM %d!",
              heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL),
@@ -322,7 +344,7 @@ esp_err_t RestServer::StartRestServer() {
     config.core_id = 0;
     config.uri_match_fn = httpd_uri_match_wildcard;
     config.task_priority = tskIDLE_PRIORITY + 4;
-    config.max_uri_handlers = 20;
+    config.max_uri_handlers = 24;
     config.stack_size = 8192;
     config.recv_wait_timeout   = 20;
     config.send_wait_timeout = 20;
@@ -368,6 +390,15 @@ esp_err_t RestServer::StartRestServer() {
             .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &get_plugins_get_uri);
+
+    /* Maintenance handler to remove a plugin from the bundle */
+    httpd_uri_t remove_plugin_get_uri = {
+            .uri = "/api/v1/removeProcessor",
+            .method = HTTP_GET,
+            .handler = &RestServer::remove_plugin_get_handler,
+            .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &remove_plugin_get_uri);
 
     /* get currently activated plugin */
     httpd_uri_t get_active_plugin_get_uri = {

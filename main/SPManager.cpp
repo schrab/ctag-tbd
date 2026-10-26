@@ -334,6 +334,14 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
     if(chan == 1) aType = ctagSPAllocator::AllocationType::CH1;
     if(model->IsStereo(id)) aType = ctagSPAllocator::AllocationType::STEREO;
     sp[chan] = ctagSoundProcessorFactory::Create(id, aType);
+    if (sp[chan] == nullptr) {
+        // plugin was removed from the bundle but its descriptor may still
+        // linger in the SPIFFS model — refuse instead of crashing.
+        ESP_LOGE("SPManager", "Plugin %s not in factory, ignoring", id.c_str());
+        model->SetActivePluginID(model->HasPluginID("Mbeads") ? "Mbeads" : id, chan);
+        xSemaphoreGive(processMutex);
+        return;
+    }
     model->SetActivePluginID(id, chan);
     sp[chan]->LoadPreset(model->GetActivePatchNum(chan));
     xSemaphoreGive(processMutex);

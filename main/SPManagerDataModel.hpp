@@ -71,6 +71,10 @@ namespace CTAG {
 
             bool HasPluginID(string const &id);
 
+            // Drop a plugin from the available list and delete its descriptor
+            // + preset files from SPIFFS (used by the removeProcessor API).
+            bool RemovePlugin(const string &id);
+
         private:
             void getSoundProcessors();
 

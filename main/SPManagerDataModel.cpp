@@ -78,6 +78,26 @@ void SPManagerDataModel::getSoundProcessors() {
     storeJSON(m, MODELJSONFN);
 }
 
+bool SPManagerDataModel::RemovePlugin(const string &id) {
+    if (!m.HasMember("availableProcessors")) return false;
+    Value &aps = m["availableProcessors"];
+    bool removed = false;
+    for (SizeType i = 0; i < aps.Size(); i++) {
+        if (aps[i].HasMember("id") && id == aps[i]["id"].GetString()) {
+            aps.Erase(aps.Begin() + i);
+            removed = true;
+            break;
+        }
+    }
+    if (!removed) return false;
+    // delete descriptor and default-preset files from SPIFFS
+    string base = CTAG::RESOURCES::spiffsRoot + "/data/sp/";
+    remove((base + "mui-" + id + ".jsn").c_str());
+    remove((base + "mp-" + id + ".jsn").c_str());
+    storeJSON(m, MODELJSONFN);
+    return true;
+}
+
 const char *SPManagerDataModel::GetCStrJSONSoundProcessors() {
     loadJSON(m, MODELJSONFN);
     json.Clear();

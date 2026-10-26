@@ -34,6 +34,8 @@ namespace CTAG {
         private:
             static esp_err_t get_plugins_get_handler(httpd_req_t *req);
 
+            static esp_err_t remove_plugin_get_handler(httpd_req_t *req);
+
             static esp_err_t get_active_plugin_get_handler(httpd_req_t *req);
 
             static esp_err_t get_params_plugin_get_handler(httpd_req_t *req);

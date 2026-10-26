@@ -1,0 +1,24 @@
+{
+  "marbles": {
+    "tExternal": false, "tModel": 0, "tRange": 2, "tRate": -24.0,
+    "tBias": 0.5, "tJitter": 0.0, "tPwMean": 90, "tPwStd": 0, "tDejaVu": 0,
+    "xyClockSource": 0,
+    "xScale": 0, "xRange": 2, "xControl": 0, "xRegister": false,
+    "xRegisterValue": 0.5, "xSpread": 0.5, "xBias": 0.5, "xSteps": 0.5,
+    "xDejaVu": 0,
+    "yRange": 2, "ySpread": 0.5, "yBias": 0.5, "ySteps": 0.5, "yDivider": 11,
+    "yDejaVu": 0,
+    "dvAmount": 0.0, "dvLength": 8,
+    "tSlot": [40, 41, 42], "xSlot": [98, 99, 100], "ySlot": 101
+  },
+  "ccSlots": [
+    {"cc": -1, "chan": 0, "cvSlot": 90},
+    {"cc": -1, "chan": 0, "cvSlot": 91},
+    {"cc": -1, "chan": 0, "cvSlot": 92},
+    {"cc": -1, "chan": 0, "cvSlot": 93},
+    {"cc": -1, "chan": 0, "cvSlot": 94},
+    {"cc": -1, "chan": 0, "cvSlot": 95},
+    {"cc": -1, "chan": 0, "cvSlot": 96},
+    {"cc": -1, "chan": 0, "cvSlot": 97}
+  ]
+}
