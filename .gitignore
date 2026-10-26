@@ -7,3 +7,6 @@ log/
 __pycache__/
 *.pyc
 *:Zone.Identifier
+ctag-bba/
+.zcode/
+temp_*.txt
