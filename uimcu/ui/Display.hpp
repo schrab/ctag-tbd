@@ -74,6 +74,17 @@ namespace CTAG {
 
             Display() = delete;
             static void Init();
+            // Bench diagnostics (doc/uimcu-bringup.md): send one raw SSD1309
+            // command byte (e.g. 0xA5 all-pixels-on, 0xA4 back to RAM) and
+            // re-run the whole init after a re-wire.
+            static void RawCommand(uint8_t cmd);
+            static void Reinit();
+            // Bench bring-up: bit-bang the SSD1309 init + all-pixels-on
+            // through one of the plausible pin permutations (SCK/MOSI/CS/DC
+            // swap variants), leaving the panel lit if that mapping is the
+            // right one. mode 0 = as documented, 1 = SDA/SCLK swapped,
+            // 2 = CS/DC swapped, 3 = both swapped. Diagnostic only.
+            static void BenchScan(int mode);
             // framebuffer size in bytes: 128x64 mono, page-major (page = y>>3)
             static constexpr int FRAMEBUFFER_SIZE = 1024;
             // Copy the current framebuffer out. Must be called from the task

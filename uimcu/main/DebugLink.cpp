@@ -186,6 +186,36 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/displayCmd") {
+                // One raw SSD1309 command byte. 0xA5 = force ALL pixels on
+                // (ignores RAM) — the power/reset wiring test; 0xA4 = back.
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing value\"}";
+                    return true;
+                }
+                DRIVERS::Display::RawCommand((uint8_t)d["value"].GetInt());
+                response = "{\"ok\":1}";
+                return true;
+            }
+
+            if (s == "/debug/displayScan") {
+                // Bit-banged init + all-on through one pin permutation.
+                int mode = d.HasMember("mode") && d["mode"].IsInt() ? d["mode"].GetInt() : 0;
+                if (mode < 0 || mode > 3) {
+                    response = "{\"error\":\"bad mode\"}";
+                    return true;
+                }
+                DRIVERS::Display::BenchScan(mode);
+                response = "{\"ok\":1,\"mode\":" + to_string(mode) + "}";
+                return true;
+            }
+
+            if (s == "/debug/displayReinit") {
+                DRIVERS::Display::Reinit();
+                response = "{\"ok\":1}";
+                return true;
+            }
+
             if (s == "/debug/setActivePlugin") {
                 if (!d.HasMember("id") || !d["id"].IsString()) {
                     response = "{\"error\":\"missing id\"}";

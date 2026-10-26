@@ -45,13 +45,19 @@ respective component folders / files if different from this license.
 using namespace CTAG::DRIVERS;
 
 // Panel wiring (SDD §2.1). RST is tied to 3V3 via RC on the carrier.
-#define OLED_SCK_GPIO 6
-#define OLED_MOSI_GPIO 7
+// Pin swap vs SDD §2.1, proven by the bench pin-permutation scan
+// (doc/uimcu-bringup.md): the panel's SCLK lands on GPIO7 and SDA (MOSI)
+// on GPIO6. Swap the two wires instead if canonical pins are preferred —
+// then revert these two lines and the doc row.
+#define OLED_SCK_GPIO 7
+#define OLED_MOSI_GPIO 6
 #define OLED_CS_GPIO 2
 #define OLED_DC_GPIO 3
 
 // 10 MHz start (SDD §2.1: 10–20 MHz); raise to 20 after the wiring is proven.
-#define OLED_SPI_CLOCK_HZ (10 * 1000 * 1000)
+// 1 MHz bring-up clock: long jumper wires corrupt 10 MHz SPI — raise
+// once the display is proven (5, then 10 MHz).
+#define OLED_SPI_CLOCK_HZ (1 * 1000 * 1000)
 
 // Some 128x64 SSD1309 modules sit on a 132-column controller with a 2-column
 // offset. If the image is shifted 2px left/right at bring-up, set this to 2.
@@ -88,25 +94,32 @@ bool Display::sendData(const uint8_t *data, size_t len) {
 }
 
 void Display::Init() {
-    spi_bus_config_t bus = {};
-    bus.mosi_io_num = OLED_MOSI_GPIO;
-    bus.sclk_io_num = OLED_SCK_GPIO;
-    bus.miso_io_num = -1;
-    bus.quadwp_io_num = -1;
-    bus.max_transfer_sz = 128;
-    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO));
+    // Bus setup runs once; Reinit() (bench diagnostics) re-sends the panel
+    // init commands only — spi_bus_initialize on an already-claimed bus
+    // aborts the device.
+    static bool busReady = false;
+    if (!busReady) {
+        spi_bus_config_t bus = {};
+        bus.mosi_io_num = OLED_MOSI_GPIO;
+        bus.sclk_io_num = OLED_SCK_GPIO;
+        bus.miso_io_num = -1;
+        bus.quadwp_io_num = -1;
+        bus.max_transfer_sz = 128;
+        ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO));
 
-    spi_device_interface_config_t dev = {};
-    dev.clock_speed_hz = OLED_SPI_CLOCK_HZ;
-    dev.mode = 0;
-    dev.spics_io_num = OLED_CS_GPIO;
-    dev.queue_size = 1;
-    ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &dev, &spiHandle));
+        spi_device_interface_config_t dev = {};
+        dev.clock_speed_hz = OLED_SPI_CLOCK_HZ;
+        dev.mode = 0;
+        dev.spics_io_num = OLED_CS_GPIO;
+        dev.queue_size = 1;
+        ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &dev, &spiHandle));
 
-    gpio_config_t dc = {};
-    dc.pin_bit_mask = 1ULL << OLED_DC_GPIO;
-    dc.mode = GPIO_MODE_OUTPUT;
-    gpio_config(&dc);
+        gpio_config_t dc = {};
+        dc.pin_bit_mask = 1ULL << OLED_DC_GPIO;
+        dc.mode = GPIO_MODE_OUTPUT;
+        gpio_config(&dc);
+        busReady = true;
+    }
 
     // SSD1309 init, page addressing mode (matches the dirty-page Flush).
     sendCommand(0xAE); // display off
@@ -129,6 +142,76 @@ void Display::Init() {
     std::memset(fb, 0, sizeof(fb));
     for (int i = 0; i < 8; i++) dirtyPages[i] = true;
     Flush();
+}
+
+void Display::RawCommand(uint8_t cmd) {
+    sendCommand(cmd);
+}
+
+// ---- bench pin-permutation scan (bit-banged; bring-up diagnostic only) ----
+namespace {
+    void bbOut(int pin) {
+        gpio_config_t io = {};
+        io.pin_bit_mask = 1ULL << pin;
+        io.mode = GPIO_MODE_OUTPUT;
+        gpio_config(&io);
+    }
+    void bbByte(int sck, int mosi, uint8_t b) {
+        for (int i = 7; i >= 0; i--) {
+            gpio_set_level((gpio_num_t)mosi, (b >> i) & 1);
+            gpio_set_level((gpio_num_t)sck, 1);
+            gpio_set_level((gpio_num_t)sck, 0);
+        }
+    }
+    void bbCmd(int sck, int mosi, int dc, int cs, uint8_t c) {
+        gpio_set_level((gpio_num_t)dc, 0);
+        gpio_set_level((gpio_num_t)cs, 0);
+        bbByte(sck, mosi, c);
+        gpio_set_level((gpio_num_t)cs, 1);
+    }
+    void bbDataN(int sck, int mosi, int dc, int cs, uint8_t v, int n) {
+        gpio_set_level((gpio_num_t)dc, 1);
+        gpio_set_level((gpio_num_t)cs, 0);
+        for (int i = 0; i < n; i++) bbByte(sck, mosi, v);
+        gpio_set_level((gpio_num_t)cs, 1);
+    }
+    void bbPanelInit(int sck, int mosi, int cs, int dc) {
+        for (int pin : {sck, mosi, cs, dc}) bbOut(pin);
+        gpio_set_level((gpio_num_t)cs, 1);
+        gpio_set_level((gpio_num_t)dc, 1);
+        gpio_set_level((gpio_num_t)sck, 0);
+        gpio_set_level((gpio_num_t)mosi, 0);
+        static const uint8_t initSeq[] = {
+            0xAE, 0xD5, 0x80, 0xA8, 0x3F, 0xD3, 0x00, 0x40,
+            0x8D, 0x14,             // charge pump on — without this: dark
+            0x20, 0x02, 0xA1, 0xC8, 0xDA, 0x12,
+            0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40,
+            0xA4, 0xA6, 0xAF,
+        };
+        for (uint8_t c : initSeq) bbCmd(sck, mosi, dc, cs, c);
+        // fill every page white, then force all-on (0xA5)
+        for (int p = 0; p < 8; p++) {
+            bbCmd(sck, mosi, dc, cs, (uint8_t)(0xB0 | p));
+            bbCmd(sck, mosi, dc, cs, 0x00);
+            bbCmd(sck, mosi, dc, cs, 0x10);
+            bbDataN(sck, mosi, dc, cs, 0xFF, 128);
+        }
+        bbCmd(sck, mosi, dc, cs, 0xA5);
+    }
+}
+
+void Display::BenchScan(int mode) {
+    // 0: SCK=6 MOSI=7 CS=2 DC=3 (as documented)
+    // 1: SDA/SCLK swapped, 2: CS/DC swapped, 3: both swapped
+    int sck = 6, mosi = 7, cs = 2, dc = 3;
+    if (mode == 1) { sck = 7; mosi = 6; }
+    else if (mode == 2) { cs = 3; dc = 2; }
+    else if (mode == 3) { sck = 7; mosi = 6; cs = 3; dc = 2; }
+    bbPanelInit(sck, mosi, cs, dc);
+}
+
+void Display::Reinit() {
+    Init();
 }
 
 void Display::Sleep() {
