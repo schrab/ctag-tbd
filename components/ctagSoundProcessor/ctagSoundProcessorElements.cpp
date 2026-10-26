@@ -27,6 +27,7 @@ respective component folders / files if different from this license.
 
 #ifndef TBD_SIM
 #include "perf_monitor.hpp"
+#include "esp_memory_utils.h"
 #endif
 
 using namespace CTAG::SP;
@@ -100,8 +101,20 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     // The helper handoff carries exactly one 32-sample block.
     assert(static_cast<std::size_t>(bufSz) == kBlockSize);
 
-    reverb_buffer = (uint16_t *) heap_caps_malloc(32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    // Radio-free builds free enough internal DRAM that the 64 KB reverb
+    // buffer fits there; PSRAM access through the cache was a suspected
+    // contributor to the ~140k-cycle fixed Part render cost. Prefer
+    // internal, fall back to PSRAM (original behavior) when tight.
+    reverb_buffer = (uint16_t *) heap_caps_malloc(
+        32768 * sizeof(uint16_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (reverb_buffer == nullptr) {
+        reverb_buffer = (uint16_t *) heap_caps_malloc(
+            32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    }
     assert(reverb_buffer != nullptr);
+    ESP_LOGI("Elements", "reverb buffer in %s",
+             reverb_buffer != nullptr &&
+                     esp_ptr_internal(reverb_buffer) ? "internal DRAM" : "PSRAM");
 
     part.Init(reverb_buffer);
 
