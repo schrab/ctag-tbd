@@ -50,9 +50,15 @@ namespace CTAG {
         public:
             DspProxy() = delete;
 
-            // Seed the stub state (P2) / open the link session (P3). Must run
-            // before UIMenu::Init().
+            // Seed the stub state (UIMCU_DSP_STUB build) / open the link
+            // session (link build). Must run before UIMenu::Init().
             static void Init();
+            // True between the version handshake and the offline watchdog
+            // (link build); always true on the stub.
+            static bool IsOnline();
+            // Link build only: entry point for every complete frame the
+            // link client receives (pushes, stream, fsList replies).
+            static void OnLinkFrame(const char *payload, size_t len);
 
             // ---- SPManager surface (plugin list, params, config) ----
             // All Get* return pointers into the local cache; the cache only

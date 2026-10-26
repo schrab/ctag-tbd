@@ -1,9 +1,10 @@
-# uimcu bring-up (P2): ESP32-C3 panel controller on stub DspProxy
+# uimcu bring-up (P2+P3): ESP32-C3 panel controller + link to the A1S DSP
 
-Status: **validated on hardware 2026-10-27** — firmware flashed to the bare
-C3, full menu navigation proven over the USB bench channel (panel switching,
-OK/BACK transitions, page-internal navigation, stub plugin switch, live
-framebuffer shots). Design: `doc/ui-split-sdd.md` §2.1/§5.1/§8 (P2), §11.
+Status: **P2 validated on hardware 2026-10-27** (stub mode, full menu
+navigation); **P3 implemented** — both firmwares build and flash, link
+endpoints run, C3 offline path verified ("DSP OFF" on HOME, empty cache,
+bench still navigable). The live handshake needs the 3 link wires below.
+Design: `doc/ui-split-sdd.md` §4/§5/§8 (P3), §11 (bench channels).
 
 ## Hard-won gotchas (all hit and fixed during bring-up)
 
@@ -49,8 +50,46 @@ framebuffer shots). Design: `doc/ui-split-sdd.md` §2.1/§5.1/§8 (P2), §11.
 | Encoder E1 (value) | A=8, B=9 | **strapping pins**: external pull-ups, never hold at reset |
 | Encoder E2 (panel) | A=4, B=5 | |
 | BTN_A + BTN_B | GPIO0 (ADC1_CH0) | resistor ladder mirroring the A1S BTN design; calibrate thresholds in `main/input/UserInput.cpp` |
-| Link (P3, not yet) | RX=20, TX=21 | UART0, 921600 — reserved, console must not use it |
+| Link to A1S | RX=20, TX=21 | UART0, 921600 8N1 — see below |
 | USB | GPIO18/19 | console + flashing |
+
+## Link wiring (P3) — three wires, crossover
+
+| From | To | Signal |
+|---|---|---|
+| A1S GPIO18 (TX, ex-MIDI DIN out pin) | C3 GPIO20 (RX) | DSP → panel |
+| A1S GPIO19 (RX, ex-MIDI DIN in pin) | C3 GPIO21 (TX) | panel → DSP |
+| A1S GND | C3 GND | common ground |
+
+921600 8N1. Both ends bring themselves up: the C3 retries `link/hello`
+every second until the A1S answers `hello_ack`, then the A1S pushes boot
+metadata (plugin list, active plugins + params, config, presets,
+favorites, full Marbles state, SD-mounted flag) and starts the 10 Hz
+stream + heartbeat. Until then the C3 runs on an empty cache and shows
+**DSP OFF** at the top-right of the HOME panel (verified via framebuffer
+shot). Any change made on the A1S side (its own UI until P6, bench
+scripts) re-pushes within one stream tick — the link diffs the model's
+cached JSON blobs at 10 Hz.
+
+## Flashing
+
+```bash
+# C3 panel (full flash is safe — nothing valuable in its storage):
+cd uimcu && idf.py -p /dev/ttyACM0 flash
+
+# A1S DSP — APP ONLY (never idf.py flash: it would overwrite the storage
+# partition with the repo's factory SPIFFS image):
+source /home/schrab/esp/esp-idf-v5.5.4/export.sh
+python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 \
+  --before default_reset --after hard_reset write_flash \
+  --flash_mode dio --flash_size 16MB --flash_freq 80m 0x10000 build/ctag-tbd.bin
+```
+
+The A1S link endpoint takes over UART1 at boot (the dormant midiuart
+driver is replaced with link-sized rings; `Midi::Update()` stays dormant
+until P4 wires DIN to the panel side). Watch for `task_wdt: link_ep` in
+the A1S log — it must stay quiet (a zero-tick `vTaskDelay` busy-spin bug
+was fixed; both link tasks now delay one full tick).
 
 If the OLED image is shifted 2 px, set `OLED_COLUMN_OFFSET 2` in
 `uimcu/ui/Display.cpp`.

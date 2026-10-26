@@ -3,12 +3,20 @@
 # main/CMakeLists.txt lesson — non-empty PRIV_REQUIRES breaks includes).
 set(UI "${CMAKE_CURRENT_LIST_DIR}/../ui")
 
+option(UIMCU_DSP_STUB "Serve fake DSP state locally (P2 bench mode, no link)" OFF)
+
+if(UIMCU_DSP_STUB)
+    set(DSP_PROXY_IMPL "${UI}/DspProxyStub.cpp")
+else()
+    set(DSP_PROXY_IMPL "${UI}/DspProxyLink.cpp" "LinkClient.cpp")
+endif()
+
 idf_component_register(
         SRCS
             "app_main.cpp"
             "DebugLink.cpp"
             "input/UserInput.cpp"
-            "${UI}/DspProxy.cpp"
+            "${DSP_PROXY_IMPL}"
             "${UI}/Display.cpp"
             "${UI}/UIMenu.cpp"
             "${UI}/menupages/UIMenuPageHome.cpp"
@@ -18,3 +26,7 @@ idf_component_register(
             "${UI}/menupages/UIMenuPageSystem.cpp"
             "${UI}/menupages/UIMenuPageTape.cpp"
         INCLUDE_DIRS "." "${UI}")
+
+if(UIMCU_DSP_STUB)
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC UIMCU_DSP_STUB=1)
+endif()

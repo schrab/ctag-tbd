@@ -291,6 +291,11 @@ namespace CTAG {
                 snprintf(buf, sizeof(buf), "Fav%d", favActiveId);
                 Display::DrawString(70, ROW(2), buf, Display::FONT_5X7);
             }
+            // Link state (SDD §4): the panel keeps cached values when the DSP
+            // dies; make the offline state visible on the HOME panel.
+            if (!DspProxy::IsOnline()) {
+                Display::DrawString(62, ROW(0), "DSP OFF", Display::FONT_5X7);
+            }
             Display::InvertRect(0, ROW(cursor), 128, 8);
             Display::Flush();
         }

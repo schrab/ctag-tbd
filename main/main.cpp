@@ -34,6 +34,7 @@ respective component folders / files if different from this license.
 #include "codec.hpp"
 #include "UIMenu.hpp"
 #include "DebugUI.hpp"
+#include "LinkEndpoint.hpp"
 #include <vector>
 #include "SPManager.hpp"
 #include "ctagSPAllocator.hpp"
@@ -85,5 +86,11 @@ void app_main() {
     // Bring-up channel for OLED screenshots + synthetic button/encoder input
     // over the console UART. Shares UART0 with logging via the console VFS.
     CTRL::DebugUI::Start();
+    // Panel<->DSP link (doc/ui-split-sdd.md P3): takes over UART1 (the
+    // former MIDI DIN port) at 921600. Runs alongside the local UI until
+    // the P6 cutover removes it.
+    #ifdef CONFIG_TBD_PLATFORM_BBA
+    CTRL::LinkEndpoint::Start();
+    #endif
 #endif
 }

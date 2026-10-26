@@ -243,6 +243,7 @@ std::string MakeHelloAck(Role role, const char *fwVersion, bool accepted,
 HelloReply ParseHandshake(const char *payload, size_t len) {
     HelloReply r{};
     r.valid = false;
+    r.isAck = false;
     r.accepted = false;
     r.role = Role::kPanel;
     r.major = 0;
@@ -254,6 +255,7 @@ HelloReply ParseHandshake(const char *payload, size_t len) {
     const bool isHello = cmd == kMsgHello;
     const bool isAck = cmd == kMsgHelloAck;
     if (!isHello && !isAck) return r;
+    r.isAck = isAck;
 
     std::string roleStr;
     if (!ScanStringValue(payload, len, "role", roleStr)) return r;

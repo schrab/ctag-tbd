@@ -192,6 +192,7 @@ std::string MakeHelloAck(Role role, const char *fwVersion, bool accepted,
 
 struct HelloReply {
     bool valid;       // well-formed link/hello or link/hello_ack
+    bool isAck;       // true when the message was link/hello_ack
     bool accepted;    // hello_ack only; true for a plain hello
     Role role;
     uint8_t major;

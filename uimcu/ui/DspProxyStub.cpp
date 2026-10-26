@@ -19,14 +19,12 @@ License and copyright details for specific submodules are included in their
 respective component folders / files if different from this license.
 ***************/
 
-// P2 stub implementation: realistic fake state served locally, so the
-// panel hardware and the whole menu port can be brought up with no DSP and
-// no link. Shapes of the JSON blobs match the real A1S serializers (plugin
-// list, param specs, config, presets, favorites) so the pages are exercised
-// exactly as they would be on live data.
-//
-// From P3 this file is replaced by a link-backed implementation with the
-// same signatures; the JSON shapes below are what the DSP pushes produce.
+// Stub implementation (CMake option UIMCU_DSP_STUB): realistic fake state
+// served locally, so the panel hardware and the whole menu port can be
+// brought up with no DSP and no link. Shapes of the JSON blobs match the
+// real A1S serializers (plugin list, param specs, config, presets,
+// favorites) so the pages are exercised exactly as they would be on live
+// data. The production build uses DspProxyLink.cpp instead.
 
 #include "DspProxy.hpp"
 
@@ -163,6 +161,8 @@ namespace CTAG {
         void DspProxy::Init() {
             snprintf(configBuf, sizeof(configBuf), "%s", kConfigJson);
         }
+
+        bool DspProxy::IsOnline() { return true; }
 
         const char *DspProxy::GetCStrJSONSoundProcessors() { return kPluginListJson; }
 
