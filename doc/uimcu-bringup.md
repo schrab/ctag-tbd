@@ -46,7 +46,7 @@ Design: `doc/ui-split-sdd.md` §4/§5/§8 (P3), §11 (bench channels).
 
 | Function | Pins | Notes |
 |---|---|---|
-| OLED SSD1309 SPI | SCLK=7, SDA/MOSI=6, CS=3, DC=2 | RST tied 3V3 via RC. All four pins' roles were found by the bench diagnostics (`/debug/displayScan`, `/debug/displayPins`) — every data/command pair is crossed vs SDD §2.1. To go canonical instead, swap the wires and revert `ui/Display.cpp` |
+| OLED SSD1309 SPI | SCK=6, MOSI=7 (panel SDA), CS=2, DC=3 | RST tied 3V3 via RC. Canonical pins. The 2.42" SSD1309 module used during bring-up died (reversed-power casualty: erratic → stuck row → all-white at power-on) and its I²C-jumper state corrupted the early pin evidence — bench diagnostics (`/debug/displayScan`, `/debug/displayPins`, `/debug/displayCmd`, `/debug/displayReinit`) are kept for any future panel |
 | Encoder E1 (value) | A=8, B=9 | **strapping pins**: external pull-ups, never hold at reset |
 | Encoder E2 (panel) | A=4, B=5 | |
 | BTN_A + BTN_B | GPIO0 (ADC1_CH0) | resistor ladder mirroring the A1S BTN design; calibrate thresholds in `main/input/UserInput.cpp` |

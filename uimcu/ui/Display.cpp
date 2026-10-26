@@ -45,12 +45,12 @@ respective component folders / files if different from this license.
 using namespace CTAG::DRIVERS;
 
 // Panel wiring (SDD §2.1). RST is tied to 3V3 via RC on the carrier.
-// Pin swap vs SDD §2.1, proven by the bench pin-permutation scan
-// (doc/uimcu-bringup.md): the panel's SCLK lands on GPIO7 and SDA (MOSI)
-// on GPIO6. Swap the two wires instead if canonical pins are preferred —
-// then revert these two lines and the doc row.
-#define OLED_SCK_GPIO 7
-#define OLED_MOSI_GPIO 6
+// Canonical SDD §2.1 pins. (A crossed SCLK/SDA mapping was "proven" by the
+// bench scan while the panel was misconfigured (I²C jumpers) and finally
+// dying (reversed-power damage) — it lit all-white at power-on, which is
+// not firmware behavior. With a healthy panel, wire canonically.)
+#define OLED_SCK_GPIO 6
+#define OLED_MOSI_GPIO 7
 #define OLED_CS_GPIO 2
 #define OLED_DC_GPIO 3
 
@@ -76,11 +76,11 @@ int Display::userContrast = 0xFF;
 // panel's CS/DC pin assignment was the last bring-up unknown (the bit-bang
 // scan is symmetric under a CS/DC swap, hardware CS is not). Defaults =
 // SDD §2.1; /debug/displayPins retargets them on the bench.
-// CS=3 / DC=2: the panel's CS and DC pins are crossed vs SDD §2.1 —
-// proven on hardware via /debug/displayPins (the doc assignment drove the
-// panel dark; the crossed one responds). Swap the two wires to revert.
-static int oledCsGpio = 3;
-static int oledDcGpio = 2;
+// Canonical CS/DC (SDD §2.1); see the SCLK/SDA note above — the crossed
+// assignments were artifacts of the failing panel. /debug/displayPins can
+// still retarget them at runtime if a wiring variant ever needs it.
+static int oledCsGpio = OLED_CS_GPIO;
+static int oledDcGpio = OLED_DC_GPIO;
 
 static void csLow() { gpio_set_level((gpio_num_t)oledCsGpio, 0); }
 static void csHigh() { gpio_set_level((gpio_num_t)oledCsGpio, 1); }
