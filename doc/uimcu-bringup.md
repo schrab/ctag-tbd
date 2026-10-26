@@ -50,8 +50,17 @@ Design: `doc/ui-split-sdd.md` §4/§5/§8 (P3), §11 (bench channels).
 | Encoder E1 (value) | A=8, B=9 | **strapping pins**: external pull-ups, never hold at reset |
 | Encoder E2 (panel) | A=4, B=5 | |
 | BTN_A + BTN_B | GPIO0 (ADC1_CH0) | resistor ladder mirroring the A1S BTN design; calibrate thresholds in `main/input/UserInput.cpp` |
-| Link to A1S | RX=20, TX=21 | UART0, 921600 8N1 — see below |
+| Link to A1S | RX=20, TX=21 | **C3-side pins** (UART0, 921600 8N1) — the A1S end is on the A1S's MIDI pins 18/19, see below |
 | USB | GPIO18/19 | console + flashing |
+
+Pin-ownership sanity check, since the link crosses two different chips:
+on the **C3**, GPIO20/21 are plain header pins (silk RX/TX) — the USB-C
+console/flash runs on GPIO18/19 (native USB-Serial-JTAG), so 20/21 are
+free. On the **A1S** the link deliberately reuses the **MIDI DIN UART
+pins** — GPIO18 (ex-DIN out, TX) and GPIO19 (ex-DIN in, RX); the link
+firmware just retunes that same UART1 from 31250 to 921600. (A1S
+GPIO20/21 would be the wrong choice anyway: on the classic ESP32 GPIO20
+isn't bonded out, and GPIO21 is the OLED I²C SDA.)
 
 ## Link wiring (P3) — three wires, crossover
 
