@@ -520,12 +520,11 @@ namespace CTAG {
                 loggingRewired = true;
             }
 
-            // 4 KB: matches the UIMenu task, which commits configuration through
-            // the same storeJSON() path. At 3 KB /debug/setConfigValue could
-            // overflow this stack intermittently -- the resulting reboot left
-            // spm-config.jsn truncated, and boot recovered factory defaults from
-            // the dbup/ backup. Keep this at least as large as the UI task.
-            if (xTaskCreatePinnedToCore(debugTask, "debug_ui", 4096, nullptr,
+            // 8 KB: /debug/setActivePlugin runs the full plugin delete+create
+            // chain (Elements destructor + Init: RapidJSON model parsing,
+            // helper teardown) inline on this task — 4 KB overflowed with
+            // "*** stack overflow in task debug_ui" and rebooted the device.
+            if (xTaskCreatePinnedToCore(debugTask, "debug_ui", 8192, nullptr,
                                         tskIDLE_PRIORITY + 1, &hDebugTask, 0) != pdPASS) {
                 ESP_LOGW(TAG, "could not start debug UI task");
                 hDebugTask = nullptr;
