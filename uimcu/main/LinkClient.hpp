@@ -41,6 +41,9 @@ namespace CTAG {
             LinkClient() = delete;
             // Install the UART0 driver and spawn the link task.
             static void Start();
+            // Debug-only: retune the link UART at runtime (baud sweep for
+            // the handshake hunt). False when the rate is out of range.
+            static bool SetBaud(int baud);
             // True between the version handshake and the offline watchdog.
             static bool IsOnline();
             // Send one framed command (fire and forget; replies arrive as

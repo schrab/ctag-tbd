@@ -45,6 +45,7 @@ respective component folders / files if different from this license.
 #include "UIMenu.hpp"
 #include "input/UserInput.hpp"
 #include "DspProxy.hpp"
+#include "LinkClient.hpp"
 #include "ctag/link/protocol.hpp"
 #include "driver/usb_serial_jtag.h"
 #include "esp_log.h"
@@ -232,6 +233,20 @@ namespace CTAG {
             if (s == "/debug/displayReinit") {
                 DRIVERS::Display::Reinit();
                 response = "{\"ok\":1}";
+                return true;
+            }
+
+            if (s == "/debug/setLinkBaud") {
+                // Debug-only link UART retune, e.g.
+                // {"cmd":"/debug/setLinkBaud","value":460800} — baud sweep
+                // for the handshake hunt (LinkClient owns UART0).
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing value\"}";
+                    return true;
+                }
+                response = LinkClient::SetBaud(d["value"].GetInt())
+                               ? "{\"ok\":1}"
+                               : "{\"error\":\"bad baud\"}";
                 return true;
             }
 

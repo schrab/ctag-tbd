@@ -102,7 +102,7 @@ Design: `doc/ui-split-sdd.md` §4/§5/§8 (P3), §11 (bench channels).
 | Encoder E1 (value) | A=8, B=9 | **strapping pins**: external pull-ups, never hold at reset |
 | Encoder E2 (panel) | A=4, B=5 | |
 | BTN_A + BTN_B | GPIO0 (ADC1_CH0) | resistor ladder mirroring the A1S BTN design; calibrate thresholds in `main/input/UserInput.cpp` |
-| Link to A1S | RX=20, TX=21 | **C3-side pins** (UART0, 921600 8N1) — the A1S end is on the A1S's MIDI pins 18/19, see below |
+| Link to A1S | RX=20, TX=21 | **C3-side pins** (UART0, 921600 8N1) — C3 TX lands on A1S **GPIO23** (not GPIO19!), see Link wiring below |
 | TRS MIDI IN | TIP→opto→GPIO10 | UART1 RX, 31250 — wire now; firmware reads it from P4 |
 | TRS MIDI OUT | GPIO1→TIP | UART1 TX, 31250 — same, P4 |
 | USB | GPIO18/19 | console + flashing |
@@ -148,7 +148,7 @@ on the **C3**, GPIO20/21 are plain header pins (silk RX/TX) — the USB-C
 console/flash runs on GPIO18/19 (native USB-Serial-JTAG), so 20/21 are
 free. On the **A1S** the link deliberately reuses the **MIDI DIN UART
 pins** — GPIO18 (ex-DIN out, TX) and GPIO19 (ex-DIN in, RX); the link
-firmware just retunes that same UART1 from 31250 to 921600. (A1S
+firmware just retunes that same UART1 from 31250 to the link rate. (A1S
 GPIO20/21 would be the wrong choice anyway: on the classic ESP32 GPIO20
 isn't bonded out, and GPIO21 is the OLED I²C SDA.)
 
@@ -160,7 +160,7 @@ isn't bonded out, and GPIO21 is the OLED I²C SDA.)
 | A1S GPIO19 (RX, ex-MIDI DIN in pin) | C3 GPIO21 (TX) | panel → DSP |
 | A1S GND | C3 GND | common ground |
 
-921600 8N1. Both ends bring themselves up: the C3 retries `link/hello`
+**115200 8N1 — NOT the SDD's 921600**: bench bring-up (2026-10-28) found the panel→DSP jumper corrupts frames above 115200 on this bench (DSP→panel stays clean even at 460800; rate-marginal wire, probably ground-return related). Both firmwares default to 115200; `/debug/setLinkBaud {"value":N}` retunes both ends at runtime for wire experiments. Both ends bring themselves up: the C3 retries `link/hello`
 every second until the A1S answers `hello_ack`, then the A1S pushes boot
 metadata (plugin list, active plugins + params, config, presets,
 favorites, full Marbles state, SD-mounted flag) and starts the 10 Hz

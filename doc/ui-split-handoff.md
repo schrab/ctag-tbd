@@ -1,72 +1,121 @@
 # UI-Split Handoff — P0–P3 Status
 
-**Branch:** `feat/ui-split` (all commits through 88b468db + debug logging)
-**Date:** 2026-10-28
+**Branch:** `feat/ui-split` (all commits through 76f642c1 + link fixes)
+**Date:** 2026-10-28 (evening — LINK RESOLVED)
 **SDD:** `doc/ui-split-sdd.md` | **Bring-up:** `doc/uimcu-bringup.md`
+
+## RESOLVED: the link works (2026-10-28)
+
+**The P3 handshake now completes on a clean boot with zero console
+intervention**: `panel handshake ok` → `boot metadata pushed` on the A1S,
+`DSP link online (proto 1.0)` on the C3, and the C3's DspProxy cache
+reflects the DSP's real state (active0=Mbeads, active1=Void).
+
+**TRUE root cause (found via the self-loopback): the A1S board's GPIO19
+input trace is defective above ~250 kBd.** The ex-MIDI-IN path on the A1S
+distorts any signal entering GPIO19 — proven with a TX→RX jumper loopback
+on the A1S ALONE (no C3, no cable, no ground loop): clean at 115200/250k,
+structurally garbled at 460800/921600, identical on UART1 AND UART2 (not a
+peripheral issue), identical with the DSP idle (not load-related), while
+GPIO18's own TX decodes cleanly on the panel at 460800. Link RX moved to
+**GPIO23** — the same loopback is clean there to 1 Mbps. The earlier
+theories (wire between boards, ground return, UART clocks, driver
+leftovers, Kconfig) were all systematically disproven; sdkconfig has no
+UART rate/clock options at all.
+
+**Fix applied:** `main/LinkEndpoint.cpp` — `uart_set_pin(kUart, 18, 23)`,
+`kLinkBaud` = 921600 (SDD rate restored), back on UART1;
+`uimcu/main/LinkClient.cpp` — `kLinkBaud` = 921600. Acceptance at 921600
+PASSED: clean boot → `panel handshake ok` → `boot metadata pushed`, no
+quiet events, C3 online. The encoder note is moot: encoder + OLED live on
+the C3; the A1S header's GPIO5/23 are physically free.
+
+Physical consequence: the C3's TX wire lands on **A1S GPIO23** (not
+GPIO19). GPIO19 stays unwired — do not "fix" this back to the SDD pin.
+
+**New debug capability (both firmwares):** `{"cmd":"/debug/setLinkBaud",
+"value":N}` retunes the link UART at runtime on both ends (A1S serves it
+via DebugUI on UART0, C3 via DebugLink on USB console) — used for the
+sweep above, keep for future wire work. Also added while offline: both
+sides log every raw RX burst with a hex peek (`panel bytes:` / `dsp
+bytes:`), the A1S logs offline rejected frames, and the C3 logs hello
+retries.
+
+## Known residue
+
+- The root cause above 115200 is pinned but not fully decomposed: corruption
+  is panel→DSP-directional and rate-dependent. The four-way symmetry argument
+  (at 460800 the A1S UART1 **TX** is clean and the C3 UART0 **RX** is clean —
+  same peripherals/dividers as the corrupt directions) rules out clock
+  configs on both chips. Remaining suspects: the A1S UART1 RX path itself
+  (rebuilt from the 31250 MIDI driver) or the inter-board ground reference.
+  **A one-jumper test exists and is flashed**: remove the C3→A1S GPIO19
+  wire, jumper A1S GPIO18↔GPIO19, then `{"cmd":"/debug/linkTxTest",
+  "count":6}` at each baud — the offline `panel bytes:` hex shows whether
+  the A1S reads back its OWN frames cleanly. Clean echo = external path;
+  corrupt echo = A1S RX path.
+- The C3 link task intermittently goes silent for tens of seconds under
+  garbage bombardment (mismatched-baud periods); it recovers. Not observed
+  at a consistent 115200. If it recurs, look at DspProxy::OnLinkFrame
+  garbage-frame handling (the C3 calls it on every non-hello frame, even
+  offline — unlike the A1S which gates on s_online).
+- 921600 was never re-tested after the wire investigation; treat the
+  SDD's 921600 numbers as aspirational until the panel→DSP path is
+  understood (loopback test above / local ground reference).
+
+## Bandwidth measured (2026-10-28) — 115200 is sufficient
+
+- Params JSON, biggest plugin (Mbeads): **1464 B**; Void: 20 B; config: 555 B.
+- Whole boot-metadata push measured **< 460 ms at 115200** (≈5 KB total).
+- The OLED does NOT ride the link: the C3 renders locally over SPI, 30 fps
+  costs the link nothing. Link load: 10 Hz stream ≈ 1 KB/s, ~1.5 KB per
+  param change (coalesced by the 100 ms hash-diff). 115200 = 11.5 KB/s.
 
 ## What's done
 
 - **P0** ✅ `perf/dsp-pipeline` = radio-free baseline
 - **P1** ✅ `protocol/` shared component + 17 host tests (28/28 pass) — commit 90057fe3
 - **P2** ✅ `uimcu/` C3 panel firmware — menu + pages + SPI display + input + bench channel — commit 74e895db
-- **P3** ✅ Both firmwares flashed — A1S LinkEndpoint (UART1 @921600) + C3 LinkClient (UART0 @921600) — commit 3128f59f
+- **P3** ✅ **live handshake VERIFIED** — A1S LinkEndpoint (UART1 @115200) + C3 LinkClient (UART0 @115200); code from 3128f59f + 115200 fix + instrumentation
 - **Docs** ✅ bench rules + hardware post-mortem — commit 88b468db
-- **Debug logging** — added to both firmwares (key events, link status, display init) — **UNCOMMITTED, needs build + flash**
-
-## What's NOT working
-
-**The UART link handshake has NEVER worked.** Both boards are flashed, the C3 sends `link/hello` retries every second, but the A1S never responds.
 
 ## What was verified from code
 
-- A1S LinkEndpoint: UART_NUM_1, 921600 baud, TX=GPIO18, RX=GPIO19, task at prio 1 on core 0
-- C3 LinkClient: UART_NUM_0, 921600 baud, TX=GPIO21, RX=GPIO20, task at prio 2
+- A1S LinkEndpoint: UART_NUM_1, **115200** baud, TX=GPIO18, RX=GPIO19, task at prio 1 on core 0
+- C3 LinkClient: UART_NUM_0, **115200** baud, TX=GPIO21, RX=GPIO20, task at prio 2
 - Protocol framing (STX/ETX), message names, ParseHandshake — all verified correct by code review
 - Host tests 28/28 pass (framing round-trips, handshake choreography)
 - A1S main.cpp line 93 calls `LinkEndpoint::Start()` inside `#ifdef CONFIG_TBD_PLATFORM_BBA`
 - C3 `app_main.cpp` calls `DspProxy::Init()` which calls `LinkClient::Start()` via `DspProxyLink.cpp`
 
-## Debugging done (all failed to find the cause)
+## Previous session's red herrings (all resolved)
 
-- C3 console: `LinkCli: hello retry (online=0)` every 1000ms — confirmed multiple times
-- A1S console: boot completes normally, but `LinkEp: link endpoint on UART1 GPIO18/19 @921600` was seen only ONCE in all captures
-- A1S responds to `/debug/getUiState` on UART0 bench (proves chip alive, app running)
-- A1S does NOT respond to `link/hello` sent on UART0 bench (expected — link is on UART1, not UART0)
-- Both boards respond to `esptool chip_id` (proves chips alive)
-- Wire swap (TX↔RX) did not fix the issue
-- Full erase + re-flash did not fix the issue
-- The A1S silk screen has TX/RX labels swapped on the header — user swapped wires, no change
-- Both wiring configurations (straight and crossed) tried — link never worked in either
+- "`LinkEp: link endpoint on UART1` seen only ONCE" — capture artifact, not
+  firmware: the line prints on EVERY boot (previous captures were garbled —
+  the A1S console is plain 115200, per sdkconfig; the "460800 console" note
+  in older notes was wrong).
+- "hello retry logging lost" — the pre-crash session's uncommitted
+  LinkClient.cpp logging was wiped; re-added.
+- Software/config hypotheses (task not starting, midiuart driver clash, ROM
+  UART0 conflict, GPIO18/19 SPI theft via codec.cpp's unguarded initSPI) —
+  all investigated and cleared: BBA links `codec_bba.cpp` (no VSPI init),
+  BBA is CONFIG_WIFI_UI (SerialAPI dormant), no runtime UART0 baud override.
 
-## Root cause hypothesis
+## Uncommitted changes on feat/ui-split (COMMIT THESE — a crash lost work last time)
 
-The link protocol code has never been tested between the two boards. Most likely causes:
+- `main/LinkEndpoint.cpp` — kLinkBaud 115200 + raw-RX/offline-frame
+  instrumentation + `/debug/setLinkBaud` support (`LinkEndpoint::SetBaud`)
+- `main/LinkEndpoint.hpp` — SetBaud declaration
+- `main/DebugUI.cpp` — `/debug/setLinkBaud` command + include
+- `uimcu/main/LinkClient.cpp` — kLinkBaud 115200 + raw-RX logging + hello
+  retry log + SetBaud
+- `uimcu/main/LinkClient.hpp` — SetBaud declaration
+- `uimcu/main/DebugLink.cpp` — `/debug/setLinkBaud` command + include
+- `uimcu/main/input/UserInput.cpp`, `uimcu/ui/Display.cpp` — earlier panel
+  debug logging (from 76f642c1, committed) + this session's flash of both
+  boards
 
-1. **A1S LinkEndpoint task might not be starting.** The boot log showed `LinkEp: link endpoint on UART1` only ONCE out of many boots. Check if `LinkEndpoint::Start()` is actually called on every boot. If missing, check the `#ifdef CONFIG_TBD_PLATFORM_BBA` guard in `main.cpp` line ~93.
-
-2. **UART1 might not be properly configured on the A1S.** `LinkEndpoint::Start()` calls `uart_driver_delete(UART_NUM_1)` to remove the midiuart driver, then installs a new driver. If the midiuart driver was never installed (static constructor might not run), `uart_driver_delete()` fails silently, and the subsequent `uart_driver_install()` might fail because the UART is in a bad state.
-
-3. **The C3's UART0 might conflict with the ROM bootloader.** ESP32-C3 ROM outputs boot messages on UART0. After the app boots, the app takes over UART0. But there might be residual ROM configuration.
-
-4. **The wire swap didn't help because the issue is not wiring.** Both wiring configurations tried — link never worked.
-
-## Debugging plan for next session
-
-1. **Build and flash both boards** with debug-logging firmware (changes already made but not built/flashed — see uncommitted changes)
-2. **Capture A1S boot log** at 115200 baud — look for `LinkEp: link endpoint on UART1` on EVERY boot. If missing, add `ESP_LOGI` at the very top of `LinkEndpoint::Start()` before any UART operations.
-3. **Test A1S UART1 loopback**: connect A1S GPIO18 (TX) directly to A1S GPIO19 (RX) with a jumper. Send bytes from the link task and verify they loop back. This isolates the A1S UART1 from the C3.
-4. **Test C3 UART0 loopback**: same — connect C3 GPIO21 (TX) to C3 GPIO20 (RX), verify the link client sees its own hello.
-5. **If both loopbacks work**, the issue is the wire between the boards (bad dupont, wrong pin, or broken wire).
-
-## Uncommitted changes on feat/ui-split
-
-Debug logging added to:
-- `uimcu/main/input/UserInput.cpp` — logs BTN_A/BTN_B press/release, encoder deltas
-- `uimcu/ui/Display.cpp` — logs init steps (bus setup, SSD1309 configure, flush)
-- `uimcu/main/LinkClient.cpp` — logs hello retries, frames from DSP
-- `main/LinkEndpoint.cpp` — already had handshake/offline logging from P3
-
-**These need to be built and flashed to both boards before the next debugging session.**
+**Both boards are already flashed with this firmware.**
 
 ## Hardware state
 
@@ -85,7 +134,7 @@ Debug logging added to:
 4. **GPIO8/9 = C3 strapping pins** (encoder E1). Need 10k pull-ups to 3V3.
 5. **A1S port-open auto-resets the chip** (CP2102 DTR/RTS). Wait ≥9 s after opening before probing.
 6. **C3 USB-Serial-JTAG does not replay output** for late-opening hosts.
-7. **The panel app owns the C3's USB serial** (`usb_serial_jtag_driver_install`). esptool can't sync while the app runs. Download mode = hold BOOT through power cycle, verify `lsusb` device number increments.
+7. **The panel app owns the C3's USB serial** (`usb_serial_jtag_driver_install`). Historically esptool couldn't sync while the app ran (BOOT-held download mode as fallback), but on 2026-10-28 `idf.py -p /dev/ttyACM0 flash` synced and flashed fine with the app running — try the direct flash first.
 8. **A1S OLED-less boot logs a benign `SSD1309: OLED configuration failed` error** — don't chase it.
 9. **The A1S silk screen has TX/RX labels swapped** on the header — verify with a scope or loopback, don't trust the silk.
 

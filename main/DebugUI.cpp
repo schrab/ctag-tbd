@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include "UIMenu.hpp"
 #include "UserInput.hpp"
 #include "SPManager.hpp"
+#include "LinkEndpoint.hpp"
 #include "codec.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -259,6 +260,46 @@ namespace CTAG {
                 const int old_mode = elements_debug_set_mode_override(d["value"].GetInt());
                 response = "{\"ok\":1,\"old\":" + to_string(old_mode) +
                            ",\"mode\":" + to_string(elements_debug_get_mode_override()) + "}";
+                return true;
+            }
+
+            if (s == "/debug/setLinkBaud") {
+                // Debug-only link UART retune, e.g.
+                // {"cmd":"/debug/setLinkBaud","value":460800} — baud sweep
+                // for the handshake hunt (LinkEndpoint owns UART1).
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing value\"}";
+                    return true;
+                }
+                response = LinkEndpoint::SetBaud(d["value"].GetInt())
+                               ? "{\"ok\":1}"
+                               : "{\"error\":\"bad baud\"}";
+                return true;
+            }
+
+            if (s == "/debug/linkTxTest") {
+                // Debug-only TX stimulus for the jumper loopback: sends
+                // `count` known hello_ack frames on UART1; with GPIO18↔19
+                // jumpered the offline raw-RX logs echo them, exposing RX
+                // quality at the current baud without any panel attached.
+                int count = 5;
+                if (d.HasMember("count") && d["count"].IsInt())
+                    count = d["count"].GetInt();
+                LinkEndpoint::TestTx(count);
+                response = "{\"ok\":1}";
+                return true;
+            }
+
+            if (s == "/debug/setLinkRx") {
+                // Debug-only RX reroute for the GPIO19 path hunt, e.g.
+                // {"cmd":"/debug/setLinkRx","value":39}. TX stays on 18.
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = "{\"error\":\"missing value\"}";
+                    return true;
+                }
+                response = LinkEndpoint::SetRxPin(d["value"].GetInt())
+                               ? "{\"ok\":1}"
+                               : "{\"error\":\"bad gpio\"}";
                 return true;
             }
 

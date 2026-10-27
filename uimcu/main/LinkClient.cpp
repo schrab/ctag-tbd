@@ -28,6 +28,7 @@ respective component folders / files if different from this license.
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include <cstdio>
 #include <cstring>
 #include <string>
 
@@ -86,6 +87,19 @@ namespace CTAG {
                     int got = uart_read_bytes(kUart, rx, sizeof(rx), 0);
                     if (got > 0) {
                         lastDspRxMs = now;
+                        if (!s_online) {
+                            // Handshake hunt: every raw byte seen from the
+                            // DSP while offline (framing + baud sanity).
+                            static uint32_t rawTotal = 0;
+                            rawTotal += (uint32_t)got;
+                            char hex[64] = {0};
+                            size_t used = 0;
+                            for (int i = 0; i < got && used + 4 < sizeof(hex); i++)
+                                used += (size_t)snprintf(hex + used, sizeof(hex) - used,
+                                                         "%02x ", rx[i]);
+                            ESP_LOGI(TAG, "dsp bytes: +%d (total %lu): %s",
+                                     got, (unsigned long)rawTotal, hex);
+                        }
                         for (int i = 0; i < got; i++) {
                             char c = (char)rx[i];
                             if (c == (char)kStx) {
@@ -132,6 +146,7 @@ namespace CTAG {
                             lastHelloMs = now;
                             string hello = MakeHello(Role::kPanel, TBD_FW_VERSION.c_str());
                             sendFrame(hello.data(), hello.size());
+                            ESP_LOGI(TAG, "hello retry (online=0)");
                         }
                     } else if (now - lastHeartbeatMs >= kHeartbeatPeriodMs) {
                         lastHeartbeatMs = now;
@@ -147,6 +162,13 @@ namespace CTAG {
         }
 
         bool LinkClient::IsOnline() { return s_online; }
+
+        bool LinkClient::SetBaud(int baud) {
+            if (baud < 1200 || baud > 5000000) return false;
+            if (uart_set_baudrate(kUart, baud) != ESP_OK) return false;
+            ESP_LOGI(TAG, "link baud retuned to %d", baud);
+            return true;
+        }
 
         void LinkClient::Start() {
             if (hLinkTask != nullptr) return;
