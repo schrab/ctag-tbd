@@ -30,6 +30,58 @@ Design: `doc/ui-split-sdd.md` §4/§5/§8 (P3), §11 (bench channels).
    faithfully ported) — a host script sending `delta:2` moves ONE panel, and
    that is correct.
 
+## Hardware status (2026-10-27)
+
+- **C3 #2 (loose board): OK** — flashed with the canonical build (b7e50ea4),
+  bench verified (getUiState/getProxyState answer, no panics).
+- **C3 #1 (soldered to the UI carrier): USB-dead** — backfeed casualty (its
+  3V3 pin was tied to the unpowered A1S; the regulator tried to power the
+  whole DSP board). Enumerates but the ROM ignores the downloader even in
+  verified download mode. Recoverable only via a USB-UART adapter on its
+  UART0 (GPIO20/21) if ever needed.
+- **OLED panel: dead** — reversed-power casualty (trajectory: erratic →
+  lit → single stuck row → all-white at power-on). Replacement = any 7-pin
+  SPI SSD1306/1309, jumpers set for 4-wire SPI *before* wiring.
+- **Link handshake: pending** the wiring test (two UART wires only, below).
+
+## Bench wiring rules (each one learned the hard way)
+
+1. **C3 GPIO18/19 are the USB data lines.** Never wire anything to them.
+   The link is GPIO20/21 (silk RX/TX on the Super Mini). A wire on 18/19
+   kills the C3's USB the moment it lands.
+2. **While both boards are powered by their own USB: no GND wire between
+   them.** The USB cables already share ground through the host; an extra
+   bond ties the C3's ground to the A1S's *audio return* ground, which
+   bounces with the DSP load — the C3's USB CDC dies (observed twice, both
+   boards, identically). The A1S may also reset from the bond-current
+   spike. The GND wire belongs to the final single-supply configuration
+   only (C3 powered from the A1S 3V3 — then 3V3+GND+UART, one supply).
+3. **Never tie 3V3 between the boards while either is unpowered.** The
+   powered board backfeeds the whole unpowered one through the rail — this
+   killed C3 #1's USB and the OLED panel.
+4. **C3 strapping pins GPIO8/9 carry encoder E1** (SDD §2.1). They need
+   10 kΩ pull-ups to 3V3 in the encoder wiring. GPIO9 held low at reset
+   puts the chip in download mode — the classic "board doesn't boot" with
+   a silently enumerating USB. GPIO2 (OLED CS) is benign: internal pull-up
+   defaults high.
+
+## Bench measurement rules
+
+- **USB-Serial-JTAG does not replay output**: a host that opens the port
+  after boot misses the entire boot log. To capture a boot, open the port
+  *then* reset the chip (or esptool `run`).
+- **Opening the A1S's CP2102 port pulses its auto-reset circuit** — the ESP32
+  reboots and takes ~6.2 s to reach DebugUI. Bench probes must wait ≥9 s
+  after opening the port before sending the first command, or every probe
+  "fails" while the board is perfectly healthy.
+- **The panel app owns the USB serial peripheral** (`usb_serial_jtag_driver_
+  install`): while the app runs, `esptool` cannot sync (the app eats the
+  sync bytes). Download mode = hold BOOT through a full power cycle, and
+  *verify it engaged* by watching the USB device number increment in
+  `lsusb` — BOOT is only sampled at reset.
+- The A1S OLED-less boot always logs `SSD1309: OLED configuration failed` —
+  benign, the boot continues normally past it.
+
 ## What runs on the C3 (P2)
 
 - The full menu port: UIMenu core, 5 panels (MIX/TAPE/HOME/MOD/PARAMS),
