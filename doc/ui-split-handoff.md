@@ -60,7 +60,15 @@ removed after the fix — re-add from git history (75445843) if needed.
 - **P0** ✅ `perf/dsp-pipeline` = radio-free baseline
 - **P1** ✅ `protocol/` shared component + 17 host tests (28/28 pass) — commit 90057fe3
 - **P2** ✅ `uimcu/` C3 panel firmware — menu + pages + SPI display + input + bench channel — commit 74e895db
-- **P3** ✅ **live handshake VERIFIED** — A1S LinkEndpoint (UART1 @115200) + C3 LinkClient (UART0 @115200); code from 3128f59f + 115200 fix + instrumentation
+- **P3** ✅ **live handshake VERIFIED at 921600** (RX on A1S GPIO23)
+- **P4 stages 1+2** ✅ TRS DIN MIDI on the C3 (UART1, TX=GPIO1/RX=GPIO10
+  @31250) relayed as `link/midiIn`; A1S dormant-MIDI fix (link task calls
+  `Midi::Update`, CV/trig buffers wired into the audio path);
+  `/link/midiFlags` set/query; C3 MIDI panel page (6th panel)
+- **P5 stage 1** ✅ C3 softAP **TBD-Panel** + REST bridge over the DspProxy
+  cache (getPlugins/getActivePlugin/getPluginParams/getPresets/
+  getConfiguration/getIOCaps + setActivePlugin/setPluginParam/savePreset/
+  loadPreset/setConfiguration mutations as link commands)
 - **Docs** ✅ bench rules + hardware post-mortem — commit 88b468db
 
 ## What was verified from code
