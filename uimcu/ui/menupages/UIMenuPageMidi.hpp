@@ -11,9 +11,9 @@ The CTAG TBD software is licensed under the GNU General Public License
 
 ***************/
 
-// P4: MIDI panel page — source enables (TRS DIN via link, BLE via the
-// panel once the receiver lands). Flags live on the DSP and are mirrored
-// in the DspProxy cache (see /link/midiFlags).
+// P4: MIDI panel page — BLE scan/connect (receiver runs on the panel) and
+// the source enables (TRS DIN via link, BLE relay drain). Flags live on
+// the DSP and are mirrored in the DspProxy cache (see /link/midiFlags).
 
 #pragma once
 
@@ -28,13 +28,16 @@ namespace CTAG {
             void doRedraw() override;
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
+            bool onBack() override;
             void DebugStateJson(std::string &out) override;
 
         private:
-            enum SubPage : uint8_t { SP_MAIN };
+            enum SubPage : uint8_t { SP_MAIN, SP_SCAN };
             SubPage subPage = SP_MAIN;
             int cursor = 0;
+            int scrollOffset = 0;
             void redrawMain();
+            void redrawScan();
         };
     }
 }

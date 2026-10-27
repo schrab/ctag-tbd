@@ -13,6 +13,8 @@ The CTAG TBD software is licensed under the GNU General Public License
 
 #include "MidiLink.hpp"
 #include "LinkClient.hpp"
+#include "BtMidiReceiver.hpp"
+#include "DspProxy.hpp"
 #include "ctag/link/protocol.hpp"
 #include "driver/uart.h"
 #include "esp_log.h"
@@ -26,6 +28,7 @@ namespace CTAG {
     namespace CTRL {
 
         using namespace CTAG::LINK;
+        using CTAG::DRIVERS::BtMidiReceiver;
 
         namespace {
             constexpr uart_port_t kUart = UART_NUM_1;
@@ -45,19 +48,30 @@ namespace CTAG {
             void midiTask(void *) {
                 uint8_t raw[kBatchMax];
                 char frame[64 + 8 * kBatchMax];
+                auto relay = [&frame](const uint8_t *bytes, size_t n) {
+                    if (n == 0 || !LinkClient::IsOnline()) return;
+                    int used = snprintf(frame, sizeof(frame),
+                                        "{\"cmd\":\"%s\",\"d\":[", kMsgMidiIn);
+                    for (size_t i = 0; i < n && used < (int) sizeof(frame) - 8; i++)
+                        used += snprintf(frame + used, sizeof(frame) - used,
+                                         "%s%u", i ? "," : "", (unsigned) bytes[i]);
+                    snprintf(frame + used, sizeof(frame) - used, "]}");
+                    LinkClient::SendCommand(frame);
+                };
+
                 while (true) {
+                    // P4: BLE-MIDI relay (the central receiver runs here;
+                    // the DSP-side BLE flag gates the drain).
+                    if (DspProxy::IsMidiBleEnabled()) {
+                        uint8_t bbuf[64];
+                        uint32_t bn = 0;
+                        BtMidiReceiver::Read(bbuf, &bn);
+                        relay(bbuf, bn);
+                    }
                     int got = uart_read_bytes(kUart, raw, sizeof(raw),
                                               pdMS_TO_TICKS(10));
                     if (got <= 0) continue;
-                    if (!LinkClient::IsOnline()) continue; // nobody listening
-                    // {"cmd":"link/midiIn","d":[..]}
-                    int used = snprintf(frame, sizeof(frame),
-                                        "{\"cmd\":\"%s\",\"d\":[", kMsgMidiIn);
-                    for (int i = 0; i < got && used < (int) sizeof(frame) - 8; i++)
-                        used += snprintf(frame + used, sizeof(frame) - used,
-                                         "%s%u", i ? "," : "", (unsigned) raw[i]);
-                    snprintf(frame + used, sizeof(frame) - used, "]}");
-                    LinkClient::SendCommand(frame);
+                    relay(raw, (size_t) got);
                 }
             }
         }

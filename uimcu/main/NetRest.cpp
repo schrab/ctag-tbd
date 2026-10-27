@@ -255,6 +255,9 @@ namespace CTAG {
 
             httpd_handle_t server = nullptr;
             httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
+            hc.max_uri_handlers = 12; // default 8; we register 11 routes
+            hc.stack_size = 3584;     // RAM is tight alongside NimBLE
+            hc.lru_purge_enable = true;
             if (httpd_start(&server, &hc) == ESP_OK) {
                 registerGet(server, "/api/v1/getPlugins", hGetPlugins);
                 registerGet(server, "/api/v1/getActivePlugin", hGetActivePlugin);

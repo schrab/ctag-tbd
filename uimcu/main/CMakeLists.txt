@@ -17,6 +17,7 @@ idf_component_register(
             "DebugLink.cpp"
             "MidiLink.cpp"
             "NetRest.cpp"
+            "BtMidiReceiver.cpp"
             "input/UserInput.cpp"
             "${DSP_PROXY_IMPL}"
             "${UI}/Display.cpp"

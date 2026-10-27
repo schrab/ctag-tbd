@@ -29,6 +29,7 @@ respective component folders / files if different from this license.
 #include "DspProxy.hpp"
 #include "MidiLink.hpp"
 #include "NetRest.hpp"
+#include "BtMidiReceiver.hpp"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -48,13 +49,18 @@ extern "C" void app_main() {
     // same ordering the A1S uses) and runs the 20 ms loop.
     CTAG::CTRL::UIMenu::Init();
     CTAG::CTRL::DebugLink::Start();
-    // P4: TRS MIDI jacks live on the panel; bytes relay over the link.
-    CTAG::CTRL::MidiLink::Start();
-    // P5: panel-side WiFi + REST bridge over the DspProxy cache.
-    CTAG::CTRL::NetRest::Start();
 
+    // UI task FIRST: WiFi + NimBLE eat a big chunk of the heap; the 8 KB
+    // ui_menu stack must be allocated before those go up.
     if (xTaskCreatePinnedToCore(CTAG::CTRL::UIMenu::TaskFunction, "ui_menu", 8192,
                                 nullptr, tskIDLE_PRIORITY + 3, nullptr, 0) != pdPASS) {
         ESP_LOGE(TAG, "could not create ui_menu task");
     }
+
+    // P4: TRS MIDI jacks live on the panel; bytes relay over the link.
+    CTAG::CTRL::MidiLink::Start();
+    // P5: panel-side WiFi + REST bridge over the DspProxy cache.
+    CTAG::CTRL::NetRest::Start();
+    // P4: BLE-MIDI central (NimBLE); bytes ride the same midiIn relay.
+    CTAG::DRIVERS::BtMidiReceiver::Init();
 }

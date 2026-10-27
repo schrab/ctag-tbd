@@ -69,6 +69,18 @@ removed after the fix — re-add from git history (75445843) if needed.
   cache (getPlugins/getActivePlugin/getPluginParams/getPresets/
   getConfiguration/getIOCaps + setActivePlugin/setPluginParam/savePreset/
   loadPreset/setConfiguration mutations as link commands)
+- **P4 BLE stage** ✅ code-complete, **gated on chip revision**: the
+  BtMidiReceiver central port + NimBLE sdkconfig + scan/connect UI rows
+  are in, but the bench's C3 #2 is chip **rev 0.4** and IDF 5.5.4's
+  precompiled C3 BT controller requires rev 3 (ECO3 ROM BT helpers —
+  `r_lld_scan_try_sched` etc. unresolved / store-fault otherwise).
+  `BtMidiReceiver::Init` checks `esp_chip_info().revision >= 300` and
+  skips NimBLE on older silicon. A replacement C3 (current stock = rev 3+)
+  gets BLE automatically. Boot-order fix: the UI task starts BEFORE
+  WiFi/NimBLE (radio inits eat the heap); NimBLE buffers trimmed
+  (ACL 6×128, HCI 8/4, MSYS 6/8, MAX_CONN 1, MTU 128, coex enabled);
+  httpd max_uri_handlers=12. WiFi+BLE coex on C3 needs ~65KB internal
+  heap free at BT init.
 - **Docs** ✅ bench rules + hardware post-mortem — commit 88b468db
 
 ## What was verified from code

@@ -30,6 +30,7 @@ respective component folders / files if different from this license.
 #include "LinkClient.hpp"
 #include "ctag/link/protocol.hpp"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "rapidjson/document.h"
@@ -238,6 +239,9 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         // (pushes, stream, fsList replies). Small docs only: big JSON blobs
         // arrive as escaped strings and are stored without DOM parsing.
         void DspProxy::OnLinkFrame(const char *payload, size_t len) {
+            if (len > 400)
+                ESP_LOGI("DspProxy", "parsing frame len=%u (largest blk %u)", (unsigned) len,
+                         (unsigned) heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
             Document d;
             d.Parse(payload, len);
             if (d.HasParseError() || !d.IsObject() || !d.HasMember("cmd")) return;

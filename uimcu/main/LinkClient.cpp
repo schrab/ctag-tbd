@@ -174,7 +174,7 @@ namespace CTAG {
 
             fsDone = xSemaphoreCreateBinary();
 
-            if (xTaskCreate(linkTask, "link_cli", 6144, nullptr,
+            if (xTaskCreate(linkTask, "link_cli", 8192, nullptr,
                             tskIDLE_PRIORITY + 2, &hLinkTask) != pdPASS) {
                 ESP_LOGW(TAG, "could not start link client task");
                 hLinkTask = nullptr;
