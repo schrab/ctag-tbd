@@ -236,12 +236,14 @@ namespace CTAG {
                         }
                         // SW1 pressed (physical OK / BTN_A)
                         else if (old == BTN_NONE && newState == BTN_SW1) {
+                            ESP_LOGI(TAG, "BTN_A press");
                             sw1PressTs = now;
                         }
                         // SW1 -> SW2 (release OK, press BACK)
                         else if (old == BTN_SW1 && newState == BTN_SW2) {
                             ev.type = (now - sw1PressTs >= pdMS_TO_TICKS(LONG_PRESS_MS))
                                 ? InputEvent::BTN2_LONG : InputEvent::BTN2_SHORT;
+                            ESP_LOGI(TAG, "BTN_A release %s", ev.type == InputEvent::BTN2_LONG ? "LONG" : "SHORT");
                             xQueueSend(evQueue, &ev, 0);
                             sw2PressTs = now;
                         }
@@ -253,6 +255,7 @@ namespace CTAG {
                         }
                         // SW2 pressed (physical BACK / BTN_B)
                         else if (old == BTN_NONE && newState == BTN_SW2) {
+                            ESP_LOGI(TAG, "BTN_B press");
                             sw2PressTs = now;
                         }
                         // SW2 -> SW1 (release BACK, press OK)
