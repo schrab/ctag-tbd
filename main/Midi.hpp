@@ -22,6 +22,8 @@ respective component folders / files if different from this license.
 
 #pragma once
 
+#include <cstddef>
+
 #include "esp_attr.h"
 #include "midiuart.hpp"
 
@@ -75,6 +77,14 @@ namespace CTAG::CTRL
         IRAM_ATTR static uint8_t *Update();
 
         static void Flush();
+
+        // P4: MIDI bytes relayed by the panel link (the C3 owns the TRS
+        // jacks and forwards DIN bytes). Fed from the link task; Update()
+        // drains it on the same task, so the FIFO needs no lock.
+        static void FeedLinkBytes(const uint8_t *data, size_t n);
+        // P4: persistent CV/trig arrays the parser fills; the audio task
+        // reads them per block (the link task calls Update()).
+        static void GetCVTrig(float **cv, uint8_t **trig);
 
         static void SetUartEnabled(bool en);
         static bool IsUartEnabled();

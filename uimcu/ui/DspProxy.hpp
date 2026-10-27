@@ -103,6 +103,14 @@ namespace CTAG {
             static int32_t GetActiveFav();
             static void ActivateFavorite(int id);
 
+            // ---- MIDI source enables (P4, ground truth on the DSP) ----
+            static bool IsMidiUartEnabled();
+            static bool IsMidiBleEnabled();
+            // Optimistic cache update + /link/midiFlags set frame.
+            static void SetMidiFlags(bool uart, bool ble);
+            // Ask the DSP for current flags (reply updates the cache).
+            static void RefreshMidiFlags();
+
             // ---- filesystem proxy (replaces direct /sd opendir) ----
             static bool IsSDMounted();
             // List one directory of the DSP-side SD card. names/isDir are

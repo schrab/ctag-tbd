@@ -35,6 +35,9 @@ respective component folders / files if different from this license.
 #include "SerialAPI.hpp"
 #include "RestServer.hpp"
 #include "Control.hpp"
+#if defined(CONFIG_TBD_PLATFORM_BBA)
+#include "Midi.hpp"
+#endif
 #include "Favorites.hpp"
 #include "MarblesEngine.hpp"
 #include "SDAudio.hpp"
@@ -93,10 +96,20 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 
     SP::ProcessData pd;
     pd.buf = fbuf;
+#if defined(CONFIG_TBD_PLATFORM_BBA)
+    // P4: MIDI CV/trig buffers, filled by the link task's Midi::Update();
+    // Marbles writes its slots into the same arrays (disjoint ranges).
+    float *cvBuf = nullptr;
+    uint8_t *trigBuf = nullptr;
+    CTRL::Midi::GetCVTrig(&cvBuf, &trigBuf);
+    pd.cv = cvBuf;
+    pd.trig = trigBuf;
+#else
     float defaultCv[N_CVS] = {0.f};
     uint8_t defaultTrig[N_TRIGS] = {0};
     pd.cv = defaultCv;
     pd.trig = defaultTrig;
+#endif
 
     // generate linear ramp ]0,1[ squared
     for (uint32_t i = 0; i < BUF_SZ; i++) {
@@ -443,7 +456,6 @@ void SoundProcessorManager::StartSoundProcessor() {
     if (processMutex == NULL) {
         ESP_LOGE("SPM", "Fatal couldn't create mutex!");
     }
-    CTRL::Control::FlushBuffers();
     // create audio thread
     runAudioTask = 1;
     xTaskCreatePinnedToCore(&SoundProcessorManager::audio_task, "audio_task", 4096, nullptr, 23, &audioTaskH, 1);

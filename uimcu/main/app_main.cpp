@@ -27,6 +27,7 @@ respective component folders / files if different from this license.
 #include "UIMenu.hpp"
 #include "DebugLink.hpp"
 #include "DspProxy.hpp"
+#include "MidiLink.hpp"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -46,6 +47,8 @@ extern "C" void app_main() {
     // same ordering the A1S uses) and runs the 20 ms loop.
     CTAG::CTRL::UIMenu::Init();
     CTAG::CTRL::DebugLink::Start();
+    // P4: TRS MIDI jacks live on the panel; bytes relay over the link.
+    CTAG::CTRL::MidiLink::Start();
 
     if (xTaskCreatePinnedToCore(CTAG::CTRL::UIMenu::TaskFunction, "ui_menu", 8192,
                                 nullptr, tskIDLE_PRIORITY + 3, nullptr, 0) != pdPASS) {

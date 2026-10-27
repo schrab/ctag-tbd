@@ -26,6 +26,7 @@ respective component folders / files if different from this license.
 #include "menupages/UIMenuPageHome.hpp"
 #include "menupages/UIMenuPageMix.hpp"
 #include "menupages/UIMenuPageParams.hpp"
+#include "menupages/UIMenuPageMidi.hpp"
 #include "menupages/UIMenuPageTape.hpp"
 #include "menupages/UIMenuPageMod.hpp"
 #include "freertos/FreeRTOS.h"
@@ -38,7 +39,7 @@ using namespace CTAG::DRIVERS;
 namespace CTAG {
     namespace CTRL {
         UIMenu::Panel UIMenu::currentPanel = UIMenu::PANEL_HOME;
-        UIMenuPage *UIMenu::pages[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+        UIMenuPage *UIMenu::pages[6] = {nullptr, nullptr, nullptr, nullptr, nullptr};
         UIMenu::NavState UIMenu::navState = UIMenu::ROOT;
         bool UIMenu::redrawNeeded = true;
         int UIMenu::panelBarTimer = 0;
@@ -57,6 +58,7 @@ namespace CTAG {
             pages[PANEL_TAPE] = new UIMenuPageTape();
             pages[PANEL_MOD] = new UIMenuPageMod();
             pages[PANEL_PARAMS] = new UIMenuPageParams();
+            pages[PANEL_MIDI] = new UIMenuPageMidi();
             ESP_LOGI(TAG, "Init: calling init on pages...");
             for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();
             navState = ROOT;

@@ -15,6 +15,7 @@ idf_component_register(
         SRCS
             "app_main.cpp"
             "DebugLink.cpp"
+            "MidiLink.cpp"
             "input/UserInput.cpp"
             "${DSP_PROXY_IMPL}"
             "${UI}/Display.cpp"
@@ -25,6 +26,7 @@ idf_component_register(
             "${UI}/menupages/UIMenuPageParams.cpp"
             "${UI}/menupages/UIMenuPageSystem.cpp"
             "${UI}/menupages/UIMenuPageTape.cpp"
+            "${UI}/menupages/UIMenuPageMidi.cpp"
         INCLUDE_DIRS "." "${UI}")
 
 if(UIMCU_DSP_STUB)

@@ -836,6 +836,9 @@ void Midi::Init() {
     CTAG::AUDIO::SDAudio::Init();
 }
 
+// --- P4 forward decl: link-fed MIDI FIFO (defined near Midi::Flush) ---
+static size_t LinkMidiRead(uint8_t *dst, size_t cap);
+
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
 uint8_t *Midi::Update() {
     // --- Check if we have "leftover" data to be processed or if we need to ask for new MIDI-messages via polling ---
@@ -859,9 +862,11 @@ uint8_t *Midi::Update() {
         ================================================================== */
         // len2 =  CTAG::DRIVERS::midiuart::Read(&msgBuffer[missing_bytes_offset], MIDI_BUF_SZ - 32);
 
-        // get all available MIDI messages from UART (if enabled)
+        // get MIDI bytes relayed by the panel link (P4: the C3 owns the
+        // TRS jacks; the A1S UART1 is the 921600 link, not MIDI)
         if (midiUartEnabled && missing_bytes_offset + len2 < (MIDI_BUF_SZ - 32))
-            midiuart_instance.read(&msgBuffer[missing_bytes_offset + len2], &len);
+            len = LinkMidiRead(&msgBuffer[missing_bytes_offset + len2],
+                               MIDI_BUF_SZ - 32 - missing_bytes_offset - len2);
 
         // get all available MIDI messages from Bluetooth (if enabled)
 #if CONFIG_BT_ENABLED
@@ -1187,5 +1192,31 @@ uint8_t *Midi::Update() {
 }
 
 void Midi::Flush() {
-    midiuart_instance.flush();
+    // P4: no UART flush here — the A1S's UART1 IS the panel link now;
+    // flushing it would discard link RX bytes. TRS jacks live on the C3.
+}
+
+// --- P4: link-fed MIDI byte FIFO (panel relays DIN bytes) ---
+// Producer (LinkEndpoint handleLinkCommand) and consumer (Update) both run
+// on the link task — a simple linear buffer, no lock.
+static uint8_t linkMidiBuf[512];
+static size_t linkMidiLen = 0;
+
+void Midi::FeedLinkBytes(const uint8_t *data, size_t n) {
+    if (linkMidiLen + n > sizeof(linkMidiBuf)) return; // overflow: drop
+    memcpy(&linkMidiBuf[linkMidiLen], data, n);
+    linkMidiLen += n;
+}
+
+static size_t LinkMidiRead(uint8_t *dst, size_t cap) {
+    size_t n = linkMidiLen > cap ? cap : linkMidiLen;
+    memcpy(dst, linkMidiBuf, n);
+    memmove(linkMidiBuf, &linkMidiBuf[n], linkMidiLen - n);
+    linkMidiLen -= n;
+    return n;
+}
+
+void Midi::GetCVTrig(float **cv, uint8_t **trig) {
+    *cv = (float *) buf0;
+    *trig = midi_note_trig;
 }

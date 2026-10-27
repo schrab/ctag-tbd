@@ -26,6 +26,7 @@ respective component folders / files if different from this license.
 // user-paced navigation.
 
 #include "DspProxy.hpp"
+#include "MidiLink.hpp"
 #include "LinkClient.hpp"
 #include "ctag/link/protocol.hpp"
 #include "esp_log.h"
@@ -56,6 +57,8 @@ namespace CTAG {
             float clampF(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
             // --- cache ---
+            bool cacheMidiUart = true;   // DSP defaults (Midi.cpp statics)
+            bool cacheMidiBle = true;
             string cachePluginList = "[]";
             string cacheParams[2] = {"{\"params\":[]}", "{\"params\":[]}"};
             string cacheConfig = "{}";
@@ -212,7 +215,24 @@ namespace CTAG {
             LinkClient::Start();
         }
 
-        bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
+        bool DspProxy::IsMidiUartEnabled() { return cacheMidiUart; }
+bool DspProxy::IsMidiBleEnabled() { return cacheMidiBle; }
+
+void DspProxy::SetMidiFlags(bool uart, bool ble) {
+    cacheMidiUart = uart;
+    cacheMidiBle = ble;
+    char buf[64];
+    snprintf(buf, sizeof(buf),
+             "{\"cmd\":\"/link/midiFlags\",\"uart\":%s,\"ble\":%s}",
+             uart ? "true" : "false", ble ? "true" : "false");
+    LinkClient::SendCommand(buf);
+}
+
+void DspProxy::RefreshMidiFlags() {
+    LinkClient::SendCommand("{\"cmd\":\"/link/midiFlags\"}");
+}
+
+bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
 
         // Entry point for every complete frame the link client receives
         // (pushes, stream, fsList replies). Small docs only: big JSON blobs
@@ -253,6 +273,23 @@ namespace CTAG {
                 if (d.HasMember("id1") && d["id1"].IsString()) activeId[1] = d["id1"].GetString();
                 if (d.HasMember("st0") && d["st0"].IsInt()) activeStereo[0] = d["st0"].GetInt() != 0;
                 if (d.HasMember("st1") && d["st1"].IsInt()) activeStereo[1] = d["st1"].GetInt() != 0;
+            } else if (strcmp(cmd, kMsgCmdMidiFlags) == 0) {
+                // Authoritative flag state (set reply or get reply).
+                if (d.HasMember("uart") && d["uart"].IsBool())
+                    cacheMidiUart = d["uart"].GetBool();
+                if (d.HasMember("ble") && d["ble"].IsBool())
+                    cacheMidiBle = d["ble"].GetBool();
+            } else if (strcmp(cmd, kMsgMidiOut) == 0) {
+                // P4: DSP → TRS OUT jack (raw bytes as an array).
+                if (d.HasMember("d") && d["d"].IsArray()) {
+                    const Value &arr = d["d"];
+                    uint8_t bytes[128];
+                    size_t n = 0;
+                    for (size_t i = 0; i < arr.Size() && n < sizeof(bytes); i++)
+                        if (arr[i].IsInt())
+                            bytes[n++] = (uint8_t) (arr[i].GetInt() & 0xFF);
+                    MidiLink::OnMidiOut(bytes, n);
+                }
             } else if (strcmp(cmd, kMsgPushMarbles) == 0) {
                 parsePushMarbles(d);
             } else if (strcmp(cmd, kMsgPushIoCaps) == 0) {

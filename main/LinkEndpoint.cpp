@@ -28,6 +28,7 @@ respective component folders / files if different from this license.
 #include "fs.hpp"
 #include "codec.hpp"
 #include "version.hpp"
+#include "Midi.hpp"
 #include "ctag/link/protocol.hpp"
 #include "driver/uart.h"
 #include "rapidjson/document.h"
@@ -658,8 +659,32 @@ namespace CTAG {
                     return true;
                 }
                 if (cmdName == kMsgCmdMidiFlags) {
-                    // P4: MIDI enable flags ride with the MIDI page port.
-                    response = "{\"error\":\"not yet (P4)\"}";
+                    // P4: MIDI source enables (DIN via link, BLE via panel).
+                    // No args = query. Reply is cmd-tagged so the panel's
+                    // frame parser can update its cache.
+                    if (d.HasMember("uart") && d["uart"].IsBool())
+                        Midi::SetUartEnabled(d["uart"].GetBool());
+                    if (d.HasMember("ble") && d["ble"].IsBool())
+                        Midi::SetBleEnabled(d["ble"].GetBool());
+                    response = string("{\"cmd\":\"") + kMsgCmdMidiFlags
+                             + "\",\"ok\":1,\"uart\":"
+                             + (Midi::IsUartEnabled() ? "true" : "false")
+                             + ",\"ble\":"
+                             + (Midi::IsBleEnabled() ? "true" : "false") + "}";
+                    return true;
+                }
+                if (cmdName == kMsgMidiIn) {
+                    // Panel relays TRS-DIN bytes as an array of byte values.
+                    // One-way, high-rate: no reply frame.
+                    if (d.HasMember("d") && d["d"].IsArray()) {
+                        const Value &arr = d["d"];
+                        uint8_t bytes[128];
+                        size_t n = 0;
+                        for (size_t i = 0; i < arr.Size() && n < sizeof(bytes); i++)
+                            if (arr[i].IsInt())
+                                bytes[n++] = (uint8_t) (arr[i].GetInt() & 0xFF);
+                        if (n) Midi::FeedLinkBytes(bytes, n);
+                    }
                     return true;
                 }
 
@@ -713,9 +738,11 @@ namespace CTAG {
                                         }
                                     } else if (s_online) {
                                         string response;
-                                        if (handleLinkCommand(cmd, response)) {
+                                        // Empty response = one-way command
+                                        // (e.g. midiIn): no reply frame.
+                                        if (handleLinkCommand(cmd, response) &&
+                                            !response.empty())
                                             sendStr(response);
-                                        }
                                     }
                                 }
                                 receiving = false;
@@ -754,6 +781,12 @@ namespace CTAG {
                             }
                         }
                     }
+
+                    // P4: the link task is Midi::Update()'s caller now —
+                    // the parser drains link-relayed MIDI bytes and fills
+                    // the CV/trig arrays the audio task reads per block
+                    // (the old Control::Update caller stays uncalled).
+                    Midi::Update();
 
                     // One FULL tick (10 ms at FREERTOS_HZ=100): finer delays
                     // round to zero ticks and busy-spin into task_wdt — the
