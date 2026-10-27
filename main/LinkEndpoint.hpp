@@ -56,13 +56,6 @@ namespace CTAG {
         // Debug-only: retune the link UART at runtime (baud sweep for the
         // handshake hunt). False when the rate is out of range.
         static bool SetBaud(int baud);
-        // Debug-only: send `count` known frames on the link UART so a
-        // TX↔RX jumper loopback can exercise the RX path with no
-        // panel attached (the offline raw-RX logging echoes what comes back).
-        static void TestTx(int count);
-        // Debug-only: reroute the link UART RX to another input-capable pad
-        // (GPIO19 input path is corrupt ≥460800 — test alternatives like 39).
-        static bool SetRxPin(int gpio);
         };
     }
 }

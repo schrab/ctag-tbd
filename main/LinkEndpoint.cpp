@@ -38,7 +38,6 @@ respective component folders / files if different from this license.
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <dirent.h>
-#include <cstdio>
 #include <cstring>
 #include <string>
 
@@ -684,21 +683,6 @@ namespace CTAG {
                     int got = uart_read_bytes(kUart, rx, sizeof(rx), 0);
                     if (got > 0) {
                         lastPanelRxMs = now;
-                        if (!s_online) {
-                            // Handshake hunt: show every raw byte that
-                            // crosses UART1 while offline — this is the
-                            // only view of the physical RX path (framing,
-                            // baud sanity and wiring in one log line).
-                            static uint32_t rawTotal = 0;
-                            rawTotal += (uint32_t)got;
-                            char hex[64] = {0};
-                            size_t used = 0;
-                            for (int i = 0; i < got && used + 4 < sizeof(hex); i++)
-                                used += (size_t)snprintf(hex + used, sizeof(hex) - used,
-                                                         "%02x ", rx[i]);
-                            ESP_LOGI(TAG, "panel bytes: +%d (total %lu): %s",
-                                     got, (unsigned long)rawTotal, hex);
-                        }
                         for (int i = 0; i < got; i++) {
                             char c = (char)rx[i];
                             if (c == (char)kStx) {
@@ -732,13 +716,6 @@ namespace CTAG {
                                         if (handleLinkCommand(cmd, response)) {
                                             sendStr(response);
                                         }
-                                    } else {
-                                        // Offline and not a valid panel
-                                        // hello — previously a silent drop;
-                                        // exactly where a garbled handshake
-                                        // would vanish.
-                                        ESP_LOGW(TAG, "offline frame %u bytes dropped: %.48s",
-                                                 (unsigned)cmd.size(), cmd.c_str());
                                     }
                                 }
                                 receiving = false;
@@ -793,29 +770,6 @@ namespace CTAG {
             if (baud < 1200 || baud > 5000000) return false;
             if (uart_set_baudrate(kUart, baud) != ESP_OK) return false;
             ESP_LOGI(TAG, "link baud retuned to %d", baud);
-            return true;
-        }
-
-        void LinkEndpoint::TestTx(int count) {
-            if (count < 1) count = 1;
-            if (count > 20) count = 20;
-            string frame = MakeHelloAck(Role::kDsp, TBD_FW_VERSION.c_str(),
-                                        true, nullptr);
-            for (int i = 0; i < count; i++) {
-                sendStr(frame);
-                ESP_LOGI(TAG, "tx test frame %d/%d (%u bytes)", i + 1, count,
-                         (unsigned)frame.size());
-                vTaskDelay(pdMS_TO_TICKS(200));
-            }
-        }
-
-        bool LinkEndpoint::SetRxPin(int gpio) {
-            if (gpio < 0 || gpio > 39) return false;
-            // TX stays on 18; only the RX input reroutes.
-            if (uart_set_pin(kUart, 18, gpio,
-                             UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK)
-                return false;
-            ESP_LOGI(TAG, "link RX rerouted to GPIO%d", gpio);
             return true;
         }
 

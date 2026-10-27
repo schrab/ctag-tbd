@@ -139,8 +139,7 @@ void Display::Init() {
         io.mode = GPIO_MODE_OUTPUT;
         gpio_config(&io);
         busReady = true;
-        ESP_LOGI(TAG, "init: spi bus ready");
-    }
+        }
 
     // SSD1309 init, page addressing mode (matches the dirty-page Flush).
     sendCommand(0xAE); // display off
@@ -160,12 +159,10 @@ void Display::Init() {
     sendCommand(0xA6);                    // normal (not inverted)
     sendCommand(0xAF);                    // display on
 
-    ESP_LOGI(TAG, "init: SSD1309 configured, display on");
 
     std::memset(fb, 0, sizeof(fb));
     for (int i = 0; i < 8; i++) dirtyPages[i] = true;
     Flush();
-    ESP_LOGI(TAG, "init: framebuffer cleared and flushed");
 }
 
 void Display::RawCommand(uint8_t cmd) {
@@ -278,7 +275,6 @@ void Display::ShowFWVersion() {
     DrawString(0, 34, "TBD hw:", FONT_5X7);
     DrawString(0, 44, TBD_HW_VERSION.c_str(), FONT_5X7);
     Flush();
-    ESP_LOGI(TAG, "init: framebuffer cleared and flushed");
 }
 
 void Display::MarkDirty(int page) {

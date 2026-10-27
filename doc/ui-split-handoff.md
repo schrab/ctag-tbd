@@ -33,43 +33,27 @@ the C3; the A1S header's GPIO5/23 are physically free.
 Physical consequence: the C3's TX wire lands on **A1S GPIO23** (not
 GPIO19). GPIO19 stays unwired — do not "fix" this back to the SDD pin.
 
-**New debug capability (both firmwares):** `{"cmd":"/debug/setLinkBaud",
-"value":N}` retunes the link UART at runtime on both ends (A1S serves it
-via DebugUI on UART0, C3 via DebugLink on USB console) — used for the
-sweep above, keep for future wire work. Also added while offline: both
-sides log every raw RX burst with a hex peek (`panel bytes:` / `dsp
-bytes:`), the A1S logs offline rejected frames, and the C3 logs hello
-retries.
+**Debug helper kept (both firmwares):** `{"cmd":"/debug/setLinkBaud",
+"value":N}` retunes the link UART at runtime (A1S via DebugUI on UART0,
+C3 via DebugLink on USB console). The hunt instrumentation (raw hex
+logging, loopback TX stimulus, RX reroute, panel button/display logs) was
+removed after the fix — re-add from git history (75445843) if needed.
 
 ## Known residue
 
-- The root cause above 115200 is pinned but not fully decomposed: corruption
-  is panel→DSP-directional and rate-dependent. The four-way symmetry argument
-  (at 460800 the A1S UART1 **TX** is clean and the C3 UART0 **RX** is clean —
-  same peripherals/dividers as the corrupt directions) rules out clock
-  configs on both chips. Remaining suspects: the A1S UART1 RX path itself
-  (rebuilt from the 31250 MIDI driver) or the inter-board ground reference.
-  **A one-jumper test exists and is flashed**: remove the C3→A1S GPIO19
-  wire, jumper A1S GPIO18↔GPIO19, then `{"cmd":"/debug/linkTxTest",
-  "count":6}` at each baud — the offline `panel bytes:` hex shows whether
-  the A1S reads back its OWN frames cleanly. Clean echo = external path;
-  corrupt echo = A1S RX path.
-- The C3 link task intermittently goes silent for tens of seconds under
-  garbage bombardment (mismatched-baud periods); it recovers. Not observed
-  at a consistent 115200. If it recurs, look at DspProxy::OnLinkFrame
-  garbage-frame handling (the C3 calls it on every non-hello frame, even
-  offline — unlike the A1S which gates on s_online).
-- 921600 was never re-tested after the wire investigation; treat the
-  SDD's 921600 numbers as aspirational until the panel→DSP path is
-  understood (loopback test above / local ground reference).
+- The C3 link task intermittently went silent for tens of seconds under
+  garbage bombardment during the mismatched-baud hunts; it recovers on its
+  own and was not observed at a clean matched rate. If it recurs, look at
+  DspProxy::OnLinkFrame garbage-frame handling (the C3 calls it on every
+  non-hello frame, even offline — unlike the A1S which gates on s_online).
 
-## Bandwidth measured (2026-10-28) — 115200 is sufficient
+## Bandwidth measured (2026-10-28) — 921600 has huge headroom
 
 - Params JSON, biggest plugin (Mbeads): **1464 B**; Void: 20 B; config: 555 B.
-- Whole boot-metadata push measured **< 460 ms at 115200** (≈5 KB total).
+- Whole boot-metadata push measured **< 460 ms even at 115200** (≈5 KB).
 - The OLED does NOT ride the link: the C3 renders locally over SPI, 30 fps
   costs the link nothing. Link load: 10 Hz stream ≈ 1 KB/s, ~1.5 KB per
-  param change (coalesced by the 100 ms hash-diff). 115200 = 11.5 KB/s.
+  param change (coalesced by the 100 ms hash-diff). At 921600 = 92 KB/s.
 
 ## What's done
 

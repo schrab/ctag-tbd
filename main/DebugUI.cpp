@@ -277,32 +277,6 @@ namespace CTAG {
                 return true;
             }
 
-            if (s == "/debug/linkTxTest") {
-                // Debug-only TX stimulus for the jumper loopback: sends
-                // `count` known hello_ack frames on UART1; with GPIO18↔19
-                // jumpered the offline raw-RX logs echo them, exposing RX
-                // quality at the current baud without any panel attached.
-                int count = 5;
-                if (d.HasMember("count") && d["count"].IsInt())
-                    count = d["count"].GetInt();
-                LinkEndpoint::TestTx(count);
-                response = "{\"ok\":1}";
-                return true;
-            }
-
-            if (s == "/debug/setLinkRx") {
-                // Debug-only RX reroute for the GPIO19 path hunt, e.g.
-                // {"cmd":"/debug/setLinkRx","value":39}. TX stays on 18.
-                if (!d.HasMember("value") || !d["value"].IsInt()) {
-                    response = "{\"error\":\"missing value\"}";
-                    return true;
-                }
-                response = LinkEndpoint::SetRxPin(d["value"].GetInt())
-                               ? "{\"ok\":1}"
-                               : "{\"error\":\"bad gpio\"}";
-                return true;
-            }
-
             if (s == "/debug/setActivePlugin") {
                 // Debug-only deterministic plugin load for bring-up.
                 if (!d.HasMember("id") || !d["id"].IsString()) {
