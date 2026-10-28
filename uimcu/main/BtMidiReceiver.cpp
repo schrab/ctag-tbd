@@ -45,6 +45,9 @@ static bool bt_connected = false;
 static bool bt_scanning = false;
 static uint16_t conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
+// Scan-health probe counters (re-armed per StartScan)
+static uint32_t discLogCount = 0;
+
 // Characteristic value handle for MIDI data (for notification subscription)
 static uint16_t midi_val_handle = 0;
 
@@ -169,6 +172,16 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         return 0;
     case BLE_GAP_EVENT_DISC: {
         const struct ble_gap_disc_desc &disc = event->disc;
+        // Scan-health probe: log the first advertisements after a scan
+        // starts so "no devices found" can be split into "radio hears
+        // nothing" vs "parser/filter drops them". Counters live at file
+        // scope and re-arm in StartScan().
+        if (bt_scanning && discLogCount < 5) {
+            discLogCount++;
+            ESP_LOGI(TAG, "disc #%u rssi=%d addr_type=%d evt=%d len=%u",
+                     discLogCount, (int) disc.rssi, (int) disc.addr.type,
+                     (int) disc.event_type, (unsigned) disc.length_data);
+        }
         // Manually parse AD data for device name (type 0x08=short, 0x09=complete)
         char nameBuf[32];
         const char *advName = nullptr;
@@ -295,6 +308,7 @@ void BtMidiReceiver::StartScan() {
     if (bt_scanning || bt_connected) return;
     deviceCount = 0;
     bt_scanning = true;
+    discLogCount = 0;
     struct ble_gap_disc_params params = {
         .itvl = 0,
         .window = 0,

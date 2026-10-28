@@ -29,6 +29,8 @@ namespace CTAG {
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
+            void onTick() override;
+            bool wantsTick() const override;
             void DebugStateJson(std::string &out) override;
 
         private:
