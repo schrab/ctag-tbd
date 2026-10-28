@@ -72,6 +72,17 @@ namespace CTAG {
                     // P4: persistent BLE peer — retry the stored device
                     // while idle (no-op once connected or scanning).
                     BtMidiReceiver::TickReconnect();
+                    // P4: BLE-MIDI keepalive — the SMC-PAD only starts its
+                    // notification stream once the client writes to it
+                    // (the Ableton session paces LED writes constantly).
+                    // A real-time clock tick every 250 ms keeps it talking.
+                    static uint32_t lastKa = 0;
+                    if (BtMidiReceiver::IsConnected() && DspProxy::IsMidiBleEnabled() &&
+                        xTaskGetTickCount() - lastKa > pdMS_TO_TICKS(250)) {
+                        lastKa = xTaskGetTickCount();
+                        uint8_t ka[3] = {0x80, 0x00, 0xF8};   // ts header + clock tick
+                        BtMidiReceiver::SendKeepalive(ka, sizeof(ka));
+                    }
                     // P4: BLE-MIDI relay (the central receiver runs here;
                     // the DSP-side BLE flag gates the drain).
                     if (DspProxy::IsMidiBleEnabled()) {

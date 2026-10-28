@@ -37,6 +37,8 @@ public:
     static void Read(uint8_t *buf, uint32_t *len);
     // Retry a stored peer every ~3 s while idle (call from a periodic task).
     static void TickReconnect();
+    // Write a raw packet TO the BLE-MIDI characteristic (keepalive/clock).
+    static void SendKeepalive(const uint8_t *data, uint32_t len);
     static int GetDeviceCount();
     static const BtDeviceInfo* GetDevice(int idx);
     static void Connect(int idx);
