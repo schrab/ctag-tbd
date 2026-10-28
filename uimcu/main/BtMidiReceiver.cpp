@@ -365,11 +365,16 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
             disc.addr.type == storedType &&
             memcmp(disc.addr.val, storedBda, 6) == 0) {
             bt_peer_probe = false;
-            ble_gap_disc_cancel();
             // The disc teardown completes asynchronously (DISC_COMPLETE fires
             // after this callback) — connecting here races it and the first
-            // attempt is rejected with BLE_HS_EBUSY. Defer one event.
-            bt_probe_connect = true;
+            // attempt is rejected with BLE_HS_EBUSY. Defer one event — unless
+            // the scan already ended on its own (cancel fails: no event will
+            // come), in which case connect right away.
+            if (ble_gap_disc_cancel() == 0) {
+                bt_probe_connect = true;
+            } else {
+                connectStored();
+            }
             return 0;
         }
         if (bt_peer_probe) return 0;   // probe results stay out of the UI list
@@ -539,6 +544,13 @@ void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
 // completes immediately.
 void BtMidiReceiver::TickReconnect() {
     static uint32_t lastTry = 0;
+    // A probe hit deferred its connect but the DISC_COMPLETE event was lost
+    // (scan expired in the same instant) — recover here.
+    if (bt_probe_connect && !bt_connected && !bt_connecting) {
+        bt_probe_connect = false;
+        connectStored();
+        return;
+    }
     if (!storedValid || bt_connected || bt_connecting || bt_scanning) return;
     uint32_t now = xTaskGetTickCount();
     if (now - lastTry < pdMS_TO_TICKS(3000)) return;
