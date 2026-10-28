@@ -1,8 +1,60 @@
 # UI-Split Handoff — P0–P6 Status
 
-**Branch:** `feat/ui-split` (P6 cutover 0c032a88 pushed; leftovers closed 2026-10-29)
-**Date:** 2026-10-29 (P6 DONE — hardware-validated, leftovers fixed)
+**Branch:** `feat/ui-split` (P6 cutover 0c032a88 pushed; leftovers + P6-post debugging closed 2026-10-29)
+**Date:** 2026-10-29 (P6 DONE; debug access restored; BLE reconnect fixed; TBDaits crackle under investigation)
 **SDD:** `doc/ui-split-sdd.md` | **Bring-up:** `doc/uimcu-bringup.md`
+
+## 2026-10-29 debugging session — findings and state
+
+**Debug access from the C3 bench console is fully restored:**
+- All `/debug` replies now echo their command name (the C3 frame parser
+  drops cmd-less frames — DSP replies were invisible before) — 2564eb68.
+- The C3's DebugLink forwards any `/debug/*` it does not handle locally to
+  the DSP over the link and relays the reply verbatim (2 s timeout,
+  `dsp offline` when down) — 04e63fd3. So `getAudioStats`,
+  `setElementsMode`, `setActivePlugin`, params/codec/config all work from
+  the host again, now via the C3 USB console.
+- Bench client: `uimcu/tools/screenshot.py` — framebuffer→PNG (verified
+  live) and arbitrary `/debug` commands — 5ec7c2b6. It polls
+  `getProxyState` until `active0` is populated before acting.
+- **Gotcha: opening the C3 USB console resets the C3** (`rst:0x15
+  USB_UART_CHIP_RESET` — the host driver pulses control lines) and, over
+  the shared-power tie, browns out the A1S too. Expect ~6–8 s of
+  re-boot/re-handshake after every console open; the DSP OFF indicator
+  flickering after a console open is this, not a fault.
+
+**BLE: pad-off state is now a handled condition** (7bc603c3, 64a9365e,
+0ec9d6b0): the old reconnect issued blind 30 s / 100 %-duty connect
+procedures to the absent pad on every tick — the single-core C3
+crash-looped (~1.5 s resets, USB dropped off the bus), which presented as
+"DSP OFF", refused plugin loads and "constant reboots". Reconnect is now
+a bounded 2 s half-duty advertisement probe every 3 s (presence detector);
+connect is only issued when the pad is actually seen advertising; no
+blind connect at boot either; quiet thresholds are 10 s on both ends.
+Verified: 60 s with pad off — zero resets, zero link drops, loads work.
+Never reinstate blind connect attempts to an absent peer.
+
+**TBDaits (Plaits port) crackle — CPU overload EXONERATED, root cause open:**
+- Per-model sweep via forwarded `setPluginParam` + `getAudioStats`: all
+  **24 models render 41k–128k cycles** vs the 174,150 budget (worst =
+  model 22 at 73 %), `cpuOverload=0` everywhere, Void baseline ~8–9k
+  (Marbles + staging ≈ 5 %). The sweep was idle-state (no active voices).
+- TBDaits had NO instrumentation → `PERF_MEASURE("TBDaits")` added
+  (perf_monitor.hpp include + Process entry). The 5 s logger is enabled
+  by loading Mbeads on any channel; next session: load Mbeads ch1 +
+  TBDaits ch0, play into the crackle, read `PERF_MONITOR: TBDaits avg=…`
+  on the A1S console for the voice-active render cost.
+- During the user's distorted state the A1S console printed nothing (no
+  panic, no WDT, no brownout line) and the C3 link logs showed the DSP
+  link task surviving the earlier crashes (re-handshake 10 ms/2 s later)
+  — the reported "dsp reboots" was never a real DSP reboot in the
+  recorded events. Leading suspects: signal-path output scaling (the
+  Elements-class ±1.0 overdrive → codec clamp — check TBDaits output
+  scale) or voice-active overload; a static audit of the model-switch
+  path was dispatched but its report is still outstanding.
+- Crash forensics live in uimcu/tools/a1s_*.log / *_text.txt and
+  crash_watch.log (untracked bench artifacts).
+
 
 ## RESOLVED: the link works (2026-10-28)
 
