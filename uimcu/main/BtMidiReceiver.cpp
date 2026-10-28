@@ -46,6 +46,7 @@ static int deviceCount = 0;
 // Connection state
 static bool bt_connected = false;
 static bool bt_scanning = false;
+static bool bt_peer_probe = false;   // bounded reconnect probe scan in flight
 static uint16_t conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
 // Characteristic value handle for MIDI data (for notification subscription)
@@ -354,6 +355,20 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         return 0;
     case BLE_GAP_EVENT_DISC: {
         const struct ble_gap_disc_desc &disc = event->disc;
+        // Peer probe hit: the stored pad is advertising again — stop the
+        // probe and connect; the procedure completes immediately because
+        // the peer is really there. The pad must advertise its identity
+        // address (it does — the old blind reconnect by stored address
+        // only worked under that same assumption).
+        if (bt_peer_probe && storedValid && !bt_connected && !bt_connecting &&
+            disc.addr.type == storedType &&
+            memcmp(disc.addr.val, storedBda, 6) == 0) {
+            bt_peer_probe = false;
+            ble_gap_disc_cancel();
+            connectStored();
+            return 0;
+        }
+        if (bt_peer_probe) return 0;   // probe results stay out of the UI list
         // Manually parse AD data for device name (type 0x08=short, 0x09=complete)
         char nameBuf[32];
         const char *advName = nullptr;
@@ -405,8 +420,11 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         return 0;
     }
     case BLE_GAP_EVENT_DISC_COMPLETE:
-        ESP_LOGI(TAG, "Scan complete, %d devices found", deviceCount);
-        bt_scanning = false;
+        bt_peer_probe = false;
+        if (bt_scanning) {
+            ESP_LOGI(TAG, "Scan complete, %d devices found", deviceCount);
+            bt_scanning = false;
+        }
         return 0;
     case BLE_GAP_EVENT_NOTIFY_RX: {
         const struct os_mbuf *om = event->notify_rx.om;
@@ -502,15 +520,33 @@ void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
     *len = (uint32_t)ring_read(buf, BT_MIDI_RING_SZ);
 }
 
-// Called from the midi relay task (~10 ms cadence): retry the stored peer
-// every 3 s while nothing is connected. User-initiated scans pause it.
+// Called from the midi relay task (~10 ms cadence): every 3 s, run a
+// bounded 2 s advertisement probe for the stored peer. The pad only
+// advertises while disconnected, so the probe is the presence detector:
+// with the pad off nothing is heard and no procedure is ever pending
+// (blind connect attempts into the void were starving the single core
+// and taking the board down). Seeing the pad triggers one connect that
+// completes immediately.
 void BtMidiReceiver::TickReconnect() {
     static uint32_t lastTry = 0;
     if (!storedValid || bt_connected || bt_connecting || bt_scanning) return;
     uint32_t now = xTaskGetTickCount();
     if (now - lastTry < pdMS_TO_TICKS(3000)) return;
     lastTry = now;
-    connectStored();
+    struct ble_gap_disc_params params = {
+        .itvl = 0x0020,          // 20 ms interval / 10 ms window: half-duty,
+        .window = 0x0010,        // the probe must not hog the single core
+        .filter_policy = BLE_HCI_CONN_FILT_NO_WL,
+        .limited = 0,
+        .passive = 0,
+        .filter_duplicates = 0,
+    };
+    bt_peer_probe = true;
+    int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 2000, &params, gap_event_cb, nullptr);
+    if (rc != 0) {
+        bt_peer_probe = false;
+        if (rc != BLE_HS_EBUSY) ESP_LOGW(TAG, "peer probe scan failed: %d", rc);
+    }
 }
 
 // Client → pad write on the MIDI characteristic (keepalive/clock ticks —
@@ -540,6 +576,7 @@ void BtMidiReceiver::StartScan() {
         ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
     bt_connected = false;
     bt_connecting = false;
+    bt_peer_probe = false;
     bt_scanning = true;
     deviceCount = 0;
     struct ble_gap_disc_params params = {
