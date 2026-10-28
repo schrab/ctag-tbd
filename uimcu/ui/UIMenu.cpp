@@ -162,12 +162,14 @@ namespace CTAG {
                             }
                         } else {
                             // Two-encoder split (physical row under the OLED:
-                            // BACK, OK, then encoders left→right):
-                            // ENC_DELTA  = LEFT encoder  = list scroll
-                            // ENC2_DELTA = RIGHT encoder = live value edit
-                            if (ev.type == InputEvent::ENC_DELTA) {
+                            // BACK, OK, then encoders left→right). Hardware
+                            // naming: E1 "(value)" is the RIGHT encoder,
+                            // E2 "(panel)" the LEFT one:
+                            // ENC2_DELTA = LEFT encoder  (E2) = list scroll
+                            // ENC_DELTA  = RIGHT encoder (E1) = live value edit
+                            if (ev.type == InputEvent::ENC2_DELTA) {
                                 pages[currentPanel]->onEncoder(ev.delta);
-                            } else if (ev.type == InputEvent::ENC2_DELTA) {
+                            } else if (ev.type == InputEvent::ENC_DELTA) {
                                 pages[currentPanel]->onValueEncoder(ev.delta);
                             } else if (ev.type == InputEvent::BTN1_SHORT || ev.type == InputEvent::BTN1_LONG) {
                                 if (!pages[currentPanel]->onBack()) {
