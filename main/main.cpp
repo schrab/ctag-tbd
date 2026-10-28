@@ -83,9 +83,6 @@ void app_main() {
     xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 4096, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
     // Enable GPIO button ISRs after audio init to avoid I2S MCLK spinlock deadlock
     CTRL::UserInput::EnableISR();
-    // Bring-up channel for OLED screenshots + synthetic button/encoder input
-    // over the console UART. Shares UART0 with logging via the console VFS.
-    CTRL::DebugUI::Start();
 #endif
 #if defined(CONFIG_TBD_PLATFORM_BBA)
     // P6 cutover: the panel owns the UI — the DSP serves /link + /debug
