@@ -847,7 +847,7 @@ namespace CTAG {
                 hLinkTask = nullptr;
                 return;
             }
-            ESP_LOGI(TAG, "link endpoint on UART1 GPIO18/19 @%d", kLinkBaud);
+            ESP_LOGI(TAG, "link endpoint on UART1 GPIO18/23 @%d", kLinkBaud);
         }
     }
 }
