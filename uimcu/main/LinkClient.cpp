@@ -46,7 +46,7 @@ namespace CTAG {
             // be tens of KB) while the task drains continuously.
             constexpr size_t kRxRing = 16384;
             constexpr size_t kTxRing = 8192;
-            constexpr uint32_t kOfflineAfterMs = 3000;
+            constexpr uint32_t kOfflineAfterMs = 10000;
             constexpr uint32_t kHelloPeriodMs = 1000;
             constexpr uint32_t kHeartbeatPeriodMs = 1000;
 

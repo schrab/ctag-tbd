@@ -73,7 +73,9 @@ namespace CTAG {
             // Cap when hashing model blobs (params JSON is the big one).
             constexpr size_t kMaxHashBlob = 128 * 1024;
             // ms without any panel byte before the link is torn down.
-            constexpr uint32_t kOfflineAfterMs = 3000;
+            // 10 s: the C3 shares its single core with NimBLE; with the
+            // SMC-PAD off the reconnect scans must not trip this.
+            constexpr uint32_t kOfflineAfterMs = 10000;
             constexpr uint32_t kStreamPeriodMs = 100;      // 10 Hz (SDD §4.2)
             constexpr uint32_t kHeartbeatPeriodMs = 1000;
 

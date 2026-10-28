@@ -112,7 +112,13 @@ static bool connectStored() {
     p.itvl_max = 0x0028;
     p.latency = 0;
     p.supervision_timeout = 0x00C8;
-    int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &addr, 30000, &p,
+    // Short reconnect attempts with a half-duty connect scan: with the pad
+    // off this loop runs forever, and a 100%-duty 30 s procedure starves
+    // the link task past the DSP's panel-quiet timeout (DSP OFF, loads
+    // refused). The pad either answers in ~1 s or it is not there.
+    p.scan_itvl = 0x0020;
+    p.scan_window = 0x0010;
+    int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &addr, 3000, &p,
                              gap_event_cb, nullptr);
     if (rc == 0) {
         bt_connecting = true;
