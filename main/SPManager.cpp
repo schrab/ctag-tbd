@@ -75,6 +75,17 @@ namespace CTAG {
 
 // audio real-time task
 void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
+    // Flush FPU denormals (Xtensa FPU "non-standard mode": FTZ + DAZ).
+    // Without it, decaying filter states (e.g. Plaits/TBDaits MORPH) fall
+    // into denormal microcode and single blocks blow out to ~950 µs against
+    // a 725 µs budget — audible crackle. FCR is per-core; this task is
+    // pinned to core 1 where every render runs.
+    uint32_t fcrIn = 0, fcrOut = 0;
+    asm volatile("RUR.FCR %0" : "=r"(fcrIn));
+    fcrOut = fcrIn | (1u << 5);
+    asm volatile("WUR.FCR %0" :: "r"(fcrOut));
+    ESP_LOGI("SPM", "FPU FCR %#x -> %#x (NS=denormals flushed)", fcrIn, fcrOut);
+
     float fbuf[BUF_SZ * 2];
     float peakIn = 0.f;
     float peakL = 0.f, peakR = 0.f;
