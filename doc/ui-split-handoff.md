@@ -69,18 +69,25 @@ removed after the fix — re-add from git history (75445843) if needed.
   cache (getPlugins/getActivePlugin/getPluginParams/getPresets/
   getConfiguration/getIOCaps + setActivePlugin/setPluginParam/savePreset/
   loadPreset/setConfiguration mutations as link commands)
-- **P4 BLE stage** ✅ code-complete, **gated on chip revision**: the
-  BtMidiReceiver central port + NimBLE sdkconfig + scan/connect UI rows
-  are in, but the bench's C3 #2 is chip **rev 0.4** and IDF 5.5.4's
-  precompiled C3 BT controller requires rev 3 (ECO3 ROM BT helpers —
-  `r_lld_scan_try_sched` etc. unresolved / store-fault otherwise).
-  `BtMidiReceiver::Init` checks `esp_chip_info().revision >= 300` and
-  skips NimBLE on older silicon. A replacement C3 (current stock = rev 3+)
-  gets BLE automatically. Boot-order fix: the UI task starts BEFORE
-  WiFi/NimBLE (radio inits eat the heap); NimBLE buffers trimmed
-  (ACL 6×128, HCI 8/4, MSYS 6/8, MAX_CONN 1, MTU 128, coex enabled);
-  httpd max_uri_handlers=12. WiFi+BLE coex on C3 needs ~65KB internal
-  heap free at BT init.
+- **P4 BLE stage** ✅ **working** — NimBLE central with DEFAULT buffers
+  initializes fine on the bench C3 (chip rev v0.4 = revision number 4,
+  which HAS the ECO3 ROM — REV_MIN_3 = "v0.3" was always correct; the
+  earlier crash was RAM, not silicon: with the WiFi AP resident only
+  ~66KB internal heap remained at BT init, and NimBLE defaults need
+  ~90KB. **BLE-MIDI required, WiFi optional → NetRest::Start() is
+  commented out**; without WiFi there is 160KB free / 114KB contiguous
+  at BT init). Never trim NimBLE pool buffers aggressively — that is
+  espressif/esp-idf#15398's exact crash. BtMidiReceiver::Init still
+  skips chips with revision < 3 (pre-ECO3 ROM). Buttons: the state
+  machine is verbatim-A1S and fine, but the C3 thresholds are uncalibrated
+  guesses for the actual panel ladder — `/debug/getBtnAdc` returns the
+  averaged raw ADC1_CH0 value for calibration (idle = 4095).
+- **Panel hardware status updates**: the OLED is ALIVE (the "dead panel"
+  diagnosis was wrong — the fault was the DC-pin connection, now fixed);
+  intermittent C3 boot failures were the **GPIO8/9 strapping pins being
+  dragged by the encoder** — hardware 10k pull-ups to 3V3 are required
+  (bench rule 4, confirmed by the user: turning the encoder one step
+  changes whether the board boots).
 - **Docs** ✅ bench rules + hardware post-mortem — commit 88b468db
 
 ## What was verified from code

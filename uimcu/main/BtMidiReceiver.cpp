@@ -248,14 +248,14 @@ static void host_task(void *param) {
 }
 
 void BtMidiReceiver::Init() {
-    // The precompiled C3 BT controller needs chip revision 3 (ECO3 ROM BT
-    // helpers). Older boards (rev < 3.0, e.g. this bench's v0.4) fault in
-    // nimble_port_init — skip BLE there; TRS DIN stays the MIDI path. A
-    // rev-3+ board gets BLE automatically.
+    // The precompiled C3 BT controller needs the ECO3 ROM BT helpers
+    // (chip revision >= 3, i.e. v0.3+ — this bench's v0.4 qualifies).
+    // IDF 5.5.4 links esp32c3.rom.eco3*_bt_funcs.ld only when REV_MIN >= 3,
+    // so boards older than v0.3 cannot run BLE here; skip them cleanly.
     esp_chip_info_t ci;
     esp_chip_info(&ci);
-    if (ci.revision < 300) {
-        ESP_LOGW(TAG, "BLE-MIDI unavailable: chip rev %u < 3.0 (ECO3 required)",
+    if (ci.revision < 3) {
+        ESP_LOGW(TAG, "BLE-MIDI unavailable: chip rev %u < 3 (ECO3 ROM required)",
                  ci.revision);
         return;
     }

@@ -249,6 +249,8 @@ namespace CTAG {
                         else if (old == BTN_SW2 && newState == BTN_NONE) {
                             ev.type = (now - sw2PressTs >= pdMS_TO_TICKS(LONG_PRESS_MS))
                                 ? InputEvent::BTN1_LONG : InputEvent::BTN1_SHORT;
+                            ESP_LOGI(TAG, "BTN_B release %s adc=%d",
+                                     ev.type == InputEvent::BTN1_LONG ? "LONG" : "SHORT", adc);
                             xQueueSend(evQueue, &ev, 0);
                         }
                         // SW2 pressed (physical BACK / BTN_B)
@@ -270,6 +272,14 @@ namespace CTAG {
                     vTaskDelay(pdMS_TO_TICKS(POLL_MS));
                 }
             }
+        }
+
+        // Button-ladder calibration aid (bench channel reads this).
+        int UserInputDebugBtnAdc() {
+            int sum = 0;
+            for (int i = 0; i < 8; i++)
+                sum += adc1_get_raw(ADC1_CHANNEL_0);
+            return sum / 8;
         }
 
         void UserInput::Init() {

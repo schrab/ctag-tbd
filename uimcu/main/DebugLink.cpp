@@ -236,6 +236,14 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/getBtnAdc") {
+                // Button-ladder calibration aid: averaged raw ADC1_CH0
+                // (GPIO0). Press BTN_A / BTN_B / both in turn and read this.
+                extern int UserInputDebugBtnAdc();
+                response = string("{\"adc\":") + std::to_string(UserInputDebugBtnAdc()) + "}";
+                return true;
+            }
+
             if (s == "/debug/setLinkBaud") {
                 // Debug-only link UART retune, e.g.
                 // {"cmd":"/debug/setLinkBaud","value":460800} — baud sweep

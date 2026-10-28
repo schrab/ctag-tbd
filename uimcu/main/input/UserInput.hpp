@@ -30,6 +30,8 @@ respective component folders / files if different from this license.
 #pragma once
 #include <cstdint>
 
+int UserInputDebugBtnAdc();
+
 namespace CTAG {
     namespace CTRL {
         struct InputEvent {
