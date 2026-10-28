@@ -29,6 +29,7 @@ respective component folders / files if different from this license.
 #include "SPManager.hpp"
 #include "LinkEndpoint.hpp"
 #include "codec.hpp"
+#include "perf_monitor.hpp"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -181,6 +182,21 @@ namespace CTAG {
                 response = LinkEndpoint::SetBaud(d["value"].GetInt())
                                ? cmdEcho + ",\"ok\":1}"
                                : cmdEcho + ",\"error\":\"bad baud\"}";
+                return true;
+            }
+
+            if (s == "/debug/enablePerf") {
+                // Toggle the 5 s PERF logging task on demand. The always-on
+                // logger caused a periodic crackle; measurement now defaults
+                // to off. PERF sections still accumulate either way.
+                if (!d.HasMember("value") || !d["value"].IsInt()) {
+                    response = cmdEcho + ",\"error\":\"missing value\"}";
+                    return true;
+                }
+                CTAG::INSTRUMENTATION::PerfMonitor::EnableLogging(
+                    d["value"].GetInt() != 0, 5000, 1, 5);
+                response = cmdEcho + ",\"ok\":1,\"logging\":" +
+                           std::to_string(d["value"].GetInt() != 0 ? 1 : 0) + "}";
                 return true;
             }
 
