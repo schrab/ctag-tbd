@@ -32,14 +32,12 @@ respective component folders / files if different from this license.
 
 #include "Calibration.hpp"
 #include "codec.hpp"
-#include "UIMenu.hpp"
-#include "DebugUI.hpp"
 #include "LinkEndpoint.hpp"
 #include <vector>
 #include "SPManager.hpp"
 #include "ctagSPAllocator.hpp"
 
-#if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_BBA)
+#if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2)
     #include "Display.hpp"
     #include "UserInput.hpp"
 #endif
@@ -66,10 +64,12 @@ void app_main() {
     // init fs
     DRIVERS::FileSystem::InitFS();
 
-#if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_BBA)
+#if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2)
     DRIVERS::Display::Init();
     DRIVERS::Display::ShowFWVersion();
     vTaskDelay(2000 / portTICK_PERIOD_MS);
+#endif
+#if defined(CONFIG_TBD_PLATFORM_BBA)
     DRIVERS::FileSystem::InitSD(); // try SD card (fails silently if no card)
 #endif
 
@@ -78,7 +78,7 @@ void app_main() {
 #endif
 
     AUDIO::SoundProcessorManager::StartSoundProcessor();
-#if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_BBA)
+#if defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_MK2)
     CTRL::UIMenu::Init();
     xTaskCreatePinnedToCore(CTRL::UIMenu::TaskFunction, "ui_menu", 4096, nullptr, tskIDLE_PRIORITY + 3, nullptr, 0);
     // Enable GPIO button ISRs after audio init to avoid I2S MCLK spinlock deadlock
@@ -86,11 +86,10 @@ void app_main() {
     // Bring-up channel for OLED screenshots + synthetic button/encoder input
     // over the console UART. Shares UART0 with logging via the console VFS.
     CTRL::DebugUI::Start();
-    // Panel<->DSP link (doc/ui-split-sdd.md P3): takes over UART1 (the
-    // former MIDI DIN port) at 921600. Runs alongside the local UI until
-    // the P6 cutover removes it.
-    #ifdef CONFIG_TBD_PLATFORM_BBA
+#endif
+#if defined(CONFIG_TBD_PLATFORM_BBA)
+    // P6 cutover: the panel owns the UI — the DSP serves /link + /debug
+    // over the panel link only (doc/ui-split-sdd.md P6).
     CTRL::LinkEndpoint::Start();
-    #endif
 #endif
 }

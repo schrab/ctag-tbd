@@ -28,7 +28,6 @@ respective component folders / files if different from this license.
 #include "string.h"
 #include "codec.hpp"
 #include "InputSource.hpp"
-#include "Display.hpp"
 #include "esp_heap_caps.h"
 #include "network.hpp"
 #include "nvs_flash.h"
@@ -595,10 +594,6 @@ void SoundProcessorManager::updateConfiguration() {
     if (mixMode == "dac")    DRIVERS::Codec::SetMixerMode(0);
     else if (mixMode == "bypass") DRIVERS::Codec::SetMixerMode(1);
     else if (mixMode == "mix")    DRIVERS::Codec::SetMixerMode(2);
-
-    // OLED brightness
-    string oledBr = model->GetConfigurationData("oled_brightness");
-    if (!oledBr.empty()) DRIVERS::Display::Contrast(std::stoi(oledBr));
 }
 
 void SoundProcessorManager::KillAudioTask() {

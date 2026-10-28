@@ -81,23 +81,7 @@ void CTAG::FAV::Favorites::StartUI() {
         gpio_set_direction(PIN_PUSH_BTN, (gpio_mode_t)GPIO_MODE_DEF_INPUT);
         xTaskCreatePinnedToCore(&CTAG::FAV::Favorites::ui_task, "ui_task", 4096, nullptr, tskIDLE_PRIORITY + 3, &uiTaskHandle, 0);
 #elif CONFIG_TBD_PLATFORM_BBA
-        // uint16_t touch_value;
-        // touch_pad_init();
-        // touch_pad_config(TOUCH_PAD, 500);
-        // touch_pad_sw_start();
-        // std::vector<std::string> vs;
-        // vs.emplace_back("Touch sensor");
-        // vs.emplace_back("calibration:");
-        // vs.emplace_back("Do not touch!");
-        // DRIVERS::Display::ShowUserString(vs);
-        // vTaskDelay(2000/ portTICK_PERIOD_MS);
-        // for(int i=0;i<16;i++){
-        //     touch_pad_read_raw_data(TOUCH_PAD, &touch_value);
-        //     noTouch += touch_value;
-        // }
-        // noTouch /= 16;
-        gpio_set_direction(PIN_PUSH_BTN, (gpio_mode_t)GPIO_MODE_DEF_INPUT);
-        xTaskCreatePinnedToCore(&CTAG::FAV::Favorites::ui_task, "ui_task", 4096, nullptr, tskIDLE_PRIORITY + 3, &uiTaskHandle, 0);
+        // P6 cutover: the panel owns the UI — no favorites task on the DSP.
 #endif
     isUIEnabled = true;
 }
@@ -111,8 +95,8 @@ void CTAG::FAV::Favorites::DeactivateFavorite() {
     uiMenuState = CLEAR;
 }
 
-#if defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_BBA)
-// UI task menu state machine
+#if defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_AEM)
+// UI task menu state machine (BBA: the panel owns the UI — P6 cutover)
 [[noreturn]] void CTAG::FAV::Favorites::ui_task(void *pvParams) {
     int timer {0}; // btn event timer
     int timer2 {0}; // scroll timer

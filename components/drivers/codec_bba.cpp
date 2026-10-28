@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "codec_bba.hpp"
 
 #include <driver/i2s_std.h>
+#include <driver/gpio.h>
 #include "esp_log.h"
 #include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
@@ -43,6 +44,18 @@ aic3254 Codec::codec;
 
 void Codec::InitCodec() {
     ESP_LOGI("BBA Codec", "Starting i2s setup...");
+    // GPIO21 = amplifier enable on this board (P6 cutover note: the old
+    // display driver's I2C-SDA configuration used to select it as an
+    // output as a side effect — replicate that explicitly or the amp
+    // stays off). Output, driven high.
+    gpio_config_t amp = {};
+    amp.pin_bit_mask = 1ULL << 21;
+    amp.mode = GPIO_MODE_OUTPUT;
+    amp.pull_up_en = GPIO_PULLUP_DISABLE;
+    amp.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    amp.intr_type = GPIO_INTR_DISABLE;
+    gpio_config(&amp);
+    gpio_set_level(GPIO_NUM_21, 1);
     // Warm up PHY coex before I2S init — esp_read_mac triggers lazy PHY calibration
     // that must run outside the I2S DMA spinlock to avoid IWDG timeout
     uint8_t mac[6];

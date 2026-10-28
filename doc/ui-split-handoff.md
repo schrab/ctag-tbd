@@ -141,6 +141,25 @@ bonding; the bench pad runs STOCK firmware).
   (bench rule 4, confirmed by the user: turning the encoder one step
   changes whether the board boots).
 - **Docs** ✅ bench rules + hardware post-mortem — commit 88b468db
+- **P6 cutover** 🔨 **IN PROGRESS (this working tree, uncommitted→committed here)**:
+  - A1S DebugUI: the UART0 bench task is REMOVED; DebugUI::handleCommand
+    stays as the pure /debug dispatcher LinkEndpoint routes panel commands
+    to. UI-side commands (getUiState, framebuffer, injectEvent, getMixState)
+    are gone from the DSP — the C3's DebugLink owns those.
+  - A1S sources REMOVED from the BBA build (kept in the tree for MK2/AEM):
+    UIMenu, menupages (C3 is the single copy now), UserInput, Display.
+    components/drivers BBA: ssd1306.c/ssd1306_i2c.c/encoder.cpp out
+    (GPIO23 = link RX now; no local encoder).
+  - **GPIO21 = amplifier enable** (user: it enables the amp when selected
+    as output). The old Display I2C-SDA config enabled it as a side
+    effect; codec_bba InitCodec now configures GPIO21 as an output driven
+    high explicitly. VERIFY audibly on first boot.
+  - Favorites: the dead ui_task is now MK2/AEM-only (BBA branch of
+    StartUI is a no-op).
+  - main.cpp: BBA path = InitFS/InitSD → StartSoundProcessor →
+    LinkEndpoint::Start. No Display, no UIMenu, no DebugUI task.
+  - **WIP status**: builds clean through the CMake/UI fixes; the final
+    link + MIDI + DRAM validation on hardware is the next step.
 
 ## What was verified from code
 

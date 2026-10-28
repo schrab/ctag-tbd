@@ -20,7 +20,7 @@ if(CONFIG_BT_ENABLED)
 endif()
 
 idf_component_register(SRCS ${SRC_FILES}
-        INCLUDE_DIRS "." "menupages/"
+        INCLUDE_DIRS "."
         PRIV_REQUIRES ${MAIN_PRIV_REQUIRES})
 
 # Radio-free build: WiFi/REST and BLE MIDI are never initialized at runtime.

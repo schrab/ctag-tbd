@@ -25,30 +25,20 @@ respective component folders / files if different from this license.
 
 namespace CTAG {
     namespace CTRL {
-        // Bring-up/debug channel for the physical UI, independent of which
-        // product UI is configured (WIFI_UI or SERIAL_UI).
-        //
-        // Speaks the same STX/ETX JSON framing as SerialAPI on UART0, but goes
-        // through the console VFS (STDIN/STDOUT) instead of installing a UART
-        // driver. That matters: SerialAPI calls uart_driver_install(UART_NUM_0)
-        // which is why the Kconfig makes WIFI_UI and SERIAL_UI mutually
-        // exclusive — the console already owns that UART for logging. Using the
-        // VFS lets this coexist with ESP_LOG and the REST server.
-        //
-        // Commands (see bin/dev_ui.py for the host driver):
-        //   {"cmd":"/debug/getDisplayFramebuffer"}
-        //   {"cmd":"/debug/injectEvent","action":"ok"|"mod"|"back"|"enc",
-        //                  "delta":n,"count":n}
+        // P6 cutover: the DSP-side /debug/* DISPATCHER. The panel's DebugLink
+        // is the bench console now (and LinkEndpoint routes the panel's
+        // /debug commands here), so the old UART0 task is gone. Kept
+        // commands are the DSP-side set: getAudioStats, setActivePlugin,
+        // getPluginParams, setPluginParam, getConfig, setConfigValue,
+        // setElementsMode, setGrainCap/setHelperGrainCap, getCodecReg,
+        // setLinkBaud. UI-side commands (getUiState, framebuffer,
+        // injectEvent) live on the C3's DebugLink.
         class DebugUI final {
         public:
             DebugUI() = delete;
 
-            // Spawn the polling task. Safe to call once; no-op afterwards.
-            static void Start();
-
             // Execute one command document. Returns true if it was a /debug
-            // command, in which case `response` holds the reply. Shared with
-            // SerialAPI so there is only one implementation.
+            // command, in which case `response` holds the reply.
             static bool handleCommand(const std::string &doc, std::string &response);
         };
     }

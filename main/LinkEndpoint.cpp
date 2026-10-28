@@ -724,6 +724,16 @@ namespace CTAG {
                                 cmd.clear();
                             } else if (c == (char)kEtx) {
                                 if (receiving && cmd.size() <= kMaxDoc) {
+                                    // Frame-level probe (temporary): log the
+                                    // head of every completed frame so a
+                                    // missing command is distinguishable from
+                                    // a mis-parsed one.
+                                    static uint32_t frameCount = 0;
+                                    frameCount++;
+                                    if (frameCount <= 24 || (frameCount % 64) == 0)
+                                        ESP_LOGI(TAG, "frame #%u (%u B): %.24s",
+                                                 (unsigned) frameCount,
+                                                 (unsigned) cmd.size(), cmd.c_str());
                                     // Panel handshake?
                                     HelloReply hello = ParseHandshake(cmd.data(), cmd.size());
                                     if (hello.valid && !hello.isAck &&

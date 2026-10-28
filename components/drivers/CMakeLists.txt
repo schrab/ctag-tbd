@@ -10,7 +10,9 @@ elseif (CONFIG_TBD_PLATFORM_BBA)
         set(codec_src aic3254.cpp)
     endif()
 
-    idf_component_register(SRCS fs.cpp led_rgb_bba.cpp codec_bba.cpp ${codec_src} midiuart.cpp encoder.cpp ssd1306.c ssd1306_i2c.c
+    # P6 cutover: no OLED (panel owns the display), no local encoder —
+    # GPIO23 is the panel-link UART RX.
+    idf_component_register(SRCS fs.cpp led_rgb_bba.cpp codec_bba.cpp ${codec_src} midiuart.cpp
             INCLUDE_DIRS "."
             REQUIRES driver esp-dsp esp_driver_i2c
             PRIV_REQUIRES fatfs)
