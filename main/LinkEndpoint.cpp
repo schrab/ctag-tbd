@@ -481,9 +481,12 @@ namespace CTAG {
             void handleFsList(const Document &d) {
                 string path = "/sd";
                 if (d.HasMember("path") && d["path"].IsString()) path = d["path"].GetString();
-                // Reject anything escaping the SD tree.
+                // Reject anything escaping the SD tree. The reply echoes the
+                // request cmd: the panel completes a pending RequestFsList on
+                // it (empty listing); a link/error frame would only be logged.
                 if (path.rfind("/sd", 0) != 0) {
-                    sendStr(string("{\"cmd\":\"") + kMsgError + "\",\"what\":\"bad path\"}");
+                    sendStr(string("{\"cmd\":\"") + d["cmd"].GetString() +
+                            "\",\"what\":\"bad path\"}");
                     return;
                 }
                 // Build [["name",isDir],...] as escaped JSON.
@@ -648,7 +651,8 @@ namespace CTAG {
                         } else if (applyMarblesKey(k, d["v"].GetDouble())) {
                             response = "{\"ok\":1}";
                         } else {
-                            response = "{\"error\":\"unknown key\"}";
+                            response = "{\"cmd\":\"" + cmdName +
+                                       "\",\"error\":\"unknown key\"}";
                         }
                     } else {
                         response = "{\"error\":\"bad marblesSet\"}";
@@ -696,7 +700,8 @@ namespace CTAG {
                     return true;
                 }
 
-                response = "{\"error\":\"unknown link command\"}";
+                response = "{\"cmd\":\"" + cmdName +
+                           "\",\"error\":\"unknown link command\"}";
                 return true;
             }
 

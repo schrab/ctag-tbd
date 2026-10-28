@@ -82,11 +82,15 @@ namespace CTAG {
             string s(d["cmd"].GetString());
             if (s.rfind("/debug/", 0) != 0) return false; // not ours
 
+            // Every reply echoes the command: the panel's frame parser
+            // drops cmd-less frames.
+            const string cmdEcho = "{\"cmd\":\"" + s + "\"";
+
             if (s == "/debug/getAudioStats") {
                 // Audio-task stack high-water mark plus the most recent
                 // per-block CPU-overload flag. stackHighWater is the
                 // minimum-ever-free stack in bytes (0 before the task exists).
-                response = "{\"stackHighWater\":" +
+                response = cmdEcho + ",\"stackHighWater\":" +
                            to_string(AUDIO::SoundProcessorManager::GetAudioStackHighWaterBytes()) +
                            ",\"cpuOverload\":" +
                            to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0) +
@@ -130,22 +134,22 @@ namespace CTAG {
 
             if (s == "/debug/setGrainCap") {
                 if (!d.HasMember("value") || !d["value"].IsInt()) {
-                    response = "{\"error\":\"missing value\"}";
+                    response = cmdEcho + ",\"error\":\"missing value\"}";
                     return true;
                 }
                 const int old_cap = mbeads_debug_set_total_cap(d["value"].GetInt());
-                response = "{\"ok\":1,\"old\":" + to_string(old_cap) +
+                response = cmdEcho + ",\"ok\":1,\"old\":" + to_string(old_cap) +
                            ",\"cap\":" + to_string(mbeads_debug_get_total_cap()) + "}";
                 return true;
             }
 
             if (s == "/debug/setHelperGrainCap") {
                 if (!d.HasMember("value") || !d["value"].IsInt()) {
-                    response = "{\"error\":\"missing value\"}";
+                    response = cmdEcho + ",\"error\":\"missing value\"}";
                     return true;
                 }
                 const int old_cap = mbeads_debug_set_helper_cap(d["value"].GetInt());
-                response = "{\"ok\":1,\"old\":" + to_string(old_cap) +
+                response = cmdEcho + ",\"ok\":1,\"old\":" + to_string(old_cap) +
                            ",\"cap\":" + to_string(mbeads_debug_get_helper_cap()) + "}";
                 return true;
             }
@@ -157,11 +161,11 @@ namespace CTAG {
                 // is clamped to [12, 56] by the setter. Persists across plugin
                 // reloads so a measurement session survives setActivePlugin.
                 if (!d.HasMember("value") || !d["value"].IsInt()) {
-                    response = "{\"error\":\"missing value\"}";
+                    response = cmdEcho + ",\"error\":\"missing value\"}";
                     return true;
                 }
                 const int old_mode = elements_debug_set_mode_override(d["value"].GetInt());
-                response = "{\"ok\":1,\"old\":" + to_string(old_mode) +
+                response = cmdEcho + ",\"ok\":1,\"old\":" + to_string(old_mode) +
                            ",\"mode\":" + to_string(elements_debug_get_mode_override()) + "}";
                 return true;
             }
@@ -171,30 +175,30 @@ namespace CTAG {
                 // {"cmd":"/debug/setLinkBaud","value":460800} — baud sweep
                 // for the handshake hunt (LinkEndpoint owns UART1).
                 if (!d.HasMember("value") || !d["value"].IsInt()) {
-                    response = "{\"error\":\"missing value\"}";
+                    response = cmdEcho + ",\"error\":\"missing value\"}";
                     return true;
                 }
                 response = LinkEndpoint::SetBaud(d["value"].GetInt())
-                               ? "{\"ok\":1}"
-                               : "{\"error\":\"bad baud\"}";
+                               ? cmdEcho + ",\"ok\":1}"
+                               : cmdEcho + ",\"error\":\"bad baud\"}";
                 return true;
             }
 
             if (s == "/debug/setActivePlugin") {
                 // Debug-only deterministic plugin load for bring-up.
                 if (!d.HasMember("id") || !d["id"].IsString()) {
-                    response = "{\"error\":\"missing id\"}";
+                    response = cmdEcho + ",\"error\":\"missing id\"}";
                     return true;
                 }
                 int ch = 0;
                 if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
                 if (ch < 0 || ch > 1) {
-                    response = "{\"error\":\"bad channel\"}";
+                    response = cmdEcho + ",\"error\":\"bad channel\"}";
                     return true;
                 }
                 AUDIO::SoundProcessorManager::SetSoundProcessorChannel(
                     ch, d["id"].GetString());
-                response = "{\"ok\":1}";
+                response = cmdEcho + ",\"ok\":1}";
                 return true;
             }
 
@@ -205,12 +209,12 @@ namespace CTAG {
                 int ch = 0;
                 if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
                 if (ch < 0 || ch > 1) {
-                    response = "{\"error\":\"bad channel\"}";
+                    response = cmdEcho + ",\"error\":\"bad channel\"}";
                     return true;
                 }
                 const char *params =
                     AUDIO::SoundProcessorManager::GetCStrJSONActivePluginParams(ch);
-                response = "{\"ch\":" + to_string(ch) +
+                response = cmdEcho + ",\"ch\":" + to_string(ch) +
                            ",\"params\":" + (params ? params : "{}") + "}";
                 return true;
             }
@@ -221,18 +225,18 @@ namespace CTAG {
                 // reproducible CPU/audio sweeps without fighting the encoder.
                 if (!d.HasMember("id") || !d["id"].IsString() ||
                     !d.HasMember("value") || !d["value"].IsInt()) {
-                    response = "{\"error\":\"missing id/value\"}";
+                    response = cmdEcho + ",\"error\":\"missing id/value\"}";
                     return true;
                 }
                 int ch = 0;
                 if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
                 if (ch < 0 || ch > 1) {
-                    response = "{\"error\":\"bad channel\"}";
+                    response = cmdEcho + ",\"error\":\"bad channel\"}";
                     return true;
                 }
                 AUDIO::SoundProcessorManager::SetChannelParamValue(
                     ch, d["id"].GetString(), "current", d["value"].GetInt());
-                response = "{\"ok\":1}";
+                response = cmdEcho + ",\"ok\":1}";
                 return true;
             }
 
@@ -240,17 +244,17 @@ namespace CTAG {
                 // Single-register read: fast enough for a live diagnostic even
                 // when the I2C bus is busy (unlike the 53-register dump).
                 if (!d.HasMember("reg") || !d["reg"].IsInt()) {
-                    response = "{\"error\":\"missing reg\"}";
+                    response = cmdEcho + ",\"error\":\"missing reg\"}";
                     return true;
                 }
                 int reg = d["reg"].GetInt();
                 if (reg < 0 || reg > 0xFF) {
-                    response = "{\"error\":\"bad reg\"}";
+                    response = cmdEcho + ",\"error\":\"bad reg\"}";
                     return true;
                 }
                 uint8_t val = 0;
                 bool ok = DRIVERS::Codec::DebugReadReg(static_cast<uint8_t>(reg), val);
-                response = "{\"reg\":" + to_string(reg)
+                response = cmdEcho + ",\"reg\":" + to_string(reg)
                            + ",\"value\":" + to_string(val)
                            + ",\"ok\":" + (ok ? "1" : "0") + "}";
                 return true;
@@ -265,7 +269,7 @@ namespace CTAG {
                 StringBuffer escaped;
                 Writer<StringBuffer> writer(escaped);
                 writer.String(cfg ? cfg : "");
-                response = "{\"config\":" + string(escaped.GetString()) + "}";
+                response = cmdEcho + ",\"config\":" + string(escaped.GetString()) + "}";
                 return true;
             }
 
@@ -275,14 +279,14 @@ namespace CTAG {
                 // (e.g. input_source "line2") and check the migration path.
                 if (!d.HasMember("key") || !d["key"].IsString() ||
                     !d.HasMember("value") || !d["value"].IsString()) {
-                    response = "{\"error\":\"missing key/value\"}";
+                    response = cmdEcho + ",\"error\":\"missing key/value\"}";
                     return true;
                 }
                 const char *cfg = AUDIO::SoundProcessorManager::GetCStrJSONConfiguration();
                 Document cur;
                 cur.Parse(cfg ? cfg : "");
                 if (!cur.IsObject()) {
-                    response = "{\"error\":\"no config\"}";
+                    response = cmdEcho + ",\"error\":\"no config\"}";
                     return true;
                 }
                 const char *key = d["key"].GetString();
@@ -297,11 +301,11 @@ namespace CTAG {
                 Writer<StringBuffer> writer(buf);
                 cur.Accept(writer);
                 AUDIO::SoundProcessorManager::SetConfigurationFromJSON(buf.GetString());
-                response = "{\"ok\":1}";
+                response = cmdEcho + ",\"ok\":1}";
                 return true;
             }
 
-            response = "{\"error\":\"unknown debug command\"}";
+            response = cmdEcho + ",\"error\":\"unknown debug command\"}";
             return true;
         }
 
