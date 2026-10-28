@@ -82,6 +82,58 @@ removed after the fix — re-add from git history (75445843) if needed.
   machine is verbatim-A1S and fine, but the C3 thresholds are uncalibrated
   guesses for the actual panel ladder — `/debug/getBtnAdc` returns the
   averaged raw ADC1_CH0 value for calibration (idle = 4095).
+- **P4 end-to-end MIDI** ✅ **verified live (2026-10-29)** — SMC-PAD over
+  BLE: scan → connect (persistent peer, auto-reconnect) → subscribe →
+  notes/aftertouch byte-perfect into the DSP parser; CC learn captures.
+
+## MIDI over the panel link — the complete picture (2026-10-29)
+
+**Chain:** pad/keys → C3 (BLE via BtMidiReceiver, TRS DIN via MidiLink
+UART1 @31250) → `{"cmd":"/link/midiIn","d":[bytes]}` frames → A1S
+`Midi::FeedLinkBytes` → `Midi::Update()` (called from the link task every
+10 ms) → parser → `distribute.*` → midi CV/trig arrays → audio task
+(`pd.cv`/`pd.trig` = `Midi::GetCVTrig()`).
+
+**THE channel map (what the DSP listens to):**
+- **CH1** = global: CCs (the SMC-PAD's encoders send CC 30–45 here),
+  CC learn captures here. Global CC→CV/trigger tables in Midi.cpp.
+- **CH2** = Voice A: notes feed **A.NOTE/A_VELO** (+ A_PB, A_AT...).
+  **A.NOTE is fed by CH2 notes — pad notes on CH10 will NEVER drive it.**
+- **CH10–13** = percussion (`IS_PERCUSSION`): pad notes 36–51 map to
+  percussion velocity CVs (`noteToCVid_perc`: 36→A_SC6_75, 37→A_SC7_76,
+  ... 16 pads across the A/B/C bank SC slots) + percussion trigs.
+- Mapping guide: to pitch-track pad hits, map to the pad's percussion
+  velocity CV (or send pads on CH2); A.NOTE needs a CH2 source.
+- Aftertouch on CH10 arrives (0xD9); the SMC-PAD also emits M-VAVE SysEx
+  (F0 35 59 10...) — parser skips it.
+
+**Fixes that made it work (all in f06172bc/d75db269):**
+1. **The protocol bug — THE root cause:** kMsgMidiIn/kMsgMidiOut were
+   defined "link/midiIn" (no slash) while handleLinkCommand's gate drops
+   every command not starting with "/link/" — the A1S received the frames
+   by the dozen (frame probe proved it) and dropped every one. Names are
+   now "/link/midiIn" + "/link/midiOut".
+2. **BLE-MIDI decode:** the old parser treated every bit7-set byte as a
+   timestamp, eating MIDI status bytes (0x90/0xB0) — pad hits lost their
+   status. Now a state machine: timestamps only at message boundaries,
+   running-status override, real-time ≥0xF8 anywhere.
+3. **CCCD subscribe:** write_flat chose write-without-response and the
+   M-VAVE silently ignored it; now the 0x2902 descriptor is discovered
+   and written with a Write REQUEST, re-subscribed after pairing (CCCD
+   resets on encryption), and the pad's pairing (PASSKEY_ACTION) is
+   auto-accepted.
+4. **Persistence:** the last peer is stored in NVS, auto-reconnected at
+   boot and retried every 3 s; Disconnect forgets; 250 ms keepalive
+   writes keep the pad's stream alive (it starts notifying once the
+   client writes — the Ableton session does the same with LED data).
+5. The A1S's Midi::Flush no longer touches UART1 (it IS the link).
+
+**Debug helpers still flashed:** `/debug/setLinkBaud` (both ends),
+`/debug/getBtnAdc` (C3), plus rate-limited probes: `relay #`/`midiIn #`/
+`frame #`/`notify #` lines in both consoles — trim at the next cleanup.
+Reference repo: ~/Projects/open-smc-pad (the pad's own RE: stock pads =
+notes 36–51 on CH10, encoders CC 30–45 on CH1, just-works pairing with
+bonding; the bench pad runs STOCK firmware).
 - **Panel hardware status updates**: the OLED is ALIVE (the "dead panel"
   diagnosis was wrong — the fault was the DC-pin connection, now fixed);
   intermittent C3 boot failures were the **GPIO8/9 strapping pins being
