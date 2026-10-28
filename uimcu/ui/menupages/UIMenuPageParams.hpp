@@ -31,7 +31,8 @@ namespace CTAG {
             void init() override;
             void deinit() override;
             void doRedraw() override;
-            void onEncoder(int delta) override;
+            void onEncoder(int delta) override;      // left encoder: list scroll
+            void onValueEncoder(int delta) override; // right encoder: live value edit
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
             void onTick() override;
@@ -62,7 +63,7 @@ namespace CTAG {
                 int number;
             };
 
-            enum Mode { MODE_SELECT, MODE_GROUP, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_VALUEEDIT, MODE_MAPEDIT, MODE_PRESETS };
+            enum Mode { MODE_SELECT, MODE_GROUP, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_PRESETS };
             int cursor;
             int scrollOffset;
             Mode mode;

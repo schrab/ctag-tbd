@@ -32,6 +32,9 @@ namespace CTAG {
             virtual void deinit() = 0;
             virtual void doRedraw() = 0;
             virtual void onEncoder(int delta) {}
+            // Second (right-hand) encoder: live value edit for the item under
+            // the cursor. Default: the page has no value dimension.
+            virtual void onValueEncoder(int delta) {}
             virtual void onButton(int btnId, bool longPress) {}
             virtual bool onBack() { return false; } // true=handled, false=return to ROOT
             // Called from UIMenu::TaskFunction at ~4 Hz while PANEL_IN and the

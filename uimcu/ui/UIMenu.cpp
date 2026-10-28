@@ -161,8 +161,14 @@ namespace CTAG {
                                 redrawNeeded = true;
                             }
                         } else {
+                            // Two-encoder split (physical row under the OLED:
+                            // BACK, OK, then encoders left→right):
+                            // ENC_DELTA  = LEFT encoder  = list scroll
+                            // ENC2_DELTA = RIGHT encoder = live value edit
                             if (ev.type == InputEvent::ENC_DELTA) {
                                 pages[currentPanel]->onEncoder(ev.delta);
+                            } else if (ev.type == InputEvent::ENC2_DELTA) {
+                                pages[currentPanel]->onValueEncoder(ev.delta);
                             } else if (ev.type == InputEvent::BTN1_SHORT || ev.type == InputEvent::BTN1_LONG) {
                                 if (!pages[currentPanel]->onBack()) {
                                     navState = ROOT;

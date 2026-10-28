@@ -248,29 +248,6 @@ namespace CTAG {
                 if (mapPos < 0) mapPos = 0;
                 if (mapPos > sourceCount() - 1) mapPos = sourceCount() - 1;
                 mapLearnFull = false;
-            } else if (mode == MODE_VALUEEDIT) {
-                if (paramCount == 0 || cursor >= paramCount) return;
-                ParamInfo &pi = params[cursor];
-
-                // Encoder acceleration: build momentum on consecutive same-direction turns
-                uint32_t now = xTaskGetTickCount();
-                if (now - lastEncTick > pdMS_TO_TICKS(100)) encoderAccel = 0;
-                lastEncTick = now;
-
-                int dir = delta > 0 ? 1 : (delta < 0 ? -1 : 0);
-                if (dir != lastEncDir) encoderAccel = 0;
-                else if (encoderAccel < 10) encoderAccel++;
-                lastEncDir = dir;
-
-                int step = delta * (1 + encoderAccel * encoderAccel);
-                if (step > 50) step = 50;
-                if (step < -50) step = -50;
-
-                int val = pi.current + step;
-                if (val < pi.min) val = pi.min;
-                if (val > pi.max) val = pi.max;
-                pi.current = val;
-                DspProxy::SetChannelParamValue(chan, pi.id, "current", val);
             } else if (mode == MODE_PRESETS) {
                 if (presetCount == 0) return;
                 int newCursor = cursor + delta;
@@ -281,6 +258,37 @@ namespace CTAG {
                 // auto-scroll
                 ClampScroll(cursor, scrollOffset, presetCount, VISIBLE_ITEMS);
             }
+            doRedraw();
+        }
+
+        // Right encoder: live value edit for the param under the cursor
+        // (no confirm step — the change goes straight to the DSP). The
+        // momentary "play" param has no value dimension; pulse it via OK.
+        void UIMenuPageParams::onValueEncoder(int delta) {
+            if (mode != MODE_EDIT || paramCount == 0 || cursor >= paramCount) return;
+            ParamInfo &pi = params[cursor];
+            if (strcmp(pi.id, "play") == 0) return;
+
+            // Encoder acceleration: build momentum on consecutive same-direction turns
+            uint32_t now = xTaskGetTickCount();
+            if (now - lastEncTick > pdMS_TO_TICKS(100)) encoderAccel = 0;
+            lastEncTick = now;
+
+            int dir = delta > 0 ? 1 : (delta < 0 ? -1 : 0);
+            if (dir != lastEncDir) encoderAccel = 0;
+            else if (encoderAccel < 10) encoderAccel++;
+            lastEncDir = dir;
+
+            int step = delta * (1 + encoderAccel * encoderAccel);
+            if (step > 50) step = 50;
+            if (step < -50) step = -50;
+
+            int val = pi.current + step;
+            if (val < pi.min) val = pi.min;
+            if (val > pi.max) val = pi.max;
+            if (val == pi.current) return;
+            pi.current = val;
+            DspProxy::SetChannelParamValue(chan, pi.id, "current", val);
             doRedraw();
         }
 
@@ -323,26 +331,24 @@ namespace CTAG {
                     mode = MODE_EDIT;
                 }
             } else if (mode == MODE_EDIT) {
-                if (btnId == 2 && !longPress) {
-                    // Momentary trigger for "play" param: pulse instead of value edit.
-                    if (paramCount > 0 && cursor < paramCount &&
-                        strcmp(params[cursor].id, "play") == 0) {
+                if (btnId == 2 && paramCount > 0 && cursor < paramCount) {
+                    // Momentary trigger for "play" param: pulse instead of mapping.
+                    if (strcmp(params[cursor].id, "play") == 0) {
                         DspProxy::SetChannelParamValue(chan, "play", "current", 1);
                         doRedraw();
                         return;
                     }
-                    mode = MODE_VALUEEDIT;
-                    encoderAccel = 0;
-                    lastEncDir = 0;
-                } else if (btnId == 2 && longPress && paramCount > 0) {
-                    // long press: enter modulation mapping for this param
-                    mapParamIdx = cursor;
-                    mapIsCv = params[cursor].canCv || !params[cursor].canTrig;
-                    mapPos = sourcePosOf(mapIsCv ? params[cursor].cv : params[cursor].trig);
-                    if (mapPos < 0) mapPos = 0;
-                    mapLearning = false;
-                    mapLearnFull = false;
-                    mode = MODE_MAP;
+                    // OK = modulation mapping for mappable params (short or
+                    // long — the value dimension lives on the right encoder).
+                    if (params[cursor].canCv || params[cursor].canTrig) {
+                        mapParamIdx = cursor;
+                        mapIsCv = params[cursor].canCv || !params[cursor].canTrig;
+                        mapPos = sourcePosOf(mapIsCv ? params[cursor].cv : params[cursor].trig);
+                        if (mapPos < 0) mapPos = 0;
+                        mapLearning = false;
+                        mapLearnFull = false;
+                        mode = MODE_MAP;
+                    }
                 }
             } else if (mode == MODE_MAP) {
                 if (btnId == 2 && !longPress) {
@@ -374,11 +380,6 @@ namespace CTAG {
                         mode = MODE_EDIT;
                     }
                 }
-            } else if (mode == MODE_VALUEEDIT) {
-                if (btnId == 2 && !longPress) {
-                    mode = MODE_EDIT;
-                }
-                // BTN2_LONG / BTN1 handled by UIMenu/TaskFunction
             } else if (mode == MODE_PRESETS) {
                 if (btnId == 2 && !longPress) {
                     // load selected preset
@@ -401,11 +402,6 @@ namespace CTAG {
         }
 
         bool UIMenuPageParams::onBack() {
-            if (mode == MODE_VALUEEDIT) {
-                mode = MODE_EDIT;
-                doRedraw();
-                return true;
-            }
             if (mode == MODE_EDIT) {
                 if (currentGroup >= 0) {
                     mode = MODE_GROUP;
@@ -456,8 +452,6 @@ namespace CTAG {
                 redrawGroup();
             } else if (mode == MODE_EDIT) {
                 redrawEdit();
-            } else if (mode == MODE_VALUEEDIT) {
-                redrawEdit(); // same layout, cursor highlight acts as indicator
             } else if (mode == MODE_MAP) {
                 redrawMap();
             } else if (mode == MODE_PRESETS) {
@@ -550,7 +544,7 @@ namespace CTAG {
             int cursorY = ROW(paramIndexToScreen(cursor));
             Display::InvertRect(0, cursorY, 128, 8);
             if (hint) {
-                Display::DrawString(0, ROW(maxVisible), " hold param = map src", Display::FONT_5X7);
+                Display::DrawString(0, ROW(maxVisible), " OK = map source", Display::FONT_5X7);
             }
             if (count > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, count, cursor);
