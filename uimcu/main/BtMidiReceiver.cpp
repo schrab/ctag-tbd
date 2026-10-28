@@ -47,6 +47,7 @@ static int deviceCount = 0;
 static bool bt_connected = false;
 static bool bt_scanning = false;
 static bool bt_peer_probe = false;   // bounded reconnect probe scan in flight
+static bool bt_probe_connect = false; // probe hit seen; connect after teardown
 static uint16_t conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
 // Characteristic value handle for MIDI data (for notification subscription)
@@ -365,7 +366,10 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
             memcmp(disc.addr.val, storedBda, 6) == 0) {
             bt_peer_probe = false;
             ble_gap_disc_cancel();
-            connectStored();
+            // The disc teardown completes asynchronously (DISC_COMPLETE fires
+            // after this callback) — connecting here races it and the first
+            // attempt is rejected with BLE_HS_EBUSY. Defer one event.
+            bt_probe_connect = true;
             return 0;
         }
         if (bt_peer_probe) return 0;   // probe results stay out of the UI list
@@ -421,6 +425,11 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     }
     case BLE_GAP_EVENT_DISC_COMPLETE:
         bt_peer_probe = false;
+        if (bt_probe_connect) {
+            // Probe hit + scan teardown finished — now the connect lands.
+            bt_probe_connect = false;
+            connectStored();
+        }
         if (bt_scanning) {
             ESP_LOGI(TAG, "Scan complete, %d devices found", deviceCount);
             bt_scanning = false;

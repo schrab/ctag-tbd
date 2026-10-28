@@ -436,6 +436,16 @@ namespace CTAG::DRIVERS {
 
 void MarblesEngine_MaybeCaptureCC(uint8_t channel, uint8_t cc_num, uint8_t value) {
     if (!MarblesEngine::IsLearning()) return;
+    // Re-learning an already-bound CC reuses its slot instead of burning
+    // the next free one (the old "next CC also mapped" behavior).
+    for (int i = 0; i < 8; i++) {
+        if (MarblesEngine::GetDynamicSlotCC(i) == cc_num &&
+            MarblesEngine::GetDynamicSlotChan(i) == channel) {
+            lastLearnedSlot = DYN_SLOT_BASE + i;
+            MarblesEngine::StopLearn();
+            return;
+        }
+    }
     for (int i = 0; i < 8; i++) {
         if (MarblesEngine::GetDynamicSlotCC(i) == -1) {
             MarblesEngine::SetDynamicSlotCC(i, cc_num);

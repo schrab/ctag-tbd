@@ -73,6 +73,7 @@ namespace CTAG {
         }
 
         void UIMenuPageMod::deinit() {
+            if (DspProxy::IsLearning()) DspProxy::StopLearn();
             if (dirty) { DspProxy::SaveConfig(); dirty = false; }
         }
 

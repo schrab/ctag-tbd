@@ -647,6 +647,7 @@ namespace CTAG {
                     if (d.HasMember("k") && d["k"].IsString() && d.HasMember("v") &&
                         (d["v"].IsNumber())) {
                         string k(d["k"].GetString());
+                        ESP_LOGI(TAG, "marblesSet %s=%g", k.c_str(), d["v"].GetDouble());
                         if (k == "_save") {
                             MarblesEngine::SaveConfig();
                             response = "{\"ok\":1}";

@@ -78,9 +78,19 @@ namespace CTAG {
             }
 
             void sendFrame(const char *p, size_t len) {
-                uart_write_bytes(kUart, "\x02", 1);
-                uart_write_bytes(kUart, p, len);
-                uart_write_bytes(kUart, "\x03", 1);
+                // One uart_write_bytes per frame: the previous three-part
+                // write could interleave between the UI, midi and link tasks
+                // and silently corrupt frames (a lost marblesSet learn=1 made
+                // CC learn flaky with no trace on either console).
+                static SemaphoreHandle_t txMux = xSemaphoreCreateMutex();
+                static char frame[768];
+                if (len > sizeof(frame) - 2) return;
+                if (xSemaphoreTake(txMux, pdMS_TO_TICKS(50)) != pdTRUE) return;
+                frame[0] = 0x02;
+                memcpy(frame + 1, p, len);
+                frame[len + 1] = 0x03;
+                uart_write_bytes(kUart, frame, len + 2);
+                xSemaphoreGive(txMux);
             }
 
             void linkTask(void *) {

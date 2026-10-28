@@ -102,6 +102,9 @@ namespace CTAG {
         }
 
         void UIMenuPageParams::deinit() {
+            // A learn left armed would capture the next pad CC into a
+            // phantom slot long after this page is gone.
+            if (mapLearning) { DspProxy::StopLearn(); mapLearning = false; }
             if (params) { free(params); params = nullptr; }
             if (groups) { free(groups); groups = nullptr; }
         }
