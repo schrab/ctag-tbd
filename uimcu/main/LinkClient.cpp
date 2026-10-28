@@ -65,6 +65,14 @@ namespace CTAG {
             uint32_t fsWaitingSeq = 0;
             string fsResult;
 
+            // Pending /debug round trip (only one at a time; the debug task
+            // is the only caller and it is host-paced). No seq correlation:
+            // the DSP's reply echoes the cmd, not the seq — one-shot slot,
+            // and a reply with nothing pending is dropped silently.
+            SemaphoreHandle_t dbgDone = nullptr;
+            volatile bool dbgWaiting = false;
+            string dbgResult;
+
             uint32_t nowMs() {
                 return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
             }
@@ -173,6 +181,7 @@ namespace CTAG {
             ESP_ERROR_CHECK(uart_driver_install(kUart, kRxRing, kTxRing, 0, nullptr, 0));
 
             fsDone = xSemaphoreCreateBinary();
+            dbgDone = xSemaphoreCreateBinary();
 
             if (xTaskCreate(linkTask, "link_cli", 8192, nullptr,
                             tskIDLE_PRIORITY + 2, &hLinkTask) != pdPASS) {
@@ -216,6 +225,34 @@ namespace CTAG {
                 fsResult = entriesJson ? entriesJson : "";
                 fsWaiting = false;
                 xSemaphoreGive(fsDone);
+            }
+        }
+
+        // Synchronous /debug round trip for the bench channel (the wait
+        // happens on the debug task, never here on the link task). Mirrors
+        // RequestFsList.
+        bool LinkClient::RequestDebug(const string &payload, string &reply,
+                                      int timeoutMs) {
+            if (!s_online) return false;
+            dbgResult.clear();
+            dbgWaiting = true;
+            xSemaphoreTake(dbgDone, 0); // drain a stale token
+            sendFrame(payload.data(), payload.size());
+
+            if (xSemaphoreTake(dbgDone, pdMS_TO_TICKS(timeoutMs)) != pdTRUE) {
+                dbgWaiting = false;
+                return false;
+            }
+            reply = dbgResult;
+            return true;
+        }
+
+        // Called by DspProxy::OnLinkFrame when a /debug reply arrives.
+        void LinkClient_NotifyDebug(const char *payload, size_t len) {
+            if (dbgWaiting) {
+                if (payload) dbgResult.assign(payload, len);
+                dbgWaiting = false;
+                xSemaphoreGive(dbgDone);
             }
         }
     }

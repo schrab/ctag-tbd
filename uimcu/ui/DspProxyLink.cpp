@@ -323,6 +323,13 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 if (d.HasMember("what") && d["what"].IsString()) {
                     ESP_LOGW(TAG, "DSP error: %s", d["what"].GetString());
                 }
+            } else if (strncmp(cmd, "/debug/", 7) == 0) {
+                // A reply to a bench /debug command forwarded through
+                // LinkClient::RequestDebug. Hand over the raw frame text;
+                // dropped silently when nothing is pending (these can also
+                // arrive unsolicited).
+                extern void LinkClient_NotifyDebug(const char *payload, size_t len);
+                LinkClient_NotifyDebug(payload, len);
             }
         }
 

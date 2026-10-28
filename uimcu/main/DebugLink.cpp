@@ -29,6 +29,11 @@ respective component folders / files if different from this license.
 //   {"cmd":"/debug/setActivePlugin","ch":0,"id":"..."}   (stub state)
 //   {"cmd":"/debug/getProxyState"}                        (DspProxy stub dump)
 //
+// Forwarding: any other /debug/* command is sent verbatim to the DSP over
+// the link (LinkClient::RequestDebug, the FsList round-trip pattern) and its
+// reply is relayed verbatim. If the link is down or the DSP does not answer
+// within 2 s: {"cmd":"<cmd>","error":"dsp offline"|"timeout"}.
+//
 // Transport: the usb_serial_jtag DRIVER (own ISR + ring buffers), not the
 // console VFS. The VFS path proved unreliable on the bench: replies only
 // flowed while the boot-log burst kept the wire busy, then stalled to a
@@ -284,7 +289,21 @@ namespace CTAG {
                 return true;
             }
 
-            response = "{\"error\":\"unknown debug command\"}";
+            // Not a C3-local command: forward the raw request text to the
+            // DSP over the link and relay its reply verbatim (the wait
+            // happens here on the debug task, never on the link task). The
+            // public dispatcher still splices the host's "seq" into
+            // whatever comes back.
+            if (!DspProxy::IsOnline()) {
+                response = string("{\"cmd\":\"") + s + "\",\"error\":\"dsp offline\"}";
+                return true;
+            }
+            string reply;
+            if (LinkClient::RequestDebug(doc, reply)) {
+                response = reply;
+            } else {
+                response = string("{\"cmd\":\"") + s + "\",\"error\":\"timeout\"}";
+            }
             return true;
         }
 

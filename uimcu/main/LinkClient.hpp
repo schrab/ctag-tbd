@@ -25,9 +25,10 @@ respective component folders / files if different from this license.
 // A1S DebugUI owns UART0 there.
 //
 // Duties: version handshake (retry every second until the DSP answers),
-// heartbeat, offline watchdog, framed TX for DspProxy commands, and the one
-// synchronous round trip the pages need (SD directory listings). Every
-// complete frame is handed to DspProxy::OnLinkFrame, which owns the cache.
+// heartbeat, offline watchdog, framed TX for DspProxy commands, and the
+// synchronous round trips (SD directory listings for the pages, forwarded
+// /debug bench commands for DebugLink). Every complete frame is handed to
+// DspProxy::OnLinkFrame, which owns the cache.
 
 #pragma once
 
@@ -54,6 +55,13 @@ namespace CTAG {
             // timeout / offline.
             static bool RequestFsList(const char *path, std::string &entries,
                                       int timeoutMs = 400);
+            // Synchronous /debug round trip for the bench channel: sends
+            // `payload` verbatim and completes when DspProxy::OnLinkFrame
+            // sees the DSP's /debug reply (LinkClient_NotifyDebug). On
+            // success `reply` holds the raw reply text. Returns false on
+            // timeout / offline.
+            static bool RequestDebug(const std::string &payload,
+                                     std::string &reply, int timeoutMs = 2000);
         };
     }
 }
