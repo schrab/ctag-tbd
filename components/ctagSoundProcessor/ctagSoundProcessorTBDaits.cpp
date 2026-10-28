@@ -31,6 +31,14 @@ void ctagSoundProcessorTBDaits::Init(std::size_t blockSize, void *blockPtr) {
     model = std::make_unique<ctagSPDataModel>(id, isStereo);
     LoadPreset(0);
 
+    // TBDaits is stereo and displaces Mbeads, so the logger cannot be
+    // enabled by loading Mbeads alongside — enable it here instead.
+    static bool perf_enabled = false;
+    if (!perf_enabled) {
+        CTAG::INSTRUMENTATION::PerfMonitor::EnableLogging(true, 5000, 1, 5);
+        perf_enabled = true;
+    }
+
     assert(blockSize >= 16384);
     shared_buffer = (char *) blockPtr;
 
