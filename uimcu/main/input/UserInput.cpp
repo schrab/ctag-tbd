@@ -52,9 +52,11 @@ namespace CTAG {
         namespace {
             QueueHandle_t evQueue = nullptr;
 
-            // ---- encoder hardware map (SDD §2.1) ----
-            constexpr gpio_num_t ENC1_A = GPIO_NUM_8;
-            constexpr gpio_num_t ENC1_B = GPIO_NUM_9;
+            // ---- encoder hardware map (E1 remapped off strap pins 8/9:
+            // a detent shorted both low → invalid boot strap; E1 now owns
+            // the freed BTN-ADC pin GPIO0 + OLED-DC's old GPIO3) ----
+            constexpr gpio_num_t ENC1_A = GPIO_NUM_0;
+            constexpr gpio_num_t ENC1_B = GPIO_NUM_3;
             constexpr gpio_num_t ENC2_A = GPIO_NUM_4;
             constexpr gpio_num_t ENC2_B = GPIO_NUM_5;
 
@@ -195,7 +197,7 @@ namespace CTAG {
                     // read ADC buttons with 4-sample averaging
                     int sum = 0;
                     for (int i = 0; i < 4; i++) {
-                        sum += adc1_get_raw(ADC1_CHANNEL_0);
+                        sum += adc1_get_raw(ADC1_CHANNEL_1);
                     }
                     int adc = sum / 4;
                     BtnADCState newState = readADCState(currentADCState, adc);
@@ -278,7 +280,7 @@ namespace CTAG {
         int UserInputDebugBtnAdc() {
             int sum = 0;
             for (int i = 0; i < 8; i++)
-                sum += adc1_get_raw(ADC1_CHANNEL_0);
+                sum += adc1_get_raw(ADC1_CHANNEL_1);
             return sum / 8;
         }
 
@@ -290,13 +292,14 @@ namespace CTAG {
             encoderInit(enc1);
             encoderInit(enc2);
 
-            // Configure ADC1 channel 0 (GPIO0) for button sensing. The weak
+            // Configure ADC1 channel 1 (GPIO1, remapped from GPIO0 — that
+            // pin went to encoder E1) for button sensing. The weak
             // internal pull-up idles the pin at BTN_NONE when nothing is
             // wired (a bare board floats otherwise and the ADC state machine
             // emits garbage button events); the wired ladder overdrives it.
             adc1_config_width(ADC_WIDTH_BIT_12);
-            adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
-            gpio_pullup_en(GPIO_NUM_0);
+            adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_11);
+            gpio_pullup_en(GPIO_NUM_1);
 
             if (xTaskCreate(inputTask, "input_task", 2048, nullptr, tskIDLE_PRIORITY + 3, nullptr) != pdPASS) {
                 ESP_LOGE(TAG, "could not create input task");

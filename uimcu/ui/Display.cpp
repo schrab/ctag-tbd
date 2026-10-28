@@ -52,7 +52,7 @@ using namespace CTAG::DRIVERS;
 #define OLED_SCK_GPIO 6
 #define OLED_MOSI_GPIO 7
 #define OLED_CS_GPIO 2
-#define OLED_DC_GPIO 3
+#define OLED_DC_GPIO 8 // remapped from 3: GPIO8 was a strap pin hosting encoder E1
 
 // 10 MHz start (SDD §2.1: 10–20 MHz); raise to 20 after the wiring is proven.
 // 1 MHz bring-up clock: long jumper wires corrupt 10 MHz SPI — raise
@@ -232,12 +232,12 @@ void Display::BenchPins(int cs, int dc) {
 }
 
 void Display::BenchScan(int mode) {
-    // 0: SCK=6 MOSI=7 CS=2 DC=3 (as documented)
+    // 0: SCK=6 MOSI=7 CS=2 DC=8 (as documented)
     // 1: SDA/SCLK swapped, 2: CS/DC swapped, 3: both swapped
-    int sck = 6, mosi = 7, cs = 2, dc = 3;
+    int sck = 6, mosi = 7, cs = 2, dc = 8;
     if (mode == 1) { sck = 7; mosi = 6; }
-    else if (mode == 2) { cs = 3; dc = 2; }
-    else if (mode == 3) { sck = 7; mosi = 6; cs = 3; dc = 2; }
+    else if (mode == 2) { cs = 8; dc = 2; }
+    else if (mode == 3) { sck = 7; mosi = 6; cs = 8; dc = 2; }
     bbPanelInit(sck, mosi, cs, dc);
 }
 

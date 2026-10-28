@@ -24,9 +24,9 @@ respective component folders / files if different from this license.
 // primitives and fonts are shared with the A1S copy; only Init/Flush/
 // Sleep/Wake/Contrast touch hardware.
 //
-// Wiring (SDD §2.1): SCK=GPIO6, MOSI=GPIO7, CS=GPIO2, DC=GPIO3, RST tied
-// to 3V3 through an RC. Verify against the physical board revision before
-// bring-up.
+// Wiring (SDD §2.1, DC remapped): SCK=GPIO6, MOSI=GPIO7, CS=GPIO2,
+// DC=GPIO8, RST tied to 3V3 through an RC. Verify against the physical
+// board revision before bring-up.
 
 #pragma once
 

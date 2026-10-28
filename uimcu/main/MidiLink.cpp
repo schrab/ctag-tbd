@@ -33,9 +33,11 @@ namespace CTAG {
         namespace {
             constexpr uart_port_t kUart = UART_NUM_1;
             constexpr int kMidiBaud = 31250;
-            // TRS jacks (RP-054 Type A): TX=GPIO1 (OUT), RX=GPIO10 (IN,
+            // TRS jacks (RP-054 Type A): TX=GPIO9 (OUT; remapped from 1 —
+            // GPIO9 is a strap pin, and an idle-high UART TX reads it high
+            // at reset; GPIO1 went to the button ladder), RX=GPIO10 (IN,
             // through the opto). UART pins are fully matrixed on the C3.
-            constexpr int kPinTx = 1;
+            constexpr int kPinTx = 9;
             constexpr int kPinRx = 10;
             constexpr size_t kRxRing = 1024;
             constexpr size_t kTxRing = 512;

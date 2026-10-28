@@ -98,14 +98,23 @@ Design: `doc/ui-split-sdd.md` §4/§5/§8 (P3), §11 (bench channels).
 
 | Function | Pins | Notes |
 |---|---|---|
-| OLED SSD1309 SPI | SCK=6, MOSI=7 (panel SDA), CS=2, DC=3 | RST tied 3V3 via RC. Canonical pins. The 2.42" SSD1309 module used during bring-up died (reversed-power casualty: erratic → stuck row → all-white at power-on) and its I²C-jumper state corrupted the early pin evidence — bench diagnostics (`/debug/displayScan`, `/debug/displayPins`, `/debug/displayCmd`, `/debug/displayReinit`) are kept for any future panel |
-| Encoder E1 (value) | A=8, B=9 | **strapping pins**: external pull-ups, never hold at reset |
+| OLED SSD1309 SPI | SCK=6, MOSI=7 (panel SDA), CS=2, **DC=8** | RST tied 3V3 via RC. **Panel is working** (an early "dead panel" diagnosis was wrong — the fault was the DC-pin connection). DC remapped 3→8 in the strap fix; CS=2 is strap-safe (display input + ROM pull-up) |
+| Encoder E1 (value) | **A=0, B=3** | **remapped off strap pins 8/9** (2026-10-28): a detent shorted both low → invalid boot strap → no boot until the encoder was turned; the blue LED (GPIO8, active-low) lit in the failing positions. Pull-ups cannot fix a closed contact to GND — moving the pins is the only fix |
 | Encoder E2 (panel) | A=4, B=5 | |
-| BTN_A + BTN_B | GPIO0 (ADC1_CH0) | resistor ladder mirroring the A1S BTN design; calibrate thresholds in `main/input/UserInput.cpp` |
+| BTN_A + BTN_B | GPIO1 (ADC1_CH1) | resistor ladder mirroring the A1S BTN design; calibrated 2026-10-28 (idle 4095, A ~877, B ~415, both ~280) |
 | Link to A1S | RX=20, TX=21 | **C3-side pins** (UART0, 921600 8N1) — C3 TX lands on A1S **GPIO23** (not GPIO19!), see Link wiring below |
 | TRS MIDI IN | TIP→opto→GPIO10 | UART1 RX, 31250 — wire now; firmware reads it from P4 |
-| TRS MIDI OUT | GPIO1→TIP | UART1 TX, 31250 — same, P4 |
+| TRS MIDI OUT | GPIO9→TIP | UART1 TX, 31250 — remapped 1→9 (strap pin vacated by E1; idle-high TX is strap-safe) |
 | USB | GPIO18/19 | console + flashing |
+
+**Pin-budget truth:** the Super Mini has **zero spare GPIOs** with the
+current peripheral set (0=enc1 A, 1=BTN ADC, 2=OLED CS, 3=enc1 B, 4/5=enc2,
+6/7=OLED SPI, **8=OLED DC, 9=TRS OUT — both strap-safe as C3 outputs
+(high-Z + ROM pull-up at reset reads 1)**, 10=TRS IN, 18/19=USB, 20/21=link;
+11–17 are the embedded flash). The 2026-10-28 remap freed the strap pins
+for good: encoder channels (C→GND wiring actively pulls low) must never
+land on strap pins 2/8/9. Consult this table BEFORE proposing any pin
+change.
 
 ## TRS MIDI jacks (P4 hardware — wire now, firmware follows)
 

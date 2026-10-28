@@ -220,7 +220,7 @@ namespace CTAG {
 
             if (s == "/debug/displayPins") {
                 int cs = d.HasMember("cs") && d["cs"].IsInt() ? d["cs"].GetInt() : 2;
-                int dc = d.HasMember("dc") && d["dc"].IsInt() ? d["dc"].GetInt() : 3;
+                int dc = d.HasMember("dc") && d["dc"].IsInt() ? d["dc"].GetInt() : 8;
                 if (cs < 0 || cs > 21 || dc < 0 || dc > 21) {
                     response = "{\"error\":\"bad pins\"}";
                     return true;
