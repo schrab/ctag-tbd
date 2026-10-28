@@ -62,6 +62,9 @@ namespace CTAG {
                 };
 
                 while (true) {
+                    // P4: persistent BLE peer — retry the stored device
+                    // while idle (no-op once connected or scanning).
+                    BtMidiReceiver::TickReconnect();
                     // P4: BLE-MIDI relay (the central receiver runs here;
                     // the DSP-side BLE flag gates the drain).
                     if (DspProxy::IsMidiBleEnabled()) {

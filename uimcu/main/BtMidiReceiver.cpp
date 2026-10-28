@@ -8,6 +8,9 @@ Licensed under GPL 3.0.
 #include "esp_log.h"
 #include "esp_chip_info.h"
 #include "nvs_flash.h"
+#include "nvs.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_heap_caps.h"
 
 #include "nimble/nimble_port.h"
@@ -51,6 +54,75 @@ static uint32_t discLogCount = 0;
 // Characteristic value handle for MIDI data (for notification subscription)
 static uint16_t midi_val_handle = 0;
 
+// Persistent peer (last successfully connected device): stored in NVS on
+// connect, restored at host sync, retried from TickReconnect() until the
+// peer answers. Explicit Disconnect() forgets it.
+static int gap_event_cb(struct ble_gap_event *event, void *arg);  // fwd
+static bool storedValid = false;
+static uint8_t storedType = 0;
+static uint8_t storedBda[6];
+static bool bt_connecting = false;
+
+static void storePeer(uint8_t type, const uint8_t *bda) {
+    nvs_handle_t h;
+    if (nvs_open("btmidi", NVS_READWRITE, &h) != ESP_OK) return;
+    nvs_set_u8(h, "atype", type);
+    nvs_set_blob(h, "bda", bda, 6);
+    nvs_commit(h);
+    nvs_close(h);
+    storedType = type;
+    memcpy(storedBda, bda, 6);
+    storedValid = true;
+}
+
+static void loadPeer() {
+    nvs_handle_t h;
+    if (nvs_open("btmidi", NVS_READONLY, &h) != ESP_OK) return;
+    uint8_t type = 0;
+    size_t sz = sizeof(storedBda);
+    if (nvs_get_u8(h, "atype", &type) == ESP_OK &&
+        nvs_get_blob(h, "bda", storedBda, &sz) == ESP_OK) {
+        storedType = type;
+        storedValid = true;
+    }
+    nvs_close(h);
+}
+
+static void forgetPeer() {
+    storedValid = false;
+    nvs_handle_t h;
+    if (nvs_open("btmidi", NVS_READWRITE, &h) == ESP_OK) {
+        nvs_erase_key(h, "atype");
+        nvs_erase_key(h, "bda");
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
+
+static bool connectStored() {
+    if (!storedValid || bt_connected || bt_connecting) return false;
+    ble_addr_t addr;
+    addr.type = storedType;
+    memcpy(addr.val, storedBda, 6);
+    struct ble_gap_conn_params p;
+    memset(&p, 0, sizeof(p));
+    p.scan_itvl = 0x0010;
+    p.scan_window = 0x0010;
+    p.itvl_min = 0x0018;
+    p.itvl_max = 0x0028;
+    p.latency = 0;
+    p.supervision_timeout = 0x00C8;
+    int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &addr, 30000, &p,
+                             gap_event_cb, nullptr);
+    if (rc == 0) {
+        bt_connecting = true;
+        ESP_LOGI(TAG, "auto-reconnect to stored BLE peer...");
+    } else {
+        ESP_LOGW(TAG, "auto-reconnect rejected: %d", rc);
+    }
+    return rc == 0;
+}
+
 static void ring_write(const uint8_t *data, int len) {
     for (int i = 0; i < len; i++) {
         int next = (ring_wr + 1) & (BT_MIDI_RING_SZ - 1);
@@ -70,21 +142,46 @@ static int ring_read(uint8_t *buf, int max) {
 }
 
 // Parse Apple BLE-MIDI notification data.
-// Format: [ts_high | 0x80] [ts_low] [MIDI bytes…]
-// Multiple groups can appear in one notification.
-// We skip the 2-byte timestamp headers and write raw MIDI bytes.
+// Packet: [ts-hi|0x80][ts-lo] then MIDI messages, each optionally preceded
+// by its own 2-byte timestamp. Status bytes ALSO have bit7 set, so the
+// decoder tracks message position: at a message boundary a bit7-set byte
+// is a timestamp (skipped with its low byte); mid-message it is a status
+// (running-status override). System real-time bytes (>= 0xF8) are single
+// bytes valid anywhere. Data bytes pass through — the Midi parser on the
+// DSP handles running status across packets.
 static void parse_ble_midi_notify(const uint8_t *data, int len) {
     int i = 0;
+    if (len >= 2 && (data[0] & 0x80)) i = 2;   // leading packet timestamp
+    int expected = 0;                          // data bytes left in current msg
+    bool expectStatus = true;                  // next bit7-set byte is a status
     while (i < len) {
-        if ((data[i] & 0x80) && i + 2 <= len) {
-            // Timestamp header: skip 2 bytes
-            i += 2;
-        } else {
-            // Raw MIDI byte
-            int start = i;
-            while (i < len && !(data[i] & 0x80)) i++;
-            ring_write(data + start, i - start);
+        uint8_t b = data[i];
+        if ((b & 0x80) == 0) {                 // data byte
+            ring_write(&b, 1);
+            if (expected > 0) expected--;
+            i++;
+            continue;
         }
+        if (b >= 0xF8) {                       // system real-time: 1 byte anywhere
+            ring_write(&b, 1);
+            i++;
+            continue;
+        }
+        if (expectStatus) {                    // message status byte
+            ring_write(&b, 1);
+            expected = (b == 0xC0 || b == 0xD0) ? 1 : 2;
+            expectStatus = false;
+            i++;
+            continue;
+        }
+        if (expected > 0) {                    // status override mid-message
+            ring_write(&b, 1);
+            expected = (b == 0xC0 || b == 0xD0) ? 1 : 2;
+            i++;
+            continue;
+        }
+        i += 2;                                // message complete: timestamp
+        expectStatus = true;
     }
 }
 
@@ -155,12 +252,18 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         if (event->connect.status == 0) {
             conn_handle = event->connect.conn_handle;
             bt_connected = true;
+            bt_connecting = false;
             bt_scanning = false;
             ESP_LOGI(TAG, "Connected, discovering services");
+            // Remember the peer for persistent reconnection.
+            struct ble_gap_conn_desc desc;
+            if (ble_gap_conn_find(event->connect.conn_handle, &desc) == 0)
+                storePeer(desc.peer_id_addr.type, desc.peer_id_addr.val);
             ble_gattc_disc_all_svcs(conn_handle, on_svc_discovered, nullptr);
         } else {
             ESP_LOGE(TAG, "Connection failed: %d", event->connect.status);
             bt_connected = false;
+            bt_connecting = false;   // TickReconnect() will retry
         }
         return 0;
     }
@@ -168,6 +271,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         ESP_LOGI(TAG, "Disconnected");
         conn_handle = BLE_HS_CONN_HANDLE_NONE;
         bt_connected = false;
+        bt_connecting = false;       // stored peer (if any) auto-reconnects
         midi_val_handle = 0;
         return 0;
     case BLE_GAP_EVENT_DISC: {
@@ -253,6 +357,9 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
 
 static void on_sync(void) {
     ESP_LOGI(TAG, "NimBLE host synced with controller");
+    // Restore the persistent peer as soon as the host is ready.
+    loadPeer();
+    if (storedValid) connectStored();
 }
 
 static void host_task(void *param) {
@@ -292,6 +399,17 @@ void BtMidiReceiver::Init() {
 
 void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
     *len = (uint32_t)ring_read(buf, BT_MIDI_RING_SZ);
+}
+
+// Called from the midi relay task (~10 ms cadence): retry the stored peer
+// every 3 s while nothing is connected. User-initiated scans pause it.
+void BtMidiReceiver::TickReconnect() {
+    static uint32_t lastTry = 0;
+    if (!storedValid || bt_connected || bt_connecting || bt_scanning) return;
+    uint32_t now = xTaskGetTickCount();
+    if (now - lastTry < pdMS_TO_TICKS(3000)) return;
+    lastTry = now;
+    connectStored();
 }
 
 bool BtMidiReceiver::IsConnected() { return bt_connected; }
@@ -358,5 +476,6 @@ void BtMidiReceiver::Connect(int idx) {
 
 void BtMidiReceiver::Disconnect() {
     if (!bt_connected) return;
+    forgetPeer();   // explicit disconnect = forget the peer
     ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }

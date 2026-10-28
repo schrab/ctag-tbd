@@ -35,6 +35,8 @@ class BtMidiReceiver {
 public:
     static void Init();
     static void Read(uint8_t *buf, uint32_t *len);
+    // Retry a stored peer every ~3 s while idle (call from a periodic task).
+    static void TickReconnect();
     static int GetDeviceCount();
     static const BtDeviceInfo* GetDevice(int idx);
     static void Connect(int idx);
