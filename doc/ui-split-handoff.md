@@ -52,8 +52,15 @@ Never reinstate blind connect attempts to an absent peer.
   Elements-class ±1.0 overdrive → codec clamp — check TBDaits output
   scale) or voice-active overload; a static audit of the model-switch
   path was dispatched but its report is still outstanding.
-- Crash forensics live in uimcu/tools/a1s_*.log / *_text.txt and
-  crash_watch.log (untracked bench artifacts).
+- **The "dsp reboot" crashes: ROOT CAUSE FOUND AND FIXED (005cc172)** —
+  the static audit spotted that `SoundProcessorManager::SetChannelParamValue`
+  dereferenced `sp[chan]` unguarded; for a STEREO plugin on ch0 (TBDaits
+  is stereo) `sp[1]` is nullptr, so a stale/mismatched `ch=1` param edit
+  was a guaranteed LoadProhibited panic on the link task → DSP
+  panic-reboots (audio stops) → the shared-power rail dips and the panel
+  reboots with it. Guarded now (+ defensive model clamp); reflashed and
+  awaiting hardware confirmation with the exact repro. The crackle
+  itself is a separate, still-open issue (see above).
 
 
 ## RESOLVED: the link works (2026-10-28)
