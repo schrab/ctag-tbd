@@ -476,9 +476,10 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
 
 static void on_sync(void) {
     ESP_LOGI(TAG, "NimBLE host synced with controller");
-    // Restore the persistent peer as soon as the host is ready.
+    // Restore the persistent peer as soon as the host is ready, but do NOT
+    // blind-connect here: with the pad off that is one more connect into
+    // the void (TickReconnect's probe handles the reconnection).
     loadPeer();
-    if (storedValid) connectStored();
 }
 
 static void host_task(void *param) {
