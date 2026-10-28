@@ -690,13 +690,6 @@ namespace CTAG {
                             if (arr[i].IsInt())
                                 bytes[n++] = (uint8_t) (arr[i].GetInt() & 0xFF);
                         if (n) {
-                            static uint32_t inPkts = 0;   // relay probe (temporary)
-                            inPkts++;
-                            if (inPkts <= 10 || (inPkts % 32) == 0)
-                                ESP_LOGI(TAG, "midiIn #%u (%u B): %02x %02x %02x %02x",
-                                         (unsigned) inPkts, (unsigned) n,
-                                         bytes[0], n > 1 ? bytes[1] : 0,
-                                         n > 2 ? bytes[2] : 0, n > 3 ? bytes[3] : 0);
                             Midi::FeedLinkBytes(bytes, n);
                         }
                     }
@@ -730,16 +723,6 @@ namespace CTAG {
                                 cmd.clear();
                             } else if (c == (char)kEtx) {
                                 if (receiving && cmd.size() <= kMaxDoc) {
-                                    // Frame-level probe (temporary): log the
-                                    // head of every completed frame so a
-                                    // missing command is distinguishable from
-                                    // a mis-parsed one.
-                                    static uint32_t frameCount = 0;
-                                    frameCount++;
-                                    if (frameCount <= 24 || (frameCount % 64) == 0)
-                                        ESP_LOGI(TAG, "frame #%u (%u B): %.24s",
-                                                 (unsigned) frameCount,
-                                                 (unsigned) cmd.size(), cmd.c_str());
                                     // Panel handshake?
                                     HelloReply hello = ParseHandshake(cmd.data(), cmd.size());
                                     if (hello.valid && !hello.isAck &&

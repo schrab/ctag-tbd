@@ -52,13 +52,6 @@ namespace CTAG {
                 char frame[64 + 8 * kBatchMax];
                 auto relay = [&frame](const uint8_t *bytes, size_t n) {
                     if (n == 0 || !LinkClient::IsOnline()) return;
-                    static uint32_t pkts = 0;   // relay probe (temporary)
-                    pkts++;
-                    if (pkts <= 10 || (pkts % 32) == 0)
-                        ESP_LOGI(TAG, "relay #%u (%u B): %02x %02x %02x %02x",
-                                 (unsigned) pkts, (unsigned) n,
-                                 bytes[0], n > 1 ? bytes[1] : 0,
-                                 n > 2 ? bytes[2] : 0, n > 3 ? bytes[3] : 0);
                     int used = snprintf(frame, sizeof(frame),
                                         "{\"cmd\":\"%s\",\"d\":[", kMsgMidiIn);
                     for (size_t i = 0; i < n && used < (int) sizeof(frame) - 8; i++)

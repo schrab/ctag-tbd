@@ -48,9 +48,6 @@ static bool bt_connected = false;
 static bool bt_scanning = false;
 static uint16_t conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
-// Scan-health probe counters (re-armed per StartScan)
-static uint32_t discLogCount = 0;
-
 // Characteristic value handle for MIDI data (for notification subscription)
 static uint16_t midi_val_handle = 0;
 static uint16_t midiSvcEnd = 0;        // end handle of the MIDI service (dsc scan)
@@ -199,11 +196,6 @@ static int on_dsc_discovered(uint16_t conn,
                              const struct ble_gatt_dsc *dsc,
                              void *arg);
 
-// ATT-level result of the CCCD write (rc from ble_gattc_write only means
-// the procedure started — the pad can still reject the write itself).
-static int midi_read_cb(uint16_t conn, const struct ble_gatt_error *error,
-                        struct ble_gatt_attr *attr, void *arg);
-
 static int cccd_write_cb(uint16_t conn, const struct ble_gatt_error *error,
                          struct ble_gatt_attr *attr, void *arg) {
     if (error && error->status != 0) {
@@ -211,11 +203,6 @@ static int cccd_write_cb(uint16_t conn, const struct ble_gatt_error *error,
     } else {
         midi_cccd_written = true;
         ESP_LOGI(TAG, "CCCD write accepted — notifications enabled");
-        // Connected-state RX discriminator: an ATT READ over this same
-        // connection. Response arrives -> RX path is fine and the pad
-        // simply is not notifying; timeout -> connected RX is broken.
-        int rc = ble_gattc_read(conn, midi_val_handle, midi_read_cb, nullptr);
-        ESP_LOGI(TAG, "midi chr read started rc=%d", rc);
         // The SMC-PAD may only start its notification stream after the
         // client writes to it (the Ableton script paces LED writes
         // constantly). Poke it with a BLE-MIDI keepalive packet.
@@ -223,23 +210,6 @@ static int cccd_write_cb(uint16_t conn, const struct ble_gatt_error *error,
         int wrc = ble_gattc_write_flat(conn, midi_val_handle, ka, sizeof(ka),
                                        nullptr, nullptr);
         ESP_LOGI(TAG, "keepalive write rc=%d", wrc);
-    }
-    return 0;
-}
-
-static int midi_read_cb(uint16_t conn, const struct ble_gatt_error *error,
-                        struct ble_gatt_attr *attr, void *arg) {
-    if (error && error->status != 0) {
-        ESP_LOGE(TAG, "midi chr read FAILED: %d", error->status);
-    } else if (attr != nullptr && attr->om != nullptr) {
-        uint8_t buf[12] = {0};
-        uint16_t n = OS_MBUF_PKTLEN(attr->om);
-        if (n > sizeof(buf)) n = sizeof(buf);
-        os_mbuf_copydata(attr->om, 0, n, buf);
-        char hex[40] = {0};
-        for (uint16_t i = 0; i < n && (i * 3) < (int) sizeof(hex) - 3; i++)
-            snprintf(hex + i * 3, 4, "%02x ", buf[i]);
-        ESP_LOGI(TAG, "midi chr read resp: %u B: %s", (unsigned) n, hex);
     }
     return 0;
 }
@@ -378,16 +348,6 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         return 0;
     case BLE_GAP_EVENT_DISC: {
         const struct ble_gap_disc_desc &disc = event->disc;
-        // Scan-health probe: log the first advertisements after a scan
-        // starts so "no devices found" can be split into "radio hears
-        // nothing" vs "parser/filter drops them". Counters live at file
-        // scope and re-arm in StartScan().
-        if (bt_scanning && discLogCount < 5) {
-            discLogCount++;
-            ESP_LOGI(TAG, "disc #%u rssi=%d addr_type=%d evt=%d len=%u",
-                     discLogCount, (int) disc.rssi, (int) disc.addr.type,
-                     (int) disc.event_type, (unsigned) disc.length_data);
-        }
         // Manually parse AD data for device name (type 0x08=short, 0x09=complete)
         char nameBuf[32];
         const char *advName = nullptr;
@@ -445,13 +405,6 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     case BLE_GAP_EVENT_NOTIFY_RX: {
         const struct os_mbuf *om = event->notify_rx.om;
         if (om && om->om_len > 0) {
-            // Subscription-health probe: prove notifications arrive (and
-            // from which attribute handle) or expose a dead subscribe.
-            static uint32_t notifyCount = 0;
-            notifyCount++;
-            if (notifyCount <= 5 || (notifyCount % 32) == 0)
-                ESP_LOGI(TAG, "notify #%u %d B (attr %u)", (unsigned) notifyCount,
-                         om->om_len, event->notify_rx.attr_handle);
             parse_ble_midi_notify(om->om_data, om->om_len);
         }
         return 0;
@@ -583,7 +536,6 @@ void BtMidiReceiver::StartScan() {
     bt_connecting = false;
     bt_scanning = true;
     deviceCount = 0;
-    discLogCount = 0;
     struct ble_gap_disc_params params = {
         .itvl = 0,
         .window = 0,
