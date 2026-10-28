@@ -415,12 +415,16 @@ int MarblesEngine::GetDynamicSlotCC(int slot_idx) {
 
 void MarblesEngine::SetDynamicSlotCC(int slot_idx, int cc) {
     if (slot_idx < 0 || slot_idx >= 8) return;
+    if (cc < -1) cc = -1;   // -1 = unassigned slot
+    if (cc > 127) cc = 127;
     dynCC[slot_idx] = cc;
     ESP_LOGI(TAG, "Dynamic slot %d -> CC %d", slot_idx, cc);
 }
 
 void MarblesEngine::SetDynamicSlotChan(int slot_idx, int chan) {
     if (slot_idx < 0 || slot_idx >= 8) return;
+    if (chan < 0) chan = 0;
+    if (chan > 15) chan = 15;
     dynChan[slot_idx] = chan;
 }
 

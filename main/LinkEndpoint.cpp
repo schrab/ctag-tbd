@@ -467,6 +467,12 @@ namespace CTAG {
                 else if (k == "xs2") MarblesEngine::SetXSlot(2, iv);
                 else if (k == "ys") MarblesEngine::SetYSlot(iv);
                 else if (k == "learn") { if (bv) MarblesEngine::StartLearn(); else MarblesEngine::StopLearn(); }
+                // Dynamic CC-slot keys — must mirror pushMarbles()'s
+                // cc<i>/cch<i> push keys; the panel's CC-slot editor sends them.
+                else if (k.size() == 3 && k.compare(0, 2, "cc") == 0 && k[2] >= '0' && k[2] <= '7')
+                    MarblesEngine::SetDynamicSlotCC(k[2] - '0', iv);
+                else if (k.size() == 4 && k.compare(0, 3, "cch") == 0 && k[3] >= '0' && k[3] <= '7')
+                    MarblesEngine::SetDynamicSlotChan(k[3] - '0', iv);
                 else return false;
                 return true;
             }
