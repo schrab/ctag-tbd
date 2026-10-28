@@ -143,10 +143,13 @@ constexpr const char *kMsgStream = "link/stream";
 constexpr const char *kMsgFsList  = "link/fsList";
 constexpr const char *kMsgFsState = "link/fsState";
 
-// MIDI transport: raw MIDI bytes as hex arrays. midiIn is panel → DSP
-// (DIN in + BLE), midiOut is DSP → panel (DIN out forwarding).
-constexpr const char *kMsgMidiIn  = "link/midiIn";
-constexpr const char *kMsgMidiOut = "link/midiOut";
+// MIDI transport: raw MIDI bytes as arrays of byte values. midiIn is
+// panel → DSP (DIN in + BLE), midiOut is DSP → panel (DIN out forwarding).
+// NOTE: these are COMMANDS served by the panel-link dispatcher — they MUST
+// carry the "/link/" prefix or handleLinkCommand's gate drops them
+// (that exact bug made BLE-MIDI dead on arrival for a whole session).
+constexpr const char *kMsgMidiIn  = "/link/midiIn";
+constexpr const char *kMsgMidiOut = "/link/midiOut";
 
 // Panel → DSP product commands (thin DspProxy wrappers, SDD §4.1). Served
 // by the same dispatcher as the "/debug/..." set.
