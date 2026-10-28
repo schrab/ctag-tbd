@@ -44,10 +44,11 @@ aic3254 Codec::codec;
 
 void Codec::InitCodec() {
     ESP_LOGI("BBA Codec", "Starting i2s setup...");
-    // GPIO21 = amplifier enable on this board (P6 cutover note: the old
-    // display driver's I2C-SDA configuration used to select it as an
-    // output as a side effect — replicate that explicitly or the amp
-    // stays off). Output, driven high.
+    // GPIO21 = amplifier enable on this board. Drive it LOW here; it follows
+    // the configured output source in SetOutputSource() (amp/all = high).
+    // Pinning it high unconditionally enabled the amp even for headphone
+    // output, and the powered LOUT1 amp path loaded the DAC — global
+    // distortion on every plugin until output_source was switched to hp.
     gpio_config_t amp = {};
     amp.pin_bit_mask = 1ULL << 21;
     amp.mode = GPIO_MODE_OUTPUT;
@@ -55,7 +56,7 @@ void Codec::InitCodec() {
     amp.pull_down_en = GPIO_PULLDOWN_DISABLE;
     amp.intr_type = GPIO_INTR_DISABLE;
     gpio_config(&amp);
-    gpio_set_level(GPIO_NUM_21, 1);
+    gpio_set_level(GPIO_NUM_21, 0);
     // Warm up PHY coex before I2S init — esp_read_mac triggers lazy PHY calibration
     // that must run outside the I2S DMA spinlock to avoid IWDG timeout
     uint8_t mac[6];
@@ -147,6 +148,9 @@ void Codec::SetOutputSource(int sel) {
     // LOUT1/ROUT1. Map the UI names to the datasheet output pairs.
     static const outsel_t map[] = {OUT2, OUT1, OUTALL};
     if (sel >= 0 && sel <= 2) codec.outputSelect(map[sel]);
+    // The speaker amp chip follows the selection: enabled only when the
+    // output actually includes LOUT1 (amp/all).
+    gpio_set_level(GPIO_NUM_21, sel >= 1 ? 1 : 0);
 #endif
 }
 
