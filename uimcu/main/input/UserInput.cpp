@@ -124,31 +124,31 @@ namespace CTAG {
 
             BtnADCState currentADCState = BTN_NONE;
 
-            // Thresholds mirror the A1S BTN ladder (3.3 V, 12-bit ADC):
-            // none > 2600, BTN_A(SW1) < 600, both < 950, BTN_B(SW2) < 1540.
-            // Re-calibrate against the actual panel resistors when wired.
+            // Thresholds measured 2026-10-28 on the panel ladder via
+            // /debug/getBtnAdc: idle 4095, BTN_A ~877, BTN_B ~415, both
+            // ~280 (stable within ±10 counts). Hysteresis windows per
+            // state; SW1=BTN_A(OK/MOD), SW2=BTN_B(BACK).
             BtnADCState readADCState(BtnADCState prev, int adc) {
                 switch (prev) {
                     case BTN_NONE:
-                        if (adc < 600) return BTN_SW1;
-                        if (adc < 950) return BTN_BOTH;
-                        if (adc < 1540) return BTN_SW2;
-                        if (adc < 2600) return BTN_SW1;
+                        if (adc < 350) return BTN_BOTH;
+                        if (adc < 650) return BTN_SW2;
+                        if (adc < 1500) return BTN_SW1;
                         return BTN_NONE;
                     case BTN_SW1:
-                        if (adc > 2600) return BTN_NONE;
-                        if (adc < 950) return BTN_BOTH;
-                        if (adc < 1540) return BTN_SW2;
+                        if (adc > 2000) return BTN_NONE;
+                        if (adc < 350) return BTN_BOTH;
+                        if (adc < 650) return BTN_SW2;
                         return BTN_SW1;
                     case BTN_SW2:
-                        if (adc > 1700) return BTN_NONE;
-                        if (adc < 600) return BTN_SW1;
-                        if (adc < 950) return BTN_BOTH;
+                        if (adc > 2000) return BTN_NONE;
+                        if (adc < 350) return BTN_BOTH;
+                        if (adc > 700) return BTN_SW1;
                         return BTN_SW2;
                     case BTN_BOTH:
-                        if (adc > 2600) return BTN_NONE;
-                        if (adc > 1500) return BTN_SW1;
-                        if (adc > 988) return BTN_SW2;
+                        if (adc > 2000) return BTN_NONE;
+                        if (adc > 550) return BTN_SW1;
+                        if (adc > 350) return BTN_SW2;
                         return BTN_BOTH;
                 }
                 return BTN_NONE;
