@@ -133,6 +133,14 @@ namespace CTAG {
             doRedraw();
         }
 
+        // Right encoder reaches the embedded system page (its live value
+        // edit); the other Home subpages have no value dimension.
+        void UIMenuPageHome::onValueEncoder(int delta) {
+            if (subPage == SP_SYSTEM) {
+                systemPage->onValueEncoder(delta);
+            }
+        }
+
         void UIMenuPageHome::onButton(int btnId, bool longPress) {
             if (subPage == SP_SYSTEM) {
                 systemPage->onButton(btnId, longPress);

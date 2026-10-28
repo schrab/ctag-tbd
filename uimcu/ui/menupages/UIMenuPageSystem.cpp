@@ -50,7 +50,6 @@ namespace CTAG {
             cursor = 0;
             scrollOffset = 0;
             itemCount = 0;
-            editMode = false;
             dirty = false;
             parseConfig();
         }
@@ -303,7 +302,7 @@ namespace CTAG {
             }
 
             // Only the two codec level items preview live. Everything else is
-            // committed once when editing ends: applying a full config rewrites
+            // committed once on OK / page leave: applying a full config rewrites
             // the model to SPIFFS while the audio mutex is held, which mutes the
             // DSP and blocks the UI for the duration of the flash write.
             for (int i = 0; i < itemCount; i++) {
@@ -361,71 +360,64 @@ namespace CTAG {
         }
 
         void UIMenuPageSystem::onEncoder(int delta) {
-            if (editMode) {
-                if (itemCount == 0 || cursor >= itemCount) return;
-                ConfigItem &it = items[cursor];
-                int step = 1;
-                if (strcmp(it.type, "int") == 0 && (it.max - it.min) > 20) {
-                    step = max(1, (it.max - it.min) / 16);
-                }
-                const int oldVal = it.valInt;
-                it.valInt += delta * step;
-                if (it.valInt < it.min) it.valInt = it.min;
-                if (it.valInt > it.max) it.valInt = it.max;
-                if (it.valInt != oldVal) dirty = true;
-                // update value string
-                if (strcmp(it.type, "int") == 0) {
-                    snprintf(it.value, sizeof(it.value), "%d", it.valInt);
-                } else {
-                    char optCopy[64];
-                    snprintf(optCopy, sizeof(optCopy), "%s", it.options);
-                    char *p = strtok(optCopy, ",");
-                    int idx = it.valInt;
-                    while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
-                    snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
-                }
-                // Levels preview live; all other items wait for OK/BACK. Never
-                // apply the full config here -- that persists to SPIFFS while
-                // holding the audio mutex and stalls both UI and DSP.
-                if (!it.deferred) previewCodecLevels();
-            } else {
-                int nc = cursor + delta;
-                if (nc < 0) nc = 0;
-                if (nc >= itemCount) nc = itemCount - 1;
-                cursor = nc;
-                ClampScroll(cursor, scrollOffset, itemCount, VISIBLE_ITEMS);
+            int nc = cursor + delta;
+            if (nc < 0) nc = 0;
+            if (nc >= itemCount) nc = itemCount - 1;
+            cursor = nc;
+            ClampScroll(cursor, scrollOffset, itemCount, VISIBLE_ITEMS);
+            doRedraw();
+        }
+
+        // Right encoder: live value edit for the item under the cursor (no
+        // edit mode, no confirm — deinit() commits a staged edit when the
+        // page is left, OK commits earlier on request).
+        void UIMenuPageSystem::onValueEncoder(int delta) {
+            if (itemCount == 0 || cursor >= itemCount) return;
+            ConfigItem &it = items[cursor];
+            int step = 1;
+            if (strcmp(it.type, "int") == 0 && (it.max - it.min) > 20) {
+                step = max(1, (it.max - it.min) / 16);
             }
+            const int oldVal = it.valInt;
+            it.valInt += delta * step;
+            if (it.valInt < it.min) it.valInt = it.min;
+            if (it.valInt > it.max) it.valInt = it.max;
+            if (it.valInt != oldVal) dirty = true;
+            // update value string
+            if (strcmp(it.type, "int") == 0) {
+                snprintf(it.value, sizeof(it.value), "%d", it.valInt);
+            } else {
+                char optCopy[64];
+                snprintf(optCopy, sizeof(optCopy), "%s", it.options);
+                char *p = strtok(optCopy, ",");
+                int idx = it.valInt;
+                while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
+                snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
+            }
+            // Levels preview live; all other items wait for OK/BACK. Never
+            // apply the full config here -- that persists to SPIFFS while
+            // holding the audio mutex and stalls both UI and DSP.
+            if (!it.deferred) previewCodecLevels();
             doRedraw();
         }
 
         void UIMenuPageSystem::onButton(int btnId, bool longPress) {
             if (btnId == 2 && !longPress && itemCount > 0) {
-                bool wasEditing = editMode;
-                editMode = !editMode;
-                if (wasEditing) {
+                // No edit mode: OK just commits any staged edit now (leaving
+                // the page via BACK/panel switch commits through deinit()).
+                if (dirty) {
                     if (cursor < itemCount) {
                         const ConfigItem &it = items[cursor];
                         ESP_LOGI("SYS", "OK apply: id=%s valInt=%d val=%s", it.id, it.valInt, it.value);
                     }
-                    if (dirty) {
-                        applyCurrent();
-                        dirty = false;
-                    }
+                    applyCurrent();
+                    dirty = false;
                 }
             }
             doRedraw();
         }
 
         bool UIMenuPageSystem::onBack() {
-            if (editMode) {
-                editMode = false;
-                if (dirty) {
-                    applyCurrent();
-                    dirty = false;
-                }
-                doRedraw();
-                return true;
-            }
             return false;
         }
 
@@ -449,11 +441,7 @@ namespace CTAG {
                 Display::DrawStringRight(127, y, it.value, Display::FONT_5X7);
             }
             int cy = ROW(cursor - scrollOffset);
-            if (editMode) {
-                Display::InvertRect(104, cy, 24, 8);
-            } else {
-                Display::InvertRect(0, cy, 128, 8);
-            }
+            Display::InvertRect(0, cy, 128, 8);
             if (itemCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, itemCount, cursor);
             Display::Flush();

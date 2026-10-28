@@ -90,6 +90,10 @@ namespace CTAG {
             bool mapLearnFull;   // all 8 dynamic CC slots taken
             uint32_t mapHintUntil = 0;  // ticks: show "hold param=map" hint
 
+            // MODE_EDIT list filter set by the MAP menu entries: parseParams()
+            // then lists only params that already carry a modulation mapping.
+            bool onlyMapped = false;
+
             int chan;
             bool hasDualCh;
             int encoderAccel = 0;

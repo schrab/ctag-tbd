@@ -90,6 +90,7 @@ namespace CTAG {
             mapLearning = false;
             mapLearnFull = false;
             mapHintUntil = 0;
+            onlyMapped = false;
             presetCount = 0;
             presetChan = 0;
             chan = 0;
@@ -124,6 +125,9 @@ namespace CTAG {
                 const Value &p = arr[i];
                 if (!p.HasMember("id") || !p.HasMember("name") || !p.HasMember("type")) continue;
                 if (strcmp(p["type"].GetString(), "group") == 0) continue;
+                int cv = p.HasMember("cv") ? p["cv"].GetInt() : -1;
+                int trig = p.HasMember("trig") ? p["trig"].GetInt() : -1;
+                if (onlyMapped && cv < 0 && trig < 0) continue;
                 ParamInfo &pi = params[paramCount];
                 snprintf(pi.id, sizeof(pi.id), "%s", p["id"].GetString());
                 snprintf(pi.name, sizeof(pi.name), "%s", p["name"].GetString());
@@ -131,8 +135,8 @@ namespace CTAG {
                 pi.min = p.HasMember("min") ? p["min"].GetInt() : 0;
                 pi.max = p.HasMember("max") ? p["max"].GetInt() : 1;
                 pi.current = p.HasMember("current") ? p["current"].GetInt() : 0;
-                pi.cv = p.HasMember("cv") ? p["cv"].GetInt() : -1;
-                pi.trig = p.HasMember("trig") ? p["trig"].GetInt() : -1;
+                pi.cv = cv;
+                pi.trig = trig;
                 pi.canCv = p.HasMember("cv");
                 pi.canTrig = p.HasMember("trig");
                 paramCount++;
@@ -161,6 +165,9 @@ namespace CTAG {
                 for (SizeType j = 0; j < garr.Size() && paramCount < MAX_PARAMS; j++) {
                     const Value &leaf = garr[j];
                     if (!leaf.HasMember("id") || !leaf.HasMember("name") || !leaf.HasMember("type")) continue;
+                    int cv = leaf.HasMember("cv") ? leaf["cv"].GetInt() : -1;
+                    int trig = leaf.HasMember("trig") ? leaf["trig"].GetInt() : -1;
+                    if (onlyMapped && cv < 0 && trig < 0) continue;
                     ParamInfo &pi = params[paramCount];
                     snprintf(pi.id, sizeof(pi.id), "%s", leaf["id"].GetString());
                     snprintf(pi.name, sizeof(pi.name), "%s", leaf["name"].GetString());
@@ -168,15 +175,19 @@ namespace CTAG {
                     pi.min = leaf.HasMember("min") ? leaf["min"].GetInt() : 0;
                     pi.max = leaf.HasMember("max") ? leaf["max"].GetInt() : 1;
                     pi.current = leaf.HasMember("current") ? leaf["current"].GetInt() : 0;
-                    pi.cv = leaf.HasMember("cv") ? leaf["cv"].GetInt() : -1;
-                    pi.trig = leaf.HasMember("trig") ? leaf["trig"].GetInt() : -1;
+                    pi.cv = cv;
+                    pi.trig = trig;
                     pi.canCv = leaf.HasMember("cv");
                     pi.canTrig = leaf.HasMember("trig");
                     paramCount++;
                     count++;
                 }
-                g.paramCount = count;
-                groupCount++;
+                // A group whose leaves were all filtered out is not offered
+                // (an empty MODE_EDIT entry would have no rows to cursor).
+                if (count > 0) {
+                    g.paramCount = count;
+                    groupCount++;
+                }
             }
         }
 
@@ -279,7 +290,11 @@ namespace CTAG {
             else if (encoderAccel < 10) encoderAccel++;
             lastEncDir = dir;
 
-            int step = delta * (1 + encoderAccel * encoderAccel);
+            // Acceleration only for wide-range params: on a 0..23 selector
+            // the x(1+accel^2) curve made one detent jump 2+ models.
+            const int range = pi.max - pi.min;
+            const int accelMul = range <= 31 ? 1 : (1 + encoderAccel * encoderAccel);
+            int step = delta * accelMul;
             if (step > 50) step = 50;
             if (step < -50) step = -50;
 
@@ -298,13 +313,18 @@ namespace CTAG {
                     // enter sub-mode
                     if (cursor == 0) {
                         chan = (hasDualCh ? 0 : 0);
+                        onlyMapped = false;
                         enterParamList(false);
                     }
                     else if (cursor == 1) {
                         if (hasDualCh) {
                             chan = 1;
+                            onlyMapped = false;
                             enterParamList(false);
                         } else {
+                            // MAP on a single-channel plugin: list only the
+                            // params that already carry a modulation mapping.
+                            onlyMapped = true;
                             enterParamList(true);
                         }
                     }
@@ -313,6 +333,7 @@ namespace CTAG {
                         // ch0 first (long-press maps it); previously this fell
                         // through to MODE_PSET.
                         chan = 0;
+                        onlyMapped = true;
                         enterParamList(true);
                     }
                     else if (!hasDualCh && cursor == 2) { mode = MODE_PSET; }

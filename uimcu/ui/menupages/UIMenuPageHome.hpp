@@ -32,7 +32,8 @@ namespace CTAG {
             void init() override;
             void deinit() override;
             void doRedraw() override;
-            void onEncoder(int delta) override;
+            void onEncoder(int delta) override;      // left encoder: list scroll
+            void onValueEncoder(int delta) override; // right encoder: forwarded to the system page
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
 

@@ -68,7 +68,6 @@ namespace CTAG {
             subPage = SP_MAIN;
             cursor = 0;
             ccEditSlot = 0;
-            editing = false;
             lastTapTick = 0;
             tapHistoryCount = 0;
         }
@@ -394,18 +393,21 @@ namespace CTAG {
         // ---- event handling ----
 
         void UIMenuPageMod::onEncoder(int delta) {
-            if (subPage == SP_MAIN) {
-                cursor += delta;
-                if (cursor < 0) cursor = 0;
-                if (cursor > 5) cursor = 5;
-            } else if (editing) {
-                adjustRow(cursor, delta);
-            } else {
-                cursor += delta;
-                if (cursor < 0) cursor = 0;
-                if (cursor > rowCount() - 1) cursor = rowCount() - 1;
-            }
+            cursor += delta;
+            if (cursor < 0) cursor = 0;
+            if (cursor > rowCount() - 1) cursor = rowCount() - 1;
             doRedraw();
+        }
+
+        // Right encoder: live value edit for the row under the cursor (no
+        // edit mode, no confirm). SP_MAIN/SP_CC_SLOTS are pure navigation —
+        // adjustRow would only flip dirty and trigger a pointless save.
+        void UIMenuPageMod::onValueEncoder(int delta) {
+            if (subPage == SP_MAIN || subPage == SP_CC_SLOTS) return;
+            if (!rowIsAction(cursor)) {
+                adjustRow(cursor, delta);
+                doRedraw();
+            }
         }
 
         void UIMenuPageMod::onButton(int btnId, bool longPress) {
@@ -426,27 +428,18 @@ namespace CTAG {
                 if (target != SP_MAIN) {
                     subPage = target;
                     cursor = 0;
-                    editing = false;
                 }
             } else if (subPage == SP_CC_SLOTS) {
                 ccEditSlot = cursor;
                 subPage = SP_CC_EDIT;
                 cursor = 0;
-                editing = false;
             } else if (rowIsAction(cursor)) {
                 activateRow(cursor);
-            } else {
-                editing = !editing;
             }
             doRedraw();
         }
 
         bool UIMenuPageMod::onBack() {
-            if (editing) {
-                editing = false;
-                doRedraw();
-                return true;
-            }
             switch (subPage) {
                 case SP_MAIN:
                     return false;
@@ -544,19 +537,11 @@ namespace CTAG {
                 int y = ROW_HDR(i);
                 formatRow(idx, buf, sizeof(buf));
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
-                if (editing && cursor == idx) {
-                    // invert the value region (after " Lll:")
-                    int vstart = 1;
-                    while (buf[vstart] && buf[vstart] != ':') vstart++;
-                    vstart++;
-                    int x = vstart * 6 + 1;
-                    if (x < 127) Display::InvertRect(x, y, 128 - x, 8);
-                }
             }
-            if (!editing) {
-                int cy = ROW_HDR(cursor - scrollOff);
-                Display::InvertRect(0, cy, 128, 8);
-            }
+            // cursor row is always the edited row: full-row invert, as on
+            // the Params page
+            int cy = ROW_HDR(cursor - scrollOff);
+            Display::InvertRect(0, cy, 128, 8);
             if (TOTAL > VIS) {
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VIS * LINE_H, TOTAL, cursor);
             }

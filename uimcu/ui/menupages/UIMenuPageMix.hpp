@@ -29,17 +29,19 @@ namespace CTAG {
     namespace CTRL {
         // Vertical-fader mixer page. Four control strips (input gain, input
         // source, output L, output R), the first and last two carrying L/R VU
-        // meters. Encoder moves between strips, OK enters edit mode on the
-        // active strip; continuous (non-deferred) strips re-apply the codec
-        // live while turning. Output routing and mixer mode stay on the
-        // System page — this page is only the level/source faders.
+        // meters. Left encoder moves between strips, right encoder edits the
+        // active strip (no edit mode); continuous (non-deferred) strips
+        // re-apply the codec live while turning. Output routing and mixer
+        // mode stay on the System page — this page is only the level/source
+        // faders.
         class UIMenuPageMix final : public UIMenuPage {
         public:
             void init() override;
             void deinit() override;
             void doRedraw() override;
             void onButton(int btnId, bool longPress) override;
-            void onEncoder(int delta) override;
+            void onEncoder(int delta) override;      // left encoder: strip select
+            void onValueEncoder(int delta) override; // right encoder: live fader edit
             void onTick() override;
             bool onBack() override;
             bool wantsTick() const override { return true; }
@@ -85,7 +87,6 @@ namespace CTAG {
             static const Strip STRIP_TABLE[STRIPS];
 
             int cursor;
-            bool editMode;
             bool dirty; // staged values differ from the persisted config
             int value[STRIPS];
             int meter[STRIPS][2]; // smoothed level 0..1000, [0]=L [1]=R

@@ -30,14 +30,14 @@ namespace CTAG {
             void init() override;
             void deinit() override;
             void doRedraw() override;
-            void onEncoder(int delta) override;
+            void onEncoder(int delta) override;      // left encoder: list scroll
+            void onValueEncoder(int delta) override; // right encoder: live value edit
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
 
         private:
             int cursor;
             int scrollOffset;
-            bool editMode;
             bool dirty; // staged values differ from the persisted config
 
             struct ConfigItem {

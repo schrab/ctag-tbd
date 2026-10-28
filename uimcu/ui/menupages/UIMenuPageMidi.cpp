@@ -51,6 +51,23 @@ namespace CTAG {
             doRedraw();
         }
 
+        // Right encoder: the TRS/BLE In rows toggle their enable live (no
+        // edit mode); the other rows have no value dimension. SetMidiFlags
+        // updates the DspProxy cache synchronously, so the redraw shows it.
+        void UIMenuPageMidi::onValueEncoder(int delta) {
+            if (subPage != SP_MAIN) return;
+            if (cursor == 3) {
+                DspProxy::SetMidiFlags(!DspProxy::IsMidiUartEnabled(),
+                                       DspProxy::IsMidiBleEnabled());
+            } else if (cursor == 4) {
+                DspProxy::SetMidiFlags(DspProxy::IsMidiUartEnabled(),
+                                       !DspProxy::IsMidiBleEnabled());
+            } else {
+                return;
+            }
+            doRedraw();
+        }
+
         void UIMenuPageMidi::onButton(int btnId, bool longPress) {
             if (subPage == SP_MAIN) {
                 if (btnId == 2 && longPress) {
@@ -67,12 +84,6 @@ namespace CTAG {
                         // also works — kept for A1S muscle memory).
                         if (BtMidiReceiver::IsConnected())
                             BtMidiReceiver::Disconnect();
-                    } else if (cursor == 3) {
-                        DspProxy::SetMidiFlags(!DspProxy::IsMidiUartEnabled(),
-                                               DspProxy::IsMidiBleEnabled());
-                    } else if (cursor == 4) {
-                        DspProxy::SetMidiFlags(DspProxy::IsMidiUartEnabled(),
-                                               !DspProxy::IsMidiBleEnabled());
                     }
                 }
             } else if (subPage == SP_SCAN) {
