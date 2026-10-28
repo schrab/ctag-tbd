@@ -423,9 +423,16 @@ const BtDeviceInfo* BtMidiReceiver::GetDevice(int idx) {
 }
 
 void BtMidiReceiver::StartScan() {
-    if (bt_scanning || bt_connected) return;
-    deviceCount = 0;
+    // Scanning while connected (or mid-connect) is allowed: drop the
+    // current connection first. The stored peer is kept — a new successful
+    // connection replaces it.
+    if (bt_connecting) ble_gap_conn_cancel();
+    if (bt_connected)
+        ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+    bt_connected = false;
+    bt_connecting = false;
     bt_scanning = true;
+    deviceCount = 0;
     discLogCount = 0;
     struct ble_gap_disc_params params = {
         .itvl = 0,

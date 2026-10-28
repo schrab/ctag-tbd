@@ -683,7 +683,16 @@ namespace CTAG {
                         for (size_t i = 0; i < arr.Size() && n < sizeof(bytes); i++)
                             if (arr[i].IsInt())
                                 bytes[n++] = (uint8_t) (arr[i].GetInt() & 0xFF);
-                        if (n) Midi::FeedLinkBytes(bytes, n);
+                        if (n) {
+                            static uint32_t inPkts = 0;   // relay probe (temporary)
+                            inPkts++;
+                            if (inPkts <= 10 || (inPkts % 32) == 0)
+                                ESP_LOGI(TAG, "midiIn #%u (%u B): %02x %02x %02x %02x",
+                                         (unsigned) inPkts, (unsigned) n,
+                                         bytes[0], n > 1 ? bytes[1] : 0,
+                                         n > 2 ? bytes[2] : 0, n > 3 ? bytes[3] : 0);
+                            Midi::FeedLinkBytes(bytes, n);
+                        }
                     }
                     return true;
                 }

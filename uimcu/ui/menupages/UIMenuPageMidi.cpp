@@ -62,6 +62,11 @@ namespace CTAG {
                         subPage = SP_SCAN;
                         cursor = 0;
                         scrollOffset = 0;
+                    } else if (cursor == 1) {
+                        // Disconnect answers a plain OK press (long-press
+                        // also works — kept for A1S muscle memory).
+                        if (BtMidiReceiver::IsConnected())
+                            BtMidiReceiver::Disconnect();
                     } else if (cursor == 3) {
                         DspProxy::SetMidiFlags(!DspProxy::IsMidiUartEnabled(),
                                                DspProxy::IsMidiBleEnabled());
