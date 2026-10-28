@@ -1,7 +1,7 @@
-# UI-Split Handoff — P0–P3 Status
+# UI-Split Handoff — P0–P6 Status
 
-**Branch:** `feat/ui-split` (all commits through 76f642c1 + link fixes)
-**Date:** 2026-10-28 (evening — LINK RESOLVED)
+**Branch:** `feat/ui-split` (P6 cutover 0c032a88 pushed; leftovers closed 2026-10-29)
+**Date:** 2026-10-29 (P6 DONE — hardware-validated, leftovers fixed)
 **SDD:** `doc/ui-split-sdd.md` | **Bring-up:** `doc/uimcu-bringup.md`
 
 ## RESOLVED: the link works (2026-10-28)
@@ -34,10 +34,12 @@ Physical consequence: the C3's TX wire lands on **A1S GPIO23** (not
 GPIO19). GPIO19 stays unwired — do not "fix" this back to the SDD pin.
 
 **Debug helper kept (both firmwares):** `{"cmd":"/debug/setLinkBaud",
-"value":N}` retunes the link UART at runtime (A1S via DebugUI on UART0,
-C3 via DebugLink on USB console). The hunt instrumentation (raw hex
-logging, loopback TX stimulus, RX reroute, panel button/display logs) was
-removed after the fix — re-add from git history (75445843) if needed.
+"value":N}` retunes the link UART at runtime (A1S via the panel link
+routed to DebugUI::handleCommand, C3 via DebugLink on USB console). The
+hunt instrumentation (raw hex logging, loopback TX stimulus, RX reroute,
+panel button/display logs) was removed after the fix — re-add from git
+history (75445843) if needed; the remaining MIDI probes were trimmed on
+2026-10-29 (76635bff).
 
 ## Known residue
 
@@ -136,20 +138,20 @@ notes 36–51 on CH10, encoders CC 30–45 on CH1, just-works pairing with
 bonding; the bench pad runs STOCK firmware).
 - **Panel hardware status updates**: the OLED is ALIVE (the "dead panel"
   diagnosis was wrong — the fault was the DC-pin connection, now fixed);
-  intermittent C3 boot failures were the **GPIO8/9 strapping pins being
-  dragged by the encoder** — hardware 10k pull-ups to 3V3 are required
-  (bench rule 4, confirmed by the user: turning the encoder one step
-  changes whether the board boots).
+  the GPIO8/9 strap-vs-encoder conflicts were finally solved by the
+  **2026-10-28 strap remap** (E1 → 0/3, OLED DC → 8, TRS OUT → 9,
+  BTN ADC → 1 — see AGENTS.md pin map); buttons calibrated in ac85e8bc.
 - **Docs** ✅ bench rules + hardware post-mortem — commit 88b468db
 - **P6 cutover** 🔨 **IN PROGRESS (this working tree, uncommitted→committed here)**:
   - A1S DebugUI: the UART0 bench task is REMOVED; DebugUI::handleCommand
     stays as the pure /debug dispatcher LinkEndpoint routes panel commands
     to. UI-side commands (getUiState, framebuffer, injectEvent, getMixState)
     are gone from the DSP — the C3's DebugLink owns those.
-  - A1S sources REMOVED from the BBA build (kept in the tree for MK2/AEM):
-    UIMenu, menupages (C3 is the single copy now), UserInput, Display.
-    components/drivers BBA: ssd1306.c/ssd1306_i2c.c/encoder.cpp out
-    (GPIO23 = link RX now; no local encoder).
+  - A1S sources EXCLUDED FROM THE BBA BUILD (compile-level since 712186a5;
+    kept in the tree for MK2/AEM): UIMenu, menupages (C3 is the single
+    live copy now), UserInput, Display. components/drivers BBA:
+    ssd1306.c/ssd1306_i2c.c/encoder.cpp out (GPIO23 = link RX now; no
+    local encoder).
   - **GPIO21 = amplifier enable** (user: it enables the amp when selected
     as output). The old Display I2C-SDA config enabled it as a side
     effect; codec_bba InitCodec now configures GPIO21 as an output driven
@@ -158,13 +160,24 @@ bonding; the bench pad runs STOCK firmware).
     StartUI is a no-op).
   - main.cpp: BBA path = InitFS/InitSD → StartSoundProcessor →
     LinkEndpoint::Start. No Display, no UIMenu, no DebugUI task.
-  - **WIP status**: builds clean through the CMake/UI fixes; the final
-    link + MIDI + DRAM validation on hardware is the next step.
+  - **Hardware validation PASSED (2026-10-28/29)**: internal DRAM 209 KB
+    free, largest block 110.6 KB (the SDD's ~+25 KB prediction held);
+    clean boot → handshake → boot metadata at 921600; MIDI flows
+    end-to-end (`/link/midiIn` frames decode at the parser; SMC-PAD over
+    BLE byte-perfect). Amp GPIO21 is driven high in codec_bba InitCodec —
+    **audible check still pending**.
+  - **Leftovers closed (2026-10-29)**: CC-slot channel reset-to-0 fixed
+    (a291cb74 — applyMarblesKey was missing the cc<i>/cch<i> keys, so
+    panel edits were rejected with "unknown key", silently dropped by the
+    C3, then clobbered by the next marbles push); temporary MIDI probes
+    trimmed (76635bff); UI sources genuinely excluded from the BBA
+    compile (712186a5 — was link-time only) + MK2/AEM DebugUI::Start
+    break fixed; duplicated SPManager boot block removed (21288ca0).
 
 ## What was verified from code
 
-- A1S LinkEndpoint: UART_NUM_1, **115200** baud, TX=GPIO18, RX=GPIO19, task at prio 1 on core 0
-- C3 LinkClient: UART_NUM_0, **115200** baud, TX=GPIO21, RX=GPIO20, task at prio 2
+- A1S LinkEndpoint: UART_NUM_1, **921600** baud, TX=GPIO18, RX=**GPIO23** (post link-fix), task at prio 1 on core 0
+- C3 LinkClient: UART_NUM_0, **921600** baud, TX=GPIO21, RX=GPIO20, task at prio 2
 - Protocol framing (STX/ETX), message names, ParseHandshake — all verified correct by code review
 - Host tests 28/28 pass (framing round-trips, handshake choreography)
 - A1S main.cpp line 93 calls `LinkEndpoint::Start()` inside `#ifdef CONFIG_TBD_PLATFORM_BBA`
@@ -183,54 +196,55 @@ bonding; the bench pad runs STOCK firmware).
   all investigated and cleared: BBA links `codec_bba.cpp` (no VSPI init),
   BBA is CONFIG_WIFI_UI (SerialAPI dormant), no runtime UART0 baud override.
 
-## Uncommitted changes on feat/ui-split (COMMIT THESE — a crash lost work last time)
+## Commit/flash state (updated 2026-10-29)
 
-- `main/LinkEndpoint.cpp` — kLinkBaud 115200 + raw-RX/offline-frame
-  instrumentation + `/debug/setLinkBaud` support (`LinkEndpoint::SetBaud`)
-- `main/LinkEndpoint.hpp` — SetBaud declaration
-- `main/DebugUI.cpp` — `/debug/setLinkBaud` command + include
-- `uimcu/main/LinkClient.cpp` — kLinkBaud 115200 + raw-RX logging + hello
-  retry log + SetBaud
-- `uimcu/main/LinkClient.hpp` — SetBaud declaration
-- `uimcu/main/DebugLink.cpp` — `/debug/setLinkBaud` command + include
-- `uimcu/main/input/UserInput.cpp`, `uimcu/ui/Display.cpp` — earlier panel
-  debug logging (from 76f642c1, committed) + this session's flash of both
-  boards
-
-**Both boards are already flashed with this firmware.**
+- Everything through the P6 cutover is committed and **pushed** at
+  0c032a88; the 2026-10-29 leftovers are separate commits on top
+  (a291cb74 CC-slot fix, 76635bff probe trim, 712186a5 build exclusion +
+  MK2/AEM fix, 21288ca0 SPManager dedup).
+- Both boards ran the 0c032a88 firmware. **The 2026-10-29 commits need a
+  reflash to be on hardware** — A1S app-only flash below (never
+  `idf.py flash`, it wipes storage); the C3 picks the probe-trim commit
+  up at its next bench flash.
 
 ## Hardware state
 
 | Board | Status | Notes |
 |-------|--------|-------|
-| C3 #2 (loose) | ✅ Working | Flashed with canonical firmware, bench verified |
+| C3 #2 (loose) | ✅ Working | P4 BLE-MIDI + calibrated buttons, bench verified |
 | C3 #1 (soldered on carrier) | ❌ USB-dead | Backfeed casualty — recoverable via USB-UART on UART0 |
-| A1S | ✅ Running | Flashed with link firmware, Elements rendering |
-| OLED panel | ❌ Dead | Reversed-power casualty — replacement needed (any 7-pin SPI SSD1306/1309) |
+| A1S | ✅ Running | P6 cutover firmware (0c032a88): UI-free DSP, 209 KB DRAM free, link + MIDI verified |
+| OLED panel | ✅ Working | The "dead panel" call was wrong — DC-pin connection, fixed |
 
 ## Critical bench rules (DO NOT violate)
 
 1. **C3 GPIO18/19 = USB data pins.** Never wire anything to them. Link = GPIO20/21.
 2. **No GND wire between boards while both are USB-powered.** USB cables share ground through the host. An extra bond to the A1S's audio-return ground kills the C3's USB CDC.
 3. **Never tie 3V3 between boards while either is unpowered.** Backfeed killed C3 #1 and the OLED panel.
-4. **GPIO8/9 = C3 strapping pins** (encoder E1). Need 10k pull-ups to 3V3.
+4. **GPIO8/9 = C3 strapping pins.** Superseded by the 2026-10-28 strap
+   remap (E1 off 8/9) — see AGENTS.md pin map. Encoder channels must
+   never land on strap pins 2/8/9.
 5. **A1S port-open auto-resets the chip** (CP2102 DTR/RTS). Wait ≥9 s after opening before probing.
 6. **C3 USB-Serial-JTAG does not replay output** for late-opening hosts.
 7. **The panel app owns the C3's USB serial** (`usb_serial_jtag_driver_install`). Historically esptool couldn't sync while the app ran (BOOT-held download mode as fallback), but on 2026-10-28 `idf.py -p /dev/ttyACM0 flash` synced and flashed fine with the app running — try the direct flash first.
-8. **A1S OLED-less boot logs a benign `SSD1309: OLED configuration failed` error** — don't chase it.
+8. Post-P6 the A1S builds no display driver at all — any SSD1309/OLED log
+   on the A1S console means you are running pre-cutover firmware.
 9. **The A1S silk screen has TX/RX labels swapped** on the header — verify with a scope or loopback, don't trust the silk.
 
 ## Flashing commands
 
 ```bash
+# WSL Ubuntu machine (2026-10-29): esp-idf at /home/ubuntu/esp-idf,
+# repo at ~/ctag-tbd, A1S = /dev/ttyUSB0 after `usbipd.exe attach --wsl --busid 1-2`.
+
 # C3 panel (full flash OK):
-source /home/schrab/esp/esp-idf-v5.5.4/export.sh
+source /home/ubuntu/esp-idf/export.sh
 export PATH="$HOME/.espressif/tools/riscv32-esp-elf/esp-14.2.0_20260121/riscv32-esp-elf/bin:$PATH"
 cd uimcu && idf.py -p /dev/ttyACM0 flash
 
 # A1S DSP (APP ONLY — never idf.py flash, it wipes storage!):
-source /home/schrab/esp/esp-idf-v5.5.4/export.sh
-cd /home/schrab/Projects/ctag-tbd
+source /home/ubuntu/esp-idf/export.sh
+cd ~/ctag-tbd
 python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 \
   --before default_reset --after hard_reset write_flash \
   --flash_mode dio --flash_size 16MB --flash_freq 80m 0x10000 build/ctag-tbd.bin

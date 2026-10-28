@@ -165,18 +165,23 @@ isn't bonded out, and GPIO21 is the OLED I²C SDA.)
 
 | From | To | Signal |
 |---|---|---|
-| A1S GPIO18 (TX, ex-MIDI DIN out pin) | C3 GPIO20 (RX) | DSP → panel |
-| A1S GPIO19 (RX, ex-MIDI DIN in pin) | C3 GPIO21 (TX) | panel → DSP |
+| A1S GPIO18 (TX) | C3 GPIO20 (RX) | DSP → panel |
+| A1S **GPIO23** (RX — moved off the defective GPIO19) | C3 GPIO21 (TX) | panel → DSP |
 | A1S GND | C3 GND | common ground |
 
-**115200 8N1 — NOT the SDD's 921600**: bench bring-up (2026-10-28) found the panel→DSP jumper corrupts frames above 115200 on this bench (DSP→panel stays clean even at 460800; rate-marginal wire, probably ground-return related). Both firmwares default to 115200; `/debug/setLinkBaud {"value":N}` retunes both ends at runtime for wire experiments. Both ends bring themselves up: the C3 retries `link/hello`
+**921600 8N1** (SDD rate restored 2026-10-28). The earlier 115200
+bring-up workaround is obsolete: root cause was the A1S board's GPIO19
+input trace corrupting RX above ~250 kBd (self-loopback-proven), fixed
+by moving link RX to GPIO23. Both firmwares default to 921600;
+`/debug/setLinkBaud {"value":N}` still retunes both ends at runtime for
+wire experiments. Both ends bring themselves up: the C3 retries `link/hello`
 every second until the A1S answers `hello_ack`, then the A1S pushes boot
 metadata (plugin list, active plugins + params, config, presets,
 favorites, full Marbles state, SD-mounted flag) and starts the 10 Hz
 stream + heartbeat. Until then the C3 runs on an empty cache and shows
 **DSP OFF** at the top-right of the HOME panel (verified via framebuffer
-shot). Any change made on the A1S side (its own UI until P6, bench
-scripts) re-pushes within one stream tick — the link diffs the model's
+shot). Any change made on the DSP side (bench scripts, `/debug`
+commands) re-pushes within one stream tick — the link diffs the model's
 cached JSON blobs at 10 Hz.
 
 ## Flashing
@@ -186,8 +191,9 @@ cached JSON blobs at 10 Hz.
 cd uimcu && idf.py -p /dev/ttyACM0 flash
 
 # A1S DSP — APP ONLY (never idf.py flash: it would overwrite the storage
-# partition with the repo's factory SPIFFS image):
-source /home/schrab/esp/esp-idf-v5.5.4/export.sh
+# partition with the repo's factory SPIFFS image). WSL machine: esp-idf at
+# /home/ubuntu/esp-idf; A1S = /dev/ttyUSB0 after `usbipd.exe attach --wsl --busid 1-2`.
+source /home/ubuntu/esp-idf/export.sh
 python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 \
   --before default_reset --after hard_reset write_flash \
   --flash_mode dio --flash_size 16MB --flash_freq 80m 0x10000 build/ctag-tbd.bin
@@ -205,7 +211,8 @@ If the OLED image is shifted 2 px, set `OLED_COLUMN_OFFSET 2` in
 ## Build + flash
 
 ```bash
-source /home/schrab/esp/esp-idf-v5.5.4/export.sh
+# WSL Ubuntu machine: esp-idf at /home/ubuntu/esp-idf
+source /home/ubuntu/esp-idf/export.sh
 # export.sh only exports toolchains for the target of the project you were
 # in; the RISC-V toolchain must be added by hand (already installed):
 export PATH="$HOME/.espressif/tools/riscv32-esp-elf/esp-14.2.0_20260121/riscv32-esp-elf/bin:$PATH"
@@ -218,8 +225,10 @@ Console = USB-Serial-JTAG only (UART0/GPIO20/21 is reserved for the link;
 
 ## Bench validation without any panel hardware wired
 
-The USB console serves the same STX/ETX JSON as the A1S UART0 bench
-(`DebugUI`), so host scripts only change their port. **Open the port with
+The USB console speaks the same STX/ETX JSON protocol the A1S UART0
+bench used to (that task was removed at P6 — the A1S side now takes
+`/debug/*` over the panel link), so host scripts only change their port.
+**Open the port with
 `dtr=False, rts=False` set before `open()`** (line transitions reset the
 chip). Every command may carry an integer `"seq"` which the reply echoes —
 use it to correlate responses; replies can interleave with ESP_LOG bytes.
@@ -247,10 +256,12 @@ nav=1 → `back` returns → `setActivePlugin` reflects in `getProxyState` →
 
 ## Known bring-up risks (SDD §10)
 
-- E1 on strapping pins 8/9: power-on with encoders in random states must
-  still boot (download-mode entry needs GPIO9 sampled with pull-up).
-- ADC ladder thresholds are the A1S values — recalibrate to the panel's
-  actual resistors when wired (`uimcu/main/input/UserInput.cpp`).
+- E1 strapping risk: resolved by the 2026-10-28 remap (E1 on 0/3). The
+  rule stands: encoder channels (C→GND, actively pull low) must never
+  land on strap pins 2/8/9.
+- ADC ladder: calibrated 2026-10-28 (idle 4095, A ~877, B ~415, both
+  ~280) in `uimcu/main/input/UserInput.cpp` — recalibrate only if the
+  ladder hardware changes.
 - SSD1309 init sequence/column offset varies by module; adjust
   `OLED_COLUMN_OFFSET` / init commands in `Display.cpp` if the image looks
   wrong.
@@ -263,5 +274,5 @@ nav=1 → `back` returns → `setActivePlugin` reflects in `getProxyState` →
 - `InputEvent` gained `ENC2_DELTA`; UIMenu accepts it (and ENC_DELTA) for
   panel switching in ROOT.
 - Display: same framebuffer API, direct SSD1309 SPI backend.
-- The A1S `main/` copies stay until P6 cutover deletes them; after that
-  `uimcu/ui/` is the single source.
+- P6 cutover done: the A1S `main/` copies are MK2/AEM-only (excluded from
+  the BBA build); `uimcu/ui/` is the single live source.
