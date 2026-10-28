@@ -80,14 +80,40 @@ def fb_to_png(hexdata: str, out_path: str):
     img.save(out_path)
 
 
+def wait_ready(s, timeout: float = 15.0) -> bool:
+    """Wait for the link to the DSP after a port-open reset.
+
+    Opening the console resets the C3 (USB_UART_CHIP_RESET — the host
+    driver pulses the control lines) and the shared-power wiring lets the
+    A1S brown-out reset too, so BOTH boards reboot and the link
+    re-handshakes once the A1S (the slower booter) is up. getProxyState's
+    "active0" only becomes non-empty once the DSP's boot metadata has
+    landed, which makes it the readiness probe; the command itself is
+    C3-local so it answers during the wait.
+    """
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            r = request(s, {"cmd": "/debug/getProxyState"}, timeout=1.0)
+            if r.get("active0"):
+                return True
+        except (TimeoutError, json.JSONDecodeError):
+            pass
+        time.sleep(0.5)
+    return False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--port", default="/dev/ttyACM0")
     ap.add_argument("--out", default="panel_shot.png")
     ap.add_argument("--cmd", help='raw /debug command JSON, e.g. \'{"cmd":"/debug/getAudioStats"}\'')
+    ap.add_argument("--no-wait", action="store_true", help="skip the link-ready poll")
     args = ap.parse_args()
 
     with open_port(args.port) as s:
+        if not args.no_wait and not wait_ready(s):
+            print("warning: DSP link did not come up; continuing anyway", file=sys.stderr)
         if args.cmd:
             reply = request(s, json.loads(args.cmd))
             print(json.dumps(reply, indent=1))
