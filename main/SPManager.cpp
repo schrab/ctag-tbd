@@ -456,6 +456,9 @@ void SoundProcessorManager::StartSoundProcessor() {
 }
 
 void SoundProcessorManager::SetChannelParamValue(const int chan, const string &id, const string &key, const int val) {
+    // Stereo plugins occupy sp[0] only — sp[1] is nullptr then. Stale or
+    // mismatched panel state can address the empty channel.
+    if (chan < 0 || chan > 1 || sp[chan] == nullptr) return;
     sp[chan]->SetParamValue(id, key, val);
 }
 

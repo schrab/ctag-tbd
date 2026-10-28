@@ -20,6 +20,7 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "ctagSoundProcessorTBDaits.hpp"
+#include "perf_monitor.hpp"
 #include <iostream>
 #include "helpers/ctagFastMath.hpp"
 
@@ -42,6 +43,7 @@ void ctagSoundProcessorTBDaits::Init(std::size_t blockSize, void *blockPtr) {
 }
 
 void ctagSoundProcessorTBDaits::Process(const ProcessData &data) {
+    PERF_MEASURE("TBDaits");
     patch.note = frequency / 4095.f * 96.f;
 
     if (cv_lpg_decay != -1) {
@@ -142,7 +144,7 @@ ctagSoundProcessorTBDaits::~ctagSoundProcessorTBDaits() {
 
 void ctagSoundProcessorTBDaits::knowYourself() {
 // sectionCpp0
-    pMapPar.emplace("smodel", [&](const int val) { smodel = val; });
+    pMapPar.emplace("smodel", [&](const int val) { smodel = val < 0 ? 0 : (val > 23 ? 23 : val); });
     pMapCv.emplace("smodel", [&](const int val) { cv_smodel = val; });
     pMapPar.emplace("trigger", [&](const int val) { trigger = val; });
     pMapTrig.emplace("trigger", [&](const int val) { trig_trigger = val; });
