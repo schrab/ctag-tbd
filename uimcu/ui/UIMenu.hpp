@@ -74,10 +74,11 @@ namespace CTAG {
             static bool redrawNeeded;
             static int panelBarTimer;
             static int screensaverTimer;
-            // Periodic page refresh divider: task runs at ~50 Hz, a full redraw
-            // every 5th iteration gives ~4 Hz which is fast enough for VU meters.
+            // Periodic page refresh divider: task runs at ~50 Hz, a tick every
+            // 2nd iteration gives 25 Hz — matches the link stream rate for
+            // VU meters and the Marbles output indicators.
             static int pageTickCounter;
-            static constexpr int TICK_DIVIDER = 5;
+            static constexpr int TICK_DIVIDER = 2;
             // framebuffer snapshot handshake (see RequestFramebufferShot)
             static volatile bool fbShotPending;
             static volatile bool fbShotReady;

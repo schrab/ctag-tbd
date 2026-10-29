@@ -418,9 +418,23 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             sendCmd(buf);
         }
 
-        void DspProxy::SetMeteringEnabled(bool) {
-            // Metering is armed on the DSP when its MIX page opens; the panel
-            // stream carries peaks regardless. No link traffic needed.
+        void DspProxy::SetMeteringEnabled(bool on) {
+            // The A1S audio task skips its peak pass entirely while metering
+            // is off, so the MIX page's tick arms it through a link command.
+            // Change-tracked: the tick fires at 25 Hz, the command must go
+            // out once. Re-arm while offline so the state is re-sent after a
+            // link drop or DSP reboot (the A1S boots with metering off).
+            static bool sentOn = false;
+            if (on) {
+                if (sentOn && IsOnline()) return;
+                if (!IsOnline()) { sentOn = false; return; }
+            } else if (!sentOn) {
+                return;
+            }
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/metering\",\"on\":%d}", on ? 1 : 0);
+            sendCmd(buf);
+            sentOn = on;
         }
 
         bool DspProxy::GetCPUOverload() { return cpuOverload; }

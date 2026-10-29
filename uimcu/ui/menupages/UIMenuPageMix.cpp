@@ -273,16 +273,18 @@ namespace CTAG {
         }
 
         void UIMenuPageMix::onTick() {
-            // Metering is armed here rather than in init(): UIMenu::Init()
-            // initialises *every* page at boot, so enabling in init() would
-            // leave the output peak pass running from boot until the user
-            // visits MIX and navigates away. onTick() only fires while this
-            // page is the active PANEL_IN page.
+            // Ticked at 25 Hz while the page is on screen (ROOT included).
+            // Arm metering on the DSP (no-op after the first tick); the peak
+            // pass is skipped on the A1S while it is off.
             DspProxy::SetMeteringEnabled(true);
-            // Pumped by UIMenu at ~4 Hz while PANEL_IN. Re-sample the peaks and
-            // repaint so the meters move even with the encoder idle.
+            // Re-sample the peaks and repaint only when a bar moved — an
+            // idle mixer must not generate SPI traffic.
+            int before[STRIPS][2];
+            memcpy(before, meter, sizeof(meter));
             refreshMeters();
-            doRedraw();
+            if (memcmp(before, meter, sizeof(meter)) != 0) {
+                doRedraw();
+            }
         }
 
         void UIMenuPageMix::onEncoder(int delta) {
@@ -349,11 +351,9 @@ namespace CTAG {
         }
 
         bool UIMenuPageMix::onBack() {
-            // Returning to ROOT. deinit() is not called here (it only runs on
-            // a panel change, where a staged edit is committed), so drop
-            // metering explicitly — otherwise the audio task keeps paying for
-            // output peak capture while MIX is off-screen.
-            DspProxy::SetMeteringEnabled(false);
+            // Metering stays on here: at ROOT this page is still the visible
+            // panel and keeps ticking. deinit() disables it on a real panel
+            // change.
             return false;
         }
     }

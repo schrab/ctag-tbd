@@ -76,13 +76,18 @@ namespace CTAG {
             // 10 s: the C3 shares its single core with NimBLE; with the
             // SMC-PAD off the reconnect scans must not trip this.
             constexpr uint32_t kOfflineAfterMs = 10000;
-            constexpr uint32_t kStreamPeriodMs = 100;      // 10 Hz (SDD §4.2)
+            constexpr uint32_t kStreamPeriodMs = 40;       // 25 Hz live values (VU/mb/sd)
+            // Hash-diff blob pushes stay at 10 Hz: the JSON regeneration is
+            // dirty-cached, but there is no reason to re-hash eight blobs
+            // faster than users change them.
+            constexpr uint32_t kPushPeriodMs = 100;
             constexpr uint32_t kHeartbeatPeriodMs = 1000;
 
             TaskHandle_t hLinkTask = nullptr;
             volatile bool s_online = false;
             uint32_t lastPanelRxMs = 0;
             uint32_t lastStreamMs = 0;
+            uint32_t lastPushMs = 0;
             uint32_t lastHeartbeatMs = 0;
             uint32_t heartbeatSeq = 0;
             volatile bool marblesPushPending = false;
@@ -639,6 +644,17 @@ namespace CTAG {
                     }
                     return true;
                 }
+                if (cmdName == "/link/metering") {
+                    // MIX page visibility: the audio task's peak pass is
+                    // skipped entirely while metering is off (DSP budget).
+                    if (d.HasMember("on") && d["on"].IsInt()) {
+                        SoundProcessorManager::SetMeteringEnabled(d["on"].GetInt() != 0);
+                        response = "{\"ok\":1}";
+                    } else {
+                        response = "{\"error\":\"bad on\"}";
+                    }
+                    return true;
+                }
                 if (cmdName == "/link/configSet") {
                     if (d.HasMember("config") && d["config"].IsString()) {
                         SoundProcessorManager::SetConfigurationFromJSON(
@@ -790,11 +806,15 @@ namespace CTAG {
                             pushBootMetadata();
                             bootPushed = true;
                             lastStreamMs = nowMs();
+                            lastPushMs = lastStreamMs;
                             lastHeartbeatMs = lastStreamMs;
                         } else {
                             if (now - lastStreamMs >= kStreamPeriodMs) {
                                 lastStreamMs = now;
                                 sendStream();
+                            }
+                            if (now - lastPushMs >= kPushPeriodMs) {
+                                lastPushMs = now;
                                 pushOnChange();
                             }
                             if (now - lastHeartbeatMs >= kHeartbeatPeriodMs) {

@@ -79,7 +79,7 @@ namespace CTAG {
             static void SetMeteringEnabled(bool on);
             static bool GetCPUOverload();
 
-            // ---- metering (from the 10 Hz stream, SDD §4.2) ----
+            // ---- metering (from the 25 Hz stream) ----
             // 0=inL 1=inR 2=outL 3=outR, scaled 0..1000.
             static uint32_t GetVUPeak(int channel);
 

@@ -66,10 +66,11 @@ namespace CTAG {
             static constexpr int FADER_W = 7;
             static constexpr int VU_W = 5;
             static constexpr int VU_H = 28;
-            // Meter smoothing: sampled at ~4 Hz, so hold the peak briefly then
-            // fall at DECAY_PER_TICK for a ~1.7 s release from full scale.
-            static constexpr int VU_DECAY_PER_TICK = 120;
-            static constexpr int VU_HOLD_TICKS = 2;
+            // Meter smoothing, tuned for the 25 Hz tick: hold the peak
+            // briefly (200 ms) then fall at DECAY_PER_TICK (1200/s) for a
+            // ~1.7 s release from full scale.
+            static constexpr int VU_DECAY_PER_TICK = 48;
+            static constexpr int VU_HOLD_TICKS = 5;
             static constexpr int VALUE_Y = 50;
 
             enum MeterSrc : int { METER_NONE = -1, METER_IN = 0, METER_OUT = 1 };

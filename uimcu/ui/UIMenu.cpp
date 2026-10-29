@@ -109,7 +109,6 @@ namespace CTAG {
                         Display::DrawRect(rx, 0, rectW, 3, false, true);
                     }
                 }
-                panelBarTimer--;
             }
 
             // CPU overload indicator at top-right corner (unconditional)
@@ -212,13 +211,23 @@ namespace CTAG {
                     panelBarTimer--;
                 }
 
-                // Periodic page refresh while a panel is open. Pages opt in via
-                // wantsTick() (MIX VU meters today, tape timecode later).
-                if (navState == PANEL_IN && displayState == AWAKE &&
-                    pages[currentPanel]->wantsTick()) {
+                // Periodic page refresh. Every page that is on screen gets
+                // ticked — at ROOT the selected panel's content is visible
+                // too, so a live page (VU meters, Marbles indicators, link
+                // state) must not freeze just because it was not entered.
+                // Pages opt in via wantsTick() and change-detect internally
+                // so an idle screen costs no SPI traffic (Flush is
+                // dirty-page gated).
+                if (displayState == AWAKE && pages[currentPanel]->wantsTick()) {
                     if (++pageTickCounter >= TICK_DIVIDER) {
                         pageTickCounter = 0;
                         pages[currentPanel]->onTick();
+                        if (navState == ROOT) {
+                            // The page's Clear()+Flush wiped the bar rows;
+                            // redraw bar + overload dot (no-op flush when
+                            // the page did not repaint).
+                            drawPanelBar();
+                        }
                     }
                 } else {
                     pageTickCounter = 0;

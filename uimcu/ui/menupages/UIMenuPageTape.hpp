@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include "UIMenuPage.hpp"
+#include <cstdint>
 
 namespace CTAG {
     namespace CTRL {
@@ -33,6 +34,8 @@ namespace CTAG {
             void onEncoder(int delta) override;
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
+            void onTick() override;
+            bool wantsTick() const override { return true; }
 
         private:
             enum SubPage { SP_MAIN, SP_FILELIST, SP_RECORD };
@@ -43,6 +46,13 @@ namespace CTAG {
             int fileCount;
             static const int MAX_FILES = 32;
             char fileNames[MAX_FILES][32];
+
+            // Live transport state as last drawn in MAIN (playing flag,
+            // recording flag, elapsed seconds) so onTick repaints only on a
+            // change.
+            bool lastDrawnPlaying = false;
+            bool lastDrawnRecording = false;
+            uint32_t lastDrawnSecond = 0;
 
             void scanFiles();
             void redrawMain();

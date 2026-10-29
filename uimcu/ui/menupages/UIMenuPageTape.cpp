@@ -140,6 +140,9 @@ namespace CTAG {
 
         void UIMenuPageTape::redrawMain() {
             Display::Clear();
+            lastDrawnPlaying = DspProxy::SdIsPlaying();
+            lastDrawnRecording = DspProxy::SdIsRecording();
+            lastDrawnSecond = DspProxy::SdGetPositionFrames() / 44100;
             int y = ITEM_Y0;
             if (DspProxy::SdIsPlaying()) {
                 Display::DrawString(0, y, "PLAYING", Display::FONT_5X7);
@@ -170,6 +173,20 @@ namespace CTAG {
             int highlightY = ROW(cursor);
             Display::InvertRect(0, highlightY, 128, 8);
             Display::Flush();
+        }
+
+        void UIMenuPageTape::onTick() {
+            // MAIN carries the live transport state (PLAYING/RECORDING flag
+            // and elapsed timecode); the file list and record views are
+            // static. Repaint only when something moved.
+            if (subPage != SP_MAIN) return;
+            bool playing = DspProxy::SdIsPlaying();
+            bool recording = DspProxy::SdIsRecording();
+            uint32_t sec = DspProxy::SdGetPositionFrames() / 44100;
+            if (playing != lastDrawnPlaying || recording != lastDrawnRecording ||
+                sec != lastDrawnSecond) {
+                doRedraw();
+            }
         }
 
         void UIMenuPageTape::redrawFileList() {

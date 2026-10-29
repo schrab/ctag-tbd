@@ -36,6 +36,8 @@ namespace CTAG {
             void onValueEncoder(int delta) override; // right encoder: forwarded to the system page
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
+            void onTick() override;
+            bool wantsTick() const override { return true; }
 
         private:
             // plugin browser items
@@ -74,6 +76,10 @@ namespace CTAG {
             int selectedPlugin; // index of plugin being channel-assigned
 
             UIMenuPageSystem *systemPage;
+
+            // Live state in the MAIN view (DSP OFF label): last value drawn,
+            // so onTick repaints only on a change.
+            int lastDrawnOnline = -1;
 
             void parsePlugins();
             void parseFavorites();

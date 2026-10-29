@@ -291,6 +291,7 @@ namespace CTAG {
 
         void UIMenuPageHome::redrawMain() {
             Display::Clear();
+            lastDrawnOnline = DspProxy::IsOnline() ? 1 : 0;
             const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP"};
             for (int i = 0; i < 5; i++)
                 Display::DrawString(0, ROW(i), items[i], Display::FONT_5X7);
@@ -306,6 +307,16 @@ namespace CTAG {
             }
             Display::InvertRect(0, ROW(cursor), 128, 8);
             Display::Flush();
+        }
+
+        void UIMenuPageHome::onTick() {
+            // MAIN is the only view with live content (the DSP OFF label):
+            // repaint when the link state flips while the page idles on
+            // screen, instead of waiting for the next input event.
+            if (subPage == SP_MAIN &&
+                lastDrawnOnline != (DspProxy::IsOnline() ? 1 : 0)) {
+                doRedraw();
+            }
         }
 
         void UIMenuPageHome::redrawFavorites() {
