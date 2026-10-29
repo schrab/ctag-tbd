@@ -443,6 +443,13 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     case BLE_GAP_EVENT_NOTIFY_RX: {
         const struct os_mbuf *om = event->notify_rx.om;
         if (om && om->om_len > 0) {
+            // 1 Hz probe: is the pad notifying at all? (midi-death split)
+            static uint32_t lastNotifyLogMs = 0;
+            uint32_t nowMs = (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
+            if (nowMs - lastNotifyLogMs > 1000) {
+                lastNotifyLogMs = nowMs;
+                ESP_LOGI(TAG, "notify rx %d B", om->om_len);
+            }
             parse_ble_midi_notify(om->om_data, om->om_len);
         }
         return 0;

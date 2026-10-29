@@ -697,6 +697,14 @@ namespace CTAG {
                             if (arr[i].IsInt())
                                 bytes[n++] = (uint8_t) (arr[i].GetInt() & 0xFF);
                         if (n) {
+                            // 1 Hz receipt probe: splits a dead pad-MIDI path
+                            // between "C3 never sends" and "A1S drops it".
+                            static uint32_t lastLogMs = 0;
+                            uint32_t nowMs = (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
+                            if (nowMs - lastLogMs > 1000) {
+                                lastLogMs = nowMs;
+                                ESP_LOGI(TAG, "midiIn receipt: %u B", (unsigned) n);
+                            }
                             Midi::FeedLinkBytes(bytes, n);
                         }
                     }

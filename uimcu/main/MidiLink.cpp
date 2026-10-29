@@ -82,6 +82,13 @@ namespace CTAG {
                         uint8_t bbuf[64];
                         uint32_t bn = 0;
                         BtMidiReceiver::Read(bbuf, &bn);
+                        // 1 Hz probe: ring-drain receipt (midi-death split)
+                        static uint32_t lastDrainLogMs = 0;
+                        uint32_t nowMs = (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
+                        if (bn > 0 && nowMs - lastDrainLogMs > 1000) {
+                            lastDrainLogMs = nowMs;
+                            ESP_LOGI(TAG, "ble drained %u B", (unsigned) bn);
+                        }
                         relay(bbuf, bn);
                     }
                     int got = uart_read_bytes(kUart, raw, sizeof(raw),
