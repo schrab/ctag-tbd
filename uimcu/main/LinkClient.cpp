@@ -116,7 +116,6 @@ namespace CTAG {
                     // at 92 KB/s. Reading 256 B per tick drained ~25 KB/s —
                     // the 16 KB RX ring overflowed mid-frame.
                     while ((got = uart_read_bytes(kUart, rx, sizeof(rx), 0)) > 0) {
-                        lastDspRxMs = nowMs();
                         for (int i = 0; i < got; i++) {
                             char c = (char)rx[i];
                             if (c == (char)kStx) {
@@ -125,6 +124,13 @@ namespace CTAG {
                                 overflow = false;
                             } else if (c == (char)kEtx) {
                                 if (receiving && !overflow) {
+                                    // Activity = complete frames only: raw
+                                    // bytes at a corrupted baud (or EMI) are
+                                    // traffic for the byte counters but prove
+                                    // nothing — the offline watchdog must
+                                    // fire on garbage links too, not just
+                                    // on true silence.
+                                    lastDspRxMs = nowMs();
                                     // The DSP's hello_ack opens the session;
                                     // everything else belongs to the cache.
                                     HelloReply hello = ParseHandshake(frameBuf, frameLen);
