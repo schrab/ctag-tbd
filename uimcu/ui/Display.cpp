@@ -70,6 +70,7 @@ static spi_device_handle_t spiHandle = nullptr;
 
 uint8_t Display::fb[1024];
 bool Display::dirtyPages[8] {false};
+bool Display::flushHeld = false;
 int Display::userContrast = 0xFF;
 
 // CS is driven as a plain GPIO (software CS) and DC pin is runtime — the
@@ -281,7 +282,12 @@ void Display::MarkDirty(int page) {
     if (page >= 0 && page < 8) dirtyPages[page] = true;
 }
 
+void Display::HoldFlush(bool on) {
+    flushHeld = on;
+}
+
 void Display::Flush() {
+    if (flushHeld) return;
     for (int p = 0; p < 8; p++) {
         if (!dirtyPages[p]) continue;
         sendCommand(0xB0 | p);                                        // page address

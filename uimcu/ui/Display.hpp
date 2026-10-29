@@ -67,6 +67,10 @@ namespace CTAG {
             enum Font { FONT_8X8, FONT_5X7, FONT_DIGI_SLIM_3X6, FONT_DIGI_ONE_5X6, FONT_NORNS_6X7 };
 
             static void Flush();
+            // Composition aid: while held, Flush() is a no-op so several
+            // draw+flush passes can be layered into one physical refresh
+            // (UIMenu ROOT ticks: page content, then nav bar, one flush).
+            static void HoldFlush(bool on);
 
             static void Sleep();
             static void Wake();
@@ -113,6 +117,7 @@ namespace CTAG {
             // framebuffer: page-major, column-minor
             static uint8_t fb[1024];
             static bool dirtyPages[8];
+            static bool flushHeld;
 
             static void MarkDirty(int page);
             static int userContrast;

@@ -198,7 +198,12 @@ namespace CTAG {
                 // Redraw if needed
                 if (displayState != ASLEEP && redrawNeeded) {
                     if (navState == ROOT) {
+                        // Same single-flush composition as the tick path
+                        // below: page content first (flush held), then the
+                        // nav bar on top, one physical refresh.
+                        Display::HoldFlush(true);
                         pages[currentPanel]->doRedraw();
+                        Display::HoldFlush(false);
                         drawPanelBar();
                     } else {
                         pages[currentPanel]->doRedraw();
@@ -221,12 +226,18 @@ namespace CTAG {
                 if (displayState == AWAKE && pages[currentPanel]->wantsTick()) {
                     if (++pageTickCounter >= TICK_DIVIDER) {
                         pageTickCounter = 0;
-                        pages[currentPanel]->onTick();
                         if (navState == ROOT) {
-                            // The page's Clear()+Flush wiped the bar rows;
-                            // redraw bar + overload dot (no-op flush when
-                            // the page did not repaint).
+                            // Compose one frame: the page's own flush is held
+                            // so its Clear() doesn't put a bar-less frame on
+                            // the panel before the bar is drawn on top.
+                            // Without this the nav bar flickers at the tick
+                            // rate on live pages (MIX/MOD).
+                            Display::HoldFlush(true);
+                            pages[currentPanel]->onTick();
+                            Display::HoldFlush(false);
                             drawPanelBar();
+                        } else {
+                            pages[currentPanel]->onTick();
                         }
                     }
                 } else {
