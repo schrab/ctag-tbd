@@ -94,10 +94,17 @@ namespace CTAG {
             }
 
             void linkTask(void *) {
-                string payload;
+                // Frame accumulator is STATIC, not a growing std::string:
+                // doubling to fit a big params frame needs contiguous heap
+                // blocks the no-PSRAM C3 cannot provide next to NimBLE (the
+                // DOM pool malloc then returned null and memcpy faulted —
+                // a bootloop with the plugin persisted). The DSP keeps its
+                // pushes lean (params without hints); oversized frames are
+                // dropped defensively until the next STX.
+                static char frameBuf[16 * 1024];
+                size_t frameLen = 0;
                 bool receiving = false;
-                // Single task owns this buffer; sized so a drained ring
-                // costs one read call instead of twenty.
+                bool overflow = false;
                 static uint8_t rx[2048];
 
                 while (true) {
@@ -106,22 +113,21 @@ namespace CTAG {
                     int got;
                     // Drain everything the ring holds before yielding: the
                     // DSP's params push arrives as ONE frame of tens of KB
-                    // (Freakwaves ~16 KB escaped) at 92 KB/s. Reading 256 B
-                    // per tick drained ~25 KB/s — the 16 KB RX ring
-                    // overflowed mid-frame and the truncated JSON was
-                    // dropped, so big plugins showed no params in EDIT.
+                    // at 92 KB/s. Reading 256 B per tick drained ~25 KB/s —
+                    // the 16 KB RX ring overflowed mid-frame.
                     while ((got = uart_read_bytes(kUart, rx, sizeof(rx), 0)) > 0) {
                         lastDspRxMs = nowMs();
                         for (int i = 0; i < got; i++) {
                             char c = (char)rx[i];
                             if (c == (char)kStx) {
                                 receiving = true;
-                                payload.clear();
+                                frameLen = 0;
+                                overflow = false;
                             } else if (c == (char)kEtx) {
-                                if (receiving && payload.size() < 128 * 1024) {
+                                if (receiving && !overflow) {
                                     // The DSP's hello_ack opens the session;
                                     // everything else belongs to the cache.
-                                    HelloReply hello = ParseHandshake(payload.data(), payload.size());
+                                    HelloReply hello = ParseHandshake(frameBuf, frameLen);
                                     if (hello.valid && hello.isAck && hello.role == Role::kDsp) {
                                         if (hello.accepted) {
                                             if (!s_online)
@@ -135,13 +141,16 @@ namespace CTAG {
                                             s_online = false;
                                         }
                                     } else {
-                                        DspProxy::OnLinkFrame(payload.data(), payload.size());
+                                        DspProxy::OnLinkFrame(frameBuf, frameLen);
                                     }
                                 }
                                 receiving = false;
-                                payload.clear();
                             } else if (receiving) {
-                                payload.push_back(c);
+                                if (frameLen < sizeof(frameBuf)) {
+                                    frameBuf[frameLen++] = c;
+                                } else {
+                                    overflow = true;
+                                }
                             }
                         }
                     }

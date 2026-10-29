@@ -205,16 +205,42 @@ namespace CTAG {
             void seedLastPushed();
 
             void pushParams(int ch) {
-                // Streamed: the params JSON is the one payload that scales
-                // with the plugin (tens of KB) and must never be composed
-                // in internal heap (see the streaming primitives above).
+                // Streamed, and rebuilt WITHOUT the "hint" members: the
+                // panel never displays them, and the no-PSRAM C3 parses
+                // this frame with single allocations that must stay well
+                // under its post-BLE heap ceiling — Freakwaves' hint-laden
+                // spec (~16 KB) faulted the C3's DOM pool mid-parse and
+                // bootlooped it. Hints are roughly half the bytes. Parse
+                // and rebuild happen in PSRAM-backed rapidjson allocators.
+                const char *raw = scratchCopy(SoundProcessorManager::GetCStrJSONActivePluginParams(ch));
+                {
+                    Document d;
+                    if (!d.Parse(raw).HasParseError() &&
+                        d.HasMember("params") && d["params"].IsArray()) {
+                        for (auto &v : d["params"].GetArray()) {
+                            if (!v.IsObject()) continue;
+                            if (v.HasMember("hint")) v.RemoveMember("hint");
+                            if (v.HasMember("params") && v["params"].IsArray()) {
+                                for (auto &g : v["params"].GetArray()) {
+                                    if (g.IsObject() && g.HasMember("hint")) g.RemoveMember("hint");
+                                }
+                            }
+                        }
+                        StringBuffer sb;
+                        Writer<StringBuffer> w(sb);
+                        d["params"].Accept(w);
+                        // Non-insitu parse: the DOM owns its copies, so
+                        // overwriting txScratch with the lean JSON is safe.
+                        scratchCopy(sb.GetString());
+                        raw = txScratch;
+                    }
+                }
                 sendPayloadBegin("{\"cmd\":\"", 8);
                 sendPayloadChunk(kMsgPushParams, strlen(kMsgPushParams));
                 char head[24];
                 snprintf(head, sizeof(head), "\",\"ch\":%d,\"params\":", ch);
                 sendPayloadChunk(head, strlen(head));
-                sendEscapedStringStreamed(
-                    scratchCopy(SoundProcessorManager::GetCStrJSONActivePluginParams(ch)));
+                sendEscapedStringStreamed(raw);
                 sendPayloadEnd();
             }
 
