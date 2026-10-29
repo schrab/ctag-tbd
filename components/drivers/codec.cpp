@@ -309,7 +309,7 @@ void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
     i2s_write(I2S_NUM_0, tmp, sz * 4 * 2, &nb, portMAX_DELAY);
 #elif defined(CONFIG_TBD_PLATFORM_V2) || defined(CONFIG_TBD_PLATFORM_MK2)
     int16_t tmp[sz * 2];
-    int16_t tmp2;
+    int32_t tmp2;
     size_t nb;
     const float mult = 32767.f;
     // 16 bit word config
@@ -317,16 +317,16 @@ void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
         tmp2 = (int32_t) (mult * buf[i * 2]);
         tmp2 = MAX(tmp2, -32767);
         tmp2 = MIN(tmp2, 32767);
-        tmp[i * 2] = tmp2;
+        tmp[i * 2] = (int16_t) tmp2;
         tmp2 = (int32_t) (mult * buf[i * 2 + 1]);
         tmp2 = MAX(tmp2, -32767);
         tmp2 = MIN(tmp2, 32767);
-        tmp[i * 2 + 1] = tmp2;
+        tmp[i * 2 + 1] = (int16_t) tmp2;
     }
     i2s_write(I2S_NUM_0, tmp, sz * 2 * 2, &nb, portMAX_DELAY);
 #elif CONFIG_TBD_PLATFORM_AEM
     int16_t tmp[sz * 2];
-    int16_t tmp2;
+    int32_t tmp2;
     size_t nb;
     const float mult = 32767.f;
     // 16 bit word config
@@ -334,7 +334,7 @@ void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
         tmp2 = (int32_t) (mult * buf[i * 2]);
         tmp2 = MAX(tmp2, -32767);
         tmp2 = MIN(tmp2, 32767);
-        tmp[i * 2] = tmp2;
+        tmp[i * 2] = (int16_t) tmp2;
         //tmp[i * 2 + 1] = 0; // not used in mono codec
     }
     i2s_write(I2S_NUM_0, tmp, sz * 2 * 2, &nb, portMAX_DELAY);
