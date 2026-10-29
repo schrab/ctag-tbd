@@ -87,6 +87,13 @@
    "name": "Resonator",
    "params": [
     {
+     "id": "resonator_model",
+     "name": "Model",
+     "type": "int",
+     "min": 0,
+     "max": 2
+    },
+    {
      "id": "resonator_geometry",
      "name": "Geometry",
      "type": "int",
@@ -182,6 +189,11 @@
    "id": "gate",
    "type": "bool",
    "name": "Gate"
+  },
+  {
+   "id": "easter_egg",
+   "name": "Easter Egg",
+   "type": "bool"
   }
  ]
 }

@@ -144,30 +144,35 @@ namespace CTAG {
             // True once this core has taken `part` back (no helper).
             bool direct_fallback_prepared_ = false;
 
-            atomic<int32_t> frequency, cv_frequency;
-            atomic<int32_t> resonator_model = 1, cv_resonator_model;
-            atomic<int32_t> exciter_envelope_shape, cv_exciter_envelope_shape;
-            atomic<int32_t> exciter_bow_level, cv_exciter_bow_level;
-            atomic<int32_t> exciter_bow_timbre, cv_exciter_bow_timbre;
-            atomic<int32_t> exciter_blow_level, cv_exciter_blow_level;
-            atomic<int32_t> exciter_blow_meta, cv_exciter_blow_meta;
-            atomic<int32_t> exciter_blow_timbre, cv_exciter_blow_timbre;
-            atomic<int32_t> exciter_strike_level, cv_exciter_strike_level;
-            atomic<int32_t> exciter_strike_meta, cv_exciter_strike_meta;
-            atomic<int32_t> exciter_strike_timbre, cv_exciter_strike_timbre;
-            atomic<int32_t> exciter_signature, cv_exciter_signature;
-            atomic<int32_t> resonator_geometry, cv_resonator_geometry;
-            atomic<int32_t> resonator_brightness, cv_resonator_brightness;
-            atomic<int32_t> resonator_damping, cv_resonator_damping;
-            atomic<int32_t> resonator_position, cv_resonator_position;
-            atomic<int32_t> resonator_mod_freq, cv_resonator_mod_freq;
-            atomic<int32_t> resonator_mod_offset, cv_resonator_mod_offset;
-            atomic<int32_t> reverb_diffusion, cv_reverb_diffusion;
-            atomic<int32_t> reverb_lp, cv_reverb_lp;
-            atomic<int32_t> space, cv_space;
-            atomic<int32_t> modulation_frequency, cv_modulation_frequency;
-            atomic<int32_t> gate, trig_gate;
-            atomic<int32_t> easter_egg, trig_easter_egg;
+            atomic<int32_t> frequency{800}, cv_frequency{-1};
+            atomic<int32_t> resonator_model{0}, cv_resonator_model{-1};
+            atomic<int32_t> exciter_envelope_shape{2047}, cv_exciter_envelope_shape{-1};
+            atomic<int32_t> exciter_bow_level{0}, cv_exciter_bow_level{-1};
+            atomic<int32_t> exciter_bow_timbre{2047}, cv_exciter_bow_timbre{-1};
+            atomic<int32_t> exciter_blow_level{0}, cv_exciter_blow_level{-1};
+            atomic<int32_t> exciter_blow_meta{2047}, cv_exciter_blow_meta{-1};
+            atomic<int32_t> exciter_blow_timbre{2047}, cv_exciter_blow_timbre{-1};
+            atomic<int32_t> exciter_strike_level{3276}, cv_exciter_strike_level{-1};
+            atomic<int32_t> exciter_strike_meta{2047}, cv_exciter_strike_meta{-1};
+            atomic<int32_t> exciter_strike_timbre{2047}, cv_exciter_strike_timbre{-1};
+            atomic<int32_t> exciter_signature{0}, cv_exciter_signature{-1};
+            atomic<int32_t> resonator_geometry{819}, cv_resonator_geometry{-1};
+            atomic<int32_t> resonator_brightness{2047}, cv_resonator_brightness{-1};
+            atomic<int32_t> resonator_damping{1024}, cv_resonator_damping{-1};
+            atomic<int32_t> resonator_position{1229}, cv_resonator_position{-1};
+            atomic<int32_t> resonator_mod_freq{0}, cv_resonator_mod_freq{-1};
+            atomic<int32_t> resonator_mod_offset{410}, cv_resonator_mod_offset{-1};
+            atomic<int32_t> reverb_diffusion{2560}, cv_reverb_diffusion{-1};
+            atomic<int32_t> reverb_lp{2867}, cv_reverb_lp{-1};
+            atomic<int32_t> space{2047}, cv_space{-1};
+            atomic<int32_t> modulation_frequency{0}, cv_modulation_frequency{-1};
+            atomic<int32_t> strength{2048}, cv_strength{-1};
+            atomic<int32_t> play{0}, trig_play{-1};
+            std::atomic<bool> play_pulse{false};
+            int pulse_blocks_{0};
+            static constexpr int kPulseBlockCount = 20; // ~14.5 ms @ 44.1 kHz / 32 samples
+            atomic<int32_t> gate{0}, trig_gate{-1};
+            atomic<int32_t> easter_egg{0};
         };
     }
 }

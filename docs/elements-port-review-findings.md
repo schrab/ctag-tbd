@@ -36,33 +36,28 @@ lut_midi_to_f_high[69+48] * 32000 = 440.000 Hz
 Fix direction: regenerate `resources.cc` with `SAMPLE_RATE = 44100` (and re-check
 any other sample-rate-dependent tables). Not done in this branch.
 
-## F2 — `strength` and `play` are dead parameters (open)
+## F2 — `strength` and `play` are dead parameters (resolved)
 
-- `perfState.strength` is hardcoded to `0.5f` in
-  `ctagSoundProcessorElements.cpp` (~line 284). Neither `strength` nor `play`
-  has a `pMapPar`/`pMapCv` entry, so UI and preset values are ignored. The UI
-  already treats `play` as momentary, but nothing consumes it.
-- The hardcoded value is also a level difference: the host harness at
-  `strength = 1.0` vs `0.5` (STRING model) measures RMS `0.03656` vs `0.00979`
-  (-11.4 dB), because strength drives the exciter through a nonlinear accent LUT
-  (`voice.cc` `lut_accent_gain_coarse`).
+- Fixed: `strength` mapped in `knowYourself()` (`pMapPar`/`pMapCv`) and applied
+  in `Process()`.
+- `play` mapped in `knowYourself()` (`pMapPar`/`pMapTrig`) and integrated with
+  `perfState.gate`:
+  - Value 2 (short-press OK on UI): triggers a clean ~14.5 ms momentary pulse.
+  - Value 1 (right encoder on UI): latched ON (continuous drone/sustain).
+  - Value 0 (right encoder or short-press when ON): latched OFF.
+  - Long-press OK opens modulation mapping (`MODE_MAP`) to map external triggers.
+- `gate` preset fixed to start at `0` (was stuck at `1` at boot, preventing
+  rising-edge strikes).
 
-Fix direction: map `strength` (0..1) and `play` (momentary gate) in the wrapper;
-choose the default against the upstream module's knob position.
+## F3 — CV/trig slot indices are uninitialized (resolved)
 
-## F3 — CV/trig slot indices are uninitialized (open)
-
-Every `cv_*` / `trig_*` atomic in `ctagSoundProcessorElements.hpp:134-157` is
-default-initialized. C++ leaves such atomics indeterminate; on this platform they
-read as zero. `Process()` treats any value `!= -1` as an active mapping, so a
-parameter without a preset CV/trig index follows `data.cv[0]` / `data.trig[0]`:
-
-- `resonator_model` is declared `= 1` (STRING), but `cv_resonator_model`
-  defaults to 0, so `rModel = (int)(floorf(data.cv[0] * 3.f)) % 3` runs and the
-  model follows `data.cv[0]` — model 0 (MODAL) at rest.
-- `trig_easter_egg` defaults to 0, so the easter egg follows `data.trig[0]`.
-
-Fix direction: initialize all slot-index atomics to `-1`.
+- Fixed: All `cv_*` and `trig_*` atomics in `ctagSoundProcessorElements.hpp`
+  explicitly initialized to `-1`.
+- `resonator_model` added as a separate menu item in the Resonator group
+  (0 = Modal, 1 = String, 2 = Strings).
+- `easter_egg` is purely a toggle switch in the menu (no trigger mapping),
+  defaulting to `0` (Modal resonator active at boot). Trigger mapping logic
+  for active-low CTAG triggers (`!= 1`) applied to `gate` and `play`.
 
 ## F4 — Extra 0.125 master gain downstream of SoftLimit (open; intentional)
 

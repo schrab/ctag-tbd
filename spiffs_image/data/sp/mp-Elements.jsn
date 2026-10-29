@@ -5,6 +5,11 @@
    "name": "Default",
    "params": [
     {
+     "id": "resonator_model",
+     "current": 0,
+     "cv": -1
+    },
+    {
      "id": "frequency",
      "current": 800,
      "cv": -1
@@ -111,16 +116,22 @@
     },
     {
      "id": "strength",
-     "current": 2048
+     "current": 2048,
+     "cv": -1
     },
     {
      "id": "play",
-     "current": 0
+     "current": 0,
+     "trig": -1
     },
     {
      "id": "gate",
-     "current": 1,
+     "current": 0,
      "trig": -1
+    },
+    {
+     "id": "easter_egg",
+     "current": 0
     }
    ]
   }

@@ -276,12 +276,10 @@ namespace CTAG {
         }
 
         // Right encoder: live value edit for the param under the cursor
-        // (no confirm step — the change goes straight to the DSP). The
-        // momentary "play" param has no value dimension; pulse it via OK.
+        // (no confirm step — the change goes straight to the DSP).
         void UIMenuPageParams::onValueEncoder(int delta) {
             if (mode != MODE_EDIT || paramCount == 0 || cursor >= paramCount) return;
             ParamInfo &pi = params[cursor];
-            if (strcmp(pi.id, "play") == 0) return;
 
             // Encoder acceleration: build momentum on consecutive same-direction turns
             uint32_t now = xTaskGetTickCount();
@@ -356,11 +354,19 @@ namespace CTAG {
                 }
             } else if (mode == MODE_EDIT) {
                 if (btnId == 2 && paramCount > 0 && cursor < paramCount) {
-                    // Momentary trigger for "play" param: pulse instead of mapping.
+                    // Momentary trigger for "play" param: short press pulses (or unlatches), long press maps.
                     if (strcmp(params[cursor].id, "play") == 0) {
-                        DspProxy::SetChannelParamValue(chan, "play", "current", 1);
-                        doRedraw();
-                        return;
+                        if (!longPress) {
+                            ParamInfo &pi = params[cursor];
+                            if (pi.current != 0) {
+                                pi.current = 0;
+                                DspProxy::SetChannelParamValue(chan, "play", "current", 0);
+                            } else {
+                                DspProxy::SetChannelParamValue(chan, "play", "current", 2);
+                            }
+                            doRedraw();
+                            return;
+                        }
                     }
                     // OK = modulation mapping for mappable params (short or
                     // long — the value dimension lives on the right encoder).

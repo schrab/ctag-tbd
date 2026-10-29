@@ -302,10 +302,22 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     CONSTRAIN(p->modulation_frequency, 0.f, 0.5f);
 
     // PerformanceState
-    bool gateVal = gate;
+    bool gateVal = (gate != 0);
     if (trig_gate != -1)
-        gateVal = data.trig[trig_gate] == 1;
-    perfState.gate = gateVal;
+        gateVal = (data.trig[trig_gate] != 1);
+
+    bool playLatched = (play != 0);
+    bool playTrig = false;
+    if (trig_play != -1)
+        playTrig = (data.trig[trig_play] != 1);
+
+    if (play_pulse.exchange(false, std::memory_order_relaxed)) {
+        pulse_blocks_ = kPulseBlockCount;
+    }
+    bool playPulsed = (pulse_blocks_ > 0);
+    if (pulse_blocks_ > 0) pulse_blocks_--;
+
+    perfState.gate = gateVal || playLatched || playTrig || playPulsed;
 
     float freqCv = frequency / 4032.f * 96.f;
     if (cv_frequency != -1)
@@ -314,7 +326,12 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     perfState.note = freqCv;
 
     perfState.modulation = 0.f;
-    perfState.strength = 0.5f;
+
+    float str = strength / 4095.f;
+    if (cv_strength != -1)
+        str = fabsf(data.cv[cv_strength]);
+    CONSTRAIN(str, 0.f, 1.f);
+    perfState.strength = str;
 
     // Resonator model
     int rModel = resonator_model;
@@ -322,9 +339,7 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         rModel = (int)(floorf(data.cv[cv_resonator_model] * 3.f)) % 3;
     CONSTRAIN(rModel, 0, 2);
 
-    bool ee = easter_egg;
-    if (trig_easter_egg != -1)
-        ee = data.trig[trig_easter_egg] == 1;
+    bool ee = (easter_egg != 0);
 
 #ifndef TBD_SIM
     PERF_MEASURE("Elements");
@@ -687,10 +702,19 @@ void ctagSoundProcessorElements::knowYourself() {
     pMapCv.emplace("space", [&](const int val) { cv_space = val; });
     pMapPar.emplace("modulation_frequency", [&](const int val) { modulation_frequency = val; });
     pMapCv.emplace("modulation_frequency", [&](const int val) { cv_modulation_frequency = val; });
+    pMapPar.emplace("strength", [&](const int val) { strength = val; });
+    pMapCv.emplace("strength", [&](const int val) { cv_strength = val; });
+    pMapPar.emplace("play", [&](const int val) {
+        if (val == 2) {
+            play_pulse.store(true, std::memory_order_relaxed);
+        } else {
+            play.store(val, std::memory_order_relaxed);
+        }
+    });
+    pMapTrig.emplace("play", [&](const int val) { trig_play = val; });
     pMapPar.emplace("gate", [&](const int val) { gate = val; });
     pMapTrig.emplace("gate", [&](const int val) { trig_gate = val; });
     pMapPar.emplace("easter_egg", [&](const int val) { easter_egg = val; });
-    pMapTrig.emplace("easter_egg", [&](const int val) { trig_easter_egg = val; });
     isStereo = true;
     id = "Elements";
 }

@@ -326,10 +326,16 @@ namespace CTAG {
                 }
             } else if (mode == MODE_EDIT) {
                 if (btnId == 2 && !longPress) {
-                    // Momentary trigger for "play" param: pulse instead of value edit.
+                    // Momentary trigger for "play" param: short press pulses (or unlatches).
                     if (paramCount > 0 && cursor < paramCount &&
                         strcmp(params[cursor].id, "play") == 0) {
-                        SoundProcessorManager::SetChannelParamValue(chan, "play", "current", 1);
+                        ParamInfo &pi = params[cursor];
+                        if (pi.current != 0) {
+                            pi.current = 0;
+                            SoundProcessorManager::SetChannelParamValue(chan, "play", "current", 0);
+                        } else {
+                            SoundProcessorManager::SetChannelParamValue(chan, "play", "current", 2);
+                        }
                         doRedraw();
                         return;
                     }
