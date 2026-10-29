@@ -113,35 +113,30 @@ namespace CTAG {
             paramCount = 0;
             groupCount = 0;
             currentGroup = -1;
-            const char *json = DspProxy::GetCStrJSONActivePluginParams(chan);
-            if (!json) return;
+            // The parameter table arrives pre-parsed in DspProxy (chunked
+            // pushes into static storage — no JSON DOM here: whole-plugin
+            // params DOMs do not fit the C3's heap next to NimBLE).
+            const int n = DspProxy::GetParamEntryCount(chan);
 
-            Document doc;
-            doc.Parse(json);
-            if (!doc.HasMember("params") || !doc["params"].IsArray()) return;
-
-            const Value &arr = doc["params"];
-
-            // First pass: standalone leaf params (not in groups)
+            // Pass 1: standalone leaves -> the "General" group (same
+            // ordering convention as the previous JSON parser).
             int standaloneStart = paramCount;
-            for (SizeType i = 0; i < arr.Size() && paramCount < MAX_PARAMS; i++) {
-                const Value &p = arr[i];
-                if (!p.HasMember("id") || !p.HasMember("name") || !p.HasMember("type")) continue;
-                if (strcmp(p["type"].GetString(), "group") == 0) continue;
-                int cv = p.HasMember("cv") ? p["cv"].GetInt() : -1;
-                int trig = p.HasMember("trig") ? p["trig"].GetInt() : -1;
-                if (onlyMapped && cv < 0 && trig < 0) continue;
+            for (int i = 0; i < n; i++) {
+                const DspProxy::DspParamEntry &e = *DspProxy::GetParamEntry(chan, i);
+                if (e.isGroup) continue;
+                if (onlyMapped && !e.hasCv && !e.hasTrig) continue;
+                if (paramCount >= MAX_PARAMS) break;
                 ParamInfo &pi = params[paramCount];
-                snprintf(pi.id, sizeof(pi.id), "%s", p["id"].GetString());
-                snprintf(pi.name, sizeof(pi.name), "%s", p["name"].GetString());
-                snprintf(pi.type, sizeof(pi.type), "%s", p["type"].GetString());
-                pi.min = p.HasMember("min") ? p["min"].GetInt() : 0;
-                pi.max = p.HasMember("max") ? p["max"].GetInt() : 1;
-                pi.current = p.HasMember("current") ? p["current"].GetInt() : 0;
-                pi.cv = cv;
-                pi.trig = trig;
-                pi.canCv = p.HasMember("cv");
-                pi.canTrig = p.HasMember("trig");
+                snprintf(pi.id, sizeof(pi.id), "%s", e.id);
+                snprintf(pi.name, sizeof(pi.name), "%s", e.name);
+                snprintf(pi.type, sizeof(pi.type), "%s", e.type);
+                pi.min = e.min;
+                pi.max = e.max;
+                pi.current = e.current;
+                pi.cv = e.cv;
+                pi.trig = e.trig;
+                pi.canCv = e.hasCv;
+                pi.canTrig = e.hasTrig;
                 paramCount++;
             }
             int standaloneCount = paramCount - standaloneStart;
@@ -152,36 +147,32 @@ namespace CTAG {
                 g.paramCount = standaloneCount;
             }
 
-            // Second pass: recurse into groups
-            for (SizeType i = 0; i < arr.Size(); i++) {
-                const Value &p = arr[i];
-                if (!p.HasMember("type") || strcmp(p["type"].GetString(), "group") != 0) continue;
-                if (!p.HasMember("params") || !p["params"].IsArray()) continue;
+            // Pass 2: groups in push order; a group's leaves are the table
+            // entries between its marker and the next marker.
+            for (int i = 0; i < n; i++) {
+                const DspProxy::DspParamEntry &e = *DspProxy::GetParamEntry(chan, i);
+                if (!e.isGroup) continue;
                 if (groupCount >= MAX_GROUPS) break;
-
                 GroupInfo &g = groups[groupCount];
-                snprintf(g.name, sizeof(g.name), "%s", p["name"].GetString());
+                snprintf(g.name, sizeof(g.name), "%s", e.name);
                 g.firstParamIdx = paramCount;
-
-                const Value &garr = p["params"];
                 int count = 0;
-                for (SizeType j = 0; j < garr.Size() && paramCount < MAX_PARAMS; j++) {
-                    const Value &leaf = garr[j];
-                    if (!leaf.HasMember("id") || !leaf.HasMember("name") || !leaf.HasMember("type")) continue;
-                    int cv = leaf.HasMember("cv") ? leaf["cv"].GetInt() : -1;
-                    int trig = leaf.HasMember("trig") ? leaf["trig"].GetInt() : -1;
-                    if (onlyMapped && cv < 0 && trig < 0) continue;
+                for (int j = i + 1; j < n; j++) {
+                    const DspProxy::DspParamEntry &l = *DspProxy::GetParamEntry(chan, j);
+                    if (l.isGroup) break;
+                    if (onlyMapped && !l.hasCv && !l.hasTrig) continue;
+                    if (paramCount >= MAX_PARAMS) break;
                     ParamInfo &pi = params[paramCount];
-                    snprintf(pi.id, sizeof(pi.id), "%s", leaf["id"].GetString());
-                    snprintf(pi.name, sizeof(pi.name), "%s", leaf["name"].GetString());
-                    snprintf(pi.type, sizeof(pi.type), "%s", leaf["type"].GetString());
-                    pi.min = leaf.HasMember("min") ? leaf["min"].GetInt() : 0;
-                    pi.max = leaf.HasMember("max") ? leaf["max"].GetInt() : 1;
-                    pi.current = leaf.HasMember("current") ? leaf["current"].GetInt() : 0;
-                    pi.cv = cv;
-                    pi.trig = trig;
-                    pi.canCv = leaf.HasMember("cv");
-                    pi.canTrig = leaf.HasMember("trig");
+                    snprintf(pi.id, sizeof(pi.id), "%s", l.id);
+                    snprintf(pi.name, sizeof(pi.name), "%s", l.name);
+                    snprintf(pi.type, sizeof(pi.type), "%s", l.type);
+                    pi.min = l.min;
+                    pi.max = l.max;
+                    pi.current = l.current;
+                    pi.cv = l.cv;
+                    pi.trig = l.trig;
+                    pi.canCv = l.hasCv;
+                    pi.canTrig = l.hasTrig;
                     paramCount++;
                     count++;
                 }

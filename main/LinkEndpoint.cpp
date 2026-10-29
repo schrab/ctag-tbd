@@ -139,25 +139,25 @@ namespace CTAG {
             // heap memory. Control characters go out as \u00XX (JSON-
             // equivalent to rapidjson's short escapes); compact model JSON
             // contains none in practice, so runs between escapes are long.
-            void sendEscapedStringStreamed(const char *raw) {
+            void sendEscapedStringStreamed(const char *raw, size_t len) {
                 sendPayloadChunk("\"", 1);
-                const char *p = raw ? raw : "";
+                size_t i = 0;
                 static const char *hex = "0123456789abcdef";
                 char esc[6];
-                while (*p != '\0') {
-                    const char *run = p;
-                    while (*p != '\0' && *p != '"' && *p != '\\' &&
-                           (unsigned char)*p >= 0x20) {
-                        p++;
+                while (i < len) {
+                    size_t run = i;
+                    while (i < len && raw[i] != '"' && raw[i] != '\\' &&
+                           (unsigned char)raw[i] >= 0x20) {
+                        i++;
                     }
-                    if (p > run) sendPayloadChunk(run, p - run);
-                    if (*p == '\0') break;
-                    if (*p == '"' || *p == '\\') {
+                    if (i > run) sendPayloadChunk(raw + run, i - run);
+                    if (i >= len) break;
+                    if (raw[i] == '"' || raw[i] == '\\') {
                         esc[0] = '\\';
-                        esc[1] = *p;
+                        esc[1] = raw[i];
                         sendPayloadChunk(esc, 2);
                     } else {
-                        unsigned char c = (unsigned char)*p;
+                        unsigned char c = (unsigned char)raw[i];
                         esc[0] = '\\';
                         esc[1] = 'u';
                         esc[2] = '0';
@@ -166,7 +166,7 @@ namespace CTAG {
                         esc[5] = hex[c & 0xF];
                         sendPayloadChunk(esc, 6);
                     }
-                    p++;
+                    i++;
                 }
                 sendPayloadChunk("\"", 1);
             }
@@ -205,43 +205,101 @@ namespace CTAG {
             void seedLastPushed();
 
             void pushParams(int ch) {
-                // Streamed, and rebuilt WITHOUT the "hint" members: the
-                // panel never displays them, and the no-PSRAM C3 parses
-                // this frame with single allocations that must stay well
-                // under its post-BLE heap ceiling — Freakwaves' hint-laden
-                // spec (~16 KB) faulted the C3's DOM pool mid-parse and
-                // bootlooped it. Hints are roughly half the bytes. Parse
-                // and rebuild happen in PSRAM-backed rapidjson allocators.
+                // The params push is the one payload that scales with the
+                // plugin, so it goes out CHUNKED and FLAT: each frame
+                // carries a ≤~1.8 KB slice of entries, where a group is a
+                // marker entry (type=group, no params member) followed by
+                // its leaves as flat entries. The no-PSRAM C3 parses each
+                // slice with tiny allocations and fills a static table — a
+                // whole-plugin frame once faulted its DOM pool and
+                // bootlooped it. Hints are dropped (panel never renders
+                // them); rebuild runs in PSRAM-backed rapidjson.
                 const char *raw = scratchCopy(SoundProcessorManager::GetCStrJSONActivePluginParams(ch));
-                {
-                    Document d;
-                    if (!d.Parse(raw).HasParseError() &&
-                        d.HasMember("params") && d["params"].IsArray()) {
-                        for (auto &v : d["params"].GetArray()) {
-                            if (!v.IsObject()) continue;
-                            if (v.HasMember("hint")) v.RemoveMember("hint");
-                            if (v.HasMember("params") && v["params"].IsArray()) {
-                                for (auto &g : v["params"].GetArray()) {
-                                    if (g.IsObject() && g.HasMember("hint")) g.RemoveMember("hint");
-                                }
-                            }
+                Document d;
+                if (d.Parse(raw).HasParseError() ||
+                    !d.HasMember("params") || !d["params"].IsArray()) {
+                    // Model JSON unusable — push an empty list rather than
+                    // a frame the C3 cannot afford to parse.
+                    sendPayloadBegin("{\"cmd\":\"", 8);
+                    sendPayloadChunk(kMsgPushParams, strlen(kMsgPushParams));
+                    sendPayloadChunk("\",\"ch\":", 7);
+                    char head[40];
+                    snprintf(head, sizeof(head), "%d,\"part\":0,\"last\":1,\"params\":\"[]\"}", ch);
+                    sendPayloadChunk(head, strlen(head));
+                    sendPayloadEnd();
+                    return;
+                }
+                Value &arr = d["params"];
+                for (auto &v : arr.GetArray()) {
+                    if (!v.IsObject()) continue;
+                    if (v.HasMember("hint")) v.RemoveMember("hint");
+                    if (v.HasMember("params") && v["params"].IsArray()) {
+                        for (auto &g : v["params"].GetArray()) {
+                            if (g.IsObject() && g.HasMember("hint")) g.RemoveMember("hint");
                         }
-                        StringBuffer sb;
-                        Writer<StringBuffer> w(sb);
-                        d["params"].Accept(w);
-                        // Non-insitu parse: the DOM owns its copies, so
-                        // overwriting txScratch with the lean JSON is safe.
-                        scratchCopy(sb.GetString());
-                        raw = txScratch;
                     }
                 }
-                sendPayloadBegin("{\"cmd\":\"", 8);
-                sendPayloadChunk(kMsgPushParams, strlen(kMsgPushParams));
-                char head[24];
-                snprintf(head, sizeof(head), "\",\"ch\":%d,\"params\":", ch);
-                sendPayloadChunk(head, strlen(head));
-                sendEscapedStringStreamed(raw);
-                sendPayloadEnd();
+
+                const size_t kChunkBudget = 1800;
+                StringBuffer sb;              // current slice body
+                Writer<StringBuffer> w(sb);
+                int part = 0;
+                size_t acc = 0;
+
+                auto flushChunk = [&](bool last) {
+                    w.EndArray();
+                    sendPayloadBegin("{\"cmd\":\"", 8);
+                    sendPayloadChunk(kMsgPushParams, strlen(kMsgPushParams));
+                    char head[48];
+                    snprintf(head, sizeof(head),
+                             "\",\"ch\":%d,\"part\":%d,\"last\":%d,\"params\":",
+                             ch, part, last ? 1 : 0);
+                    sendPayloadChunk(head, strlen(head));
+                    sendEscapedStringStreamed(sb.GetString(), sb.GetSize());
+                    sendPayloadEnd();
+                    part++;
+                    sb.Clear();
+                    w.Reset(sb);
+                    acc = 0;
+                    w.StartArray();
+                };
+
+                auto emitValue = [&](const Value &v) {
+                    StringBuffer elem;
+                    Writer<StringBuffer> ew(elem);
+                    v.Accept(ew);
+                    if (acc > 0 && acc + elem.GetSize() > kChunkBudget)
+                        flushChunk(false);
+                    w.RawValue(elem.GetString(), elem.GetSize(), kNullType);
+                    acc += elem.GetSize();
+                };
+
+                w.StartArray();
+                for (auto &v : arr.GetArray()) {
+                    if (v.IsObject() && v.HasMember("params") && v["params"].IsArray()) {
+                        // Group marker (everything except the nested array),
+                        // then its leaves as flat entries.
+                        StringBuffer marker;
+                        Writer<StringBuffer> mw(marker);
+                        mw.StartObject();
+                        for (auto &m : v.GetObject()) {
+                            if (strcmp(m.name.GetString(), "params") == 0) continue;
+                            mw.Key(m.name.GetString());
+                            m.value.Accept(mw);
+                        }
+                        mw.EndObject();
+                        if (acc > 0 && acc + marker.GetSize() > kChunkBudget)
+                            flushChunk(false);
+                        w.RawValue(marker.GetString(), marker.GetSize(), kNullType);
+                        acc += marker.GetSize();
+                        for (auto &g : v["params"].GetArray()) {
+                            emitValue(g);
+                        }
+                    } else {
+                        emitValue(v);
+                    }
+                }
+                flushChunk(true);
             }
 
             void pushPresets(int ch) {

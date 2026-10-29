@@ -166,6 +166,13 @@ namespace CTAG {
 
         const char *DspProxy::GetCStrJSONSoundProcessors() { return kPluginListJson; }
 
+        // The stub serves params as JSON text; the table accessors return
+        // an empty table (host tests that need table-driven params extend
+        // here).
+        int DspProxy::GetParamEntryCount(int) { return 0; }
+
+        const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int, int) { return nullptr; }
+
         const char *DspProxy::GetCStrJSONActivePluginParams(int chan) {
             if (chan < 0 || chan > 1) return kParamsDefaultJson;
             if (activeId[chan][0] == '\0') return kParamsDefaultJson;

@@ -64,7 +64,29 @@ namespace CTAG {
             // All Get* return pointers into the local cache; the cache only
             // changes on pushes/acks, never mid-redraw.
             static const char *GetCStrJSONSoundProcessors();
+
+            // ---- live parameter table (chunked /push/params frames) ----
+            // Static storage instead of a cached JSON string: whole-plugin
+            // params DOMs do not fit the no-PSRAM C3's heap next to NimBLE
+            // (the store-fault bootloop). Entries arrive FLAT — a group
+            // marker (isGroup, no leaves) followed by its leaves; leaves
+            // between one marker and the next belong to that group.
+            struct DspParamEntry {
+                char id[24];
+                char name[24];
+                char type[12];
+                int16_t min, max, current;
+                int16_t cv, trig;   // patched slot, -1 = none
+                bool hasCv, hasTrig; // capability: the member was present
+                bool isGroup;
+            };
+            static constexpr int DSP_MAX_PARAMS = 160;
+            static int GetParamEntryCount(int chan);
+            static const DspParamEntry *GetParamEntry(int chan, int idx);
+            // NetRest convenience: serializes the table as the classic
+            // {"params":[...]} document (rare path, built on demand).
             static const char *GetCStrJSONActivePluginParams(int chan);
+
             static const char *GetCStrJSONGetPresets(int chan);
             static const char *GetCStrJSONConfiguration();
             static void SetConfigurationFromJSON(const std::string &json);

@@ -61,7 +61,13 @@ namespace CTAG {
             bool cacheMidiUart = true;   // DSP defaults (Midi.cpp statics)
             bool cacheMidiBle = true;
             string cachePluginList = "[]";
-            string cacheParams[2] = {"{\"params\":[]}", "{\"params\":[]}"};
+            // Live parameter table — STATIC, not a cached JSON string: the
+            // no-PSRAM C3 cannot hold (or DOM-parse) whole-plugin params
+            // next to NimBLE. Filled incrementally by the chunked
+            // /push/params frames; leaves between a group marker and the
+            // next belong to that group.
+            DspProxy::DspParamEntry paramTable[2][DspProxy::DSP_MAX_PARAMS];
+            int paramTableCount[2] = {0, 0};
             string cacheConfig = "{}";
             string cachePresets[2] = {"{\"presets\":[]}", "{\"presets\":[]}"};
             string cacheFavorites = "[]";
@@ -239,10 +245,29 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         // (pushes, stream, fsList replies). Small docs only: big JSON blobs
         // arrive as escaped strings and are stored without DOM parsing.
         void DspProxy::OnLinkFrame(const char *payload, size_t len) {
+            // The cmd header is extracted WITHOUT a DOM: the params push
+            // carries tens of KB in one string member and must never be
+            // DOM-parsed whole (see the pushParams handler). The producer's
+            // escaped content cannot contain a raw "cmd":" sequence, so the
+            // strstr hit is unambiguous.
+            char cmd[40] = {0};
+            {
+                const char *cp = strstr(payload, "\"cmd\":\"");
+                if (cp == nullptr) return;
+                cp += 7;
+                size_t ci = 0;
+                while (cp[ci] != '\0' && cp[ci] != '"' && ci < sizeof(cmd) - 1) {
+                    cmd[ci] = cp[ci];
+                    ci++;
+                }
+            }
             Document d;
-            d.Parse(payload, len);
-            if (d.HasParseError() || !d.IsObject() || !d.HasMember("cmd")) return;
-            const char *cmd = d["cmd"].GetString();
+            // The params frame is handled without any DOM (its handler
+            // never touches d) — skip the parse entirely for it.
+            if (strcmp(cmd, kMsgPushParams) != 0) {
+                d.Parse(payload, len);
+                if (d.HasParseError() || !d.IsObject()) return;
+            }
 
             if (strcmp(cmd, kMsgPushPluginList) == 0) {
                 if (d.HasMember("list") && d["list"].IsArray()) {
@@ -252,10 +277,91 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     cachePluginList = sb.GetString();
                 }
             } else if (strcmp(cmd, kMsgPushParams) == 0) {
-                int ch = d.HasMember("ch") && d["ch"].IsInt() ? d["ch"].GetInt() : 0;
-                if (ch >= 0 && ch <= 1 && d.HasMember("params") && d["params"].IsString()) {
-                    cacheParams[ch] = d["params"].GetString();
+                // NO DOM for the frame: whole-plugin params once faulted
+                // the DOM pool (malloc returned null next to NimBLE) and
+                // the assert-less memcpy store-faulted the panel into a
+                // bootloop. The producer sends flat, hint-free slices
+                // (≤~2 KB): scan out "part"/"last"/"params", unescape into
+                // a small static buffer, parse that, fill the table.
+                int ch = 0;
+                const char *chPos = strstr(payload, "\"ch\":");
+                if (chPos) ch = atoi(chPos + 5);
+                if (ch < 0 || ch > 1) return;
+                const char *partPos = strstr(payload, "\"part\":");
+                int part = partPos ? atoi(partPos + 7) : 0;
+                const char *lastPos = strstr(payload, "\"last\":");
+                bool last = lastPos ? atoi(lastPos + 7) != 0 : true;
+
+                static char sliceBuf[4096];
+                const char *mark = strstr(payload, "\"params\":\"");
+                if (mark == nullptr) return;
+                mark += 10; // into the escaped slice text
+                size_t out = 0;
+                const char *p = mark;
+                while (*p != '\0' && out < sizeof(sliceBuf) - 1) {
+                    if (*p == '\\' && *(p + 1) != '\0') {
+                        p++;
+                        char c = *p;
+                        if (c == 'u' && *(p + 1) == '0' && *(p + 2) == '0') {
+                            // \u00XX — the producer's only \u form (control chars)
+                            static const char *hex = "0123456789abcdef";
+                            char h = *(p + 3);
+                            char l = *(p + 4);
+                            if (h >= 'A' && h <= 'F') h += 32;
+                            if (l >= 'A' && l <= 'F') l += 32;
+                            const char *hi = strchr(hex, h);
+                            const char *lo = strchr(hex, l);
+                            if (hi && lo) sliceBuf[out++] = (char)((hi - hex) << 4 | (lo - hex));
+                            p += 4;
+                        } else {
+                            switch (c) {
+                                case 'n': sliceBuf[out++] = '\n'; break;
+                                case 't': sliceBuf[out++] = '\t'; break;
+                                case 'r': sliceBuf[out++] = '\r'; break;
+                                case 'b': sliceBuf[out++] = '\b'; break;
+                                case 'f': sliceBuf[out++] = '\f'; break;
+                                default: sliceBuf[out++] = c; break; // \" \\ \/
+                            }
+                        }
+                        p++;
+                    } else if (*p == '"') {
+                        break; // unescaped closing quote
+                    } else {
+                        sliceBuf[out++] = *p++;
+                    }
                 }
+                sliceBuf[out] = '\0';
+
+                if (part == 0) {
+                    paramTableCount[ch] = 0;
+                }
+                Document sd;
+                if (sd.ParseInsitu(sliceBuf).HasParseError() || !sd.IsArray()) return;
+                for (auto &v : sd.GetArray()) {
+                    if (!v.IsObject()) continue;
+                    if (paramTableCount[ch] >= DspProxy::DSP_MAX_PARAMS) break;
+                    DspProxy::DspParamEntry &e = paramTable[ch][paramTableCount[ch]];
+                    memset(&e, 0, sizeof(e));
+                    e.min = 0;
+                    e.max = 1;
+                    e.current = 0;
+                    e.cv = -1;
+                    e.trig = -1;
+                    if (v.HasMember("id") && v["id"].IsString())
+                        snprintf(e.id, sizeof(e.id), "%s", v["id"].GetString());
+                    if (v.HasMember("name") && v["name"].IsString())
+                        snprintf(e.name, sizeof(e.name), "%s", v["name"].GetString());
+                    if (v.HasMember("type") && v["type"].IsString())
+                        snprintf(e.type, sizeof(e.type), "%s", v["type"].GetString());
+                    if (v.HasMember("min") && v["min"].IsInt()) e.min = v["min"].GetInt();
+                    if (v.HasMember("max") && v["max"].IsInt()) e.max = v["max"].GetInt();
+                    if (v.HasMember("current") && v["current"].IsInt()) e.current = v["current"].GetInt();
+                    if (v.HasMember("cv") && v["cv"].IsInt()) { e.cv = v["cv"].GetInt(); e.hasCv = true; }
+                    if (v.HasMember("trig") && v["trig"].IsInt()) { e.trig = v["trig"].GetInt(); e.hasTrig = true; }
+                    e.isGroup = (v.HasMember("type") && strcmp(v["type"].GetString(), "group") == 0);
+                    paramTableCount[ch]++;
+                }
+                (void)last;
             } else if (strcmp(cmd, kMsgPushConfig) == 0) {
                 if (d.HasMember("config") && d["config"].IsString()) {
                     cacheConfig = d["config"].GetString();
@@ -335,9 +441,42 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
 
         const char *DspProxy::GetCStrJSONSoundProcessors() { return cachePluginList.c_str(); }
 
+        int DspProxy::GetParamEntryCount(int chan) {
+            if (chan < 0 || chan > 1) return 0;
+            return paramTableCount[chan];
+        }
+
+        const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int chan, int idx) {
+            if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])
+                return nullptr;
+            return &paramTable[chan][idx];
+        }
+
+        // NetRest convenience: serialize the table as the classic
+        // {"params":[...]} document. Rare path (HTTP only) — the transient
+        // StringBuffer lives in PSRAM-backed rapidjson heap.
         const char *DspProxy::GetCStrJSONActivePluginParams(int chan) {
+            static string out;
             if (chan < 0 || chan > 1) return "{\"params\":[]}";
-            return cacheParams[chan].c_str();
+            out = "{\"params\":[";
+            for (int i = 0; i < paramTableCount[chan]; i++) {
+                const DspParamEntry &e = paramTable[chan][i];
+                if (i) out += ",";
+                out += "{\"id\":\"";
+                out += e.id;
+                out += "\",\"name\":\"";
+                out += e.name;
+                out += "\",\"type\":\"";
+                out += e.type;
+                out += "\",\"min\":" + to_string(e.min);
+                out += ",\"max\":" + to_string(e.max);
+                out += ",\"current\":" + to_string(e.current);
+                if (e.hasCv) out += ",\"cv\":" + to_string(e.cv);
+                if (e.hasTrig) out += ",\"trig\":" + to_string(e.trig);
+                out += "}";
+            }
+            out += "]}";
+            return out.c_str();
         }
 
         const char *DspProxy::GetCStrJSONGetPresets(int chan) {
