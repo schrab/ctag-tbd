@@ -94,6 +94,11 @@
      "max": 2
     },
     {
+     "id": "play",
+     "name": "Play",
+     "type": "bool"
+    },
+    {
      "id": "resonator_geometry",
      "name": "Geometry",
      "type": "int",
@@ -179,11 +184,6 @@
    "min": 0,
    "max": 4095,
    "step": 1
-  },
-  {
-   "id": "play",
-   "name": "Play",
-   "type": "bool"
   },
   {
    "id": "gate",
