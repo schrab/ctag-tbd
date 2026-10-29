@@ -54,6 +54,7 @@ static uint16_t conn_handle = BLE_HS_CONN_HANDLE_NONE;
 static uint16_t midi_val_handle = 0;
 static uint16_t midiSvcEnd = 0;        // end handle of the MIDI service (dsc scan)
 static uint16_t midi_cccd_handle = 0;  // 0x2902 CCCD handle once discovered
+static uint32_t cccd_write_ms = 0;     // when the last CCCD write completed
 static bool midi_cccd_written = false; // 0x2902 CCCD write landed
 
 // Persistent peer (last successfully connected device): stored in NVS on
@@ -204,6 +205,24 @@ static int on_dsc_discovered(uint16_t conn,
                              const struct ble_gatt_dsc *dsc,
                              void *arg);
 
+static int cccd_read_cb(uint16_t conn, const struct ble_gatt_error *error,
+                        struct ble_gatt_attr *attr, void *arg);
+static int cccd_read_cb(uint16_t conn, const struct ble_gatt_error *error,
+                        struct ble_gatt_attr *attr, void *arg) {
+    if (error && error->status != 0) {
+        ESP_LOGW(TAG, "CCCD read-back FAILED: %d", error->status);
+    } else if (attr != nullptr && attr->om != nullptr) {
+        uint8_t v[2] = {0, 0};
+        uint16_t n = OS_MBUF_PKTLEN(attr->om);
+        if (n > sizeof(v)) n = sizeof(v);
+        os_mbuf_copydata(attr->om, 0, n, v);
+        ESP_LOGW(TAG, "CCCD read-back @%u = %02x %02x (%s)",
+                 (unsigned) attr->handle, v[0], v[1],
+                 (v[0] == 0x01) ? "subscribed" : "NOT subscribed");
+    }
+    return 0;
+}
+
 static int cccd_write_cb(uint16_t conn, const struct ble_gatt_error *error,
                          struct ble_gatt_attr *attr, void *arg) {
     if (error && error->status != 0) {
@@ -218,6 +237,9 @@ static int cccd_write_cb(uint16_t conn, const struct ble_gatt_error *error,
         int wrc = ble_gattc_write_flat(conn, midi_val_handle, ka, sizeof(ka),
                                        nullptr, nullptr);
         ESP_LOGI(TAG, "keepalive write rc=%d", wrc);
+        // Read the CCCD back: does the pad actually hold the subscription?
+        ble_gattc_read(conn, midi_cccd_handle, cccd_read_cb, nullptr);
+        cccd_write_ms = (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
     }
     return 0;
 }
@@ -310,6 +332,7 @@ static int on_dsc_discovered(uint16_t conn,
             ESP_LOGI(TAG, "Subscribed to MIDI notifications");
         } else if (midi_val_handle != 0) {
             // No 0x2902 found in range — legacy fallback: CCCD at val+1.
+            midi_cccd_handle = midi_val_handle + 1;
             uint8_t val[2] = {0x01, 0x00};
             struct os_mbuf *om = ble_hs_mbuf_from_flat(val, sizeof(val));
             int rc = om ? ble_gattc_write(conn, midi_val_handle + 1, om,
@@ -551,6 +574,19 @@ void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
 // completes immediately.
 void BtMidiReceiver::TickReconnect() {
     static uint32_t lastTry = 0;
+    // Late re-subscribe: if the pad's engine start clears the CCCD after
+    // our early write, this re-arms it 2.5 s in and reads it back.
+    static bool reSubscribed = false;
+    if (bt_connected && midi_cccd_written && midi_cccd_handle != 0 &&
+        !reSubscribed &&
+        (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS) - cccd_write_ms > 2500) {
+        reSubscribed = true;
+        ESP_LOGW(TAG, "late CCCD re-subscribe @%u", (unsigned) midi_cccd_handle);
+        struct os_mbuf *om = ble_hs_mbuf_from_flat((const uint8_t *) "\x01\x00", 2);
+        int rc = om ? ble_gattc_write(conn_handle, midi_cccd_handle, om,
+                                      cccd_write_cb, nullptr) : BLE_HS_ENOMEM;
+        if (rc != 0) ESP_LOGW(TAG, "late re-subscribe rc=%d", rc);
+    }
     // A probe hit deferred its connect but the DISC_COMPLETE event was lost
     // (scan expired in the same instant) — recover here.
     if (bt_probe_connect && !bt_connected && !bt_connecting) {

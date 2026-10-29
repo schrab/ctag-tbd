@@ -325,3 +325,77 @@ with serial.Serial('/dev/ttyUSB0', 115200, timeout=1) as s:
 # ALWAYS close before opening the other port.
 # If port is stuck: unplug + replug the USB cable (10 s).
 ```
+
+## 2026-10-29 (late) — pad MIDI data path investigation (OPEN, handed to next session)
+
+**Environment change: this session ran on the WSL Ubuntu machine** (the Omarchy
+machine is retired for now). esp-idf at `/home/ubuntu/esp-idf` (v5.5.4); USB
+boards come over `usbipd` (`usbipd.exe attach --wsl --busid 1-2`; the attach
+DROPS every few flashes — `detach` + `attach` recovers, do not debug the
+attach failure, just cycle it). A1S console = `/dev/ttyUSB0`, C3 console =
+`/dev/ttyACM0` (whichever board the single USB cable feeds; the other board
+runs from its battery/power tie and its console is simply absent).
+Live console tail helper: `uimcu/tools/a1s_tail.py <seconds> [port]` —
+filtered live lines + raw capture to `uimcu/tools/last_tail_raw.log`.
+
+**Fixed and pushed this session (all verified on hardware):**
+- ch=1 nullptr panic: `SetChannelParamValue` dereferenced `sp[chan]` with no
+  null check (stereo plugin → `sp[1]==nullptr`; stale ch=1 paramSet = instant
+  LoadProhibited on the link task → DSP reboot → shared-power dip → panel
+  reboot). Guarded + TBDaits model clamp — 005cc172.
+- Global distortion root cause: **GPIO21 (amp enable) was pinned HIGH for
+  every output selection** — with `output_source=all` the powered LOUT1 amp
+  path loaded the shared DAC and distorted every plugin. GPIO21 now follows
+  `Codec::SetOutputSource` (amp/all = high, headphones = low) — 7d6bfaa5.
+- FPU denormal flush on the audio core (FCR bit 5, verified by readback) —
+  79d6ae90.
+- BLE pad-off reboot loop: reconnect is now a bounded 2 s half-duty
+  advertisement probe (presence detector) — blind connect attempts to the
+  absent pad crash-looped the C3 (~1.5 s resets). Probe-hit defers connect to
+  DISC_COMPLETE, with a lost-event recovery in TickReconnect —
+  64a9365e/0ec9d6b0/7518b631.
+- C3 menus: ALL pages now use the two-encoder convention (left=cursor,
+  right=live value edit; System/Mod/MIDI/Mix converted, Home forwards the
+  right encoder to the embedded System page); MAP list filtered to params
+  with an actual mapping; value-edit acceleration only for range>31 params
+  (the model selector was jumping 2 per detent) — 3454f328.
+- CC learn lifecycle: re-learning a bound CC reuses its slot (was burning the
+  next one); learn stops on page exit — 1a2619f7.
+- `/debug/enablePerf` toggles the 5 s PERF logger on demand (default off;
+  the always-on logger was a suspect in a periodic-crackle report) —
+  d30528ab.
+
+**OPEN — the pad (SMC-PAD) connects but delivers ZERO MIDI data:**
+- Chain verified working: pad connects, pairing/encryption completes, MIDI
+  service + characteristic discovered, CCCD found at 0x73, written with a
+  reliable write, **accepted** (×2 — the legacy val+1 fallback now targets
+  the same handle), keepalives (3 B, 0xF8 clock) ACKed every 260 ms.
+- The A1S receives NOTHING: with the 1 Hz `midiIn receipt` probe flashed,
+  zero receipts while the pad is played. The C3 never sends /link/midiIn.
+- The C3-side probes (notify rx / ble drained, 1 Hz, in the flashed build)
+  show **zero notifications reaching the C3's BLE stack** while the pad is
+  played — the break is between the pad and NimBLE's NOTIFY_RX.
+- The pad factory reset + fresh pairing did NOT change this. The pad
+  demonstrably sends BLE MIDI to other hosts. **Firmware bisected**: the
+  MIDI-verified commit f06172bc, flashed with the fresh pad, shows the same
+  silence — the code between f06172bc and HEAD is exonerated by direct test.
+- **NOW FLASHED but unread: the CCCD read-back + late re-subscribe**
+  (BtMidiReceiver.cpp, uncommitted→committed in the handoff commit). On the
+  next boot the console prints `CCCD read-back @115 = .. ..` right after the
+  CCCD write and again 2.5 s in (late re-subscribe):
+  - `01 00 (subscribed)` both times → the pad holds the subscription and
+    chooses not to send → pad-side BLE stack despite the reset; next step:
+    compare a full ATT-level capture from a working host (Android/btlejack/
+    nRF Connect) against ours — MTU exchange, conn interval, anything
+    different.
+  - `00 00 (NOT subscribed)` → the pad drops the subscription → find out
+    why (encryption level, bond requirement, or the pad re-clearing CCCDs
+    after our write — try writing the CCCD later, after keepalives have
+    started, or bonding FIRST via ble_gap_security_initiate).
+- 5–10 Hz crackle (TBDaits, all models): = the rate of overrunning render
+  blocks (PERF max ~1000 µs vs the 725 µs budget, avg ~268 µs); denormals
+  ruled out (FTZ active, spikes persist); pad MIDI data death is separate.
+  Both queue behind this handoff.
+
+**Never lose again**: probe commits are marked `chore(debug)`; trim them in
+one commit when the midi-death mystery is closed.
