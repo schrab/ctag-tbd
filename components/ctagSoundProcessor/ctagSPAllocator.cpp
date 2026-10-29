@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include "esp_log.h"
 #include <cstdint>
 #include <cassert>
+#include <cstring>
 
 using namespace CTAG::SP;
 
@@ -64,6 +65,12 @@ void ctagSPAllocator::AllocateInternalBuffer(std::size_t const &size) {
         ESP_LOGE("ctagSPAllocator", "could not allocate memory of size %d in internal or PSRAM", allocSize);
         assert(nullptr != internalBuffer);
     }
+    // Zero the arena. The SP data blocks (plaits Voice engine buffers among
+    // them) are handed out by stmlib::BufferAllocator without clearing, and
+    // engines that read before writing render whatever was in the heap.
+    // The old PSRAM fallback only sounded clean because freshly mapped
+    // SPIRAM pages are zeroed; a TLSF internal-DRAM block is not.
+    memset(internalBuffer, 0, allocSize);
     totalSize = allocSize;
 }
 
