@@ -143,6 +143,15 @@ else()
 
     # The grain renderer is inlined into processor.cc; -O2 is required to
     # stay inside the 174,150-cycle audio budget. Keep this after -Os.
-    set_source_files_properties(eurorack/beads/dsp/processor.cc
+    set_source_files_properties(
+            eurorack/beads/dsp/processor.cc
+            eurorack/elements/dsp/part.cc
+            eurorack/elements/dsp/voice.cc
+            eurorack/elements/dsp/resonator.cc
+            eurorack/elements/dsp/string.cc
+            eurorack/elements/dsp/exciter.cc
+            eurorack/elements/dsp/tube.cc
+            eurorack/elements/dsp/multistage_envelope.cc
+            eurorack/elements/dsp/ominous_voice.cc
             PROPERTIES COMPILE_OPTIONS "-O2")
 endif()
