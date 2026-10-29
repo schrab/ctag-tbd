@@ -32,7 +32,7 @@ namespace CTAG {
             void deinit() override;
             void doRedraw() override;
             void onEncoder(int delta) override;      // left encoder: list scroll
-            void onValueEncoder(int delta) override; // right encoder: live value edit
+            void onValueEncoder(int delta) override; // right encoder: value edit + mod-source selection
             void onButton(int btnId, bool longPress) override;
             bool onBack() override;
             void onTick() override;

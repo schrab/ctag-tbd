@@ -256,12 +256,6 @@ namespace CTAG {
                 if (scr >= VISIBLE_ITEMS) scrollOffset += (scr - (VISIBLE_ITEMS - 1));
                 if (scrollOffset > endIdx - VISIBLE_ITEMS) scrollOffset = endIdx - VISIBLE_ITEMS;
                 if (scrollOffset < startIdx) scrollOffset = startIdx;
-            } else if (mode == MODE_MAP) {
-                if (paramCount == 0) return;
-                mapPos += delta;
-                if (mapPos < 0) mapPos = 0;
-                if (mapPos > sourceCount() - 1) mapPos = sourceCount() - 1;
-                mapLearnFull = false;
             } else if (mode == MODE_PRESETS) {
                 if (presetCount == 0) return;
                 int newCursor = cursor + delta;
@@ -276,8 +270,18 @@ namespace CTAG {
         }
 
         // Right encoder: live value edit for the param under the cursor
-        // (no confirm step — the change goes straight to the DSP).
+        // (no confirm step — the change goes straight to the DSP). In
+        // MODE_MAP it selects the mod source: the mapping is a value like
+        // any other, so it lives on the value encoder, not navigation.
         void UIMenuPageParams::onValueEncoder(int delta) {
+            if (mode == MODE_MAP) {
+                mapPos += delta;
+                if (mapPos < 0) mapPos = 0;
+                if (mapPos > sourceCount() - 1) mapPos = sourceCount() - 1;
+                mapLearnFull = false;
+                doRedraw();
+                return;
+            }
             if (mode != MODE_EDIT || paramCount == 0 || cursor >= paramCount) return;
             ParamInfo &pi = params[cursor];
 
@@ -398,7 +402,10 @@ namespace CTAG {
                             mapLearnFull = true;
                             mapLearning = false;
                         }
-                    } else if (slot >= 0) {
+                    } else {
+                        // slot >= 0 selects that source; slot == -1 ("None")
+                        // unmaps the param. Both confirm with OK and return
+                        // to the param list.
                         ParamInfo &pi = params[mapParamIdx];
                         if (mapIsCv) {
                             pi.cv = slot;
