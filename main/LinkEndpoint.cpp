@@ -113,6 +113,64 @@ namespace CTAG {
 
             void sendStr(const string &s) { sendPayload(s.data(), s.size()); }
 
+            // Streamed push primitives: same STX/payload/ETX wire format as
+            // sendPayload, but the body goes out in bounded pieces. The SP
+            // arena now claims most of internal DRAM, and composing a
+            // Freakwaves-sized params push (escape buffer + growing string,
+            // ~50-75 KB transient) exhausted the heap — std::bad_alloc hits
+            // the exception stubs, which abort(), and a persisted plugin
+            // turned that into a bootloop. All TX belongs to this task, so
+            // streamed chunks cannot interleave with other frames.
+            void sendPayloadBegin(const char *p, size_t len) {
+                uart_write_bytes(kUart, "\x02", 1);
+                uart_write_bytes(kUart, p, len);
+            }
+
+            void sendPayloadChunk(const char *p, size_t len) {
+                uart_write_bytes(kUart, p, len);
+            }
+
+            void sendPayloadEnd() {
+                uart_write_bytes(kUart, "\x03", 1);
+            }
+
+            // Stream one JSON string literal with the same escaping
+            // Writer<StringBuffer> would produce, without composing it in
+            // heap memory. Control characters go out as \u00XX (JSON-
+            // equivalent to rapidjson's short escapes); compact model JSON
+            // contains none in practice, so runs between escapes are long.
+            void sendEscapedStringStreamed(const char *raw) {
+                sendPayloadChunk("\"", 1);
+                const char *p = raw ? raw : "";
+                static const char *hex = "0123456789abcdef";
+                char esc[6];
+                while (*p != '\0') {
+                    const char *run = p;
+                    while (*p != '\0' && *p != '"' && *p != '\\' &&
+                           (unsigned char)*p >= 0x20) {
+                        p++;
+                    }
+                    if (p > run) sendPayloadChunk(run, p - run);
+                    if (*p == '\0') break;
+                    if (*p == '"' || *p == '\\') {
+                        esc[0] = '\\';
+                        esc[1] = *p;
+                        sendPayloadChunk(esc, 2);
+                    } else {
+                        unsigned char c = (unsigned char)*p;
+                        esc[0] = '\\';
+                        esc[1] = 'u';
+                        esc[2] = '0';
+                        esc[3] = '0';
+                        esc[4] = hex[c >> 4];
+                        esc[5] = hex[c & 0xF];
+                        sendPayloadChunk(esc, 6);
+                    }
+                    p++;
+                }
+                sendPayloadChunk("\"", 1);
+            }
+
             // Append "key":"<json-escaped raw>" with the same writer the
             // bench channel uses for /debug/getConfig.
             void appendEscapedField(string &out, const char *key, const char *raw) {
@@ -147,12 +205,17 @@ namespace CTAG {
             void seedLastPushed();
 
             void pushParams(int ch) {
-                string s = "{\"cmd\":\"";
-                s += kMsgPushParams;
-                s += "\",\"ch\":" + to_string(ch) + ",";
-                appendEscapedField(s, "params", scratchCopy(SoundProcessorManager::GetCStrJSONActivePluginParams(ch)));
-                s += "}";
-                sendStr(s);
+                // Streamed: the params JSON is the one payload that scales
+                // with the plugin (tens of KB) and must never be composed
+                // in internal heap (see the streaming primitives above).
+                sendPayloadBegin("{\"cmd\":\"", 8);
+                sendPayloadChunk(kMsgPushParams, strlen(kMsgPushParams));
+                char head[24];
+                snprintf(head, sizeof(head), "\",\"ch\":%d,\"params\":", ch);
+                sendPayloadChunk(head, strlen(head));
+                sendEscapedStringStreamed(
+                    scratchCopy(SoundProcessorManager::GetCStrJSONActivePluginParams(ch)));
+                sendPayloadEnd();
             }
 
             void pushPresets(int ch) {
