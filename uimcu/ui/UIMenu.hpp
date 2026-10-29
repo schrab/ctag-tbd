@@ -72,7 +72,6 @@ namespace CTAG {
             static Panel currentPanel;
             static NavState navState;
             static bool redrawNeeded;
-            static int panelBarTimer;
             static int screensaverTimer;
             // Periodic page refresh divider: task runs at ~50 Hz, a tick every
             // 2nd iteration gives 25 Hz — matches the link stream rate for

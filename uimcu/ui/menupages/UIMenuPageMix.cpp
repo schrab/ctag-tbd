@@ -41,12 +41,13 @@ namespace CTAG {
         // Strip order: input gain, input source, output L, output R. The level
         // strips preview the codec directly on every turn so the faders feel
         // live; the source switch is deferred because re-routing the codec
-        // mid-edit pops.
+        // mid-edit pops. The IN strip meters the stereo input pair; each
+        // output strip meters only its own channel.
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
-                {"IN",  "input_gain",      0, 8,                        false, nullptr,               METER_IN},
-                {"SRC", "input_source",    0, InputSource::COUNT - 1,  true,  InputSource::OPTIONS,  METER_NONE},
-                {"O L", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,               METER_OUT},
-                {"O R", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,               METER_OUT},
+                {"IN",  "input_gain",      0, 8,                        false, nullptr,               METER_IN,    2},
+                {"SRC", "input_source",    0, InputSource::COUNT - 1,  true,  InputSource::OPTIONS,  METER_NONE,  0},
+                {"O L", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_L, 1},
+                {"O R", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_R, 1},
         };
 
         void UIMenuPageMix::DebugStateJson(std::string &out) {
@@ -198,14 +199,9 @@ namespace CTAG {
 
         void UIMenuPageMix::refreshMeters() {
             for (int i = 0; i < STRIPS; i++) {
-                MeterSrc src = STRIP_TABLE[i].meter;
-                for (int ch = 0; ch < 2; ch++) {
-                    int raw = 0;
-                    if (src == METER_IN) {
-                        raw = (int)DspProxy::GetVUPeak(ch); // 0=L, 1=R
-                    } else if (src == METER_OUT) {
-                        raw = (int)DspProxy::GetVUPeak(ch + 2); // 2=outL, 3=outR
-                    }
+                int src = STRIP_TABLE[i].meter; // first vu channel, or METER_NONE
+                for (int ch = 0; ch < STRIP_TABLE[i].meterN; ch++) {
+                    int raw = src >= 0 ? (int)DspProxy::GetVUPeak(src + ch) : 0;
                     if (raw > 1000) raw = 1000;
                     if (raw > meter[i][ch]) {
                         meter[i][ch] = raw;
@@ -237,10 +233,29 @@ namespace CTAG {
         void UIMenuPageMix::drawMeters(int i) {
             if (STRIP_TABLE[i].meter == METER_NONE) return;
             int bx = STRIP_X0 + i * STRIP_W + 13;
-            for (int ch = 0; ch < 2; ch++) {
+            for (int ch = 0; ch < STRIP_TABLE[i].meterN; ch++) {
                 float lvl = (float)meter[i][ch] / 1000.0f;
                 Display::DrawVUMeterV(bx + ch * (VU_W + 2), FADER_Y, VU_W, VU_H, lvl);
             }
+        }
+
+        // Enum strips are discrete switches, not faders: the track is divided
+        // into one segment per option and the active segment is filled
+        // (mic = bottom, line = top). The value text below names it.
+        void UIMenuPageMix::drawSwitch(int i) {
+            const Strip &st = STRIP_TABLE[i];
+            int x = STRIP_X0 + i * STRIP_W + 3;
+            int nSeg = st.max - st.min + 1;
+            if (nSeg < 2) nSeg = 2;
+            Display::DrawRect(x, FADER_Y, FADER_W, FADER_H, false, true);
+            int segH = FADER_H / nSeg;
+            int seg = value[i] - st.min;
+            if (seg < 0) seg = 0;
+            if (seg >= nSeg) seg = nSeg - 1;
+            // active segment, inset 1px on all sides so the outline stays visible
+            Display::DrawRect(x + 1, FADER_Y + FADER_H - (seg + 1) * segH + 1,
+                              FADER_W - 2, segH - 2, true, true);
+            if (i == cursor) Display::InvertRect(x - 1, FADER_Y - 1, FADER_W + 2, FADER_H + 2);
         }
 
         void UIMenuPageMix::drawStrip(int i) {
@@ -253,7 +268,7 @@ namespace CTAG {
                 Display::DrawRect(x - 1, LABEL_Y - 1, STRIP_W - 2, FONT_H + 2, false, true);
             }
 
-            drawFader(i);
+            if (st.enumOpts) drawSwitch(i); else drawFader(i);
             drawMeters(i);
 
             char val[16];
@@ -263,11 +278,6 @@ namespace CTAG {
 
         void UIMenuPageMix::doRedraw() {
             Display::Clear();
-            Display::DrawString(0, 0, "MIX", Display::FONT_5X7);
-            // input source shown on the right of the header
-            char val[16];
-            valueText(1, val, sizeof(val));
-            Display::DrawStringRight(127, 0, val, Display::FONT_5X7);
             for (int i = 0; i < STRIPS; i++) drawStrip(i);
             Display::Flush();
         }

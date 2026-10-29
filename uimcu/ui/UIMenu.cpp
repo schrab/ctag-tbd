@@ -42,7 +42,6 @@ namespace CTAG {
         UIMenuPage *UIMenu::pages[6] = {nullptr, nullptr, nullptr, nullptr, nullptr};
         UIMenu::NavState UIMenu::navState = UIMenu::ROOT;
         bool UIMenu::redrawNeeded = true;
-        int UIMenu::panelBarTimer = 0;
         int UIMenu::screensaverTimer = 0;
         int UIMenu::pageTickCounter = 0;
         volatile bool UIMenu::fbShotPending = false;
@@ -63,7 +62,6 @@ namespace CTAG {
             for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();
             navState = ROOT;
             redrawNeeded = true;
-            panelBarTimer = 50; // ~1s
             // Do initial redraw before task starts so display clears splash immediately
             pages[PANEL_HOME]->doRedraw();
             drawPanelBar();
@@ -95,19 +93,20 @@ namespace CTAG {
         }
 
         void UIMenu::drawPanelBar() {
-            if (panelBarTimer > 0) {
-                // Norns-style indicator bar at top: 20px wide rectangles
-                int segWidth = 128 / PANEL_COUNT;
-                int rectW = 20;
-                for (int i = 0; i < PANEL_COUNT; i++) {
-                    int rx = i * segWidth + (segWidth - rectW) / 2;
-                    if (i == currentPanel) {
-                        // Active: filled rectangle
-                        Display::DrawRect(rx, 0, rectW, 3, true, true);
-                    } else {
-                        // Inactive: 1px border rectangle
-                        Display::DrawRect(rx, 0, rectW, 3, false, true);
-                    }
+            // Persistent indicator bar at top: one UI, one behavior — the
+            // bar is always visible at ROOT on every panel (it identifies
+            // the active panel; PANEL_IN hides it for full-screen content).
+            // 20px wide rectangles, 128 / PANEL_COUNT pitch.
+            int segWidth = 128 / PANEL_COUNT;
+            int rectW = 20;
+            for (int i = 0; i < PANEL_COUNT; i++) {
+                int rx = i * segWidth + (segWidth - rectW) / 2;
+                if (i == currentPanel) {
+                    // Active: filled rectangle
+                    Display::DrawRect(rx, 0, rectW, 3, true, true);
+                } else {
+                    // Inactive: 1px border rectangle
+                    Display::DrawRect(rx, 0, rectW, 3, false, true);
                 }
             }
 
@@ -133,7 +132,6 @@ namespace CTAG {
                         Display::Wake();
                         displayState = AWAKE;
                         screensaverTimer = 0;
-                        panelBarTimer = 50;
                         redrawNeeded = true;
                     } else {
                         screensaverTimer = 0;
@@ -153,7 +151,6 @@ namespace CTAG {
                                     pages[prev]->deinit();
                                     pages[currentPanel]->init();
                                 }
-                                panelBarTimer = 50;
                                 redrawNeeded = true;
                             } else if (ev.type == InputEvent::BTN2_SHORT) {
                                 navState = PANEL_IN;
@@ -174,7 +171,6 @@ namespace CTAG {
                                 if (!pages[currentPanel]->onBack()) {
                                     navState = ROOT;
                                     redrawNeeded = true;
-                                    panelBarTimer = 50;
                                 }
                             } else if (ev.type == InputEvent::BTN2_SHORT) {
                                 pages[currentPanel]->onButton(2, false);
@@ -209,11 +205,6 @@ namespace CTAG {
                         pages[currentPanel]->doRedraw();
                     }
                     redrawNeeded = false;
-                }
-
-                // Decrement panel bar timer each tick when visible
-                if (navState == ROOT && panelBarTimer > 0) {
-                    panelBarTimer--;
                 }
 
                 // Periodic page refresh. Every page that is on screen gets

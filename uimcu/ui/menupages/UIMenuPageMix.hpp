@@ -53,6 +53,7 @@ namespace CTAG {
 
         private:
             // Layout: 4 strips across 128 px, 30 px wide with a 4 px margin.
+            // Content sits below the persistent nav bar (rows 0..2).
             static constexpr int STRIPS = 4;
             static constexpr int GAIN_STRIP = 0;    // input_gain
             static constexpr int SRC_STRIP = 1;     // input_source, needs alias handling
@@ -60,8 +61,8 @@ namespace CTAG {
             static constexpr int OUT_R_STRIP = 3;   // ch1_codecLvlOut
             static constexpr int STRIP_W = 30;
             static constexpr int STRIP_X0 = 4;
-            static constexpr int LABEL_Y = 9;
-            static constexpr int FADER_Y = 19;
+            static constexpr int LABEL_Y = 5;
+            static constexpr int FADER_Y = 14;
             static constexpr int FADER_H = 28;
             static constexpr int FADER_W = 7;
             static constexpr int VU_W = 5;
@@ -71,9 +72,12 @@ namespace CTAG {
             // ~1.7 s release from full scale.
             static constexpr int VU_DECAY_PER_TICK = 48;
             static constexpr int VU_HOLD_TICKS = 5;
-            static constexpr int VALUE_Y = 50;
+            static constexpr int VALUE_Y = 45;
 
-            enum MeterSrc : int { METER_NONE = -1, METER_IN = 0, METER_OUT = 1 };
+            // First VU channel of the strip's meter: IN meters the stereo
+            // input pair (vu 0+1), each output strip meters its own channel
+            // (vu 2 / vu 3) — they are mono channels, not L/R pairs.
+            enum MeterSrc : int { METER_NONE = -1, METER_IN = 0, METER_OUT_L = 2, METER_OUT_R = 3 };
 
             struct Strip {
                 const char *label;
@@ -83,6 +87,7 @@ namespace CTAG {
                 bool deferred;
                 const char *enumOpts; // nullptr => plain int value
                 MeterSrc meter;
+                int meterN;           // bars: 2 for the stereo input, 1 per output strip
             };
 
             static const Strip STRIP_TABLE[STRIPS];
@@ -102,6 +107,7 @@ namespace CTAG {
             void refreshMeters();
             void drawStrip(int i);
             void drawFader(int i);
+            void drawSwitch(int i); // enum strips: discrete segments, not a fader
             void drawMeters(int i);
             void valueText(int i, char *buf, size_t len) const;
         };
