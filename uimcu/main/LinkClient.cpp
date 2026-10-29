@@ -96,14 +96,22 @@ namespace CTAG {
             void linkTask(void *) {
                 string payload;
                 bool receiving = false;
-                uint8_t rx[256];
+                // Single task owns this buffer; sized so a drained ring
+                // costs one read call instead of twenty.
+                static uint8_t rx[2048];
 
                 while (true) {
                     uint32_t now = nowMs();
 
-                    int got = uart_read_bytes(kUart, rx, sizeof(rx), 0);
-                    if (got > 0) {
-                        lastDspRxMs = now;
+                    int got;
+                    // Drain everything the ring holds before yielding: the
+                    // DSP's params push arrives as ONE frame of tens of KB
+                    // (Freakwaves ~16 KB escaped) at 92 KB/s. Reading 256 B
+                    // per tick drained ~25 KB/s — the 16 KB RX ring
+                    // overflowed mid-frame and the truncated JSON was
+                    // dropped, so big plugins showed no params in EDIT.
+                    while ((got = uart_read_bytes(kUart, rx, sizeof(rx), 0)) > 0) {
+                        lastDspRxMs = nowMs();
                         for (int i = 0; i < got; i++) {
                             char c = (char)rx[i];
                             if (c == (char)kStx) {
