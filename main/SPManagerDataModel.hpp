@@ -83,6 +83,10 @@ namespace CTAG {
             void validatePatches();
 
             Document m;
+            bool processorsDirty = true;
+            bool configDirty = true;
+            string cachedProcessorsJson;
+            string cachedConfigJson;
 #ifndef TBD_SIM
             const string MODELJSONFN = "/spiffs/data/spm-config.jsn";
 #else

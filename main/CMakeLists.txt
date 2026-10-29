@@ -16,7 +16,11 @@ if(CONFIG_TBD_PLATFORM_BBA)
             ${CMAKE_CURRENT_SOURCE_DIR}/UserInput.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/UserInput.hpp
             ${CMAKE_CURRENT_SOURCE_DIR}/Display.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/Display.hpp)
+            ${CMAKE_CURRENT_SOURCE_DIR}/Display.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/RestServer.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/RestServer.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/BtMidiReceiver.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/BtMidiReceiver.hpp)
     list(FILTER SRC_FILES EXCLUDE REGEX "/menupages/")
 endif()
 
@@ -29,7 +33,7 @@ if(NOT CONFIG_BT_ENABLED)
 endif()
 
 set(MAIN_PRIV_REQUIRES "")
-if(CONFIG_BT_ENABLED)
+if(CONFIG_BT_ENABLED AND NOT CONFIG_TBD_PLATFORM_BBA)
     set(MAIN_PRIV_REQUIRES "bt")
 endif()
 

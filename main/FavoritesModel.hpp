@@ -45,7 +45,11 @@ namespace CTAG {
             void SetFavorite(int const &id, const string &data);
 
         private:
+            void ensureLoaded();
             Document m;
+            bool loaded = false;
+            bool favsDirty = true;
+            string cachedFavsJson;
         };
     }
 }

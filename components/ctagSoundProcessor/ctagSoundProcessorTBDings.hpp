@@ -44,9 +44,9 @@ namespace CTAG {
             void updateParams(const ProcessData &);
 
             // private attributes could go here
-            uint16_t *reverb_buffer;
+            uint16_t *reverb_buffer = nullptr;
             rings::Part part;
-            rings::StringSynthPart string_synth;
+            rings::StringSynthPart *string_synth = nullptr;
             rings::Strummer strummer;
             rings::ResonatorModel resonatorModel = rings::RESONATOR_MODEL_MODAL;
             bool strum = false;

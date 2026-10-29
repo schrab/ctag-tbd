@@ -55,12 +55,15 @@ ctagSPDataModel::~ctagSPDataModel() {
 }
 
 const char *ctagSPDataModel::GetCStrJSONParams() {
-    json.Clear();
-    mergeModels();
-    Writer<StringBuffer> writer(json);
-    mui.Accept(writer);
-    //printf("%s\n", json.GetString());
-    return json.GetString();
+    if (paramsDirty) {
+        json.Clear();
+        mergeModels();
+        Writer<StringBuffer> writer(json);
+        mui.Accept(writer);
+        cachedParamsJson.assign(json.GetString(), json.GetSize());
+        paramsDirty = false;
+    }
+    return cachedParamsJson.c_str();
 }
 
 void ctagSPDataModel::mergeModels() {
@@ -87,6 +90,8 @@ void ctagSPDataModel::SetParamValue(const string &id, const string &key, const i
             ESP_LOGD("Model", "I found the value");
             if (!v.HasMember(key)) return;
             v[key] = val;
+            paramsDirty = true;
+            BumpGeneration();
         }
     }
 }
@@ -110,36 +115,31 @@ int ctagSPDataModel::GetParamValue(const string &id, const string &key) {
 const char *ctagSPDataModel::GetCStrJSONPresets() {
     if (!mp.HasMember("activePatch")) return nullptr;
     if (!mp["activePatch"].IsInt()) return nullptr;
-    json.Clear();
-    int num = 0;
-    // data to be printed
-    Value obj(kObjectType);
-    Value a(kArrayType);
-    Value n(kNumberType);
-    // temporary root documents p is export d is patch file
-    Document p, d;
-    // data to be printed
-    n.SetInt(mp["activePatch"].GetInt());
-    obj.AddMember("activePresetNumber", n, p.GetAllocator());
-    // load presets to document d
-    loadJSON(d, mpFileName);
-    if (!d.HasMember("patches")) return nullptr;
-    if (!d["patches"].IsArray()) return nullptr;
-    // iterate presets
-    for (auto &v : d["patches"].GetArray()) {
-        // construct items for export document
-        Value o(kObjectType);
-        Value name(kStringType);
-        name.SetString(v["name"].GetString(), p.GetAllocator());
-        o.AddMember("name", name.Move(), p.GetAllocator());
-        o.AddMember("number", num++, p.GetAllocator());
-        a.PushBack(o, p.GetAllocator());
+    if (!mp.HasMember("patches") || !mp["patches"].IsArray()) return nullptr;
+    if (presetsDirty) {
+        json.Clear();
+        int num = 0;
+        Value obj(kObjectType);
+        Value a(kArrayType);
+        Value n(kNumberType);
+        Document p;
+        n.SetInt(mp["activePatch"].GetInt());
+        obj.AddMember("activePresetNumber", n, p.GetAllocator());
+        for (auto &v : mp["patches"].GetArray()) {
+            Value o(kObjectType);
+            Value name(kStringType);
+            name.SetString(v["name"].GetString(), p.GetAllocator());
+            o.AddMember("name", name.Move(), p.GetAllocator());
+            o.AddMember("number", num++, p.GetAllocator());
+            a.PushBack(o, p.GetAllocator());
+        }
+        obj.AddMember("presets", a, p.GetAllocator());
+        Writer<StringBuffer> writer(json);
+        obj.Accept(writer);
+        cachedPresetsJson.assign(json.GetString(), json.GetSize());
+        presetsDirty = false;
     }
-    obj.AddMember("presets", a, p.GetAllocator());
-    Writer<StringBuffer> writer(json);
-    obj.Accept(writer);
-    //printf("%s\n", json.GetString());
-    return json.GetString();
+    return cachedPresetsJson.c_str();
 }
 
 void ctagSPDataModel::LoadPreset(const int num) {
@@ -158,6 +158,8 @@ void ctagSPDataModel::LoadPreset(const int num) {
     // save currently loaded preset to model
     if (!mp.HasMember("activePatch")) return;
     mp["activePatch"].SetInt(patchNum);
+    paramsDirty = true;
+    presetsDirty = true;
     storeJSON(mp, mpFileName);
     json.Clear();
     Writer<StringBuffer> writer(json);
@@ -226,6 +228,8 @@ void ctagSPDataModel::SavePreset(const string &name, const int number) {
     }
     if (!mp.HasMember("activePatch")) return;
     mp["activePatch"] = patchNum;
+    paramsDirty = true;
+    presetsDirty = true;
     storeJSON(mp, mpFileName);
     //ESP_LOGE("MOdel", "Stored JSON after");
     //PrintSelf();
@@ -290,4 +294,6 @@ void ctagSPDataModel::SetActivePluginParameters(const std::string &parameters) {
     d.Parse(parameters.c_str());
     activePreset.GetAllocator().Clear();
     activePreset.CopyFrom(d, activePreset.GetAllocator());
+    paramsDirty = true;
+    BumpGeneration();
 }

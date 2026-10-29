@@ -38,16 +38,33 @@ ctagSPAllocator::AllocationType ctagSPAllocator::allocationType = ctagSPAllocato
 
 void ctagSPAllocator::AllocateInternalBuffer(std::size_t const &size) {
     ESP_LOGI("ctagSPAllocator", "AllocateInternalBuffer: allocating %d bytes", size);
-    internalBuffer = heap_caps_malloc(size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    std::size_t allocSize = size;
+    // On ESP32 (ESP-IDF v5.x), the largest contiguous internal DRAM region
+    // (SRAM1, 0x3FFE4350..0x40000000) is 113,840 bytes — 848 bytes short of
+    // CONFIG_SP_FIXED_MEM_ALLOC_SZ (114,688 B), and TLSF's
+    // heap_caps_get_largest_free_block() rounds down to the 4 KB bin boundary
+    // (110,592 B). Step down in 512-byte increments so we claim the full
+    // ~113.6 KB internal SRAM1 block (>= TBDings's 111,516 B stereo need).
+    for (std::size_t trySize = size; trySize >= 98304 && nullptr == internalBuffer; trySize -= 512) {
+        internalBuffer = heap_caps_malloc(trySize, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (nullptr != internalBuffer) {
+            allocSize = trySize;
+            if (allocSize != size) {
+                ESP_LOGI("ctagSPAllocator", "Allocated %d bytes in internal DRAM (clamped from %d)",
+                         (int)allocSize, (int)size);
+            }
+        }
+    }
     if(nullptr == internalBuffer){
         ESP_LOGW("ctagSPAllocator", "Not enough internal DRAM, trying PSRAM...");
-        internalBuffer = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+        allocSize = size;
+        internalBuffer = heap_caps_malloc(allocSize, MALLOC_CAP_SPIRAM);
     }
     if(nullptr == internalBuffer){
-        ESP_LOGE("ctagSPAllocator", "could not allocate memory of size %d in internal or PSRAM", size);
+        ESP_LOGE("ctagSPAllocator", "could not allocate memory of size %d in internal or PSRAM", allocSize);
         assert(nullptr != internalBuffer);
     }
-    totalSize = size;
+    totalSize = allocSize;
 }
 
 void ctagSPAllocator::ReleaseInternalBuffer() {

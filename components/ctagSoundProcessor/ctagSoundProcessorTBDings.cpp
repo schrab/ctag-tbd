@@ -42,9 +42,16 @@ void ctagSoundProcessorTBDings::Init(std::size_t blockSize, void *blockPtr) {
     reverb_buffer = (uint16_t *) heap_caps_malloc(32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
     assert(reverb_buffer != nullptr);
 
+    void *ssMem = heap_caps_malloc(sizeof(rings::StringSynthPart), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (ssMem == nullptr) {
+        ssMem = heap_caps_malloc(sizeof(rings::StringSynthPart), MALLOC_CAP_SPIRAM);
+    }
+    assert(ssMem != nullptr);
+    string_synth = new (ssMem) rings::StringSynthPart();
+
     strummer.Init(0.01f, 44100.0f / bufSz);
     part.Init(reverb_buffer);
-    string_synth.Init(reverb_buffer);
+    string_synth->Init(reverb_buffer);
 
     //memset(&patch, 0, sizeof(patch));
     //memset(&performance_state, 0, sizeof(performance_state));
@@ -62,7 +69,7 @@ void ctagSoundProcessorTBDings::Process(const ProcessData &data) {
     }
 
     if (isEaster)
-        string_synth.set_fx((rings::FxType) resonatorModel);
+        string_synth->set_fx((rings::FxType) resonatorModel);
     else
         part.set_model(resonatorModel);
 
@@ -73,7 +80,7 @@ void ctagSoundProcessorTBDings::Process(const ProcessData &data) {
     }
     if (isEaster) {
         strummer.Process(NULL, bufSz, &performance_state);
-        string_synth.Process(performance_state, patch, in, out, aux, bufSz);
+        string_synth->Process(performance_state, patch, in, out, aux, bufSz);
     } else {
         strummer.Process(in, bufSz, &performance_state);
         part.Process(performance_state, patch, in, out, aux, bufSz);
@@ -198,6 +205,11 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
 }
 
 ctagSoundProcessorTBDings::~ctagSoundProcessorTBDings() {
+    if (string_synth != nullptr) {
+        string_synth->~StringSynthPart();
+        heap_caps_free(string_synth);
+        string_synth = nullptr;
+    }
     heap_caps_free(reverb_buffer);
 }
 

@@ -25,17 +25,29 @@ respective component folders / files if different from this license.
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+void CTAG::FAV::FavoritesModel::ensureLoaded() {
+    if (!loaded) {
+        loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
+        loaded = true;
+        favsDirty = true;
+    }
+}
+
 string CTAG::FAV::FavoritesModel::GetAllFavorites() {
-    loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
-    json.Clear();
-    Writer<StringBuffer> writer(json);
+    ensureLoaded();
     if (!m.IsArray()) return "";
-    m.Accept(writer);
-    return json.GetString();
+    if (favsDirty) {
+        json.Clear();
+        Writer<StringBuffer> writer(json);
+        m.Accept(writer);
+        cachedFavsJson.assign(json.GetString(), json.GetSize());
+        favsDirty = false;
+    }
+    return cachedFavsJson;
 }
 
 string CTAG::FAV::FavoritesModel::GetFavorite(int const &i) {
-    loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
+    ensureLoaded();
     json.Clear();
     Writer<StringBuffer> writer(json);
     if (!m.IsArray()) return "";
@@ -45,21 +57,21 @@ string CTAG::FAV::FavoritesModel::GetFavorite(int const &i) {
 }
 
 string CTAG::FAV::FavoritesModel::GetFavoriteName(int const &i) {
-    loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
+    ensureLoaded();
     if (!m.IsArray()) return "";
     Value o = m[i].GetObject();
     return o["name"].GetString();
 }
 
 string CTAG::FAV::FavoritesModel::GetFavoriteUString(int const &i) {
-    loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
+    ensureLoaded();
     if (!m.IsArray()) return "";
     Value o = m[i].GetObject();
     return o["ustring"].GetString();
 }
 
 string CTAG::FAV::FavoritesModel::GetFavoritePluginID(int const &i, const int &channel) {
-    loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
+    ensureLoaded();
     if (!m.IsArray()) return "";
     if (!m[i].IsObject()) return "";
     string key {"plug_0"};
@@ -69,7 +81,7 @@ string CTAG::FAV::FavoritesModel::GetFavoritePluginID(int const &i, const int &c
 }
 
 int CTAG::FAV::FavoritesModel::GetFavoritePreset(int const &i, const int &channel) {
-    loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
+    ensureLoaded();
     if (!m.IsArray()) return 0;
     string key {"pre_0"};
     if(channel == 1) key = string("pre_1");
@@ -78,10 +90,11 @@ int CTAG::FAV::FavoritesModel::GetFavoritePreset(int const &i, const int &channe
 }
 
 void CTAG::FAV::FavoritesModel::SetFavorite(int const &id, const string &data) {
-    loadJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
+    ensureLoaded();
     if (!m.IsArray()) return;
     Document d;
     d.Parse(data);
     m[id] = d.Move();
+    favsDirty = true;
     storeJSON(m, CTAG::RESOURCES::spiffsRoot + "/data/favs.jsn");
 }

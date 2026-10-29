@@ -62,12 +62,15 @@ idf_build_set_property(INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/gen_include APPEN
 # that fits the partition named 'storage'. FLASH_IN_PROJECT indicates that
 # the generated image should be flashed when the entire project is flashed to
 # the target with 'idf.py -p PORT flash'.
-file(GLOB_RECURSE WWW_FILES RELATIVE ${CMAKE_SOURCE_DIR}/spiffs_image ${CMAKE_SOURCE_DIR}/spiffs_image/www/*)
-foreach(WWW_FILE ${WWW_FILES})
-    list(APPEND GZIP_COMMANDS
-            COMMAND gzip -9 ${CMAKE_BINARY_DIR}/spiffs_image/${WWW_FILE} )
-endforeach()
-if(NOT CONFIG_TBD_PLATFORM_BBA)
+if(CONFIG_TBD_PLATFORM_BBA)
+    list(APPEND DEL_COMMANDS
+            COMMAND rm -rf ${CMAKE_BINARY_DIR}/spiffs_image/www)
+else()
+    file(GLOB_RECURSE WWW_FILES RELATIVE ${CMAKE_SOURCE_DIR}/spiffs_image ${CMAKE_SOURCE_DIR}/spiffs_image/www/*)
+    foreach(WWW_FILE ${WWW_FILES})
+        list(APPEND GZIP_COMMANDS
+                COMMAND gzip -9 ${CMAKE_BINARY_DIR}/spiffs_image/${WWW_FILE} )
+    endforeach()
     list(APPEND DEL_COMMANDS
             COMMAND rm -f ${CMAKE_BINARY_DIR}/spiffs_image/data/sp/*DrumRack.jsn)
     list(APPEND DEL_COMMANDS

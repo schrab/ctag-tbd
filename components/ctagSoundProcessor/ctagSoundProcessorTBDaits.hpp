@@ -42,18 +42,18 @@ namespace CTAG {
             plaits::Patch patch = {};
             char *shared_buffer;
             // sectionHpp
-            atomic<int32_t> smodel, cv_smodel;
-            atomic<int32_t> trigger, trig_trigger;
-            atomic<int32_t> frequency, cv_frequency;
-            atomic<int32_t> level, cv_level;
-            atomic<int32_t> harmonics, cv_harmonics;
-            atomic<int32_t> timbre, cv_timbre;
-            atomic<int32_t> morph, cv_morph;
-            atomic<int32_t> lpg_color, cv_lpg_color;
-            atomic<int32_t> lpg_decay, cv_lpg_decay;
-            atomic<int32_t> mod_freq, cv_mod_freq;
-            atomic<int32_t> mod_timbre, cv_mod_timbre;
-            atomic<int32_t> mod_morph, cv_mod_morph;
+            atomic<int32_t> smodel{0}, cv_smodel{-1};
+            atomic<int32_t> trigger{0}, trig_trigger{-1};
+            atomic<int32_t> frequency{2048}, cv_frequency{-1};
+            atomic<int32_t> level{4095}, cv_level{-1};
+            atomic<int32_t> harmonics{2048}, cv_harmonics{-1};
+            atomic<int32_t> timbre{2048}, cv_timbre{-1};
+            atomic<int32_t> morph{2048}, cv_morph{-1};
+            atomic<int32_t> lpg_color{2048}, cv_lpg_color{-1};
+            atomic<int32_t> lpg_decay{2048}, cv_lpg_decay{-1};
+            atomic<int32_t> mod_freq{0}, cv_mod_freq{-1};
+            atomic<int32_t> mod_timbre{0}, cv_mod_timbre{-1};
+            atomic<int32_t> mod_morph{0}, cv_mod_morph{-1};
             // sectionHpp
         };
     }

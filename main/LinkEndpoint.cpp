@@ -332,6 +332,7 @@ namespace CTAG {
             }
 
             struct LastPushed {
+                uint32_t modelGen = 0;
                 uint32_t pluginList = 0, params0 = 0, params1 = 0, config = 0;
                 uint32_t presets0 = 0, presets1 = 0, favorites = 0;
                 string id0, id1;
@@ -353,36 +354,41 @@ namespace CTAG {
                 lastPushed.favorites = hashBytes(favs.c_str());
                 lastPushed.id0 = SoundProcessorManager::GetStringID(0);
                 lastPushed.id1 = SoundProcessorManager::GetStringID(1);
+                lastPushed.modelGen = CTAG::SP::ctagDataModelBase::GetGeneration();
                 lastPushed.marbles = hashMarbles();
                 lastPushed.sdMounted = FileSystem::IsSDMounted() ? 1 : 0;
             }
 
             void pushOnChange() {
                 uint32_t h;
-                h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONSoundProcessors()));
-                if (h != lastPushed.pluginList) { lastPushed.pluginList = h; pushPluginList(); }
-                h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(0)));
-                if (h != lastPushed.params0) { lastPushed.params0 = h; pushParams(0); }
-                h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(1)));
-                if (h != lastPushed.params1) { lastPushed.params1 = h; pushParams(1); }
-                h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONConfiguration()));
-                if (h != lastPushed.config) { lastPushed.config = h; pushConfig(); }
-                h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONGetPresets(0)));
-                if (h != lastPushed.presets0) { lastPushed.presets0 = h; pushPresets(0); }
-                h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONGetPresets(1)));
-                if (h != lastPushed.presets1) { lastPushed.presets1 = h; pushPresets(1); }
-                {
-                    string favs = Favorites::GetAllFavorites();
-                    h = hashBytes(favs.c_str());
-                    if (h != lastPushed.favorites) { lastPushed.favorites = h; pushFavorites(); }
-                }
-                {
-                    string id0 = SoundProcessorManager::GetStringID(0);
-                    string id1 = SoundProcessorManager::GetStringID(1);
-                    if (id0 != lastPushed.id0 || id1 != lastPushed.id1) {
-                        lastPushed.id0 = id0;
-                        lastPushed.id1 = id1;
-                        pushActivePlugin();
+                uint32_t gen = CTAG::SP::ctagDataModelBase::GetGeneration();
+                if (gen != lastPushed.modelGen) {
+                    lastPushed.modelGen = gen;
+                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONSoundProcessors()));
+                    if (h != lastPushed.pluginList) { lastPushed.pluginList = h; pushPluginList(); }
+                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(0)));
+                    if (h != lastPushed.params0) { lastPushed.params0 = h; pushParams(0); }
+                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(1)));
+                    if (h != lastPushed.params1) { lastPushed.params1 = h; pushParams(1); }
+                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONConfiguration()));
+                    if (h != lastPushed.config) { lastPushed.config = h; pushConfig(); }
+                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONGetPresets(0)));
+                    if (h != lastPushed.presets0) { lastPushed.presets0 = h; pushPresets(0); }
+                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONGetPresets(1)));
+                    if (h != lastPushed.presets1) { lastPushed.presets1 = h; pushPresets(1); }
+                    {
+                        string favs = Favorites::GetAllFavorites();
+                        h = hashBytes(favs.c_str());
+                        if (h != lastPushed.favorites) { lastPushed.favorites = h; pushFavorites(); }
+                    }
+                    {
+                        string id0 = SoundProcessorManager::GetStringID(0);
+                        string id1 = SoundProcessorManager::GetStringID(1);
+                        if (id0 != lastPushed.id0 || id1 != lastPushed.id1) {
+                            lastPushed.id0 = id0;
+                            lastPushed.id1 = id1;
+                            pushActivePlugin();
+                        }
                     }
                 }
                 h = hashMarbles();

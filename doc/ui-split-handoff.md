@@ -1,7 +1,7 @@
 # UI-Split Handoff — P0–P6 Status
 
 **Branch:** `feat/ui-split` (P6 cutover 0c032a88 pushed; leftovers + P6-post debugging closed 2026-10-29)
-**Date:** 2026-10-29 (P6 DONE; debug access restored; BLE reconnect fixed; TBDaits crackle under investigation)
+**Date:** 2026-10-29 (P6 DONE; debug access restored; BLE reconnect + power-toggle fixed; TBDaits crash + crackle FIXED)
 **SDD:** `doc/ui-split-sdd.md` | **Bring-up:** `doc/uimcu-bringup.md`
 
 ## 2026-10-29 debugging session — findings and state
@@ -34,33 +34,12 @@ blind connect at boot either; quiet thresholds are 10 s on both ends.
 Verified: 60 s with pad off — zero resets, zero link drops, loads work.
 Never reinstate blind connect attempts to an absent peer.
 
-**TBDaits (Plaits port) crackle — CPU overload EXONERATED, root cause open:**
-- Per-model sweep via forwarded `setPluginParam` + `getAudioStats`: all
-  **24 models render 41k–128k cycles** vs the 174,150 budget (worst =
-  model 22 at 73 %), `cpuOverload=0` everywhere, Void baseline ~8–9k
-  (Marbles + staging ≈ 5 %). The sweep was idle-state (no active voices).
-- TBDaits had NO instrumentation → `PERF_MEASURE("TBDaits")` added
-  (perf_monitor.hpp include + Process entry). The 5 s logger is enabled
-  by loading Mbeads on any channel; next session: load Mbeads ch1 +
-  TBDaits ch0, play into the crackle, read `PERF_MONITOR: TBDaits avg=…`
-  on the A1S console for the voice-active render cost.
-- During the user's distorted state the A1S console printed nothing (no
-  panic, no WDT, no brownout line) and the C3 link logs showed the DSP
-  link task surviving the earlier crashes (re-handshake 10 ms/2 s later)
-  — the reported "dsp reboots" was never a real DSP reboot in the
-  recorded events. Leading suspects: signal-path output scaling (the
-  Elements-class ±1.0 overdrive → codec clamp — check TBDaits output
-  scale) or voice-active overload; a static audit of the model-switch
-  path was dispatched but its report is still outstanding.
-- **The "dsp reboot" crashes: ROOT CAUSE FOUND AND FIXED (005cc172)** —
-  the static audit spotted that `SoundProcessorManager::SetChannelParamValue`
-  dereferenced `sp[chan]` unguarded; for a STEREO plugin on ch0 (TBDaits
-  is stereo) `sp[1]` is nullptr, so a stale/mismatched `ch=1` param edit
-  was a guaranteed LoadProhibited panic on the link task → DSP
-  panic-reboots (audio stops) → the shared-power rail dips and the panel
-  reboots with it. Guarded now (+ defensive model clamp); reflashed and
-  awaiting hardware confirmation with the exact repro. The crackle
-  itself is a separate, still-open issue (see above).
+**TBDaits (Plaits port) crash + 5–10 Hz overrun crackle — FIXED and hardware-verified:**
+- **Crash fix (`005cc172`)**: `SoundProcessorManager::SetChannelParamValue` guarded against `sp[chan] == nullptr` (stereo plugin on ch0 leaves `sp[1] == nullptr`) + clamped `smodel` to `0..23`.
+- **Analog headphone amp-enable fix (`7d6bfaa5`)**: `Codec::UpdateAmpEnable` now drives GPIO21 low when `output_source="headphones"` so the onboard NS4150 amplifier does not load the ES8388 DAC outputs.
+- **5–10 Hz overrun crackle fix (see `doc/tbdaits-crackle-evidence.md` for full evidence)**:
+  1. `LinkEndpoint::pushOnChange()` ran every 100 ms (10 Hz) on Core 0 and unconditionally called `GetCStrJSONSoundProcessors()`, `GetCStrJSONGetPresets(0/1)`, `Favorites::GetAllFavorites()`, and `GetCStrJSONActivePluginParams(0/1)` — reading and parsing 4 JSON files from LittleFS/SPIFFS on SPI Flash 10 times per second and thrashing the shared SPI0/SPI1 Flash+PSRAM bus/cache. Fixed with `ctagDataModelBase::GetGeneration()` + dirty-cached JSON strings in `SPManagerDataModel`, `ctagSPDataModel`, and `FavoritesModel` (zero SPIFFS reads and zero RapidJSON work during steady-state playback).
+  2. `ctagSPAllocator::AllocateInternalBuffer(114688)` missed the ESP32 internal SRAM1 region (`113,840 B`, TLSF bucket floor `110,592 B`) and fell back to external PSRAM, putting both the 14 KB `plaits::Voice` object and its 16 KB `shared_buffer` in PSRAM where Core 0's 10 Hz Flash/PSRAM activity stalled `voice.Render()` from ~268 µs to ~950–1,000 µs (exceeding the 725.6 µs budget). Fixed by claiming the `110,592 B` internal SRAM1 block in `ctagSPAllocator`, sharing the mutually-exclusive `resonator_`/`string_`/`fm_voice_` arrays in `rings::Part` (`TBDings` stereo size `113,944 B → 105,708 B`), and excluding `RestServer`, `BtMidiReceiver`, `components/network`, `spiffs_image/www`, and the unused `midiuart_instance` from the BBA DSP build (137.9 KB internal DRAM still free after the 110.6 KB arena). Also initialized all `cv_*`/`trig_*` atomics to `-1` and wired `cv_timbre`/`cv_morph` in `ctagSoundProcessorTBDaits`.
 
 
 ## RESOLVED: the link works (2026-10-28)

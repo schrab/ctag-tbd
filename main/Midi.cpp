@@ -24,7 +24,7 @@ respective component folders / files if different from this license.
 #include "Favorites.hpp"
 #include "MarblesEngine.hpp"
 #include "SDAudio.hpp"
-#if CONFIG_BT_ENABLED
+#if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
 #include "BtMidiReceiver.hpp"
 #endif
 #include <cinttypes>
@@ -771,7 +771,6 @@ void Midi::SetBleEnabled(bool en) { midiBleEnabled = en; }
 bool Midi::IsBleEnabled() { return midiBleEnabled; }
 
 // --- Instanciate objects for lowlevel and highlevel MIDI processing ---
-static CTAG::DRIVERS::midiuart midiuart_instance;              // UART reader (and writer) for MIDI-messages
 DRAM_ATTR static CTAG::CTRL::Midi distribute;     // Instanciate Midi-Class as object for MIDI-message distribution, according to events mapped via WebUI
 
 // === Buffer to pass on MIDI-Event as virtual CV and Gate 'voltages', normalized to -1.f...+1.f (CV) and 0 or 1 integers (Triggers/Gates) ===
@@ -869,7 +868,7 @@ uint8_t *Midi::Update() {
                                MIDI_BUF_SZ - 32 - missing_bytes_offset - len2);
 
         // get all available MIDI messages from Bluetooth (if enabled)
-#if CONFIG_BT_ENABLED
+#if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
         if (midiBleEnabled) {
             uint32_t bt_len = 0;
             uint8_t *bt_pos = &msgBuffer[missing_bytes_offset + len2 + len];

@@ -94,17 +94,21 @@ bool SPManagerDataModel::RemovePlugin(const string &id) {
     string base = CTAG::RESOURCES::spiffsRoot + "/data/sp/";
     remove((base + "mui-" + id + ".jsn").c_str());
     remove((base + "mp-" + id + ".jsn").c_str());
+    processorsDirty = true;
     storeJSON(m, MODELJSONFN);
     return true;
 }
 
 const char *SPManagerDataModel::GetCStrJSONSoundProcessors() {
-    loadJSON(m, MODELJSONFN);
-    json.Clear();
-    Writer<StringBuffer> writer(json);
     if (!m.HasMember("availableProcessors")) return nullptr;
-    m["availableProcessors"].Accept(writer);
-    return json.GetString();
+    if (processorsDirty) {
+        json.Clear();
+        Writer<StringBuffer> writer(json);
+        m["availableProcessors"].Accept(writer);
+        cachedProcessorsJson.assign(json.GetString(), json.GetSize());
+        processorsDirty = false;
+    }
+    return cachedProcessorsJson.c_str();
 }
 
 string SPManagerDataModel::GetActiveProcessorID(const int chan) {
@@ -215,10 +219,14 @@ void SPManagerDataModel::PrintSelf() {
 
 const char *SPManagerDataModel::GetCStrJSONConfiguration() {
     if (!m.HasMember("configuration")) return nullptr;
-    json.Clear();
-    Writer<StringBuffer> writer(json);
-    m["configuration"].Accept(writer);
-    return json.GetString();
+    if (configDirty) {
+        json.Clear();
+        Writer<StringBuffer> writer(json);
+        m["configuration"].Accept(writer);
+        cachedConfigJson.assign(json.GetString(), json.GetSize());
+        configDirty = false;
+    }
+    return cachedConfigJson.c_str();
 }
 
 void SPManagerDataModel::SetConfigurationFromJSON(const string &data) {
@@ -229,6 +237,7 @@ void SPManagerDataModel::SetConfigurationFromJSON(const string &data) {
     Value obj(kObjectType);
     obj.CopyFrom(d, m.GetAllocator());
     m["configuration"] = obj.Move();
+    configDirty = true;
     storeJSON(m, MODELJSONFN);
     //PrintSelf();
 }
@@ -259,6 +268,7 @@ void SPManagerDataModel::ResetNetworkConfiguration() {
     m["configuration"]["wifi"]["ssid"] = ssid.Move();
     m["configuration"]["wifi"]["pwd"] = pwd.Move();
     m["configuration"]["wifi"]["mode"] = mode.Move();
+    configDirty = true;
     storeJSON(m, MODELJSONFN);
 }
 

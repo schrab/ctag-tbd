@@ -23,6 +23,8 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include <string>
+#include <atomic>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -40,7 +42,15 @@ namespace CTAG {
 
             virtual ~ctagDataModelBase();
 
+            static uint32_t GetGeneration() {
+                return s_generation.load(std::memory_order_relaxed);
+            }
+            static void BumpGeneration() {
+                s_generation.fetch_add(1, std::memory_order_relaxed);
+            }
+
         protected:
+            static std::atomic<uint32_t> s_generation;
             StringBuffer json;
 
             void loadJSON(rapidjson::Document &d, const string &fn);

@@ -64,8 +64,16 @@ void ctagSoundProcessorTBDaits::Process(const ProcessData &data) {
         patch.lpg_colour = lpg_color / 4095.f;
     }
 
-    patch.timbre = timbre / 4095.f;
-    patch.morph = morph / 4095.f;
+    if (cv_timbre != -1) {
+        patch.timbre = HELPERS::fastfabs(data.cv[cv_timbre]);
+    } else {
+        patch.timbre = timbre / 4095.f;
+    }
+    if (cv_morph != -1) {
+        patch.morph = HELPERS::fastfabs(data.cv[cv_morph]);
+    } else {
+        patch.morph = morph / 4095.f;
+    }
     patch.morph_modulation_amount = mod_morph / 4095.f;
     patch.frequency_modulation_amount = mod_freq / 4095.f;
     patch.timbre_modulation_amount = mod_timbre / 4095.f;

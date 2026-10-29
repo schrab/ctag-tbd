@@ -32,6 +32,8 @@ respective component folders / files if different from this license.
 
 #define MB_BUF_SZ 4096
 
+std::atomic<uint32_t> CTAG::SP::ctagDataModelBase::s_generation{1};
+
 void CTAG::SP::ctagDataModelBase::loadJSON(Document &d, const string &fn) {
     d.GetAllocator().Clear();
     ESP_LOGD("JSON", "read buffer");
@@ -92,6 +94,7 @@ void CTAG::SP::ctagDataModelBase::storeJSON(Document &d, const string &fn) {
     d.Accept(writer);
     fflush(fp);
     fclose(fp);
+    BumpGeneration();
 }
 
 void CTAG::SP::ctagDataModelBase::printJSON(Value &v) {

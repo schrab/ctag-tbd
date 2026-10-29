@@ -29,10 +29,12 @@ respective component folders / files if different from this license.
 #include "codec.hpp"
 #include "InputSource.hpp"
 #include "esp_heap_caps.h"
+#ifndef TBD_RADIO_FREE
 #include "network.hpp"
+#include "RestServer.hpp"
+#endif
 #include "nvs_flash.h"
 #include "SerialAPI.hpp"
-#include "RestServer.hpp"
 #include "Control.hpp"
 #if defined(CONFIG_TBD_PLATFORM_BBA)
 #include "Midi.hpp"
@@ -40,7 +42,7 @@ respective component folders / files if different from this license.
 #include "Favorites.hpp"
 #include "MarblesEngine.hpp"
 #include "SDAudio.hpp"
-#if CONFIG_BT_ENABLED
+#if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
 #include "BtMidiReceiver.hpp"
 #endif
 #include <math.h>

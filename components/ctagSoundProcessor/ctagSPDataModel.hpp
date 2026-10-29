@@ -71,6 +71,10 @@ namespace CTAG {
             Document mui, mp;
             string mpFileName, muiFileName;
             Document activePreset;
+            bool paramsDirty = true;
+            bool presetsDirty = true;
+            string cachedParamsJson;
+            string cachedPresetsJson;
         };
     }
 }
