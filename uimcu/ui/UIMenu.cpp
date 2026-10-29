@@ -62,9 +62,8 @@ namespace CTAG {
             for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();
             navState = ROOT;
             redrawNeeded = true;
-            // Do initial redraw before task starts so display clears splash immediately
-            pages[PANEL_HOME]->doRedraw();
-            drawPanelBar();
+            // First paint happens in the task after the boot splash phase
+            // (splash holds the screen until the DSP link handshakes).
             ESP_LOGI(TAG, "Init: done");
             // task created in main.cpp
             // UserInput::EnableISR() called after task creation in main.cpp
@@ -122,7 +121,64 @@ namespace CTAG {
         void UIMenu::TaskFunction(void *) {
             ESP_LOGI(TAG, "TaskFunction: starting main loop");
             UserInput::Init();
+            // Boot splash: hold title + build number + progress bar until
+            // the DSP link handshakes (no-op on the stub build, which is
+            // always online). The fill sweeps 0..100% and wraps; input
+            // events are drained so boot-time encoder noise cannot queue
+            // ahead of the first menu frame.
+            if (!DspProxy::IsOnline()) {
+                ESP_LOGI(TAG, "splash: waiting for DSP handshake");
+                const TickType_t t0 = xTaskGetTickCount();
+                constexpr uint32_t sweepMs = 1200;
+                while (!DspProxy::IsOnline()) {
+                    uint32_t ms = (xTaskGetTickCount() - t0) * portTICK_PERIOD_MS;
+                    Display::ShowSplash((int)((ms % sweepMs) * 100 / sweepMs));
+                    InputEvent ev;
+                    while (UserInput::GetEvent(ev, 0)) {}
+                    vTaskDelay(pdMS_TO_TICKS(30));
+                }
+                ESP_LOGI(TAG, "splash: DSP online after %u ms",
+                         (unsigned)((xTaskGetTickCount() - t0) * portTICK_PERIOD_MS));
+                redrawNeeded = true;
+            }
+            bool dspLostShown = false;
             while (1) {
+                // Framebuffer snapshot request (debug screenshot command).
+                // Runs unconditionally every iteration and BEFORE the
+                // link-lost shortcut below, so bench screenshots work while
+                // the popup is on screen too.
+                if (fbShotPending) {
+                    Display::CopyFramebuffer(fbShotBuf);
+                    fbShotPending = false;
+                    fbShotReady = true;
+                }
+
+                // DSP link watch: modal popup over the current screen
+                // content while the link is down (link client flips
+                // offline after 10 s without a complete DSP frame). Input
+                // is drained so nothing stale fires after recovery; the
+                // first frame back repaints the page via redrawNeeded.
+                if (!DspProxy::IsOnline()) {
+                    if (displayState == ASLEEP) {
+                        Display::Wake();
+                        displayState = AWAKE;
+                        screensaverTimer = 0;
+                        dspLostShown = false; // repaint popup after wake
+                    }
+                    if (!dspLostShown) {
+                        dspLostShown = true;
+                        ESP_LOGW(TAG, "DSP link lost");
+                        Display::ShowDspLostPopup();
+                    }
+                    InputEvent ev;
+                    while (UserInput::GetEvent(ev, 0)) {}
+                    vTaskDelay(pdMS_TO_TICKS(20));
+                    continue;
+                }
+                if (dspLostShown) {
+                    dspLostShown = false;
+                    redrawNeeded = true;
+                }
                 InputEvent ev;
                 bool gotEv = UserInput::GetEvent(ev, 20);
                 uint32_t now = xTaskGetTickCount();
@@ -233,15 +289,6 @@ namespace CTAG {
                     }
                 } else {
                     pageTickCounter = 0;
-                }
-
-                // Framebuffer snapshot request (debug screenshot command).
-                // Runs unconditionally every iteration, not just when an input
-                // event arrived, so a request is serviced within one loop.
-                if (fbShotPending) {
-                    Display::CopyFramebuffer(fbShotBuf);
-                    fbShotPending = false;
-                    fbShotReady = true;
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(20));

@@ -40,7 +40,9 @@ extern "C" void app_main() {
     ESP_LOGI(TAG, "panel controller boot (C3)");
 
     CTAG::DRIVERS::Display::Init();
-    CTAG::DRIVERS::Display::ShowFWVersion();
+    // Boot splash paints immediately; the UIMenu task animates the bar and
+    // holds the screen until the DSP link handshakes (skipped on the stub).
+    CTAG::DRIVERS::Display::ShowSplash(0);
 
     CTAG::CTRL::DspProxy::Init();
 

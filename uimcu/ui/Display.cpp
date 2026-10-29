@@ -278,6 +278,46 @@ void Display::ShowFWVersion() {
     Flush();
 }
 
+// Boot splash, held by UIMenu until the DSP link handshakes: title in the
+// standard norns font, build number in the small font, progress bar with
+// a 1px outline and a 3px-tall fill. fillPercent 0..100 sweeps the fill.
+void Display::ShowSplash(int fillPercent) {
+    Clear();
+    const char *title = "CTAG-BBA-V2";
+    int w = 0;
+    for (const char *p = title; *p; ++p)
+        w += FontAdvance(FONT_NORNS_6X7, (unsigned char)*p);
+    DrawString((128 - w) / 2, 15, title, FONT_NORNS_6X7);
+    const char *build = TBD_FW_VERSION.c_str();
+    w = 0;
+    for (const char *p = build; *p; ++p)
+        w += FontAdvance(FONT_DIGI_SLIM_3X6, (unsigned char)*p);
+    DrawString((128 - w) / 2, 31, build, FONT_DIGI_SLIM_3X6);
+    constexpr int BAR_X = 24, BAR_Y = 48, BAR_W = 80;
+    int fillW = (BAR_W - 2) * fillPercent / 100;
+    if (fillW < 0) fillW = 0;
+    if (fillW > BAR_W - 2) fillW = BAR_W - 2;
+    DrawRect(BAR_X, BAR_Y, BAR_W, 5, false);
+    if (fillW > 0) DrawRect(BAR_X + 1, BAR_Y + 1, fillW, 3, true);
+    Flush();
+}
+
+// Modal link-lost popup, drawn OVER the current screen content: opaque
+// interior (so the page text underneath cannot bleed through), 1px frame,
+// message in the standard norns font centered inside.
+void Display::ShowDspLostPopup() {
+    const char *msg = "DSP link lost";
+    int tw = 0;
+    for (const char *p = msg; *p; ++p)
+        tw += FontAdvance(FONT_NORNS_6X7, (unsigned char)*p);
+    const int fw = tw + 10, fh = 15;
+    const int fx = (128 - fw) / 2, fy = 25;
+    DrawRect(fx, fy, fw, fh, true, false);
+    DrawRect(fx, fy, fw, fh, false, true);
+    DrawString(fx + 5, fy + 4, msg, FONT_NORNS_6X7);
+    Flush();
+}
+
 void Display::MarkDirty(int page) {
     if (page >= 0 && page < 8) dirtyPages[page] = true;
 }

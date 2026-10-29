@@ -98,6 +98,15 @@ namespace CTAG {
             static void CopyFramebuffer(uint8_t *dst);
             static void Clear();
             static void ShowFWVersion();
+            // Boot splash: title + build number + progress bar. UIMenu
+            // holds it on screen until the DSP link handshakes, animating
+            // fillPercent 0..100.
+            static void ShowSplash(int fillPercent);
+            // Modal "DSP link lost" popup: rectangle frame drawn over the
+            // current screen content (page underneath is not cleared).
+            // UIMenu shows it whenever the link goes down after boot and
+            // repaints the page once it recovers.
+            static void ShowDspLostPopup();
 
             // Framebuffer drawing primitives
             static void DrawPixel(int x, int y, bool on = true);
