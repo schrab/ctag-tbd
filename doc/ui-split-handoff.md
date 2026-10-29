@@ -365,37 +365,18 @@ filtered live lines + raw capture to `uimcu/tools/last_tail_raw.log`.
   the always-on logger was a suspect in a periodic-crackle report) —
   d30528ab.
 
-**OPEN — the pad (SMC-PAD) connects but delivers ZERO MIDI data:**
-- Chain verified working: pad connects, pairing/encryption completes, MIDI
-  service + characteristic discovered, CCCD found at 0x73, written with a
-  reliable write, **accepted** (×2 — the legacy val+1 fallback now targets
-  the same handle), keepalives (3 B, 0xF8 clock) ACKed every 260 ms.
-- The A1S receives NOTHING: with the 1 Hz `midiIn receipt` probe flashed,
-  zero receipts while the pad is played. The C3 never sends /link/midiIn.
-- The C3-side probes (notify rx / ble drained, 1 Hz, in the flashed build)
-  show **zero notifications reaching the C3's BLE stack** while the pad is
-  played — the break is between the pad and NimBLE's NOTIFY_RX.
-- The pad factory reset + fresh pairing did NOT change this. The pad
-  demonstrably sends BLE MIDI to other hosts. **Firmware bisected**: the
-  MIDI-verified commit f06172bc, flashed with the fresh pad, shows the same
-  silence — the code between f06172bc and HEAD is exonerated by direct test.
-- **NOW FLASHED but unread: the CCCD read-back + late re-subscribe**
-  (BtMidiReceiver.cpp, uncommitted→committed in the handoff commit). On the
-  next boot the console prints `CCCD read-back @115 = .. ..` right after the
-  CCCD write and again 2.5 s in (late re-subscribe):
-  - `01 00 (subscribed)` both times → the pad holds the subscription and
-    chooses not to send → pad-side BLE stack despite the reset; next step:
-    compare a full ATT-level capture from a working host (Android/btlejack/
-    nRF Connect) against ours — MTU exchange, conn interval, anything
-    different.
-  - `00 00 (NOT subscribed)` → the pad drops the subscription → find out
-    why (encryption level, bond requirement, or the pad re-clearing CCCDs
-    after our write — try writing the CCCD later, after keepalives have
-    started, or bonding FIRST via ble_gap_security_initiate).
-- 5–10 Hz crackle (TBDaits, all models): = the rate of overrunning render
-  blocks (PERF max ~1000 µs vs the 725 µs budget, avg ~268 µs); denormals
-  ruled out (FTZ active, spikes persist); pad MIDI data death is separate.
-  Both queue behind this handoff.
+**RESOLVED — SMC-PAD BLE-MIDI silence after pad power-toggle:**
+- **Symptom:** Connecting the SMC-PAD to Linux (BlueZ) and disconnecting allowed it to reconnect to the C3 and send MIDI/CCs, but power-toggling the SMC-PAD (off/on) caused it to reconnect, accept CCCD `0x0073 = 01 00` (`CCCD read-back @115 = 01 00 (subscribed)`), and send zero notifications.
+- **Root cause:**
+  1. The SMC-PAD's JieLi stack (`open-smc-pad/fw/smcpad/modules/bt/ble_hogp.c`) stores a single bonded peer in `hogp_pair_info`. Connecting to Linux overwrote that slot, so reconnecting to the C3 forced a fresh Just-Works pairing (`GATT_COMM_EVENT_ENCRYPTION_REQUEST`, `first_pair_flag = 1`, `first pair...`) which initialized the BLE-MIDI stream and saved the C3's LTK.
+  2. After power-toggling the pad, both ends held the cached LTK, so NimBLE's `ble_sm_sec_req_rx` took `ble_sm_enc_initiate` (`LINK_ENCRYPTION_RECONNECT`, `first_pair_flag = 0`) before `BLE_GAP_EVENT_CONNECT` fired, while the C3 also lacked local GAP/GATT services (`ble_svc_gap_init` / `ble_svc_gatt_init`) when the pad's `att_server_set_check_remote()` queried the Central.
+  3. In addition, GATT procedures overlapped (`ble_gattc_disc_all_chrs` started inside `on_svc_discovered` before `BLE_HS_EDONE`) and no ATT MTU exchange (`ble_gattc_exchange_mtu`) was performed.
+- **Fix (hardware-verified across pad power-toggle):**
+  - Clear any cached peer LTK (`ble_store_util_delete_peer`) before `ble_gap_connect` in `connectStored()` / `Connect()` so every connection performs a fresh Just-Works pairing (`first_pair_flag = 1`) automatically.
+  - Register local GAP/GATT services (`ble_svc_gap_init()`, `ble_svc_gatt_init()`).
+  - Strictly sequence GATT client procedures: `ble_gattc_exchange_mtu` (256 B) → `ble_gattc_disc_all_svcs` (wait for `BLE_HS_EDONE`) → `ble_gattc_disc_all_chrs` → `ble_gattc_disc_all_dscs` → CCCD `0x0073` write → Apple BLE-MIDI characteristic `0x0072` read → initial + 250 ms keepalive writes (`SendKeepalive` via `ble_gattc_write_no_rsp_flat`).
+  - Non-blocking `usjLogWrite` (0-tick timeout) in `DebugLink.cpp` so an undrained USB-Serial/JTAG TX buffer never stalls `host_task`.
+  - Temporary `chore(debug)` midi-death probes trimmed.
 
-**Never lose again**: probe commits are marked `chore(debug)`; trim them in
-one commit when the midi-death mystery is closed.
+**OPEN — 5–10 Hz crackle (TBDaits, all models):**
+- Matches the rate of overrunning render blocks (PERF max ~1000 µs vs the 725 µs budget, avg ~268 µs); denormals ruled out (FTZ active, spikes persist).

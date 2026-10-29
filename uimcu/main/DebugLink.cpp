@@ -85,11 +85,15 @@ namespace CTAG {
 
         // After the driver owns the USJ, the ROM/vfs console cannot TX
         // reliably; hand ESP_LOG to the driver like DebugUI does on the A1S.
+        // Non-blocking (0 ticks): when no host is draining /dev/ttyACM0,
+        // the 4 KB USJ TX ring fills and a blocking wait here would stall
+        // every logging task (including NimBLE host_task while holding
+        // ble_hs_lock).
         static int usjLogWrite(const char *format, va_list args) {
             static char line[256];
             int len = vsnprintf(line, sizeof(line), format, args);
             if (len > 0)
-                usb_serial_jtag_write_bytes(line, (size_t)len, pdMS_TO_TICKS(100));
+                usb_serial_jtag_write_bytes(line, (size_t)len, 0);
             return len;
         }
 

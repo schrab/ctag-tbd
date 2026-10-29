@@ -66,14 +66,13 @@ namespace CTAG {
                     // while idle (no-op once connected or scanning).
                     BtMidiReceiver::TickReconnect();
                     // P4: BLE-MIDI keepalive — the SMC-PAD only starts its
-                    // notification stream once the client writes to it
-                    // (the Ableton session paces LED writes constantly).
+                    // notification stream once the client writes to it.
                     // A real-time clock tick every 250 ms keeps it talking.
                     static uint32_t lastKa = 0;
                     if (BtMidiReceiver::IsConnected() && DspProxy::IsMidiBleEnabled() &&
                         xTaskGetTickCount() - lastKa > pdMS_TO_TICKS(250)) {
                         lastKa = xTaskGetTickCount();
-                        uint8_t ka[3] = {0x80, 0x00, 0xF8};   // ts header + clock tick
+                        uint8_t ka[3] = {0x80, 0x80, 0xF8};   // ts header + ts byte + clock tick
                         BtMidiReceiver::SendKeepalive(ka, sizeof(ka));
                     }
                     // P4: BLE-MIDI relay (the central receiver runs here;
@@ -82,13 +81,6 @@ namespace CTAG {
                         uint8_t bbuf[64];
                         uint32_t bn = 0;
                         BtMidiReceiver::Read(bbuf, &bn);
-                        // 1 Hz probe: ring-drain receipt (midi-death split)
-                        static uint32_t lastDrainLogMs = 0;
-                        uint32_t nowMs = (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
-                        if (bn > 0 && nowMs - lastDrainLogMs > 1000) {
-                            lastDrainLogMs = nowMs;
-                            ESP_LOGI(TAG, "ble drained %u B", (unsigned) bn);
-                        }
                         relay(bbuf, bn);
                     }
                     int got = uart_read_bytes(kUart, raw, sizeof(raw),

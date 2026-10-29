@@ -19,6 +19,10 @@ Licensed under GPL 3.0.
 #include "host/ble_gap.h"
 #include "host/ble_gatt.h"
 #include "host/ble_uuid.h"
+#include "services/gap/ble_svc_gap.h"
+#include "services/gatt/ble_svc_gatt.h"
+
+extern "C" void ble_store_config_init(void);
 
 using namespace CTAG::DRIVERS;
 
@@ -28,9 +32,10 @@ static const char *TAG = "BLE_MIDI";
 static const ble_uuid128_t MIDI_SVC_UUID = BLE_UUID128_INIT(
     0x00, 0xC7, 0xC4, 0x4E, 0xE3, 0x6C, 0x51, 0xA7,
     0x33, 0x4B, 0xE8, 0xED, 0x5A, 0x0E, 0xB8, 0x03);
+// Apple BLE-MIDI I/O characteristic UUID: 7772E5DB-3868-4112-A1A9-F2669D106BF3
 static const ble_uuid128_t MIDI_CHR_UUID = BLE_UUID128_INIT(
-    0x02, 0xC7, 0xC4, 0x4E, 0xE3, 0x6C, 0x51, 0xA7,
-    0x33, 0x4B, 0xE8, 0xED, 0x5A, 0x0E, 0xB8, 0x03);
+    0xF3, 0x6B, 0x10, 0x9D, 0x66, 0xF2, 0xA9, 0xA1,
+    0x12, 0x41, 0x68, 0x38, 0xDB, 0xE5, 0x72, 0x77);
 
 // Ring buffer
 #define BT_MIDI_RING_SZ 2048
@@ -52,9 +57,9 @@ static uint16_t conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
 // Characteristic value handle for MIDI data (for notification subscription)
 static uint16_t midi_val_handle = 0;
+static uint16_t midiSvcStart = 0;      // start handle of the MIDI service
 static uint16_t midiSvcEnd = 0;        // end handle of the MIDI service (dsc scan)
 static uint16_t midi_cccd_handle = 0;  // 0x2902 CCCD handle once discovered
-static uint32_t cccd_write_ms = 0;     // when the last CCCD write completed
 static bool midi_cccd_written = false; // 0x2902 CCCD write landed
 
 // Persistent peer (last successfully connected device): stored in NVS on
@@ -107,6 +112,12 @@ static bool connectStored() {
     ble_addr_t addr;
     addr.type = storedType;
     memcpy(addr.val, storedBda, 6);
+    // Clear any cached LTK for this peer before connecting so NimBLE's
+    // ble_sm_sec_req_rx initiates a fresh Just-Works pairing
+    // (ble_sm_pair_initiate -> first_pair_flag=1 on the SMC-PAD) instead of
+    // an LTK encryption restore (LINK_ENCRYPTION_RECONNECT), after which the
+    // stock SMC-PAD firmware stops sending MIDI notifications on power-cycle.
+    ble_store_util_delete_peer(&addr);
     struct ble_gap_conn_params p;
     memset(&p, 0, sizeof(p));
     p.scan_itvl = 0x0010;
@@ -194,6 +205,11 @@ static void parse_ble_midi_notify(const uint8_t *data, int len) {
     }
 }
 
+static int on_svc_discovered(uint16_t conn,
+                              const struct ble_gatt_error *error,
+                              const struct ble_gatt_svc *svc,
+                              void *arg);
+
 static int on_chr_discovered(uint16_t conn,
                               const struct ble_gatt_error *error,
                               const struct ble_gatt_chr *chr,
@@ -205,20 +221,14 @@ static int on_dsc_discovered(uint16_t conn,
                              const struct ble_gatt_dsc *dsc,
                              void *arg);
 
-static int cccd_read_cb(uint16_t conn, const struct ble_gatt_error *error,
-                        struct ble_gatt_attr *attr, void *arg);
-static int cccd_read_cb(uint16_t conn, const struct ble_gatt_error *error,
+static int midi_read_cb(uint16_t conn, const struct ble_gatt_error *error,
                         struct ble_gatt_attr *attr, void *arg) {
     if (error && error->status != 0) {
-        ESP_LOGW(TAG, "CCCD read-back FAILED: %d", error->status);
-    } else if (attr != nullptr && attr->om != nullptr) {
-        uint8_t v[2] = {0, 0};
-        uint16_t n = OS_MBUF_PKTLEN(attr->om);
-        if (n > sizeof(v)) n = sizeof(v);
-        os_mbuf_copydata(attr->om, 0, n, v);
-        ESP_LOGW(TAG, "CCCD read-back @%u = %02x %02x (%s)",
-                 (unsigned) attr->handle, v[0], v[1],
-                 (v[0] == 0x01) ? "subscribed" : "NOT subscribed");
+        ESP_LOGW(TAG, "midi chr read FAILED: %d", error->status);
+    }
+    if (midi_val_handle != 0) {
+        const uint8_t ka[3] = {0x80, 0x80, 0xF8};
+        ble_gattc_write_no_rsp_flat(conn, midi_val_handle, ka, sizeof(ka));
     }
     return 0;
 }
@@ -230,17 +240,24 @@ static int cccd_write_cb(uint16_t conn, const struct ble_gatt_error *error,
     } else {
         midi_cccd_written = true;
         ESP_LOGI(TAG, "CCCD write accepted — notifications enabled");
-        // The SMC-PAD may only start its notification stream after the
-        // client writes to it (the Ableton script paces LED writes
-        // constantly). Poke it with a BLE-MIDI keepalive packet.
-        uint8_t ka[3] = {0x80, 0x00, 0xF8};   // ts header + MIDI clock tick
-        int wrc = ble_gattc_write_flat(conn, midi_val_handle, ka, sizeof(ka),
-                                       nullptr, nullptr);
-        ESP_LOGI(TAG, "keepalive write rc=%d", wrc);
-        // Read the CCCD back: does the pad actually hold the subscription?
-        ble_gattc_read(conn, midi_cccd_handle, cccd_read_cb, nullptr);
-        cccd_write_ms = (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
+        // Apple BLE-MIDI spec: Central shall read the MIDI I/O characteristic
+        // upon establishing a connection. Chained after CCCD write so only
+        // one GATT procedure is in flight at a time.
+        if (midi_val_handle != 0) {
+            ble_gattc_read(conn, midi_val_handle, midi_read_cb, nullptr);
+        }
     }
+    return 0;
+}
+
+static int on_mtu_exchanged(uint16_t conn,
+                            const struct ble_gatt_error *error,
+                            uint16_t mtu,
+                            void *arg) {
+    ESP_LOGI(TAG, "MTU exchange complete: status=%d mtu=%u, discovering services",
+             error ? error->status : -1, (unsigned) mtu);
+    int rc = ble_gattc_disc_all_svcs(conn, on_svc_discovered, nullptr);
+    if (rc != 0) ESP_LOGE(TAG, "Failed to start svc discovery: %d", rc);
     return 0;
 }
 
@@ -251,16 +268,20 @@ static int on_svc_discovered(uint16_t conn,
     if (error->status == 0 && svc != nullptr) {
         char uuid_str[37];
         ble_uuid_to_str(&svc->uuid.u, uuid_str);
+        ESP_LOGI(TAG, "svc %s (%u-%u)", uuid_str, svc->start_handle, svc->end_handle);
         if (ble_uuid_cmp(&svc->uuid.u, &MIDI_SVC_UUID.u) == 0) {
-            ESP_LOGI(TAG, "Found MIDI service (%u-%u), discovering characteristics",
+            ESP_LOGI(TAG, "Found MIDI service (%u-%u)",
                      svc->start_handle, svc->end_handle);
+            midiSvcStart = svc->start_handle;
             midiSvcEnd = svc->end_handle;
-            int rc = ble_gattc_disc_all_chrs(conn, svc->start_handle, svc->end_handle,
-                                             on_chr_discovered, nullptr);
-            if (rc != 0) ESP_LOGE(TAG, "Failed to start chr discovery: %d", rc);
         }
     } else if (error->status == BLE_HS_EDONE) {
         ESP_LOGI(TAG, "Service discovery complete");
+        if (midiSvcStart != 0 && midiSvcEnd != 0) {
+            int rc = ble_gattc_disc_all_chrs(conn, midiSvcStart, midiSvcEnd,
+                                             on_chr_discovered, nullptr);
+            if (rc != 0) ESP_LOGE(TAG, "Failed to start chr discovery: %d", rc);
+        }
     } else {
         ESP_LOGE(TAG, "Service discovery error: %d", error->status);
     }
@@ -279,8 +300,7 @@ static int on_chr_discovered(uint16_t conn,
         ESP_LOGI(TAG, "chr %s def=%u val=%u props=0x%02x",
                  uuid_str, chr->def_handle, chr->val_handle, chr->properties);
         // Match the Apple BLE-MIDI characteristic UUID; fall back to the
-        // first (notify-capable) characteristic in the MIDI service —
-        // vendors ship variants like the M-VAVE's ...f2669d106bf3.
+        // first (notify-capable) characteristic in the MIDI service.
         if (ble_uuid_cmp(&chr->uuid.u, &MIDI_CHR_UUID.u) == 0) {
             ESP_LOGI(TAG, "Found Apple BLE-MIDI characteristic");
         } else if (midi_val_handle == 0 && (chr->properties & BLE_GATT_CHR_F_NOTIFY)) {
@@ -315,7 +335,7 @@ static int on_dsc_discovered(uint16_t conn,
         ble_uuid_to_str(&dsc->uuid.u, uuid_str);
         ESP_LOGI(TAG, "dsc 0x%04x %s", dsc->handle, uuid_str);
         if (dsc->uuid.u.type == BLE_UUID_TYPE_16 &&
-            dsc->uuid.u16.value == 0x2902) {
+            dsc->uuid.u16.value == 0x2902 && midi_cccd_handle == 0) {
             midi_cccd_handle = dsc->handle;
             uint8_t val[2] = {0x01, 0x00};   // notify enable, little-endian
             // Reliable write WITH response — write-without-response CCCD
@@ -328,9 +348,7 @@ static int on_dsc_discovered(uint16_t conn,
             ESP_LOGI(TAG, "CCCD 0x%04x write started rc=%d", dsc->handle, rc);
         }
     } else if (error->status == BLE_HS_EDONE) {
-        if (midi_cccd_written) {
-            ESP_LOGI(TAG, "Subscribed to MIDI notifications");
-        } else if (midi_val_handle != 0) {
+        if (midi_cccd_handle == 0 && midi_val_handle != 0) {
             // No 0x2902 found in range — legacy fallback: CCCD at val+1.
             midi_cccd_handle = midi_val_handle + 1;
             uint8_t val[2] = {0x01, 0x00};
@@ -354,12 +372,16 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
             bt_connected = true;
             bt_connecting = false;
             bt_scanning = false;
-            ESP_LOGI(TAG, "Connected, discovering services");
+            ESP_LOGI(TAG, "Connected, exchanging MTU");
             // Remember the peer for persistent reconnection.
             struct ble_gap_conn_desc desc;
             if (ble_gap_conn_find(event->connect.conn_handle, &desc) == 0)
                 storePeer(desc.peer_id_addr.type, desc.peer_id_addr.val);
-            ble_gattc_disc_all_svcs(conn_handle, on_svc_discovered, nullptr);
+            int rc = ble_gattc_exchange_mtu(conn_handle, on_mtu_exchanged, nullptr);
+            if (rc != 0) {
+                ESP_LOGW(TAG, "MTU exchange start rc=%d, discovering services", rc);
+                ble_gattc_disc_all_svcs(conn_handle, on_svc_discovered, nullptr);
+            }
         } else {
             ESP_LOGE(TAG, "Connection failed: %d", event->connect.status);
             bt_connected = false;
@@ -373,6 +395,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         bt_connected = false;
         bt_connecting = false;       // stored peer (if any) auto-reconnects
         midi_val_handle = 0;
+        midiSvcStart = 0;
         midiSvcEnd = 0;
         midi_cccd_handle = 0;
         midi_cccd_written = false;
@@ -466,13 +489,6 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     case BLE_GAP_EVENT_NOTIFY_RX: {
         const struct os_mbuf *om = event->notify_rx.om;
         if (om && om->om_len > 0) {
-            // 1 Hz probe: is the pad notifying at all? (midi-death split)
-            static uint32_t lastNotifyLogMs = 0;
-            uint32_t nowMs = (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS);
-            if (nowMs - lastNotifyLogMs > 1000) {
-                lastNotifyLogMs = nowMs;
-                ESP_LOGI(TAG, "notify rx %d B", om->om_len);
-            }
             parse_ble_midi_notify(om->om_data, om->om_len);
         }
         return 0;
@@ -486,9 +502,17 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
         memset(&pkey, 0, sizeof(pkey));
         pkey.action = event->passkey.params.action;
         if (pkey.action == BLE_SM_IOACT_NUMCMP) pkey.numcmp_accept = 1;
-        int rc = ble_sm_inject_io(event->connect.conn_handle, &pkey);
+        int rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
         ESP_LOGI(TAG, "passkey action %d injected rc=%d", pkey.action, rc);
         return 0;
+    }
+    case BLE_GAP_EVENT_REPEAT_PAIRING: {
+        struct ble_gap_conn_desc desc;
+        if (ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc) == 0) {
+            ble_store_util_delete_peer(&desc.peer_id_addr);
+        }
+        ESP_LOGI(TAG, "repeat pairing — deleted old bond, retrying");
+        return BLE_GAP_REPEAT_PAIRING_RETRY;
     }
     case BLE_GAP_EVENT_ENC_CHANGE:
         // Pairing/encryption settled: pairing resets CCCD state, so
@@ -499,21 +523,22 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
             uint8_t val[2] = {0x01, 0x00};
             struct os_mbuf *om = ble_hs_mbuf_from_flat(val, sizeof(val));
             int rc = om ? ble_gattc_write(conn_handle, midi_cccd_handle, om,
-                                          nullptr, nullptr) : BLE_HS_ENOMEM;
+                                          cccd_write_cb, nullptr) : BLE_HS_ENOMEM;
             ESP_LOGI(TAG, "CCCD re-subscribe after pairing rc=%d", rc);
         }
         return 0;
+    case BLE_GAP_EVENT_L2CAP_UPDATE_REQ:
+        if (event->conn_update_req.peer_params != nullptr) {
+            const auto *pp = event->conn_update_req.peer_params;
+            ESP_LOGI(TAG, "L2CAP conn update req: itvl=%u..%u latency=%u timeout=%u",
+                     (unsigned) pp->itvl_min, (unsigned) pp->itvl_max,
+                     (unsigned) pp->latency, (unsigned) pp->supervision_timeout);
+        }
+        return 0;
     case BLE_GAP_EVENT_MTU:
-        ESP_LOGD(TAG, "MTU updated: %d", event->mtu.value);
+        ESP_LOGI(TAG, "MTU updated: %d", event->mtu.value);
         return 0;
     default:
-        // Probe: log each event TYPE once (connection-parameter updates,
-        // keepalives, anything the peer sends we don't explicitly handle).
-        static uint8_t seenEvents[256] = {0};
-        if (event->type < 256 && !seenEvents[event->type]) {
-            seenEvents[event->type] = 1;
-            ESP_LOGI(TAG, "gap event type %d (first sighting)", event->type);
-        }
         return 0;
     }
 }
@@ -553,8 +578,16 @@ void BtMidiReceiver::Init() {
              (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
              (unsigned) heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
     nimble_port_init();
+    esp_log_level_set("NimBLE", ESP_LOG_WARN);
+    ble_svc_gap_init();
+    ble_svc_gatt_init();
+    ble_svc_gap_device_name_set("CTAG-TBD");
+    ble_store_config_init();
     ble_hs_cfg.sync_cb = on_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+    ble_hs_cfg.sm_bonding = 1;
+    ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 
     nimble_port_freertos_init(host_task);
 
@@ -574,19 +607,6 @@ void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
 // completes immediately.
 void BtMidiReceiver::TickReconnect() {
     static uint32_t lastTry = 0;
-    // Late re-subscribe: if the pad's engine start clears the CCCD after
-    // our early write, this re-arms it 2.5 s in and reads it back.
-    static bool reSubscribed = false;
-    if (bt_connected && midi_cccd_written && midi_cccd_handle != 0 &&
-        !reSubscribed &&
-        (uint32_t) (xTaskGetTickCount() * portTICK_PERIOD_MS) - cccd_write_ms > 2500) {
-        reSubscribed = true;
-        ESP_LOGW(TAG, "late CCCD re-subscribe @%u", (unsigned) midi_cccd_handle);
-        struct os_mbuf *om = ble_hs_mbuf_from_flat((const uint8_t *) "\x01\x00", 2);
-        int rc = om ? ble_gattc_write(conn_handle, midi_cccd_handle, om,
-                                      cccd_write_cb, nullptr) : BLE_HS_ENOMEM;
-        if (rc != 0) ESP_LOGW(TAG, "late re-subscribe rc=%d", rc);
-    }
     // A probe hit deferred its connect but the DISC_COMPLETE event was lost
     // (scan expired in the same instant) — recover here.
     if (bt_probe_connect && !bt_connected && !bt_connecting) {
@@ -598,14 +618,10 @@ void BtMidiReceiver::TickReconnect() {
     uint32_t now = xTaskGetTickCount();
     if (now - lastTry < pdMS_TO_TICKS(3000)) return;
     lastTry = now;
-    struct ble_gap_disc_params params = {
-        .itvl = 0x0020,          // 20 ms interval / 10 ms window: half-duty,
-        .window = 0x0010,        // the probe must not hog the single core
-        .filter_policy = BLE_HCI_CONN_FILT_NO_WL,
-        .limited = 0,
-        .passive = 0,
-        .filter_duplicates = 0,
-    };
+    struct ble_gap_disc_params params = {};
+    params.itvl = 0x0020;          // 20 ms interval / 10 ms window: half-duty,
+    params.window = 0x0010;        // the probe must not hog the single core
+    params.filter_policy = BLE_HCI_CONN_FILT_NO_WL;
     bt_peer_probe = true;
     int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 2000, &params, gap_event_cb, nullptr);
     if (rc != 0) {
@@ -614,12 +630,12 @@ void BtMidiReceiver::TickReconnect() {
     }
 }
 
-// Client → pad write on the MIDI characteristic (keepalive/clock ticks —
-// the SMC-PAD starts notifying once the client talks to it).
+// Client → pad write-without-response on the MIDI characteristic
+// (props=0x16 supports WRITE_NO_RSP, not WRITE).
 void BtMidiReceiver::SendKeepalive(const uint8_t *data, uint32_t len) {
-    if (!bt_connected || midi_val_handle == 0) return;
-    ble_gattc_write_flat(conn_handle, midi_val_handle, data,
-                         (uint16_t) len, nullptr, nullptr);
+    if (!bt_connected || !midi_cccd_written || midi_val_handle == 0) return;
+    ble_gattc_write_no_rsp_flat(conn_handle, midi_val_handle, data,
+                                (uint16_t) len);
 }
 
 bool BtMidiReceiver::IsConnected() { return bt_connected; }
@@ -644,14 +660,8 @@ void BtMidiReceiver::StartScan() {
     bt_peer_probe = false;
     bt_scanning = true;
     deviceCount = 0;
-    struct ble_gap_disc_params params = {
-        .itvl = 0,
-        .window = 0,
-        .filter_policy = BLE_HCI_CONN_FILT_NO_WL,
-        .limited = 0,
-        .passive = 0,
-        .filter_duplicates = 0,
-    };
+    struct ble_gap_disc_params params = {};
+    params.filter_policy = BLE_HCI_CONN_FILT_NO_WL;
     int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &params, gap_event_cb, nullptr);
     if (rc != 0) {
         ESP_LOGE(TAG, "Scan start failed: %d", rc);
@@ -673,6 +683,7 @@ void BtMidiReceiver::Connect(int idx) {
     ble_addr_t addr;
     addr.type = BLE_ADDR_PUBLIC;
     memcpy(addr.val, devices[idx].bda, 6);
+    ble_store_util_delete_peer(&addr);
     struct ble_gap_conn_params params;
     memset(&params, 0, sizeof(params));
     params.scan_itvl = 0x0010;
