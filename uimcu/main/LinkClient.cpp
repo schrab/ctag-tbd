@@ -137,8 +137,8 @@ namespace CTAG {
                                     if (hello.valid && hello.isAck && hello.role == Role::kDsp) {
                                         if (hello.accepted) {
                                             if (!s_online)
-                                                ESP_LOGI(TAG, "DSP link online (proto %u.%u)",
-                                                         hello.major, hello.minor);
+                                                ESP_LOGI(TAG, "DSP link online (proto %u.%u) [rx stamp %u]",
+                                                         hello.major, hello.minor, lastDspRxMs);
                                             s_online = true;
                                             lastHelloMs = now;
                                             lastHeartbeatMs = now;
@@ -164,7 +164,10 @@ namespace CTAG {
                     // Offline watchdog.
                     if (s_online && (now - lastDspRxMs) > kOfflineAfterMs) {
                         s_online = false;
-                        ESP_LOGW(TAG, "DSP went quiet — link offline");
+                        size_t buffered = 0;
+                        uart_get_buffered_data_len(kUart, &buffered);
+                        ESP_LOGW(TAG, "DSP went quiet — link offline (last complete frame %u ms ago, uart buffered %u)",
+                                 now - lastDspRxMs, (unsigned)buffered);
                     }
 
                     // Handshake retry while offline; heartbeat while online.
