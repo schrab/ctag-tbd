@@ -288,6 +288,11 @@ namespace CTAG {
                            + "\",\"active1\":\"" + DspProxy::GetStringID(1)
                            + "\",\"fav\":" + to_string((long long)DspProxy::GetActiveFav())
                            + ",\"sdMounted\":" + (DspProxy::IsSDMounted() ? "1" : "0")
+                           // Param-table fill levels: shows whether the
+                           // chunked /push/params frames for the loaded
+                           // plugin actually landed in the C3 cache.
+                           + ",\"params0\":" + to_string(DspProxy::GetParamEntryCount(0))
+                           + ",\"params1\":" + to_string(DspProxy::GetParamEntryCount(1))
                            + ",\"proto\":" + to_string(kProtoMajor) + "." + to_string(kProtoMinor)
                            + "}";
                 return true;

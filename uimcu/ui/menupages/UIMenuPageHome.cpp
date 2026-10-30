@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #include "UIMenuPageHome.hpp"
 #include "Display.hpp"
 #include "DspProxy.hpp"
+#include "UIMenu.hpp"
 #include "rapidjson/document.h"
 #include "UIMenuPageSystem.hpp"
 #include <cstring>
@@ -179,6 +180,7 @@ namespace CTAG {
                             DspProxy::SetSoundProcessorChannel(0, e.id);
                             subPage = SP_MAIN;
                             cursor = 0;
+                            UIMenu::RequestPanelEdit(UIMenu::PANEL_PARAMS, 0);
                         } else {
                             // mono: show channel picker
                             selectedPlugin = cursor;
@@ -192,16 +194,19 @@ namespace CTAG {
             } else if (subPage == SP_SELECT_CH) {
                 if (btnId == 2 && !longPress) {
                     const PluginEntry &e = plugins[selectedPlugin];
+                    int chHint = 0;
                     if (cursor == 0) {
                         DspProxy::SetSoundProcessorChannel(0, e.id);
                     } else if (cursor == 1) {
                         DspProxy::SetSoundProcessorChannel(1, e.id);
+                        chHint = 1;
                     } else {
                         DspProxy::SetSoundProcessorChannel(0, e.id);
                         DspProxy::SetSoundProcessorChannel(1, e.id);
                     }
                     subPage = SP_MAIN;
                     cursor = 0;
+                    UIMenu::RequestPanelEdit(UIMenu::PANEL_PARAMS, chHint);
                 }
             } else if (subPage == SP_FAVORITES) {
                 if (btnId == 2 && !longPress) {
@@ -211,6 +216,7 @@ namespace CTAG {
                         favActiveId = cursor;
                         subPage = SP_MAIN;
                         cursor = 0;
+                        UIMenu::RequestPanelEdit(UIMenu::PANEL_PARAMS, -1);
                     }
                 }
             } else if (subPage == SP_SD_CARD) {

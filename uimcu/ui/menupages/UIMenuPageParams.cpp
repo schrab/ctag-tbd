@@ -109,6 +109,14 @@ namespace CTAG {
             if (groups) { free(groups); groups = nullptr; }
         }
 
+        void UIMenuPageParams::onDeepEnter(int hint) {
+            if (hint == 0 || hint == 1) {
+                chan = hint;
+                onlyMapped = false;
+            }
+            enterParamList(false);
+        }
+
         void UIMenuPageParams::parseParams() {
             paramCount = 0;
             groupCount = 0;
@@ -183,6 +191,9 @@ namespace CTAG {
                     groupCount++;
                 }
             }
+            // Every parse stamps the proxy table version it was built from;
+            // onTick refreshes when the proxy completes a newer push.
+            tableVersion = DspProxy::GetParamTableVersion();
         }
 
         void UIMenuPageParams::parsePresets(int chan) {
@@ -580,10 +591,59 @@ namespace CTAG {
         }
 
         // Pumped every task iteration while a MIDI-learn capture or the map
-        // hint is pending. Redraws only on state change (capture landed /
-        // hint expired), not per tick.
+        // hint is pending, or while a fresh params push is waiting: the
+        // chunked pushes land asynchronously after plugin and preset loads,
+        // so a parse taken at page entry can be stale. Refreshes the list
+        // in place — keeping cursor, scroll and group context — instead of
+        // showing the previous plugin until the page was left and
+        // re-entered.
         void UIMenuPageParams::onTick() {
             bool changed = false;
+            if (DspProxy::GetParamTableVersion() != tableVersion) {
+                // Dual-channel layout follows the loaded plugins.
+                string id0 = DspProxy::GetStringID(0);
+                string id1 = DspProxy::GetStringID(1);
+                bool stereoCh0 = DspProxy::IsPluginStereo(id0);
+                hasDualCh = !stereoCh0 && !id0.empty() && !id1.empty() && id0 != id1;
+                // Remember the edited group so an in-place refresh (value
+                // echo, preset load) can re-attach to it by name.
+                char groupName[sizeof(GroupInfo::name)] = "";
+                bool inGroup = currentGroup >= 0 && currentGroup < groupCount;
+                if (inGroup)
+                    snprintf(groupName, sizeof(groupName), "%s", groups[currentGroup].name);
+                parseParams();
+                if (inGroup && groupCount > 0) {
+                    for (int i = 0; i < groupCount; i++) {
+                        if (strcmp(groups[i].name, groupName) == 0) {
+                            currentGroup = i;
+                            break;
+                        }
+                    }
+                }
+                // Clamp navigation into the fresh list (the plugin may have
+                // swapped to one with fewer groups/params).
+                if (mode == MODE_GROUP) {
+                    if (cursor >= groupCount) cursor = groupCount - 1;
+                    if (cursor < 0) cursor = 0;
+                    ClampScroll(cursor, scrollOffset, groupCount, VISIBLE_ITEMS);
+                } else if (mode == MODE_EDIT) {
+                    int startIdx = (currentGroup >= 0) ? groups[currentGroup].firstParamIdx : 0;
+                    int endIdx = groupEditEnd();
+                    if (endIdx <= startIdx) cursor = startIdx;
+                    else if (cursor < startIdx) cursor = startIdx;
+                    else if (cursor >= endIdx) cursor = endIdx - 1;
+                    int scr = paramIndexToScreen(cursor);
+                    if (scr < 0) scrollOffset += scr;
+                    if (scr >= VISIBLE_ITEMS) scrollOffset += (scr - (VISIBLE_ITEMS - 1));
+                    if (scrollOffset > endIdx - VISIBLE_ITEMS)
+                        scrollOffset = endIdx - VISIBLE_ITEMS;
+                    if (scrollOffset < startIdx) scrollOffset = startIdx;
+                } else if (mode == MODE_MAP) {
+                    if (mapParamIdx >= paramCount)
+                        mapParamIdx = paramCount > 0 ? paramCount - 1 : 0;
+                }
+                changed = true;
+            }
             if (mode == MODE_MAP && mapLearning && !DspProxy::IsLearning()) {
                 mapLearning = false;
                 changed = true;
@@ -605,7 +665,8 @@ namespace CTAG {
         }
 
         bool UIMenuPageParams::wantsTick() const {
-            return (mode == MODE_MAP && mapLearning) || mapHintUntil != 0;
+            return (mode == MODE_MAP && mapLearning) || mapHintUntil != 0 ||
+                   DspProxy::GetParamTableVersion() != tableVersion;
         }
 
         // Shared "open the parameter list" path for the EDIT and MAP menu

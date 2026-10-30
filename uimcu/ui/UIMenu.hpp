@@ -47,6 +47,14 @@ namespace CTAG {
             // navState: 0=ROOT 1=PANEL_IN. panel: Panel enum value.
             static void GetDebugState(int &navState, int &panel);
 
+            // Pages can request a panel switch with the target page opened
+            // in its editing view: HOME jumps to PARAMS after a plugin or
+            // favorite load so the loaded plugin's parameters are on screen
+            // immediately. deepHint goes to the target page's onDeepEnter
+            // (e.g. which channel's params to show). Applied asynchronously
+            // in the task loop — never inside a page event handler.
+            static void RequestPanelEdit(int panel, int deepHint);
+
             // Bring-up control: the screensaver blanks the panel 15 s after
             // the last input, which looks exactly like a dead display.
             static void SetScreensaverEnabled(bool en) { screensaverEnabled = en; }
@@ -72,6 +80,9 @@ namespace CTAG {
             static Panel currentPanel;
             static NavState navState;
             static bool redrawNeeded;
+            // Page-requested panel switch (see RequestPanelEdit); -1 = none.
+            static volatile int pendingPanelRequest;
+            static int pendingDeepHint;
             static int screensaverTimer;
             // Periodic page refresh divider: task runs at ~50 Hz, a tick every
             // 2nd iteration gives 25 Hz — matches the link stream rate for

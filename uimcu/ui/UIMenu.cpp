@@ -49,6 +49,14 @@ namespace CTAG {
         uint8_t UIMenu::fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
         UIMenu::DisplayState UIMenu::displayState = UIMenu::AWAKE;
         bool UIMenu::screensaverEnabled = false; // bring-up default; see TaskFunction
+        volatile int UIMenu::pendingPanelRequest = -1;
+        int UIMenu::pendingDeepHint = 0;
+
+        void UIMenu::RequestPanelEdit(int panel, int deepHint) {
+            if (panel < 0 || panel >= PANEL_COUNT) return;
+            pendingPanelRequest = panel;
+            pendingDeepHint = deepHint;
+        }
 
         void UIMenu::Init() {
             ESP_LOGI(TAG, "Init: creating pages...");
@@ -245,6 +253,24 @@ namespace CTAG {
                         Display::Sleep();
                         displayState = ASLEEP;
                     }
+                }
+
+                // Apply a page-requested panel switch (HOME jumps to PARAMS
+                // after a plugin/favorite load). deinit/init runs here, off
+                // the page's own event handler, so dispatch never touches a
+                // page mid-teardown; the redraw below then paints the new
+                // page in the same iteration.
+                if (pendingPanelRequest >= 0) {
+                    int target = pendingPanelRequest;
+                    pendingPanelRequest = -1;
+                    if (target != currentPanel) {
+                        pages[currentPanel]->deinit();
+                        currentPanel = (Panel)target;
+                        pages[currentPanel]->init();
+                    }
+                    navState = PANEL_IN;
+                    pages[currentPanel]->onDeepEnter(pendingDeepHint);
+                    redrawNeeded = true;
                 }
 
                 // Redraw if needed

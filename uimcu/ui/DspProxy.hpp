@@ -83,6 +83,11 @@ namespace CTAG {
             static constexpr int DSP_MAX_PARAMS = 160;
             static int GetParamEntryCount(int chan);
             static const DspParamEntry *GetParamEntry(int chan, int idx);
+            // Increments each time a chunked /push/params sequence completes
+            // a channel's table. Pushes land asynchronously after plugin and
+            // preset loads, so the Params page refreshes on change instead
+            // of trusting its parse from page entry.
+            static uint32_t GetParamTableVersion();
             // NetRest convenience: serializes the table as the classic
             // {"params":[...]} document (rare path, built on demand).
             static const char *GetCStrJSONActivePluginParams(int chan);

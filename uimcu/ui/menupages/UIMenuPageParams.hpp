@@ -37,6 +37,10 @@ namespace CTAG {
             bool onBack() override;
             void onTick() override;
             bool wantsTick() const override;
+            // UIMenu::RequestPanelEdit target: open the parameter list for
+            // the given channel (-1 keeps the current one) — HOME jumps here
+            // after a plugin or favorite load.
+            void onDeepEnter(int hint) override;
 
         private:
             struct ParamInfo {
@@ -96,6 +100,9 @@ namespace CTAG {
 
             int chan;
             bool hasDualCh;
+            // DspProxy param-table version this page's parse was built
+            // from; onTick refreshes when the proxy completes a new push.
+            uint32_t tableVersion = 0;
             int encoderAccel = 0;
             int lastEncDir = 0;
             uint32_t lastEncTick = 0;

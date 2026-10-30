@@ -68,6 +68,9 @@ namespace CTAG {
             // next belong to that group.
             DspProxy::DspParamEntry paramTable[2][DspProxy::DSP_MAX_PARAMS];
             int paramTableCount[2] = {0, 0};
+            // Bumped when a chunked push completes a channel's table; the
+            // Params page watches it to refresh in place.
+            uint32_t paramTableVersion = 0;
             string cacheConfig = "{}";
             string cachePresets[2] = {"{\"presets\":[]}", "{\"presets\":[]}"};
             string cacheFavorites = "[]";
@@ -361,7 +364,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     e.isGroup = (v.HasMember("type") && strcmp(v["type"].GetString(), "group") == 0);
                     paramTableCount[ch]++;
                 }
-                (void)last;
+                if (last) paramTableVersion++;
             } else if (strcmp(cmd, kMsgPushConfig) == 0) {
                 if (d.HasMember("config") && d["config"].IsString()) {
                     cacheConfig = d["config"].GetString();
@@ -445,6 +448,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             if (chan < 0 || chan > 1) return 0;
             return paramTableCount[chan];
         }
+
+        uint32_t DspProxy::GetParamTableVersion() { return paramTableVersion; }
 
         const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int chan, int idx) {
             if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])

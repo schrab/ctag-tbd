@@ -37,6 +37,12 @@ namespace CTAG {
             virtual void onValueEncoder(int delta) {}
             virtual void onButton(int btnId, bool longPress) {}
             virtual bool onBack() { return false; } // true=handled, false=return to ROOT
+            // Panel switch requested with this page as the target (see
+            // UIMenu::RequestPanelEdit): pages with an editing view open it
+            // directly instead of showing their top-level menu. hint is
+            // caller-defined (PARAMS: which channel's params to show, -1 =
+            // page default).
+            virtual void onDeepEnter(int hint) { (void)hint; }
             // Called from UIMenu::TaskFunction at ~4 Hz while PANEL_IN and the
             // page has requested periodic refresh (VU meters, tape timecode).
             // Redraws itself; UIMenu's redraw flag is not involved.
