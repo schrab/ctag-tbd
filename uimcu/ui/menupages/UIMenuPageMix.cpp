@@ -263,10 +263,8 @@ namespace CTAG {
             int x = STRIP_X0 + i * STRIP_W;
 
             Display::DrawString(x, LABEL_Y, st.label, Display::FONT_5X7);
-            if (i == cursor) {
-                // whole-strip selection highlight, meters stay readable
-                Display::DrawRect(x - 1, LABEL_Y - 1, STRIP_W - 2, FONT_H + 2, false, true);
-            }
+            // No frame around the label: the fader already carries the
+            // whole-strip selection highlight.
 
             if (st.enumOpts) drawSwitch(i); else drawFader(i);
             drawMeters(i);

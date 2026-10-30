@@ -100,20 +100,16 @@ namespace CTAG {
         }
 
         void UIMenu::drawPanelBar() {
-            // Persistent indicator bar at top: one UI, one behavior — the
-            // bar is always visible at ROOT on every panel (it identifies
-            // the active panel; PANEL_IN hides it for full-screen content).
-            // 20px wide rectangles, 128 / PANEL_COUNT pitch.
-            int segWidth = 128 / PANEL_COUNT;
-            int rectW = 20;
+            // Norns-style indicator: one 3x3 dot per panel, centered in
+            // equal slots; the active panel is a 3px line of the classic
+            // bar width. Slot centers sit on (128*(2i+1))/(2*SLOTS) so the
+            // last item reaches toward the right edge without cropping.
             for (int i = 0; i < PANEL_COUNT; i++) {
-                int rx = i * segWidth + (segWidth - rectW) / 2;
+                int cx = (128 * (2 * i + 1)) / (2 * PANEL_COUNT);
                 if (i == currentPanel) {
-                    // Active: filled rectangle
-                    Display::DrawRect(rx, 0, rectW, 3, true, true);
+                    Display::DrawRect(cx - 10, 0, 20, 3, true, true);
                 } else {
-                    // Inactive: 1px border rectangle
-                    Display::DrawRect(rx, 0, rectW, 3, false, true);
+                    Display::DrawRect(cx - 1, 0, 3, 3, true, true);
                 }
             }
 
