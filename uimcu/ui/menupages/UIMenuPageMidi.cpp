@@ -162,13 +162,13 @@ namespace CTAG {
             int n = BtMidiReceiver::GetDeviceCount();
 
             if (BtMidiReceiver::IsScanning()) {
-                Display::DrawString(0, 5, "Scanning...", Display::FONT_5X7);
+                Display::DrawString(0, 5, "Scanning...", FONT_DEEP);
             } else {
-                Display::DrawString(0, 5, "Scan complete", Display::FONT_5X7);
+                Display::DrawString(0, 5, "Scan complete", FONT_DEEP);
             }
 
             if (n == 0) {
-                Display::DrawString(0, 24, "No devices found", Display::FONT_5X7);
+                Display::DrawString(0, 24, "No devices found", FONT_DEEP);
             } else {
                 int visible = ClampVisible(n, scrollOffset, VISIBLE_ITEMS);
                 for (int i = 0; i < visible; i++) {
@@ -177,7 +177,7 @@ namespace CTAG {
                     if (!d) continue;
                     Display::DrawString(0, ROW(i),
                                         d->name[0] ? d->name : "(unnamed)",
-                                        Display::FONT_5X7);
+                                        FONT_DEEP);
                 }
                 int cy = ROW(cursor - scrollOffset);
                 Display::InvertRect(0, cy, 128, 8);

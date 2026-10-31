@@ -192,19 +192,19 @@ namespace CTAG {
         void UIMenuPageTape::redrawFileList() {
             Display::Clear();
             if (!DspProxy::IsSDMounted()) {
-                Display::DrawString(0, 24, "No SD card", Display::FONT_5X7);
+                Display::DrawString(0, 24, "No SD card", FONT_DEEP);
                 Display::Flush();
                 return;
             }
             if (fileCount == 0) {
-                Display::DrawString(0, 24, "No WAV files", Display::FONT_5X7);
+                Display::DrawString(0, 24, "No WAV files", FONT_DEEP);
                 Display::Flush();
                 return;
             }
             int visible = ClampVisible(fileCount, scrollOffset, VISIBLE_ITEMS);
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
-                Display::DrawString(0, ROW(i), fileNames[idx], Display::FONT_5X7);
+                Display::DrawString(0, ROW(i), fileNames[idx], FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy, 128, 8);
@@ -214,8 +214,8 @@ namespace CTAG {
 
         void UIMenuPageTape::redrawRecord() {
             Display::Clear();
-            Display::DrawString(0, ROW(0), "START REC", Display::FONT_5X7);
-            Display::DrawString(0, ROW(1), "CANCEL", Display::FONT_5X7);
+            Display::DrawString(0, ROW(0), "START REC", FONT_DEEP);
+            Display::DrawString(0, ROW(1), "CANCEL", FONT_DEEP);
             Display::InvertRect(0, ROW(cursor), 128, 8);
             Display::Flush();
         }

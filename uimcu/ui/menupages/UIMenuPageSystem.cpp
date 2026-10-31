@@ -428,7 +428,7 @@ namespace CTAG {
         void UIMenuPageSystem::redrawMain() {
             Display::Clear();
             if (itemCount == 0) {
-                Display::DrawString(0, 24, "No config", Display::FONT_5X7);
+                Display::DrawString(0, 24, "No config", FONT_DEEP);
                 Display::Flush();
                 return;
             }
@@ -437,8 +437,8 @@ namespace CTAG {
                 int idx = scrollOffset + i;
                 const ConfigItem &it = items[idx];
                 int y = ROW(i);
-                Display::DrawString(0, y, it.name, Display::FONT_5X7);
-                Display::DrawStringRight(127, y, it.value, Display::FONT_5X7);
+                Display::DrawString(0, y, it.name, FONT_DEEP);
+                Display::DrawStringRight(127, y, it.value, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy, 128, 8);

@@ -498,7 +498,7 @@ namespace CTAG {
             } else {
                 // PSET — simple placeholder
                 Display::Clear();
-                Display::DrawString(0, 16, "Not implemented", Display::FONT_5X7);
+                Display::DrawString(0, 16, "Not implemented", FONT_DEEP);
                 Display::Flush();
             }
         }
@@ -528,7 +528,7 @@ namespace CTAG {
         void UIMenuPageParams::redrawGroup() {
             Display::Clear();
             if (groupCount == 0) {
-                Display::DrawString(0, 24, "No groups", Display::FONT_5X7);
+                Display::DrawString(0, 24, "No groups", FONT_DEEP);
                 Display::Flush();
                 return;
             }
@@ -539,7 +539,7 @@ namespace CTAG {
                 int y = ROW(i);
                 char buf[32];
                 snprintf(buf, sizeof(buf), "%s (%d)", g.name, g.paramCount);
-                Display::DrawString(0, y, buf, Display::FONT_5X7);
+                Display::DrawString(0, y, buf, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy, 128, 8);
@@ -551,7 +551,7 @@ namespace CTAG {
         void UIMenuPageParams::redrawEdit() {
             Display::Clear();
             if (paramCount == 0) {
-                Display::DrawString(0, 24, "No params", Display::FONT_5X7);
+                Display::DrawString(0, 24, "No params", FONT_DEEP);
                 Display::Flush();
                 return;
             }
@@ -578,19 +578,28 @@ namespace CTAG {
                 // Clip the name to the pixels left of the value: long spec
                 // names ("(2) Pitch (100 cent per semitone) A") otherwise
                 // overdraw the right-aligned value and the user reads only
-                // a digit fragment of it. FONT_5X7 has a fixed 6px advance.
-                int valW = 6 * (int)strlen(valBuf);
-                int nameChars = (127 - valW - 2) / 6;
-                if (nameChars < 0) nameChars = 0;
+                // a digit fragment of it. Both widths use per-glyph advances
+                // (the compact 3x6 font is proportional).
+                Display::Font rowFont = FONT_DEEP;
+                int valW = 0;
+                for (const char *c = valBuf; *c; c++)
+                    valW += Display::FontAdvance(rowFont, (unsigned char)*c);
+                int avail = 127 - valW - 2;
+                int nameChars = 0;
+                for (int nameW = 0; pi.name[nameChars]; nameChars++) {
+                    nameW += Display::FontAdvance(rowFont,
+                                                  (unsigned char)pi.name[nameChars]);
+                    if (nameW > avail) break;
+                }
                 char nameBuf[sizeof(pi.name)];
                 snprintf(nameBuf, sizeof(nameBuf), "%.*s", nameChars, pi.name);
-                Display::DrawString(0, y, nameBuf, Display::FONT_5X7);
-                Display::DrawStringRight(127, y, valBuf, Display::FONT_5X7);
+                Display::DrawString(0, y, nameBuf, rowFont);
+                Display::DrawStringRight(127, y, valBuf, rowFont);
             }
             int cursorY = ROW(paramIndexToScreen(cursor));
             Display::InvertRect(0, cursorY, 128, 8);
             if (hint) {
-                Display::DrawString(0, ROW(maxVisible), " OK = map source", Display::FONT_5X7);
+                Display::DrawString(0, ROW(maxVisible), " OK = map source", FONT_DEEP);
             }
             if (count > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, count, cursor);
@@ -744,8 +753,8 @@ namespace CTAG {
             Display::Clear();
             if (paramCount == 0) return;
             const ParamInfo &pi = params[mapParamIdx];
-            Display::DrawString(0, ROW(0), "MOD SOURCE", Display::FONT_5X7);
-            Display::DrawString(0, ROW_HDR(0), pi.name, Display::FONT_5X7);
+            Display::DrawString(0, ROW(0), "MOD SOURCE", FONT_DEEP);
+            Display::DrawString(0, ROW_HDR(0), pi.name, FONT_DEEP);
             char buf[40];
 
             // selected source (inverted), with the param's saved source noted
@@ -754,7 +763,7 @@ namespace CTAG {
             FormatSourceName(sourceSlotAt(mapPos), mapIsCv, selName, sizeof(selName));
             FormatSourceName(cur, mapIsCv, curName, sizeof(curName));
             snprintf(buf, sizeof(buf), " %s  was:%.8s", selName, curName);
-            Display::DrawString(0, ROW_HDR(1), buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(1), buf, FONT_DEEP);
             Display::InvertRect(0, ROW_HDR(1), 128, 8);
 
             // context line: position in list / learn state
@@ -766,14 +775,14 @@ namespace CTAG {
                 snprintf(buf, sizeof(buf), " %d/%d  OK=sel BK=exit",
                          mapPos + 1, sourceCount());
             }
-            Display::DrawString(0, ROW_HDR(2), buf, Display::FONT_5X7);
+            Display::DrawString(0, ROW_HDR(2), buf, FONT_DEEP);
             Display::Flush();
         }
 
         void UIMenuPageParams::redrawPresets() {
             Display::Clear();
             if (presetCount == 0) {
-                Display::DrawString(0, 24, "No presets", Display::FONT_5X7);
+                Display::DrawString(0, 24, "No presets", FONT_DEEP);
                 Display::Flush();
                 return;
             }
@@ -784,7 +793,7 @@ namespace CTAG {
                 int y = ROW(i);
                 char buf[64];
                 snprintf(buf, sizeof(buf), "%s", pi.name);
-                Display::DrawString(0, y, buf, Display::FONT_5X7);
+                Display::DrawString(0, y, buf, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy, 128, 8);

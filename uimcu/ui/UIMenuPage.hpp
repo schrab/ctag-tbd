@@ -22,11 +22,17 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include <string>
+#include "Display.hpp"
 
 namespace CTAG {
     namespace CTRL {
         class UIMenuPage {
         public:
+            // Deeper-than-top-level screens draw with the compact 3x6 font;
+            // each page's main view (redrawMain / MODE_SELECT) keeps the
+            // standard 5x7 — see the font rule in AGENTS.md.
+            static constexpr CTAG::DRIVERS::Display::Font FONT_DEEP =
+                CTAG::DRIVERS::Display::FONT_DIGI_SLIM_3X6;
             virtual ~UIMenuPage() = default;
             virtual void init() = 0;
             virtual void deinit() = 0;
