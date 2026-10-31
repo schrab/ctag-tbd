@@ -1,5 +1,9 @@
 # Memory
 
+## Working Rules (session-learned, 2026-10-31)
+- **NEVER edit files with inline python/sed scripts — use the Read/Edit/Write tools.** Script-based patching bypassed the tooling's safety checks twice in one session and landed edits in the wrong place (a write-back after a destructor). The Edit tool's exact-match requirement is the safety net.
+- **Incremental sync, not full-state re-push**: a single-parameter change must NEVER trigger a full-state regeneration + transmission (the full params JSON re-push per edit — up to 20 KB for a 60-byte fact — was the root of the param-change audio clicks). Use the protocol's incremental messages (`link/pushParamValue` was defined in protocol.hpp and left unimplemented for years — check protocol.hpp for designed-but-unwired messages before inventing new mechanisms).
+
 ## Project Overview
 See @README.md for project overview and @package.json for available npm/pnpm commands for this project.
 
