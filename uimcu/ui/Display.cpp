@@ -154,7 +154,11 @@ void Display::Init() {
     sendCommand(0xC8);                    // COM scan direction
     sendCommand(0xDA); sendCommand(0x12); // COM pins
     sendCommand(0x81); sendCommand((uint8_t)userContrast);
-    sendCommand(0xD9); sendCommand(0xF1); // precharge
+    sendCommand(0xD9); sendCommand(0x22); // precharge — POR default; the
+                    // long 0xF1 precharge pumped every row regardless of
+                    // contrast: brightness 0 still glowed and the whole
+                    // range compressed to ~2:1. Pre-split (ssd1306 I2C)
+                    // never sent 0xD9 at all.
     sendCommand(0xDB); sendCommand(0x40); // VCOMH
     sendCommand(0xA4);                    // display from RAM
     sendCommand(0xA6);                    // normal (not inverted)
@@ -207,7 +211,7 @@ namespace {
             0xAE, 0xD5, 0x80, 0xA8, 0x3F, 0xD3, 0x00, 0x40,
             0x8D, 0x14,             // charge pump on — without this: dark
             0x20, 0x02, 0xA1, 0xC8, 0xDA, 0x12,
-            0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40,
+            0x81, 0xCF, 0xD9, 0x22, 0xDB, 0x40,
             0xA4, 0xA6, 0xAF,
         };
         for (uint8_t c : initSeq) bbCmd(sck, mosi, dc, cs, c);
