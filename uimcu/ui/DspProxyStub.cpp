@@ -174,8 +174,12 @@ namespace CTAG {
         const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int, int) { return nullptr; }
 
         // The stub's table never changes under the page, so the version
-        // stays constant and the Params page never live-refreshes.
+        // stays constant and the Params page never live-refreshes. Loads
+        // apply instantly — no loading overlay.
         uint32_t DspProxy::GetParamTableVersion() { return 0; }
+
+        bool DspProxy::IsLoadPending() { return false; }
+        uint32_t DspProxy::LoadPendingStartMs() { return 0; }
 
         const char *DspProxy::GetCStrJSONActivePluginParams(int chan) {
             if (chan < 0 || chan > 1) return kParamsDefaultJson;

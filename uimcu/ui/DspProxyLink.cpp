@@ -77,6 +77,14 @@ namespace CTAG {
             string activeId[2];
             bool activeStereo[2] = {false, false};
 
+            // Plugin-load overlay state: set by SetSoundProcessorChannel,
+            // cleared by the loaded plugin's params push (a completed
+            // paramTableVersion bump), by a refusal (pushActivePlugin
+            // naming a different plugin) or by the 5 s timeout.
+            uint32_t loadPendingStartMs = 0;
+            int loadPendingCh = 0;
+            char loadPendingId[24] = "";
+
             uint32_t vu[4] = {0, 0, 0, 0};
             uint32_t snapshot = 0;
             bool cpuOverload = false;
@@ -402,7 +410,13 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     e.isGroup = (v.HasMember("type") && strcmp(v["type"].GetString(), "group") == 0);
                     paramTableCount[ch]++;
                 }
-                if (last) paramTableVersion++;
+                if (last) {
+                    paramTableVersion++;
+                    // A completed params table ends a pending plugin load:
+                    // the new plugin's values are on the panel, the loading
+                    // overlay can go.
+                    loadPendingStartMs = 0;
+                }
             } else if (strcmp(cmd, kMsgPushConfig) == 0) {
                 if (d.HasMember("config") && d["config"].IsString()) {
                     cacheConfig = d["config"].GetString();
@@ -421,6 +435,15 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 if (d.HasMember("id1") && d["id1"].IsString()) activeId[1] = d["id1"].GetString();
                 if (d.HasMember("st0") && d["st0"].IsInt()) activeStereo[0] = d["st0"].GetInt() != 0;
                 if (d.HasMember("st1") && d["st1"].IsInt()) activeStereo[1] = d["st1"].GetInt() != 0;
+                // A pending load whose plugin did NOT become active was
+                // refused — nothing else will arrive for it, lift the
+                // loading overlay. On success the push names the requested
+                // plugin and the overlay stays up until its params table
+                // completes.
+                if (loadPendingStartMs != 0) {
+                    const string &now = activeId[loadPendingCh];
+                    if (now != loadPendingId) loadPendingStartMs = 0;
+                }
             } else if (strcmp(cmd, kMsgCmdMidiFlags) == 0) {
                 // Authoritative flag state (set reply or get reply).
                 if (d.HasMember("uart") && d["uart"].IsBool())
@@ -488,6 +511,20 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         uint32_t DspProxy::GetParamTableVersion() { return paramTableVersion; }
+
+        // Loading overlay: auto-expires after 5 s so a wedged load (no
+        // push of either kind) can never hold the panel hostage.
+        bool DspProxy::IsLoadPending() {
+            if (loadPendingStartMs == 0) return false;
+            uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+            if (now - loadPendingStartMs > 5000) {
+                loadPendingStartMs = 0;
+                return false;
+            }
+            return true;
+        }
+
+        uint32_t DspProxy::LoadPendingStartMs() { return loadPendingStartMs; }
 
         const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int chan, int idx) {
             if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])
@@ -571,6 +608,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             // NOTE: no optimistic local update — a load can be REFUSED on
             // the DSP (stereo ch0 blocks ch1), and the truth arrives via
             // the pushActivePlugin that follows every load attempt.
+            // Arm the loading overlay: the menu task shows the splash bar
+            // until the new plugin's params table lands (or the load is
+            // refused / times out).
+            loadPendingCh = chan;
+            snprintf(loadPendingId, sizeof(loadPendingId), "%s", id.c_str());
+            loadPendingStartMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
             char buf[192];
             snprintf(buf, sizeof(buf),
                      "{\"cmd\":\"/debug/setActivePlugin\",\"ch\":%d,\"id\":\"%s\"}",

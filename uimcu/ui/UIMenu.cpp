@@ -100,25 +100,23 @@ namespace CTAG {
         }
 
         void UIMenu::drawPanelBar() {
-            // Norns-style indicator: one 3x3 dot per panel, centered in
-            // equal slots; the active panel is a 3px line of the classic
-            // bar width. Slot centers sit on (128*(2i+1))/(2*SLOTS) so the
+            // 1px norns bar: one 1x1 dot per panel, centered in equal
+            // slots; the active panel is a 1px line of the classic bar
+            // width. Slot centers sit on (128*(2i+1))/(2*SLOTS) so the
             // last item reaches toward the right edge without cropping.
             for (int i = 0; i < PANEL_COUNT; i++) {
                 int cx = (128 * (2 * i + 1)) / (2 * PANEL_COUNT);
                 if (i == currentPanel) {
-                    Display::DrawRect(cx - 10, 0, 20, 3, true, true);
+                    Display::DrawRect(cx - 10, 0, 20, 1, true, true);
                 } else {
-                    Display::DrawRect(cx - 1, 0, 3, 3, true, true);
+                    Display::DrawRect(cx, 0, 1, 1, true, true);
                 }
             }
 
-            // CPU overload indicator at top-right corner (unconditional)
-            if (CTAG::CTRL::DspProxy::GetCPUOverload()) {
-                Display::DrawRect(124, 0, 3, 3, true, true);
-            } else {
-                Display::DrawRect(124, 0, 3, 3, true, false);
-            }
+            // CPU overload indicator at top-right corner: 1x1 dot, lit
+            // only on overload.
+            Display::DrawRect(124, 0, 1, 1, true,
+                              CTAG::CTRL::DspProxy::GetCPUOverload());
             Display::Flush();
         }
 
@@ -183,6 +181,24 @@ namespace CTAG {
                     dspLostShown = false;
                     redrawNeeded = true;
                 }
+
+                // Plugin-load overlay: while a load is in flight show the
+                // boot-style loading bar INSTEAD of page content — the
+                // previous plugin's params must never flash on screen
+                // between the load command and the new params push. Clears
+                // when the new table lands, on refusal, or after 5 s.
+                if (DspProxy::IsLoadPending()) {
+                    uint32_t ms = xTaskGetTickCount() * portTICK_PERIOD_MS
+                                  - DspProxy::LoadPendingStartMs();
+                    constexpr uint32_t sweepMs = 1200;
+                    Display::ShowSplash((int)((ms % sweepMs) * 100 / sweepMs));
+                    InputEvent ev;
+                    while (UserInput::GetEvent(ev, 0)) {} // no stale input past the load
+                    redrawNeeded = true; // repaint the page the moment it lands
+                    vTaskDelay(pdMS_TO_TICKS(20));
+                    continue;
+                }
+
                 InputEvent ev;
                 bool gotEv = UserInput::GetEvent(ev, 20);
                 uint32_t now = xTaskGetTickCount();

@@ -92,9 +92,18 @@ namespace CTAG {
             static const DspParamEntry *GetParamEntry(int chan, int idx);
             // Increments each time a chunked /push/params sequence completes
             // a channel's table. Pushes land asynchronously after plugin and
-            // preset loads, so the Params page refreshes on change instead
-            // of trusting its parse from page entry.
+            // preset loads, so the Params page watches it to refresh in place
+            // instead of trusting its parse from page entry.
             static uint32_t GetParamTableVersion();
+
+            // Plugin-load overlay: true between a SetSoundProcessorChannel
+            // request and the arrival of the loaded plugin's params table
+            // (or a refusal — a pushActivePlugin naming a different plugin —
+            // or the 5 s timeout). While pending, the menu task shows the
+            // splash loading bar instead of page content, so the PREVIOUS
+            // plugin's params never flash on screen mid-load.
+            static bool IsLoadPending();
+            static uint32_t LoadPendingStartMs();
             // NetRest convenience: serializes the table as the classic
             // {"params":[...]} document (rare path, built on demand).
             static const char *GetCStrJSONActivePluginParams(int chan);
