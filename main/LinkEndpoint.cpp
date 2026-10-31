@@ -513,6 +513,12 @@ namespace CTAG {
             }
 
             void pushOnChange(uint32_t now) {
+                // Wholesale params re-sync after a plugin load: the panel's
+                // table is stale until the new plugin's full params land.
+                if (SoundProcessorManager::TakeParamsResync()) {
+                    pushParams(0);
+                    pushParams(1);
+                }
                 uint32_t h;
                 uint32_t gen = CTAG::SP::ctagDataModelBase::GetGeneration();
                 if (gen != lastPushed.modelGen) {

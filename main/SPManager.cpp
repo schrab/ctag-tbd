@@ -432,6 +432,10 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
     }
     model->SetActivePluginID(id, chan);
     sp[chan]->LoadPreset(model->GetActivePatchNum(chan));
+    // The panel's param table is stale now — the link tick does a FULL
+    // params re-push (wholesale sync, distinct from the incremental
+    // pushParamValue per-edit frames).
+    paramsResyncPending.store(true, std::memory_order_relaxed);
     xSemaphoreGive(processMutex);
 
 
@@ -461,6 +465,7 @@ char SoundProcessorManager::lastEditId[64];
 atomic<int32_t> SoundProcessorManager::lastEditCh = 0;
 atomic<int32_t> SoundProcessorManager::lastEditVal = 0;
 atomic<uint32_t> SoundProcessorManager::lastEditSeq = 0;
+atomic<bool> SoundProcessorManager::paramsResyncPending = false;
 atomic<bool> SoundProcessorManager::ringFrozen = false;
 float SoundProcessorManager::m_prevBlockLast = 0.f;
 float SoundProcessorManager::m_boundaryResidual = 0.f;

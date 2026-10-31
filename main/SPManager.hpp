@@ -173,6 +173,14 @@ namespace CTAG {
             static int GetLastEditCh() { return lastEditCh.load(std::memory_order_relaxed); }
             static int GetLastEditVal() { return lastEditVal.load(std::memory_order_relaxed); }
             static uint32_t GetLastEditSeq() { return lastEditSeq.load(std::memory_order_relaxed); }
+            // Set by SetSoundProcessorChannel: the panel's param table is
+            // stale after a plugin load and needs a FULL params re-push
+            // (wholesale sync — the incremental pushParamValue only covers
+            // single-value edits).
+            static void RequestParamsResync() { paramsResyncPending.store(true, std::memory_order_relaxed); }
+            static bool TakeParamsResync() {
+                return paramsResyncPending.exchange(false, std::memory_order_relaxed);
+            }
             static bool GetRingFrozen() {
                 return ringFrozen.load(std::memory_order_relaxed);
             }
@@ -216,6 +224,7 @@ namespace CTAG {
             static atomic<int32_t> lastEditCh;
             static atomic<int32_t> lastEditVal;
             static atomic<uint32_t> lastEditSeq;
+            static atomic<bool> paramsResyncPending;
 
             // Click forensics: the output ring freezes itself when a block
             // shows a sample-to-sample step far above the running norm —
