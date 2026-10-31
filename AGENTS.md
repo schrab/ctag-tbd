@@ -17,6 +17,13 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 - **Norns extended range**: norns.ttf has 138 non-empty glyphs > 0x7F spread across codepoints up to U+ED64. `norns_ext_gen.py` generates `norns_ext_6x7.h` with sorted codepoints array + binary search lookup. Cell width = max_adv (9px). UTF-8 decoding in `DrawString` enables rendering extended icons (`←↑→↓▶●` etc.).
 
 ## Known Issues
+## Known Issues
+- **Param-change click investigation (2026-10-31) — verified facts vs open question**:
+  - FIXED & verified: C3 LinkClient watchdog underflow (spurious "DSP link lost" popup storms on edit bursts — resample the clock after the RX drain); the A1S per-edit params re-push burst (regen+TX delayed the audio task's wake 1.4–2.2 ms → DMA underrun — now deferred 3 s past the last edit, hash+regen included in the skip); per-frame 4 KB PSRAM DOM churn on paramSet frames (allocation-free fast path in `LinkEndpoint::handleLinkCommand`).
+  - **NEVER set `dma_buf_count` > 4 on the BBA legacy I2S path**: 8 descriptors intermittently wed the TX after plugin switches — total output silence with the render loop still pacing normally (loop periods 7, fbuf peaks present, user hears nothing). Reboot re-arms it. Root cause not dug into; the legacy shim maps `dma_buf_count`→`dma_desc_num` via a union, so the field IS honored.
+  - Verified NOT the cause of the clicks: processMutex mutes (counter static), NaN in the output (int16-clamp scan), block-boundary gain steps after the de-zipper (freeze detector quiet), frame delivery (99%+ at 50/s), the codec output-level config.
+  - OPEN: audible clicks/glitches on fast parameter changes persist after the de-zipper commit `a6b676dc`. Needs a clean A/B (stock vs de-zippered, same patch + same recorded gestures) before any further DSP changes. Bench instruments for it: `/debug/getLoopHist`, `/debug/getAudioCapture` (+ self-freezing discontinuity ring, `/debug/clearFreeze`), `muteBlocks` in getAudioStats. The mute test (Volume=0 + frame bursts) cleanly separates electrical/EMI (clicks in silence) from DSP-content (silence is clean) — it came out DSP-content.
+
 - **TBDaits (Plaits port) — crash AND 5–10 Hz overrun crackle FIXED & hardware-verified (2026-10-29)**:
   - The crashes ("load stereo plugin, touch params, DSP reboots") were `SetChannelParamValue` dereferencing `sp[1]` = nullptr for stereo plugins on ch0 (`005cc172`).
   - The **5–10 Hz overrun crackle** (`max ≈ 950–1,000 µs` single-block spikes against the 725.6 µs budget despite `avg ≈ 268 µs`) had two interacting root causes (full analysis in `doc/tbdaits-crackle-evidence.md`):
