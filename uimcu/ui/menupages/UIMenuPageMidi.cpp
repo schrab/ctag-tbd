@@ -153,7 +153,7 @@ namespace CTAG {
                      DspProxy::IsMidiBleEnabled() ? "ON" : "OFF");
             Display::DrawString(0, y, buf, Display::FONT_5X7);
 
-            Display::InvertRect(0, ROW(cursor), 128, 8);
+            Display::InvertRect(0, ROW(cursor), 128, FONT_H);
             Display::Flush();
         }
 
@@ -180,7 +180,7 @@ namespace CTAG {
                                         FONT_DEEP);
                 }
                 int cy = ROW(cursor - scrollOffset);
-                Display::InvertRect(0, cy, 128, 8);
+                Display::InvertRect(0, cy, 128, FONT_H);
                 if (n > VISIBLE_ITEMS)
                     Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H,
                                            n, cursor);

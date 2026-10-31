@@ -311,7 +311,7 @@ namespace CTAG {
             if (!DspProxy::IsOnline()) {
                 Display::DrawString(62, ROW(0), "DSP OFF", Display::FONT_5X7);
             }
-            Display::InvertRect(0, ROW(cursor), 128, 8);
+            Display::InvertRect(0, ROW(cursor), 128, FONT_H);
             Display::Flush();
         }
 
@@ -346,7 +346,7 @@ namespace CTAG {
                 Display::DrawString(0, y, buf, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             if (MAX_FAVORITES > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, MAX_FAVORITES, cursor);
             Display::Flush();
@@ -400,7 +400,7 @@ namespace CTAG {
                 Display::DrawString(0, y, buf, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             if (sdFileCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, sdFileCount, cursor);
             Display::Flush();
@@ -422,7 +422,7 @@ namespace CTAG {
                 Display::DrawString(120, y, e.isStereo ? "S" : "M", FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             if (pluginCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, pluginCount, cursor);
             Display::Flush();
@@ -438,7 +438,7 @@ namespace CTAG {
             const char *opts[] = {"Ch 0", "Ch 1", "Both"};
             for (int i = 0; i < 3; i++)
                 Display::DrawString(0, ROW_HDR(1) + i * optGap, opts[i], FONT_DEEP);
-            Display::InvertRect(0, ROW_HDR(1) + cursor * optGap, 128, 8);
+            Display::InvertRect(0, ROW_HDR(1) + cursor * optGap, 128, FONT_H);
             Display::Flush();
         }
     }

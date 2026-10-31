@@ -521,7 +521,7 @@ namespace CTAG {
                 Display::DrawString(0, ROW(2), "PSET", Display::FONT_5X7);
                 Display::DrawString(0, ROW(3), "PRESETS", Display::FONT_5X7);
             }
-            Display::InvertRect(0, ROW(cursor), 128, 8);
+            Display::InvertRect(0, ROW(cursor), 128, FONT_H);
             Display::Flush();
         }
 
@@ -542,7 +542,7 @@ namespace CTAG {
                 Display::DrawString(0, y, buf, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             if (groupCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, groupCount, cursor);
             Display::Flush();
@@ -597,7 +597,7 @@ namespace CTAG {
                 Display::DrawStringRight(127, y, valBuf, rowFont);
             }
             int cursorY = ROW(paramIndexToScreen(cursor));
-            Display::InvertRect(0, cursorY, 128, 8);
+            Display::InvertRect(0, cursorY, 128, FONT_H);
             if (hint) {
                 Display::DrawString(0, ROW(maxVisible), " OK = map source", FONT_DEEP);
             }
@@ -764,7 +764,7 @@ namespace CTAG {
             FormatSourceName(cur, mapIsCv, curName, sizeof(curName));
             snprintf(buf, sizeof(buf), " %s  was:%.8s", selName, curName);
             Display::DrawString(0, ROW_HDR(1), buf, FONT_DEEP);
-            Display::InvertRect(0, ROW_HDR(1), 128, 8);
+            Display::InvertRect(0, ROW_HDR(1), 128, FONT_H);
 
             // context line: position in list / learn state
             if (mapLearning) {
@@ -796,7 +796,7 @@ namespace CTAG {
                 Display::DrawString(0, y, buf, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             if (presetCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, presetCount, cursor);
             Display::Flush();

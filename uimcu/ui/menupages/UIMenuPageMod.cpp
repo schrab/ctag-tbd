@@ -511,7 +511,7 @@ namespace CTAG {
                 Display::DrawString(0, y, buf, Display::FONT_5X7);
             }
             int cy = ROW(cursor);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             drawOutputLine();
             Display::Flush();
         }
@@ -542,7 +542,7 @@ namespace CTAG {
             // cursor row is always the edited row: full-row invert, as on
             // the Params page
             int cy = ROW_HDR(cursor - scrollOff);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             if (TOTAL > VIS) {
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VIS * LINE_H, TOTAL, cursor);
             }
@@ -572,7 +572,7 @@ namespace CTAG {
                 Display::DrawString(0, y, buf, FONT_DEEP);
             }
             int cy = ROW_HDR(cursor - scrollOff);
-            Display::InvertRect(0, cy, 128, 8);
+            Display::InvertRect(0, cy, 128, FONT_H);
             if (TOTAL > VIS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0_HDR, VIS * LINE_H, TOTAL, cursor);
             drawOutputLine();
