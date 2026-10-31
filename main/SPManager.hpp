@@ -73,6 +73,12 @@ namespace CTAG {
                 return model->GetCStrJSONConfiguration();
             }
 
+            // Deferred model persistence (see SPManagerDataModel) — called
+            // from the link tick; self-gates on the 5 s quiet window.
+            static void FlushModelStoreIfDue() {
+                if (model) model->FlushStoreIfDue();
+            }
+
             static const char *GetCStrJSONSoundProcessorPresets(const string &id) {
                 return model->GetCStrJSONSoundProcessorPresets(id);
             }

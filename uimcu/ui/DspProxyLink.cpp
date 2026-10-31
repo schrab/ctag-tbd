@@ -568,7 +568,9 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
 
         void DspProxy::SetSoundProcessorChannel(int chan, const std::string &id) {
             if (chan < 0 || chan > 1) return;
-            activeId[chan] = id;
+            // NOTE: no optimistic local update — a load can be REFUSED on
+            // the DSP (stereo ch0 blocks ch1), and the truth arrives via
+            // the pushActivePlugin that follows every load attempt.
             char buf[192];
             snprintf(buf, sizeof(buf),
                      "{\"cmd\":\"/debug/setActivePlugin\",\"ch\":%d,\"id\":\"%s\"}",

@@ -399,8 +399,19 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
     if(!model->HasPluginID(id)) return;
 
     // when trying to set chan 1 and chan 0 is a stereo plugin, return
-    if(chan == 1 && model->IsStereo(model->GetActiveProcessorID(0))) return;
-    if(chan == 1 && model->IsStereo(id)) return;
+    if(chan == 1 && model->IsStereo(model->GetActiveProcessorID(0))) {
+        // Reflect the truth into the model: sp[1] stays empty, so a stale
+        // persisted ch1 id must not linger as a phantom "loaded" plugin on
+        // the panel. Void is the factory's explicit no-op processor.
+        model->SetActivePluginID("Void", 1);
+        paramsResyncPending.store(true, std::memory_order_relaxed);
+        return;
+    }
+    if(chan == 1 && model->IsStereo(id)) {
+        model->SetActivePluginID("Void", 1);
+        paramsResyncPending.store(true, std::memory_order_relaxed);
+        return;
+    }
 
     ESP_LOGI("SPManager", "Switching ch%d to plugin %s", chan, id.c_str());
 
@@ -415,6 +426,10 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
             delete sp[1]; // destruct processor
             sp[1] = nullptr;
         }
+        // A stereo load on ch0 kills ch1 — the model must say so, or the
+        // panel keeps showing ch1's old plugin as a phantom.
+        model->SetActivePluginID("Void", 1);
+        paramsResyncPending.store(true, std::memory_order_relaxed);
     }
 
     // create new plugin

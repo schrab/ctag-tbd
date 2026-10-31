@@ -515,9 +515,14 @@ namespace CTAG {
             void pushOnChange(uint32_t now) {
                 // Wholesale params re-sync after a plugin load: the panel's
                 // table is stale until the new plugin's full params land.
+                // Also re-pushes the active-plugin ids: a load attempt can
+                // be REFUSED on the DSP (stereo ch0 blocks ch1) and the
+                // model then flips ch1 to Void — the panel must see that
+                // truth even when the model didn't actually change.
                 if (SoundProcessorManager::TakeParamsResync()) {
                     pushParams(0);
                     pushParams(1);
+                    pushActivePlugin();
                 }
                 uint32_t h;
                 uint32_t gen = CTAG::SP::ctagDataModelBase::GetGeneration();
@@ -1043,6 +1048,11 @@ namespace CTAG {
                                 lastPushMs = now;
                                 pushOnChange(now);
                             }
+                            // Deferred model persistence (config writes,
+                            // plugin-list changes): coalesced, flushed 5 s
+                            // after the last change — one ~300 ms flash
+                            // stall instead of one per settings change.
+                            AUDIO::SoundProcessorManager::FlushModelStoreIfDue();
                             if (now - lastHeartbeatMs >= kHeartbeatPeriodMs) {
                                 lastHeartbeatMs = now;
                                 sendStr(MakeHeartbeat(now, ++heartbeatSeq));
