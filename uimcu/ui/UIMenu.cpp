@@ -47,7 +47,8 @@ namespace CTAG {
         volatile bool UIMenu::fbShotReady = false;
         uint8_t UIMenu::fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
         UIMenu::DisplayState UIMenu::displayState = UIMenu::AWAKE;
-        bool UIMenu::screensaverEnabled = false; // bring-up default; see TaskFunction
+        bool UIMenu::screensaverEnabled = true; // 30 s idle -> panel off;
+                                                // any input wakes (TaskFunction)
         volatile int UIMenu::pendingPanelRequest = -1;
         int UIMenu::pendingDeepHint = 0;
 
