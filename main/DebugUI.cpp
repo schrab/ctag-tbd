@@ -333,7 +333,10 @@ namespace CTAG {
             if (s == "/debug/getPluginParams") {
                 // Exact live parameter values for a channel, as the plugin
                 // data model sees them. Used by bring-up scripts instead of
-                // inferring values from the OLED.
+                // inferring values from the OLED. An optional "id" filters
+                // the reply to one parameter — the full JSON of a big plugin
+                // (~20 KB for Subbotnik's 103 params) exceeds the panel-link
+                // bench relay and never arrives.
                 int ch = 0;
                 if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
                 if (ch < 0 || ch > 1) {
@@ -342,6 +345,28 @@ namespace CTAG {
                 }
                 const char *params =
                     AUDIO::SoundProcessorManager::GetCStrJSONActivePluginParams(ch);
+                if (d.HasMember("id") && d["id"].IsString()) {
+                    // Single-param probe: {"id":"pitch_A","current":N,...}
+                    // Sscanf-style scan of the model JSON; no DOM needed
+                    // (the model string can be large and this runs on the
+                    // link task).
+                    string id = d["id"].GetString();
+                    string needle = "\"id\":\"" + id + "\"";
+                    const char *p = params ? strstr(params, needle.c_str()) : nullptr;
+                    if (p == nullptr) {
+                        response = cmdEcho + ",\"ch\":" + to_string(ch) +
+                                   ",\"error\":\"no such id\"}";
+                        return true;
+                    }
+                    const char *objEnd = strchr(p, '}');
+                    const char *objStart = p;
+                    while (objStart > params && *objStart != '{') objStart--;
+                    response = cmdEcho + ",\"ch\":" + to_string(ch) + ",\"param\":";
+                    response.append(objStart,
+                                    objEnd ? (objEnd - objStart + 1) : strlen(objStart));
+                    response += "}";
+                    return true;
+                }
                 response = cmdEcho + ",\"ch\":" + to_string(ch) +
                            ",\"params\":" + (params ? params : "{}") + "}";
                 return true;
