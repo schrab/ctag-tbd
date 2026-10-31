@@ -171,7 +171,7 @@ namespace CTAG {
                 y += LINE_H;
             }
             int highlightY = ROW(cursor);
-            Display::InvertRect(0, highlightY, 128, FONT_H);
+            Display::InvertRect(0, highlightY - 1, 128, 8);
             Display::Flush();
         }
 
@@ -207,7 +207,7 @@ namespace CTAG {
                 Display::DrawString(0, ROW(i), fileNames[idx], FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
-            Display::InvertRect(0, cy, 128, FONT_H);
+            Display::InvertRect(0, cy - 1, 128, 8);
             if (fileCount > VISIBLE_ITEMS) Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, fileCount, cursor);
             Display::Flush();
         }
@@ -216,7 +216,7 @@ namespace CTAG {
             Display::Clear();
             Display::DrawString(0, ROW(0), "START REC", FONT_DEEP);
             Display::DrawString(0, ROW(1), "CANCEL", FONT_DEEP);
-            Display::InvertRect(0, ROW(cursor), 128, FONT_H);
+            Display::InvertRect(0, ROW(cursor) - 1, 128, 8);
             Display::Flush();
         }
     }

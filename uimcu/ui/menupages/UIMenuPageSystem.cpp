@@ -441,7 +441,7 @@ namespace CTAG {
                 Display::DrawStringRight(127, y, it.value, FONT_DEEP);
             }
             int cy = ROW(cursor - scrollOffset);
-            Display::InvertRect(0, cy, 128, FONT_H);
+            Display::InvertRect(0, cy - 1, 128, 8);
             if (itemCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, itemCount, cursor);
             Display::Flush();
