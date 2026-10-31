@@ -211,7 +211,12 @@ bool SDAudio::ProbeWav(const char *path, WavInfo *out) {
             uint32_t chunkSz = *(uint32_t *)(chunk + 4);
             if (memcmp(chunk, "fmt ", 4) == 0) {
                 uint8_t fmtBuf[40];
-                size_t toRead = chunkSz < sizeof(fmtBuf) ? chunkSz : sizeof(fmtBuf);
+                // Tolerate an undersized/zero fmt chunk size: the SDAudio
+                // recorder used to leave the size field at 0 with the fields
+                // at canonical offsets, so always read the canonical 16
+                // bytes minimum (files already on cards rely on this).
+                size_t toRead = chunkSz > 16 ? (chunkSz < sizeof(fmtBuf) ? chunkSz : sizeof(fmtBuf))
+                                             : 16;
                 if (fread(fmtBuf, 1, toRead, f) != toRead) break;
                 if (chunkSz & 1) fseek(f, 1, SEEK_CUR);
                 out->format = *(uint16_t *)(fmtBuf + 0);
@@ -272,6 +277,8 @@ void SDAudio::workerTask(void *param) {
         memcpy(hdr, "RIFF", 4);
         memcpy(hdr + 8, "WAVE", 4);
         memcpy(hdr + 12, "fmt ", 4);
+        *(uint32_t *)(hdr + 16) = 16; // fmt chunk size — was left ZERO, which
+                                      // made the chunk walker skip the fields
         *(uint16_t *)(hdr + 20) = 1;
         *(uint16_t *)(hdr + 22) = 2;  // 2 channels
         *(uint32_t *)(hdr + 24) = 44100;
