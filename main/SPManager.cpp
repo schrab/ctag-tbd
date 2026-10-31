@@ -328,22 +328,19 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         // /debug/getAudioCapture can fetch the sample-level transient
         // around a parameter write — UNLESS a prior click froze it.
         if (!ringFrozen.load(std::memory_order_relaxed)) {
-            // Discontinuity detector: max sample-to-sample step of this
-            // block (left channel) vs a slow EMA of the norm. A step >10x
-            // the norm (and above a floor) freezes the ring with the click
-            // inside.
-            float maxstep = 0.f;
-            for (uint32_t i = 1; i < BUF_SZ; i++) {
-                float d = fabsf(fbuf[i * 2] - fbuf[(i - 1) * 2]);
-                if (d > maxstep) maxstep = d;
-                d = fabsf(fbuf[i * 2 + 1] - fbuf[(i - 1) * 2 + 1]);
-                if (d > maxstep) maxstep = d;
-            }
-            static float stepAvg = 0.f;
-            stepAvg = stepAvg * 0.999f + maxstep * 0.001f;
-            if (maxstep > 0.02f && maxstep > stepAvg * 10.f) {
+            // Boundary-continuity detector: the step across the block
+            // boundary (prev block's last sample -> this block's first)
+            // minus the local slope just after it. Fold waveforms are
+            // steep by nature, so absolute step thresholds false-trigger;
+            // only a boundary step far exceeding the signal's own local
+            // slope is a true discontinuity (a param-application artifact).
+            float localSlope = fabsf(fbuf[2] - fbuf[0]);
+            float boundaryStep = fabsf(fbuf[0] - m_prevBlockLast);
+            if (boundaryStep > 0.04f && boundaryStep > localSlope * 4.f) {
+                m_boundaryResidual = boundaryStep - localSlope;
                 ringFrozen.store(true, std::memory_order_relaxed);
             }
+            m_prevBlockLast = fbuf[BUF_SZ * 2 - 2];
             uint32_t slot =
                 audioRingSeq.load(std::memory_order_relaxed) & (kCaptureBlocks - 1);
             memcpy(audioRing[slot], fbuf, sizeof(audioRing[0]));
@@ -460,7 +457,13 @@ atomic<uint32_t> SoundProcessorManager::muteBlocks = 0;
 uint16_t SoundProcessorManager::loopHist[SoundProcessorManager::kLoopHistLen];
 atomic<uint32_t> SoundProcessorManager::loopHistSeq = 0;
 atomic<uint32_t> SoundProcessorManager::lastParamEditMs = 0;
+char SoundProcessorManager::lastEditId[64];
+atomic<int32_t> SoundProcessorManager::lastEditCh = 0;
+atomic<int32_t> SoundProcessorManager::lastEditVal = 0;
+atomic<uint32_t> SoundProcessorManager::lastEditSeq = 0;
 atomic<bool> SoundProcessorManager::ringFrozen = false;
+float SoundProcessorManager::m_prevBlockLast = 0.f;
+float SoundProcessorManager::m_boundaryResidual = 0.f;
 atomic<uint32_t> SoundProcessorManager::noiseGateCfg;
 atomic<uint32_t> SoundProcessorManager::ch01Daisy;
 atomic<uint32_t> SoundProcessorManager::toStereoCH0;
@@ -549,6 +552,15 @@ void SoundProcessorManager::SetChannelParamValue(const int chan, const string &i
     sp[chan]->SetParamValue(id, key, val);
     lastParamEditMs.store(static_cast<uint32_t>(esp_timer_get_time() / 1000),
                           std::memory_order_relaxed);
+    // Record for the incremental pushParamValue sync (only "current"
+    // edits change the value the panel displays; cv/trig mappings ride
+    // along in the frame too).
+    if (key == "current" || key == "cv" || key == "trig") {
+        snprintf(lastEditId, sizeof(lastEditId), "%s", id.c_str());
+        lastEditCh.store(chan, std::memory_order_relaxed);
+        lastEditVal.store(val, std::memory_order_relaxed);
+        lastEditSeq.fetch_add(1, std::memory_order_relaxed);
+    }
 }
 
 void SoundProcessorManager::ChannelSavePreset(const int chan, const string &name, const int number) {

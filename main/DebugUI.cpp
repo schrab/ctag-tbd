@@ -217,6 +217,8 @@ namespace CTAG {
                 response = cmdEcho + ",\"seq\":" + to_string(endSeq) +
                            ",\"frozen\":" +
                            (AUDIO::SoundProcessorManager::GetRingFrozen() ? "1" : "0") +
+                           ",\"resid\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetBoundaryResidual()) +
                            ",\"blocks\":" + to_string(blocks) +
                            ",\"muteBlocks\":" +
                            to_string(AUDIO::SoundProcessorManager::GetMuteBlocks()) +

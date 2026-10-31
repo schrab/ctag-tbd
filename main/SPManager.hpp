@@ -150,6 +150,9 @@ namespace CTAG {
             static uint32_t GetMuteBlocks() {
                 return muteBlocks.load(std::memory_order_relaxed);
             }
+            static float GetBoundaryResidual() {
+                return m_boundaryResidual;
+            }
             // Millisecond timestamp of the last parameter edit (any
             // channel, any source). The link's 10 Hz on-change push
             // defers the full params JSON re-push (display-sync traffic,
@@ -161,6 +164,15 @@ namespace CTAG {
             static uint32_t GetLastParamEditMs() {
                 return lastParamEditMs.load(std::memory_order_relaxed);
             }
+            // Incremental parameter sync: the last applied edit, read by
+            // the link's 10 Hz tick to push ONE tiny pushParamValue frame
+            // (the panel already knows its own edits; this keeps other
+            // views truthful without ever re-pushing the whole params
+            // JSON — the full push stays on plugin/preset loads + boot).
+            static const char *GetLastEditId() { return lastEditId; }
+            static int GetLastEditCh() { return lastEditCh.load(std::memory_order_relaxed); }
+            static int GetLastEditVal() { return lastEditVal.load(std::memory_order_relaxed); }
+            static uint32_t GetLastEditSeq() { return lastEditSeq.load(std::memory_order_relaxed); }
             static bool GetRingFrozen() {
                 return ringFrozen.load(std::memory_order_relaxed);
             }
@@ -200,12 +212,18 @@ namespace CTAG {
             static atomic<uint32_t> cpuOverload;
             static atomic<uint32_t> lastAudioTaskCycles;
             static atomic<uint32_t> lastParamEditMs;
+            static char lastEditId[64];
+            static atomic<int32_t> lastEditCh;
+            static atomic<int32_t> lastEditVal;
+            static atomic<uint32_t> lastEditSeq;
 
             // Click forensics: the output ring freezes itself when a block
             // shows a sample-to-sample step far above the running norm —
             // the frozen ring then holds the actual click waveform for
             // /debug/getAudioCapture. Cleared via /debug/clearFreeze.
             static atomic<bool> ringFrozen;
+            static float m_prevBlockLast;      // last sample of the previous block (L)
+            static float m_boundaryResidual;   // boundary step minus local slope at freeze
 
             static atomic<uint32_t> noiseGateCfg;
             static atomic<uint32_t> ch01Daisy;
