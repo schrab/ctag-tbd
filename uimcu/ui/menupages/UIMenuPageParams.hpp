@@ -67,7 +67,7 @@ namespace CTAG {
                 int number;
             };
 
-            enum Mode { MODE_SELECT, MODE_GROUP, MODE_EDIT, MODE_MAP, MODE_PSET, MODE_PRESETS };
+            enum Mode { MODE_SELECT, MODE_GROUP, MODE_EDIT, MODE_MAP, MODE_PRESETS };
             int cursor;
             int scrollOffset;
             Mode mode;

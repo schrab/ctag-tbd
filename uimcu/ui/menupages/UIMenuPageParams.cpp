@@ -231,7 +231,9 @@ namespace CTAG {
             if (mode == MODE_SELECT) {
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
-                if (newCursor > 3) newCursor = 3;
+                // single-channel layout: EDIT/MAP/PRESETS under the name
+                // header (three items); dual: Ch0/Ch1/MAP/PRESETS (four).
+                if (newCursor > (hasDualCh ? 3 : 2)) newCursor = hasDualCh ? 3 : 2;
                 if (newCursor != cursor) { encoderAccel = 0; lastEncDir = 0; }
                 cursor = newCursor;
             } else if (mode == MODE_GROUP) {
@@ -343,8 +345,7 @@ namespace CTAG {
                         onlyMapped = true;
                         enterParamList(true);
                     }
-                    else if (!hasDualCh && cursor == 2) { mode = MODE_PSET; }
-                    else if (cursor == 3) {
+                    else if (cursor == (hasDualCh ? 3 : 2)) {
                         mode = MODE_PRESETS;
                         cursor = 0;
                         scrollOffset = 0;
@@ -469,12 +470,6 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
-            if (mode == MODE_PSET) {
-                mode = MODE_SELECT;
-                cursor = 0;
-                doRedraw();
-                return true;
-            }
             if (mode == MODE_PRESETS) {
                 mode = MODE_SELECT;
                 cursor = 0;
@@ -495,11 +490,6 @@ namespace CTAG {
                 redrawMap();
             } else if (mode == MODE_PRESETS) {
                 redrawPresets();
-            } else {
-                // PSET — simple placeholder
-                Display::Clear();
-                Display::DrawString(0, 16, "Not implemented", FONT_UI);
-                Display::Flush();
             }
         }
 
@@ -516,12 +506,18 @@ namespace CTAG {
                 Display::DrawString(0, ROW(2), "MAP", FONT_UI);
                 Display::DrawString(0, ROW(3), "PRESETS", FONT_UI);
             } else {
-                Display::DrawString(0, ROW(0), "EDIT", FONT_UI);
-                Display::DrawString(0, ROW(1), "MAP", FONT_UI);
-                Display::DrawString(0, ROW(2), "PSET", FONT_UI);
-                Display::DrawString(0, ROW(3), "PRESETS", FONT_UI);
+                // Header: the loaded plugin this menu edits, one spacing
+                // line under it, then the items (PSET removed — the
+                // PRESETS submenu covers it).
+                string id0 = DspProxy::GetStringID(0);
+                Display::DrawString(0, ROW(0), id0.c_str(), FONT_UI);
+                Display::DrawString(0, ROW(2), "EDIT", FONT_UI);
+                Display::DrawString(0, ROW(3), "MAP", FONT_UI);
+                Display::DrawString(0, ROW(4), "PRESETS", FONT_UI);
             }
-            Display::InvertRect(0, ROW(cursor) - 1, 128, 8);
+            // Single layout: the items start at ROW(2) under the header.
+            int itemRow = hasDualCh ? cursor : cursor + 2;
+            Display::InvertRect(0, ROW(itemRow) - 1, 128, 8);
             Display::Flush();
         }
 
