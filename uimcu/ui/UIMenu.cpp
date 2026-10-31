@@ -185,7 +185,15 @@ namespace CTAG {
                 // SPI has no cross-task lock. Also fires after a System
                 // page commit pushes a new config back.
                 int contrast = DspProxy::TakePendingOledContrast();
-                if (contrast >= 0) Display::Contrast(contrast);
+                if (contrast >= 0) {
+                    // Boot floor: the stored value survives reboots, and a
+                    // stored 0 (panel off) is a trap — the user could never
+                    // see the menu to fix it. The panel always comes up
+                    // visible; turning it to 0 stays a live-session choice
+                    // (recoverable by turning the knob).
+                    if (contrast < 10) contrast = 10;
+                    Display::Contrast(contrast);
+                }
 
                 // Plugin-load overlay: while a load is in flight show the
                 // boot-style loading bar INSTEAD of page content — the

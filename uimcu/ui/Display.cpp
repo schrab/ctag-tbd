@@ -72,7 +72,7 @@ static spi_device_handle_t spiHandle = nullptr;
 uint8_t Display::fb[1024];
 bool Display::dirtyPages[8] {false};
 bool Display::flushHeld = false;
-int Display::userContrast = 0xFF;
+int Display::userContrast = 100;
 
 // CS is driven as a plain GPIO (software CS) and DC pin is runtime — the
 // panel's CS/DC pin assignment was the last bring-up unknown (the bit-bang
@@ -154,7 +154,6 @@ void Display::Init() {
     sendCommand(0xA1);                    // segment remap
     sendCommand(0xC8);                    // COM scan direction
     sendCommand(0xDA); sendCommand(0x12); // COM pins
-    sendCommand(0x81); sendCommand((uint8_t)userContrast);
     sendCommand(0xD9); sendCommand(0x22); // precharge — POR default; the
                     // long 0xF1 precharge pumped every row regardless of
                     // contrast: brightness 0 still glowed and the whole
@@ -164,6 +163,7 @@ void Display::Init() {
     sendCommand(0xA4);                    // display from RAM
     sendCommand(0xA6);                    // normal (not inverted)
     sendCommand(0xAF);                    // display on
+    Contrast(userContrast);               // brightness (0..100 domain)
 
 
     std::memset(fb, 0, sizeof(fb));
@@ -256,30 +256,22 @@ void Display::Sleep() {
 }
 
 void Display::Wake() {
-    if (userContrast == 0) return; // brightness 0 = panel stays off
     sendCommand(0xAF);
-    Contrast(userContrast); // re-apply the mapped register value
+    Contrast(userContrast); // re-apply brightness (clock + contrast)
 }
 
 void Display::Contrast(int val) {
-    // User-facing brightness, 0..100 (config item scale). The panel's
-    // contrast register (0x81) has a visible floor even at 0 — these
-    // OLEDs have no true greyscale and never fully dim on registers
-    // alone — so 0 turns the panel OFF (0xAE), the only real black it
-    // can produce, and 1..100 map onto the register with a square curve
-    // (1 -> ~1, 50 -> ~64, 100 -> 255).
+    // User-facing brightness 0..100, gamma 2.2 onto the contrast
+    // register (0x81 = 256 steps of segment current, linear in current —
+    // Solomon Systech; perception is logarithmic, so sliders use a
+    // 2.2..3.0 power law). The register has a visible floor on this
+    // module (~50% perceived): every command-level lever below it was
+    // tried and fails — frame-clock stretching (0xD5) flickers, VCOMH
+    // does not touch lit pixels, and true black only via display-off.
+    // 0 = the module's physical minimum, never panel-off.
     if (val < 0) val = 0;
     if (val > 100) val = 100;
-    bool wasOff = (userContrast == 0);
     userContrast = val;
-    if (val == 0) {
-        sendCommand(0xAE);
-        return;
-    }
-    if (wasOff) sendCommand(0xAF);
-    // gamma 2.2: the 0x81 register is linear in segment current (Solomon
-    // Systech), human brightness perception is logarithmic — community
-    // practice for OLED sliders is a 2.2..3.0 power law.
     float fv = (float)val / 100.f;
     int reg = (int)(255.f * powf(fv, 2.2f) + 0.5f);
     if (reg < 1) reg = 1;
