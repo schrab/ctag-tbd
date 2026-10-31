@@ -26,6 +26,7 @@ respective component folders / files if different from this license.
 namespace CTAG {
     namespace CTRL {
         class UIMenuPageSystem;
+        class UIMenuPageMidi;
 
         class UIMenuPageHome final : public UIMenuPage {
         public:
@@ -52,7 +53,7 @@ namespace CTAG {
                 char name[24];
             };
 
-            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_FAVORITES, SP_SD_CARD };
+            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_MIDI, SP_FAVORITES, SP_SD_CARD };
 
             SubPage subPage;
             int cursor;
@@ -76,6 +77,9 @@ namespace CTAG {
             int selectedPlugin; // index of plugin being channel-assigned
 
             UIMenuPageSystem *systemPage;
+            // MIDI lives here as a submenu (no longer a top-level panel):
+            // same hosted-page pattern as the system page.
+            UIMenuPageMidi *midiPage;
 
             // Live state in the MAIN view (DSP OFF label): last value drawn,
             // so onTick repaints only on a change.

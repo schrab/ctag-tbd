@@ -25,6 +25,7 @@ respective component folders / files if different from this license.
 #include "UIMenu.hpp"
 #include "rapidjson/document.h"
 #include "UIMenuPageSystem.hpp"
+#include "UIMenuPageMidi.hpp"
 #include <cstring>
 #include <cstdio>
 
@@ -39,6 +40,7 @@ namespace CTAG {
             scrollOffset = 0;
             pluginCount = 0;
             systemPage = nullptr;
+            midiPage = nullptr;
             favActiveId = -1;
             sdFileCount = 0;
             strcpy(sdCurrentPath, "/sd");
@@ -49,6 +51,11 @@ namespace CTAG {
                 if (subPage == SP_SYSTEM) systemPage->deinit();
                 delete systemPage;
                 systemPage = nullptr;
+            }
+            if (midiPage) {
+                if (subPage == SP_MIDI) midiPage->deinit();
+                delete midiPage;
+                midiPage = nullptr;
             }
         }
 
@@ -97,10 +104,12 @@ namespace CTAG {
         void UIMenuPageHome::onEncoder(int delta) {
             if (subPage == SP_SYSTEM) {
                 systemPage->onEncoder(delta);
+            } else if (subPage == SP_MIDI) {
+                midiPage->onEncoder(delta);
             } else if (subPage == SP_MAIN) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
-                if (cursor > 4) cursor = 4;
+                if (cursor > 5) cursor = 5;
             } else if (subPage == SP_SELECT) {
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
@@ -139,12 +148,16 @@ namespace CTAG {
         void UIMenuPageHome::onValueEncoder(int delta) {
             if (subPage == SP_SYSTEM) {
                 systemPage->onValueEncoder(delta);
+            } else if (subPage == SP_MIDI) {
+                midiPage->onValueEncoder(delta);
             }
         }
 
         void UIMenuPageHome::onButton(int btnId, bool longPress) {
             if (subPage == SP_SYSTEM) {
                 systemPage->onButton(btnId, longPress);
+            } else if (subPage == SP_MIDI) {
+                midiPage->onButton(btnId, longPress);
             } else if (subPage == SP_MAIN) {
                 if (btnId == 2 && !longPress) {
                     // enter subpage
@@ -157,12 +170,16 @@ namespace CTAG {
                         if (!systemPage) systemPage = new UIMenuPageSystem();
                         subPage = SP_SYSTEM;
                         systemPage->init();
-                    } else if (cursor == 2) { // FAVORITES
+                    } else if (cursor == 2) { // MIDI
+                        if (!midiPage) midiPage = new UIMenuPageMidi();
+                        subPage = SP_MIDI;
+                        midiPage->init();
+                    } else if (cursor == 3) { // FAVORITES
                         subPage = SP_FAVORITES;
                         cursor = 0;
                         scrollOffset = 0;
                         parseFavorites();
-                    } else if (cursor == 3) { // SD CARD
+                    } else if (cursor == 4) { // SD CARD
                         subPage = SP_SD_CARD;
                         cursor = 0;
                         scrollOffset = 0;
@@ -242,7 +259,15 @@ namespace CTAG {
                 if (systemPage->onBack()) return true;
                 systemPage->deinit();
                 subPage = SP_MAIN;
-                cursor = 0;
+                cursor = 1;
+                doRedraw();
+                return true;
+            }
+            if (subPage == SP_MIDI) {
+                if (midiPage->onBack()) return true;
+                midiPage->deinit();
+                subPage = SP_MAIN;
+                cursor = 2;
                 doRedraw();
                 return true;
             }
@@ -282,6 +307,8 @@ namespace CTAG {
         void UIMenuPageHome::doRedraw() {
             if (subPage == SP_SYSTEM) {
                 systemPage->doRedraw();
+            } else if (subPage == SP_MIDI) {
+                midiPage->doRedraw();
             } else if (subPage == SP_MAIN) {
                 redrawMain();
             } else if (subPage == SP_SELECT) {
@@ -298,13 +325,13 @@ namespace CTAG {
         void UIMenuPageHome::redrawMain() {
             Display::Clear();
             lastDrawnOnline = DspProxy::IsOnline() ? 1 : 0;
-            const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP"};
-            for (int i = 0; i < 5; i++)
+            const char *items[] = {"SELECT", "SYSTEM", "MIDI", "FAVORITES", "SD CARD", "SLEEP"};
+            for (int i = 0; i < 6; i++)
                 Display::DrawString(0, ROW(i), items[i], FONT_UI);
             if (favActiveId >= 0) {
                 char buf[16];
                 snprintf(buf, sizeof(buf), "Fav%d", favActiveId);
-                Display::DrawString(70, ROW(2), buf, FONT_UI);
+                Display::DrawString(70, ROW(3), buf, FONT_UI);
             }
             // Link state (SDD §4): the panel keeps cached values when the DSP
             // dies; make the offline state visible on the HOME panel.
@@ -316,6 +343,12 @@ namespace CTAG {
         }
 
         void UIMenuPageHome::onTick() {
+            if (subPage == SP_MIDI) {
+                // Live scan updates / BLE status while the MIDI submenu is
+                // up (the Midi page change-detects internally).
+                midiPage->onTick();
+                return;
+            }
             // MAIN is the only view with live content (the DSP OFF label):
             // repaint when the link state flips while the page idles on
             // screen, instead of waiting for the next input event.
