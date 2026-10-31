@@ -611,7 +611,27 @@ namespace CTAG {
                 bool inGroup = currentGroup >= 0 && currentGroup < groupCount;
                 if (inGroup)
                     snprintf(groupName, sizeof(groupName), "%s", groups[currentGroup].name);
+                // Keep the value the user is actively turning: a completed
+                // push can lag the last detents (the DSP regen runs on its
+                // own tick), and parseParams() would snap the row under the
+                // cursor back mid-edit. Display-only and self-correcting —
+                // once the cursor moves away the next push takes over.
+                char editingId[sizeof(ParamInfo::id)] = "";
+                int editingVal = 0;
+                if (mode == MODE_EDIT && paramCount > 0 &&
+                    cursor >= 0 && cursor < paramCount) {
+                    snprintf(editingId, sizeof(editingId), "%s", params[cursor].id);
+                    editingVal = params[cursor].current;
+                }
                 parseParams();
+                if (editingId[0] != '\0') {
+                    for (int i = 0; i < paramCount; i++) {
+                        if (strcmp(params[i].id, editingId) == 0) {
+                            params[i].current = editingVal;
+                            break;
+                        }
+                    }
+                }
                 if (inGroup && groupCount > 0) {
                     for (int i = 0; i < groupCount; i++) {
                         if (strcmp(groups[i].name, groupName) == 0) {

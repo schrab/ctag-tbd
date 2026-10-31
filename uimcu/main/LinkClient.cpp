@@ -161,7 +161,14 @@ namespace CTAG {
                         }
                     }
 
-                    // Offline watchdog.
+                    // Offline watchdog. Re-sample the clock AFTER the drain:
+                    // the drain can span >1 tick (10 ms @ FREERTOS_HZ=100)
+                    // and a frame completing in a later tick stamped
+                    // lastDspRxMs ahead of the loop-top `now`, making
+                    // (now - lastDspRxMs) underflow to ~4.29e9 — a spurious
+                    // "DSP went quiet" on every params push burst (seen live
+                    // as "last complete frame 4294967286 ms ago").
+                    now = nowMs();
                     if (s_online && (now - lastDspRxMs) > kOfflineAfterMs) {
                         s_online = false;
                         size_t buffered = 0;
