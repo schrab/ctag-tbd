@@ -296,32 +296,6 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
   MK_FLT_PAR_ABS_MIN_MAX_LOC(f_lfoSpeed[4], lfoppSpeed_5, 4095.f, MIN_LFO_SPEED, MAX_LFO_SPEED);
   MK_FLT_PAR_ABS_LOC(f_lfoAmnt[4], lfoppAmnt_5, 4095.f, 1.f);
 
-  // === Parameter slew: one-pole smoothing of the audio-critical params ===
-  // The GUI applies parameter steps raw per block; the stateful structures
-  // (xMod paths, wavefolder, filter, output gains) audibly glitch on fast
-  // modulation (every fast encoder turn clicked). One-pole glide, tau
-  // ~15 ms at the ~1378 Hz block rate: fast modulation attenuated without
-  // a perceptible knob lag. Rate params (LFO speeds, envelope times,
-  // pitches) are intentionally not smoothed.
-  constexpr float kParamSmooth = 0.05f;
-#define SLEW_PAR(fv, sm)                       \
-    do {                                       \
-        if (sm < 0.f) sm = fv;                 \
-        else sm += kParamSmooth * (fv - sm);   \
-        fv = sm;                               \
-    } while (0)
-  SLEW_PAR(f_freq_xModB_A, sm_freq_xModB_A);
-  SLEW_PAR(f_timbre_xModB_A, sm_timbre_xModB_A);
-  SLEW_PAR(f_color_xModB_A, sm_color_xModB_A);
-  SLEW_PAR(f_freq_xModA_B, sm_freq_xModA_B);
-  SLEW_PAR(f_timbre_xModA_B, sm_timbre_xModA_B);
-  SLEW_PAR(f_color_xModA_B, sm_color_xModA_B);
-  SLEW_PAR(f_WavefolderAmnt, sm_WavefolderAmnt);
-  SLEW_PAR(f_Cutoff, sm_Cutoff);
-  SLEW_PAR(f_Resonance, sm_Resonance);
-  SLEW_PAR(f_ADfilterAmnt, sm_ADfilterAmnt);
-#undef SLEW_PAR
-
   // === Preprocess all parameters before main DSP-loop[s] ---
   // --- Calculate final pitch as integer ---
   int i_pitch_A = (int)(f_pitch_A+f_tune_A);    // f_pitch has a range of 5 octaves, f_tune max +-1 octave
@@ -508,25 +482,6 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
   f_vol_A *= (1.f-f_xFadeOscAoscB);
   f_vol_B *= f_xFadeOscAoscB;
 
-  // === Per-sample de-zipper ramps for the output gains ===
-  // Block-rate gain application steps the output at every block boundary
-  // (audible clicks on fast turns). Each gain moves LINEARLY from its
-  // end-of-previous-block value to this block's target, so block
-  // boundaries are continuous and the tracking lag is one block (~0.7 ms).
-  if (g_Volume < -0.5f)
-  {
-    g_Volume = f_Volume;
-    g_vol_A = f_vol_A;
-    g_vol_B = f_vol_B;
-    g_am_xModB_A = f_am_xModB_A;
-    g_am_xModA_B = f_am_xModA_B;
-  }
-  float inc_Volume = (f_Volume - g_Volume) / (float)bufSz;
-  float inc_vol_A = (f_vol_A - g_vol_A) / (float)bufSz;
-  float inc_vol_B = (f_vol_B - g_vol_B) / (float)bufSz;
-  float inc_am_xModB_A = (f_am_xModB_A - g_am_xModB_A) / (float)bufSz;
-  float inc_am_xModA_B = (f_am_xModA_B - g_am_xModA_B) / (float)bufSz;
-
   // === Main DSP Loops including DA output ===
   if( t_enableFilter ) // Please note: we have partly redundant code for DSP-loop with or without (different)filter[s], because it turned out to be much faster than have the distinction inside the main-loop!
   {
@@ -534,11 +489,6 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
     {
       for (int i = 0; i < bufSz; i++)
       {
-        g_Volume += inc_Volume;
-        g_vol_A += inc_vol_A;
-        g_vol_B += inc_vol_B;
-        g_am_xModB_A += inc_am_xModB_A;
-        g_am_xModA_B += inc_am_xModA_B;
         if ((i % 2) == 0)                      // We need an audio-buffer of at least two byte, so we render two bytes, give out one or only give out the second in exchange...
         {
           // --- Render OSC A and remember results ---
@@ -553,7 +503,7 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
             CONSTRAIN(i_color_A, 0, 32767);
             osc_A.set_pitch(i_pitch_A);
             osc_A.set_parameters(i_timbre_A, i_color_A);
-            m_vol_A_incl_am = g_vol_A + f_val_result_1_B * g_am_xModB_A;
+            m_vol_A_incl_am = f_vol_A + f_val_result_1_B * f_am_xModB_A;
 
             osc_A.Render(sync_A, buffer_A, 2);
             f_val_result_1_A = DSP_INT2FLOAT(buffer_A[0]);
@@ -576,7 +526,7 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
             CONSTRAIN(i_color_B, 0, 32767);
             osc_B.set_pitch(i_pitch_B);
             osc_B.set_parameters(i_timbre_B, i_color_B);
-            m_vol_B_incl_am = g_vol_B + f_val_result_1_A * g_am_xModA_B;
+            m_vol_B_incl_am = f_vol_B + f_val_result_1_A * f_am_xModA_B;
 
             osc_B.Render(sync_B, buffer_B, 2);
             f_val_result_1_B = DSP_INT2FLOAT(buffer_B[0]);
@@ -587,12 +537,12 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
             f_val_result_1_B = 0.f;
             f_val_result_2_B = 0.f;
           }
-          f_val_result = Svf_process(svf_data,Fold_do(f_val_result_1_A * m_vol_A_incl_am + f_val_result_1_B * m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance, 0) * g_Volume;
+          f_val_result = Svf_process(svf_data,Fold_do(f_val_result_1_A * m_vol_A_incl_am + f_val_result_1_B * m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance, 0) * f_Volume;
           data.buf[i*2] = data.buf[i*2+1] = f_val_result;     // give out first result of renedering on both channels in even-indexed DSP-loop
         }
         else
         {
-          f_val_result = Svf_process(svf_data,Fold_do(f_val_result_2_A * m_vol_A_incl_am + f_val_result_2_B * m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance, 0) * g_Volume;
+          f_val_result = Svf_process(svf_data,Fold_do(f_val_result_2_A * m_vol_A_incl_am + f_val_result_2_B * m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance, 0) * f_Volume;
           data.buf[i*2] = data.buf[i*2+1] = f_val_result;    // give out second result of renedering on both channels in odd-indexed DSP-loop
         }
       }
@@ -601,11 +551,6 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
     {
       for (int i = 0; i < bufSz; i++)
       {
-        g_Volume += inc_Volume;
-        g_vol_A += inc_vol_A;
-        g_vol_B += inc_vol_B;
-        g_am_xModB_A += inc_am_xModB_A;
-        g_am_xModA_B += inc_am_xModA_B;
         if ((i % 2) == 0)                      // We need an audio-buffer of at least two byte, so we render two bytes, give out one or only give out the second in exchange...
         {
           // --- Render OSC A and remember results ---
@@ -620,7 +565,7 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
             CONSTRAIN(i_color_A, 0, 32767);
             osc_A.set_pitch(i_pitch_A);
             osc_A.set_parameters(i_timbre_A, i_color_A);
-            m_vol_A_incl_am = g_vol_A + f_val_result_1_B * g_am_xModB_A;
+            m_vol_A_incl_am = f_vol_A + f_val_result_1_B * f_am_xModB_A;
 
             osc_A.Render(sync_A, buffer_A, 2);
             f_val_result_1_A = DSP_INT2FLOAT(buffer_A[0]);
@@ -643,7 +588,7 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
             CONSTRAIN(i_color_B, 0, 32767);
             osc_B.set_pitch(i_pitch_B);
             osc_B.set_parameters(i_timbre_B, i_color_B);
-            m_vol_B_incl_am = g_vol_B + f_val_result_1_A * g_am_xModA_B;
+            m_vol_B_incl_am = f_vol_B + f_val_result_1_A * f_am_xModA_B;
 
             osc_B.Render(sync_B, buffer_B, 2);
             f_val_result_1_B = DSP_INT2FLOAT(buffer_B[0]);
@@ -654,12 +599,12 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
             f_val_result_1_B = 0.f;
             f_val_result_2_B = 0.f;
           }
-          f_val_result = Ladder_process(ladder_data, Fold_do(f_val_result_1_A*m_vol_A_incl_am + f_val_result_1_B*m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance)*g_Volume;
+          f_val_result = Ladder_process(ladder_data, Fold_do(f_val_result_1_A*m_vol_A_incl_am + f_val_result_1_B*m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance)*f_Volume;
           data.buf[i*2] = data.buf[i*2+1] = f_val_result;     // give out first result of renedering on both channels in even-indexed DSP-loop
         }
         else
         {
-          f_val_result = Ladder_process(ladder_data, Fold_do(f_val_result_2_A*m_vol_A_incl_am + f_val_result_2_B*m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance)*g_Volume;
+          f_val_result = Ladder_process(ladder_data, Fold_do(f_val_result_2_A*m_vol_A_incl_am + f_val_result_2_B*m_vol_B_incl_am, f_WavefolderAmnt), f_Cutoff, f_Resonance)*f_Volume;
           data.buf[i*2] = data.buf[i*2+1] = f_val_result;    // give out second result of renedering on both channels in odd-indexed DSP-loop
         }
       }
@@ -670,11 +615,6 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
   {
     for (int i = 0; i < bufSz; i++)
     {
-      g_Volume += inc_Volume;
-      g_vol_A += inc_vol_A;
-      g_vol_B += inc_vol_B;
-      g_am_xModB_A += inc_am_xModB_A;
-      g_am_xModA_B += inc_am_xModA_B;
       if ((i % 2) ==  0)                      // We need an audio-buffer of at least two byte, so we render two bytes, give out one or only give out the second in exchange...
       {
         // --- Apply values for Cross-modulation (if any) from OSC B to OSC A ---
@@ -686,7 +626,7 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
         CONSTRAIN(i_color_A, 0, 32767);
         osc_A.set_pitch(i_pitch_A);
         osc_A.set_parameters(i_timbre_A, i_color_A);
-        m_vol_A_incl_am = g_vol_A + f_val_result_1_B*g_am_xModB_A;
+        m_vol_A_incl_am = f_vol_A + f_val_result_1_B*f_am_xModB_A;
 
         // --- Render OSC A and remember results ---
         osc_A.Render(sync_A, buffer_A, 2);
@@ -702,28 +642,23 @@ void ctagSoundProcessorSubbotnik::Process(const ProcessData &data)
         CONSTRAIN(i_color_B, 0, 32767);
         osc_B.set_pitch(i_pitch_B);
         osc_B.set_parameters(i_timbre_B, i_color_B);
-        m_vol_B_incl_am = g_vol_B + f_val_result_1_A*g_am_xModA_B;
+        m_vol_B_incl_am = f_vol_B + f_val_result_1_A*f_am_xModA_B;
 
         // --- Render OSC A and remember results ---
         osc_B.Render(sync_B, buffer_B, 2);
         f_val_result_1_B = DSP_INT2FLOAT(buffer_B[0]);
         f_val_result_2_B = DSP_INT2FLOAT(buffer_B[1]);
 
-        f_val_result = (f_val_result_1_A*m_vol_A_incl_am + f_val_result_1_B*m_vol_B_incl_am)*g_Volume;
+        f_val_result = (f_val_result_1_A*m_vol_A_incl_am + f_val_result_1_B*m_vol_B_incl_am)*f_Volume;
         data.buf[i*2] = data.buf[i*2+1] = f_val_result;    // give out first result of renedering on both channels in even-indexed DSP-loop
       }
       else
       {
-        f_val_result = (f_val_result_2_A*m_vol_A_incl_am + f_val_result_2_B*m_vol_B_incl_am)*g_Volume;
+        f_val_result = (f_val_result_2_A*m_vol_A_incl_am + f_val_result_2_B*m_vol_B_incl_am)*f_Volume;
         data.buf[i*2] = data.buf[i*2+1] = f_val_result;    // give out second result of renedering on both channels in odd-indexed DSP-loop
       }
     }
   }
-  g_Volume = f_Volume;
-  g_vol_A = f_vol_A;
-  g_vol_B = f_vol_B;
-  g_am_xModB_A = f_am_xModB_A;
-  g_am_xModA_B = f_am_xModA_B;
 }
 
 void ctagSoundProcessorSubbotnik::Init(std::size_t blockSize, void *blockPtr)

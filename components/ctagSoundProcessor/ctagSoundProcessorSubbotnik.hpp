@@ -28,20 +28,6 @@ namespace CTAG {
             virtual ~ctagSoundProcessorSubbotnik();
 
         private:
-            // Parameter smoothing state:
-            // - one-pole for filter/coefficient params (-1 = snap on first
-            //   block after Init/preset load)
-            // - END-OF-BLOCK values for the output gains: those are ramped
-            //   per sample across each block (de-zippering) so no block
-            //   boundary ever presents a gain step to the output.
-            float sm_freq_xModB_A = -1;
-            float sm_timbre_xModB_A = -1, sm_color_xModB_A = -1;
-            float sm_freq_xModA_B = -1;
-            float sm_timbre_xModA_B = -1, sm_color_xModA_B = -1;
-            float sm_WavefolderAmnt = -1, sm_Cutoff = -1;
-            float sm_Resonance = -1, sm_ADfilterAmnt = -1;
-            float g_Volume = -1, g_vol_A = -1, g_vol_B = -1;
-            float g_am_xModB_A = -1, g_am_xModA_B = -1;
             virtual void knowYourself() override;
 
             // --- Remember status of triggers / buttons ---
