@@ -148,6 +148,36 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
   f_VolWavefolder *= f_Volume;
   f_VolFeedbackLoop *= f_Volume;
 
+  // === Per-sample de-zipper ramps for the output gains ===
+  // Block-rate gain application steps the output at every block boundary
+  // (measured: a 50%-scale discontinuity per param change). Each gain now
+  // moves LINEARLY from its end-of-previous-block value to this block's
+  // target, so block boundaries are mathematically continuous and the
+  // tracking lag is a single block (~0.7 ms).
+  if (g_VolSineA < -0.5f)
+  {
+    g_VolSineA = f_VolSineA;
+    g_VolSineB = f_VolSineB;
+    g_VolFeedbackLoop = f_VolFeedbackLoop;
+    g_VolWavefolder = f_VolWavefolder;
+    g_CombCut = f_CombCut;
+    g_CombRes = f_CombRes;
+    g_CombTone = f_CombTone;
+    g_LadderCut = f_LadderCut;
+    g_LadderRes = f_LadderRes;
+    g_WavefolderAmount = f_WavefolderAmount;
+  }
+  float inc_VolSineA = (f_VolSineA - g_VolSineA) / (float)loop_target;
+  float inc_VolSineB = (f_VolSineB - g_VolSineB) / (float)loop_target;
+  float inc_VolFeedbackLoop = (f_VolFeedbackLoop - g_VolFeedbackLoop) / (float)loop_target;
+  float inc_VolWavefolder = (f_VolWavefolder - g_VolWavefolder) / (float)loop_target;
+  float inc_CombCut = (f_CombCut - g_CombCut) / (float)loop_target;
+  float inc_CombRes = (f_CombRes - g_CombRes) / (float)loop_target;
+  float inc_CombTone = (f_CombTone - g_CombTone) / (float)loop_target;
+  float inc_LadderCut = (f_LadderCut - g_LadderCut) / (float)loop_target;
+  float inc_LadderRes = (f_LadderRes - g_LadderRes) / (float)loop_target;
+  float inc_WavefolderAmount = (f_WavefolderAmount - g_WavefolderAmount) / (float)loop_target;
+
   sine_A.SetFrequency(noteToFreq(f_current_note + f_PitchSineA + f_FrequSineA));
   if( t_SineBisDistorted )
   {
@@ -170,10 +200,20 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {
-          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * f_VolFeedbackLoop, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = Ladder_process_euler(ladder_vintage_data, f_val_result, f_LadderCut, f_LadderRes); // Euler-logic for cutoff-pitch
-          m_feedback_process = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
-          f_val_result = sine_A.Process() * f_VolSineA + rough_sine_B_processed * f_VolSineB +  f_val_result * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * g_VolFeedbackLoop, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = Ladder_process_euler(ladder_vintage_data, f_val_result, g_LadderCut, g_LadderRes); // Euler-logic for cutoff-pitch
+          m_feedback_process = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
+          f_val_result = sine_A.Process() * g_VolSineA + rough_sine_B_processed * g_VolSineB +  f_val_result * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
@@ -182,10 +222,20 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {
-          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * f_VolFeedbackLoop, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = Ladder_process_euler(ladder_vintage_data, f_val_result, f_LadderCut, f_LadderRes); // Euler-logic for cutoff-pitch
-          m_feedback_process = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
-          f_val_result = sine_A.Process() * f_VolSineA + sine_B.Process() * f_VolSineB + f_val_result * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * g_VolFeedbackLoop, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = Ladder_process_euler(ladder_vintage_data, f_val_result, g_LadderCut, g_LadderRes); // Euler-logic for cutoff-pitch
+          m_feedback_process = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
+          f_val_result = sine_A.Process() * g_VolSineA + sine_B.Process() * g_VolSineB + f_val_result * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
@@ -197,10 +247,20 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {
-          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * f_VolFeedbackLoop, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = Ladder_process(ladder_data, f_val_result, f_LadderCut, f_LadderRes);               // Heun-logic for cutoff-pitch
-          m_feedback_process = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
-          f_val_result = sine_A.Process() * f_VolSineA + rough_sine_B_processed * f_VolSineB +  f_val_result * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * g_VolFeedbackLoop, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = Ladder_process(ladder_data, f_val_result, g_LadderCut, g_LadderRes);               // Heun-logic for cutoff-pitch
+          m_feedback_process = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
+          f_val_result = sine_A.Process() * g_VolSineA + rough_sine_B_processed * g_VolSineB +  f_val_result * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
@@ -209,10 +269,20 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {
-          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * f_VolFeedbackLoop, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = Ladder_process(ladder_data, f_val_result, f_LadderCut, f_LadderRes);               // Heun-logic for cutoff-pitch
-          m_feedback_process = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
-          f_val_result = sine_A.Process() * f_VolSineA + sine_B.Process() * f_VolSineB +  f_val_result * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = Rescomb_process(rescomb_data, m_feedback_process * g_VolFeedbackLoop, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = Ladder_process(ladder_data, f_val_result, g_LadderCut, g_LadderRes);               // Heun-logic for cutoff-pitch
+          m_feedback_process = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
+          f_val_result = sine_A.Process() * g_VolSineA + sine_B.Process() * g_VolSineB +  f_val_result * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
@@ -227,10 +297,20 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {                             // Please note: We need an iniatial feedback (sinewave or ladder-feedback) to get the feedback going first!
-          f_val_result = sine_A.Process() * f_VolSineA + rough_sine_B_processed * f_VolSineB +   m_feedback_process * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
-          f_val_result = Rescomb_process(rescomb_data, f_val_result, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = m_feedback_process = Ladder_process_euler(ladder_vintage_data, f_val_result, f_LadderCut, f_LadderRes); // Euler-logic for cutoff-pitch
-          f_val_result = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = sine_A.Process() * g_VolSineA + rough_sine_B_processed * g_VolSineB +   m_feedback_process * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
+          f_val_result = Rescomb_process(rescomb_data, f_val_result, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = m_feedback_process = Ladder_process_euler(ladder_vintage_data, f_val_result, g_LadderCut, g_LadderRes); // Euler-logic for cutoff-pitch
+          f_val_result = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
@@ -239,10 +319,20 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {                             // Please note: We need an iniatial feedback (sinewave or ladder-feedback) to get the feedback going first!
-          f_val_result = sine_A.Process() * f_VolSineA + sine_B.Process() * f_VolSineB +   m_feedback_process * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
-          f_val_result = Rescomb_process(rescomb_data, f_val_result, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = m_feedback_process = Ladder_process_euler(ladder_vintage_data, f_val_result, f_LadderCut, f_LadderRes); // Euler-logic for cutoff-pitch
-          f_val_result = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = sine_A.Process() * g_VolSineA + sine_B.Process() * g_VolSineB +   m_feedback_process * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
+          f_val_result = Rescomb_process(rescomb_data, f_val_result, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = m_feedback_process = Ladder_process_euler(ladder_vintage_data, f_val_result, g_LadderCut, g_LadderRes); // Euler-logic for cutoff-pitch
+          f_val_result = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
@@ -254,10 +344,20 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {                             // Please note: We need an iniatial feedback (sinewave or ladder-feedback) to get the feedback going first!
-          f_val_result = sine_A.Process() * f_VolSineA + rough_sine_B_processed * f_VolSineB + m_feedback_process * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
-          f_val_result = Rescomb_process(rescomb_data, f_val_result, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = m_feedback_process = Ladder_process(ladder_data, f_val_result, f_LadderCut, f_LadderRes);               // Heun-logic for cutoff-pitch
-          f_val_result = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = sine_A.Process() * g_VolSineA + rough_sine_B_processed * g_VolSineB + m_feedback_process * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
+          f_val_result = Rescomb_process(rescomb_data, f_val_result, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = m_feedback_process = Ladder_process(ladder_data, f_val_result, g_LadderCut, g_LadderRes);               // Heun-logic for cutoff-pitch
+          f_val_result = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
@@ -266,16 +366,36 @@ float rough_sine_B_processed = 0.f;   // Simply precalculate the sine-wave outsi
       {
         for (uint32_t i = 0; i < loop_target; i++)
         {                             // Please note: We need an iniatial feedback (sinewave or ladder-feedback) to get the feedback going first!
-          f_val_result = sine_A.Process() * f_VolSineA + sine_B.Process()* f_VolSineB + m_feedback_process * f_VolFeedbackLoop + m_wavefolder * f_VolWavefolder;
-          f_val_result = Rescomb_process(rescomb_data, f_val_result, f_CombCut, f_CombTone, f_CombRes);
-          f_val_result = m_feedback_process = Ladder_process(ladder_data, f_val_result, f_LadderCut, f_LadderRes);               // Heun-logic for cutoff-pitch
-          f_val_result = m_wavefolder = Fold_do(f_val_result, f_WavefolderAmount);
+          g_VolSineA += inc_VolSineA;
+          g_VolSineB += inc_VolSineB;
+          g_VolFeedbackLoop += inc_VolFeedbackLoop;
+          g_VolWavefolder += inc_VolWavefolder;
+          g_CombCut += inc_CombCut;
+          g_CombRes += inc_CombRes;
+          g_CombTone += inc_CombTone;
+          g_LadderCut += inc_LadderCut;
+          g_LadderRes += inc_LadderRes;
+          g_WavefolderAmount += inc_WavefolderAmount;
+          f_val_result = sine_A.Process() * g_VolSineA + sine_B.Process() * g_VolSineB + m_feedback_process * g_VolFeedbackLoop + m_wavefolder * g_VolWavefolder;
+          f_val_result = Rescomb_process(rescomb_data, f_val_result, g_CombCut, g_CombTone, g_CombRes);
+          f_val_result = m_feedback_process = Ladder_process(ladder_data, f_val_result, g_LadderCut, g_LadderRes);               // Heun-logic for cutoff-pitch
+          f_val_result = m_wavefolder = Fold_do(f_val_result, g_WavefolderAmount);
           data.buf[i] = f_val_result;
           data.buf[++i] = f_val_result;
         }
       }
     }
   }
+  g_VolSineA = f_VolSineA;
+  g_VolSineB = f_VolSineB;
+  g_VolFeedbackLoop = f_VolFeedbackLoop;
+  g_VolWavefolder = f_VolWavefolder;
+  g_CombCut = f_CombCut;
+  g_CombRes = f_CombRes;
+  g_CombTone = f_CombTone;
+  g_LadderCut = f_LadderCut;
+  g_LadderRes = f_LadderRes;
+  g_WavefolderAmount = f_WavefolderAmount;
 }
 
 void ctagSoundProcessorRetroactor::Init(std::size_t blockSize, void *blockPtr)

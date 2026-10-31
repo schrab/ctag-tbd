@@ -38,6 +38,17 @@ namespace CTAG {
             float m_feedback_process = 0;
             float m_wavefolder = 0;
 
+            // --- De-zipper state: END-OF-BLOCK values for every
+            // audio-path parameter. All of them are ramped per sample
+            // across each block, so no block boundary ever presents a
+            // step (gain or coefficient) to the output. -1 = snap on the
+            // first block after Init/preset load.
+            float g_VolSineA = -1, g_VolSineB = -1;
+            float g_VolFeedbackLoop = -1, g_VolWavefolder = -1;
+            float g_CombCut = -1, g_CombRes = -1, g_CombTone = -1;
+            float g_LadderCut = -1, g_LadderRes = -1;
+            float g_WavefolderAmount = -1;
+
             // --- VULT Stuff ---
             Rescomb__ctx_type_6 rescomb_data;           // Resonator (comb-filter) data-structure
             Ladder__ctx_type_8 ladder_data;             // Ladder filter data-structure
