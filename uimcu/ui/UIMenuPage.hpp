@@ -28,11 +28,10 @@ namespace CTAG {
     namespace CTRL {
         class UIMenuPage {
         public:
-            // Deeper-than-top-level screens draw with the norns 6x7 font
-            // (the original norns UI face, per user preference — digi_slim
-            // 3x6 was tried and is unreadable); each page's main view
-            // (redrawMain / MODE_SELECT) keeps the standard 5x7.
-            static constexpr CTAG::DRIVERS::Display::Font FONT_DEEP =
+            // The single UI font: the norns 6x7 face (original norns UI
+            // look, per user preference — digi_slim 3x6 is unreadable on
+            // the OLED, and mixing faces read inconsistent).
+            static constexpr CTAG::DRIVERS::Display::Font FONT_UI =
                 CTAG::DRIVERS::Display::FONT_NORNS_6X7;
             virtual ~UIMenuPage() = default;
             virtual void init() = 0;

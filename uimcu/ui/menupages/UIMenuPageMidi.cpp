@@ -131,27 +131,27 @@ namespace CTAG {
 
             snprintf(buf, sizeof(buf), "SCAN%s",
                      BtMidiReceiver::IsScanning() ? " (running)" : "");
-            Display::DrawString(0, y, buf, Display::FONT_5X7);
+            Display::DrawString(0, y, buf, FONT_UI);
             y += LINE_H;
 
             snprintf(buf, sizeof(buf), "Disconnect%s",
                      BtMidiReceiver::IsConnected() ? "" : " (none)");
-            Display::DrawString(0, y, buf, Display::FONT_5X7);
+            Display::DrawString(0, y, buf, FONT_UI);
             y += LINE_H;
 
             snprintf(buf, sizeof(buf), "Status: %s",
                      BtMidiReceiver::IsConnected() ? "CONNECTED" : "IDLE");
-            Display::DrawString(0, y, buf, Display::FONT_5X7);
+            Display::DrawString(0, y, buf, FONT_UI);
             y += LINE_H;
 
             snprintf(buf, sizeof(buf), "TRS In [%s]",
                      DspProxy::IsMidiUartEnabled() ? "ON" : "OFF");
-            Display::DrawString(0, y, buf, Display::FONT_5X7);
+            Display::DrawString(0, y, buf, FONT_UI);
             y += LINE_H;
 
             snprintf(buf, sizeof(buf), "BLE  In [%s]",
                      DspProxy::IsMidiBleEnabled() ? "ON" : "OFF");
-            Display::DrawString(0, y, buf, Display::FONT_5X7);
+            Display::DrawString(0, y, buf, FONT_UI);
 
             Display::InvertRect(0, ROW(cursor) - 1, 128, 8);
             Display::Flush();
@@ -162,13 +162,13 @@ namespace CTAG {
             int n = BtMidiReceiver::GetDeviceCount();
 
             if (BtMidiReceiver::IsScanning()) {
-                Display::DrawString(0, 5, "Scanning...", FONT_DEEP);
+                Display::DrawString(0, 5, "Scanning...", FONT_UI);
             } else {
-                Display::DrawString(0, 5, "Scan complete", FONT_DEEP);
+                Display::DrawString(0, 5, "Scan complete", FONT_UI);
             }
 
             if (n == 0) {
-                Display::DrawString(0, 24, "No devices found", FONT_DEEP);
+                Display::DrawString(0, 24, "No devices found", FONT_UI);
             } else {
                 int visible = ClampVisible(n, scrollOffset, VISIBLE_ITEMS);
                 for (int i = 0; i < visible; i++) {
@@ -177,7 +177,7 @@ namespace CTAG {
                     if (!d) continue;
                     Display::DrawString(0, ROW(i),
                                         d->name[0] ? d->name : "(unnamed)",
-                                        FONT_DEEP);
+                                        FONT_UI);
                 }
                 int cy = ROW(cursor - scrollOffset);
                 Display::InvertRect(0, cy - 1, 128, 8);

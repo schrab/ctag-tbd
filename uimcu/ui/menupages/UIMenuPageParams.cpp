@@ -498,7 +498,7 @@ namespace CTAG {
             } else {
                 // PSET — simple placeholder
                 Display::Clear();
-                Display::DrawString(0, 16, "Not implemented", FONT_DEEP);
+                Display::DrawString(0, 16, "Not implemented", FONT_UI);
                 Display::Flush();
             }
         }
@@ -510,16 +510,16 @@ namespace CTAG {
                 string id1 = DspProxy::GetStringID(1);
                 char buf[26];
                 snprintf(buf, sizeof(buf), "Ch0:%.*s", 21, id0.c_str());
-                Display::DrawString(0, ROW(0), buf, Display::FONT_5X7);
+                Display::DrawString(0, ROW(0), buf, FONT_UI);
                 snprintf(buf, sizeof(buf), "Ch1:%.*s", 21, id1.c_str());
-                Display::DrawString(0, ROW(1), buf, Display::FONT_5X7);
-                Display::DrawString(0, ROW(2), "MAP", Display::FONT_5X7);
-                Display::DrawString(0, ROW(3), "PRESETS", Display::FONT_5X7);
+                Display::DrawString(0, ROW(1), buf, FONT_UI);
+                Display::DrawString(0, ROW(2), "MAP", FONT_UI);
+                Display::DrawString(0, ROW(3), "PRESETS", FONT_UI);
             } else {
-                Display::DrawString(0, ROW(0), "EDIT", Display::FONT_5X7);
-                Display::DrawString(0, ROW(1), "MAP", Display::FONT_5X7);
-                Display::DrawString(0, ROW(2), "PSET", Display::FONT_5X7);
-                Display::DrawString(0, ROW(3), "PRESETS", Display::FONT_5X7);
+                Display::DrawString(0, ROW(0), "EDIT", FONT_UI);
+                Display::DrawString(0, ROW(1), "MAP", FONT_UI);
+                Display::DrawString(0, ROW(2), "PSET", FONT_UI);
+                Display::DrawString(0, ROW(3), "PRESETS", FONT_UI);
             }
             Display::InvertRect(0, ROW(cursor) - 1, 128, 8);
             Display::Flush();
@@ -528,7 +528,7 @@ namespace CTAG {
         void UIMenuPageParams::redrawGroup() {
             Display::Clear();
             if (groupCount == 0) {
-                Display::DrawString(0, 24, "No groups", FONT_DEEP);
+                Display::DrawString(0, 24, "No groups", FONT_UI);
                 Display::Flush();
                 return;
             }
@@ -539,7 +539,7 @@ namespace CTAG {
                 int y = ROW(i);
                 char buf[32];
                 snprintf(buf, sizeof(buf), "%s (%d)", g.name, g.paramCount);
-                Display::DrawString(0, y, buf, FONT_DEEP);
+                Display::DrawString(0, y, buf, FONT_UI);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
@@ -551,7 +551,7 @@ namespace CTAG {
         void UIMenuPageParams::redrawEdit() {
             Display::Clear();
             if (paramCount == 0) {
-                Display::DrawString(0, 24, "No params", FONT_DEEP);
+                Display::DrawString(0, 24, "No params", FONT_UI);
                 Display::Flush();
                 return;
             }
@@ -580,7 +580,7 @@ namespace CTAG {
                 // overdraw the right-aligned value and the user reads only
                 // a digit fragment of it. Both widths use per-glyph advances
                 // (the compact 3x6 font is proportional).
-                Display::Font rowFont = FONT_DEEP;
+                Display::Font rowFont = FONT_UI;
                 int valW = 0;
                 for (const char *c = valBuf; *c; c++)
                     valW += Display::FontAdvance(rowFont, (unsigned char)*c);
@@ -599,7 +599,7 @@ namespace CTAG {
             int cursorY = ROW(paramIndexToScreen(cursor));
             Display::InvertRect(0, cursorY - 1, 128, 8);
             if (hint) {
-                Display::DrawString(0, ROW(maxVisible), " OK = map source", FONT_DEEP);
+                Display::DrawString(0, ROW(maxVisible), " OK = map source", FONT_UI);
             }
             if (count > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, count, cursor);
@@ -753,8 +753,8 @@ namespace CTAG {
             Display::Clear();
             if (paramCount == 0) return;
             const ParamInfo &pi = params[mapParamIdx];
-            Display::DrawString(0, ROW(0), "MOD SOURCE", FONT_DEEP);
-            Display::DrawString(0, ROW_HDR(0), pi.name, FONT_DEEP);
+            Display::DrawString(0, ROW(0), "MOD SOURCE", FONT_UI);
+            Display::DrawString(0, ROW_HDR(0), pi.name, FONT_UI);
             char buf[40];
 
             // selected source (inverted), with the param's saved source noted
@@ -763,7 +763,7 @@ namespace CTAG {
             FormatSourceName(sourceSlotAt(mapPos), mapIsCv, selName, sizeof(selName));
             FormatSourceName(cur, mapIsCv, curName, sizeof(curName));
             snprintf(buf, sizeof(buf), " %s  was:%.8s", selName, curName);
-            Display::DrawString(0, ROW_HDR(1), buf, FONT_DEEP);
+            Display::DrawString(0, ROW_HDR(1), buf, FONT_UI);
             Display::InvertRect(0, ROW_HDR(1) - 1, 128, 8);
 
             // context line: position in list / learn state
@@ -775,14 +775,14 @@ namespace CTAG {
                 snprintf(buf, sizeof(buf), " %d/%d  OK=sel BK=exit",
                          mapPos + 1, sourceCount());
             }
-            Display::DrawString(0, ROW_HDR(2), buf, FONT_DEEP);
+            Display::DrawString(0, ROW_HDR(2), buf, FONT_UI);
             Display::Flush();
         }
 
         void UIMenuPageParams::redrawPresets() {
             Display::Clear();
             if (presetCount == 0) {
-                Display::DrawString(0, 24, "No presets", FONT_DEEP);
+                Display::DrawString(0, 24, "No presets", FONT_UI);
                 Display::Flush();
                 return;
             }
@@ -793,7 +793,7 @@ namespace CTAG {
                 int y = ROW(i);
                 char buf[64];
                 snprintf(buf, sizeof(buf), "%s", pi.name);
-                Display::DrawString(0, y, buf, FONT_DEEP);
+                Display::DrawString(0, y, buf, FONT_UI);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);

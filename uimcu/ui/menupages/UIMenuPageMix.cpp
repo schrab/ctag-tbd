@@ -262,7 +262,7 @@ namespace CTAG {
             const Strip &st = STRIP_TABLE[i];
             int x = STRIP_X0 + i * STRIP_W;
 
-            Display::DrawString(x, LABEL_Y, st.label, Display::FONT_5X7);
+            Display::DrawString(x, LABEL_Y, st.label, FONT_UI);
             // No frame around the label: the fader already carries the
             // whole-strip selection highlight.
 
@@ -271,7 +271,7 @@ namespace CTAG {
 
             char val[16];
             valueText(i, val, sizeof(val));
-            Display::DrawString(x, VALUE_Y, val, Display::FONT_5X7);
+            Display::DrawString(x, VALUE_Y, val, FONT_UI);
         }
 
         void UIMenuPageMix::doRedraw() {

@@ -145,7 +145,7 @@ namespace CTAG {
             lastDrawnSecond = DspProxy::SdGetPositionFrames() / 44100;
             int y = ITEM_Y0;
             if (DspProxy::SdIsPlaying()) {
-                Display::DrawString(0, y, "PLAYING", Display::FONT_5X7);
+                Display::DrawString(0, y, "PLAYING", FONT_UI);
                 if (DspProxy::SdGetTotalFrames() > 0) {
                     char buf[24];
                     uint32_t sec = DspProxy::SdGetPositionFrames() / 44100;
@@ -153,21 +153,21 @@ namespace CTAG {
                     snprintf(buf, sizeof(buf), "%02u:%02u / %02u:%02u",
                              (unsigned)(sec / 60), (unsigned)(sec % 60), (unsigned)(total / 60), (unsigned)(total % 60));
                     y += LINE_H;
-                    Display::DrawString(0, y, buf, Display::FONT_5X7);
+                    Display::DrawString(0, y, buf, FONT_UI);
                 }
             } else if (DspProxy::SdIsRecording()) {
-                Display::DrawString(0, y, "RECORDING", Display::FONT_5X7);
+                Display::DrawString(0, y, "RECORDING", FONT_UI);
                 char buf[24];
                 uint32_t sec = DspProxy::SdGetPositionFrames() / 44100;
                 snprintf(buf, sizeof(buf), "%02u:%02u", (unsigned)(sec / 60), (unsigned)(sec % 60));
                 y += LINE_H;
-                Display::DrawString(0, y, buf, Display::FONT_5X7);
+                Display::DrawString(0, y, buf, FONT_UI);
             } else {
-                Display::DrawString(0, y, "PLAY FILE", Display::FONT_5X7);
+                Display::DrawString(0, y, "PLAY FILE", FONT_UI);
                 y += LINE_H;
-                Display::DrawString(0, y, "RECORD", Display::FONT_5X7);
+                Display::DrawString(0, y, "RECORD", FONT_UI);
                 y += LINE_H;
-                Display::DrawString(0, y, "STOP", Display::FONT_5X7);
+                Display::DrawString(0, y, "STOP", FONT_UI);
                 y += LINE_H;
             }
             int highlightY = ROW(cursor);
@@ -192,19 +192,19 @@ namespace CTAG {
         void UIMenuPageTape::redrawFileList() {
             Display::Clear();
             if (!DspProxy::IsSDMounted()) {
-                Display::DrawString(0, 24, "No SD card", FONT_DEEP);
+                Display::DrawString(0, 24, "No SD card", FONT_UI);
                 Display::Flush();
                 return;
             }
             if (fileCount == 0) {
-                Display::DrawString(0, 24, "No WAV files", FONT_DEEP);
+                Display::DrawString(0, 24, "No WAV files", FONT_UI);
                 Display::Flush();
                 return;
             }
             int visible = ClampVisible(fileCount, scrollOffset, VISIBLE_ITEMS);
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
-                Display::DrawString(0, ROW(i), fileNames[idx], FONT_DEEP);
+                Display::DrawString(0, ROW(i), fileNames[idx], FONT_UI);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
@@ -214,8 +214,8 @@ namespace CTAG {
 
         void UIMenuPageTape::redrawRecord() {
             Display::Clear();
-            Display::DrawString(0, ROW(0), "START REC", FONT_DEEP);
-            Display::DrawString(0, ROW(1), "CANCEL", FONT_DEEP);
+            Display::DrawString(0, ROW(0), "START REC", FONT_UI);
+            Display::DrawString(0, ROW(1), "CANCEL", FONT_UI);
             Display::InvertRect(0, ROW(cursor) - 1, 128, 8);
             Display::Flush();
         }

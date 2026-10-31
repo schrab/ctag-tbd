@@ -508,7 +508,7 @@ namespace CTAG {
                         snprintf(buf, sizeof(buf), " CC Slots");
                         break;
                 }
-                Display::DrawString(0, y, buf, Display::FONT_5X7);
+                Display::DrawString(0, y, buf, FONT_UI);
             }
             int cy = ROW(cursor);
             Display::InvertRect(0, cy - 1, 128, 8);
@@ -522,10 +522,10 @@ namespace CTAG {
             Display::Clear();
             char buf[32];
             if (title != nullptr) {
-                Display::DrawString(0, ROW(0), title, FONT_DEEP);
+                Display::DrawString(0, ROW(0), title, FONT_UI);
     } else {
         snprintf(buf, sizeof(buf), "CC Slot %d", ccEditSlot + 1);
-        Display::DrawString(0, ROW(0), buf, FONT_DEEP);
+        Display::DrawString(0, ROW(0), buf, FONT_UI);
     }
 
             const int TOTAL = rowCount();
@@ -537,7 +537,7 @@ namespace CTAG {
                 int idx = scrollOff + i;
                 int y = ROW_HDR(i);
                 formatRow(idx, buf, sizeof(buf));
-                Display::DrawString(0, y, buf, FONT_DEEP);
+                Display::DrawString(0, y, buf, FONT_UI);
             }
             // cursor row is always the edited row: full-row invert, as on
             // the Params page
@@ -552,7 +552,7 @@ namespace CTAG {
 
         void UIMenuPageMod::redrawCCSlots() {
             Display::Clear();
-            Display::DrawString(0, ROW(0), "CC Slots", FONT_DEEP);
+            Display::DrawString(0, ROW(0), "CC Slots", FONT_UI);
             constexpr int TOTAL = 8;
             const int VIS = VISIBLE_ITEMS_HDR - 1;  // bottom row = output strip
             int scrollOff = (cursor > VIS - 1) ? cursor - (VIS - 1) : 0;
@@ -569,7 +569,7 @@ namespace CTAG {
                 } else {
                     snprintf(buf, sizeof(buf), " CC%d: CC%d Ch%d", idx + 1, cc, ch);
                 }
-                Display::DrawString(0, y, buf, FONT_DEEP);
+                Display::DrawString(0, y, buf, FONT_UI);
             }
             int cy = ROW_HDR(cursor - scrollOff);
             Display::InvertRect(0, cy - 1, 128, 8);

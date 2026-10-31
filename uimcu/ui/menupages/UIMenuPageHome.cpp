@@ -300,16 +300,16 @@ namespace CTAG {
             lastDrawnOnline = DspProxy::IsOnline() ? 1 : 0;
             const char *items[] = {"SELECT", "SYSTEM", "FAVORITES", "SD CARD", "SLEEP"};
             for (int i = 0; i < 5; i++)
-                Display::DrawString(0, ROW(i), items[i], Display::FONT_5X7);
+                Display::DrawString(0, ROW(i), items[i], FONT_UI);
             if (favActiveId >= 0) {
                 char buf[16];
                 snprintf(buf, sizeof(buf), "Fav%d", favActiveId);
-                Display::DrawString(70, ROW(2), buf, Display::FONT_5X7);
+                Display::DrawString(70, ROW(2), buf, FONT_UI);
             }
             // Link state (SDD §4): the panel keeps cached values when the DSP
             // dies; make the offline state visible on the HOME panel.
             if (!DspProxy::IsOnline()) {
-                Display::DrawString(62, ROW(0), "DSP OFF", Display::FONT_5X7);
+                Display::DrawString(62, ROW(0), "DSP OFF", FONT_UI);
             }
             Display::InvertRect(0, ROW(cursor) - 1, 128, 8);
             Display::Flush();
@@ -328,7 +328,7 @@ namespace CTAG {
         void UIMenuPageHome::redrawFavorites() {
             Display::Clear();
             if (MAX_FAVORITES == 0) {
-                Display::DrawString(0, 24, "No favorites", FONT_DEEP);
+                Display::DrawString(0, 24, "No favorites", FONT_UI);
                 Display::Flush();
                 return;
             }
@@ -343,7 +343,7 @@ namespace CTAG {
                 } else {
                     snprintf(buf, sizeof(buf), " %s", f.name);
                 }
-                Display::DrawString(0, y, buf, FONT_DEEP);
+                Display::DrawString(0, y, buf, FONT_UI);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
@@ -383,7 +383,7 @@ namespace CTAG {
         void UIMenuPageHome::redrawSdCard() {
             Display::Clear();
             if (sdFileCount == 0) {
-                Display::DrawString(0, 24, "No card or empty", FONT_DEEP);
+                Display::DrawString(0, 24, "No card or empty", FONT_UI);
                 Display::Flush();
                 return;
             }
@@ -397,7 +397,7 @@ namespace CTAG {
                 } else {
                     snprintf(buf, sizeof(buf), "  %s", sdEntries[idx]);
                 }
-                Display::DrawString(0, y, buf, FONT_DEEP);
+                Display::DrawString(0, y, buf, FONT_UI);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
@@ -409,7 +409,7 @@ namespace CTAG {
         void UIMenuPageHome::redrawSelect() {
             Display::Clear();
             if (pluginCount == 0) {
-                Display::DrawString(0, 24, "No plugins found", FONT_DEEP);
+                Display::DrawString(0, 24, "No plugins found", FONT_UI);
                 Display::Flush();
                 return;
             }
@@ -418,8 +418,8 @@ namespace CTAG {
                 int idx = scrollOffset + i;
                 const PluginEntry &e = plugins[idx];
                 int y = ROW(i);
-                Display::DrawString(0, y, e.name, FONT_DEEP);
-                Display::DrawString(120, y, e.isStereo ? "S" : "M", FONT_DEEP);
+                Display::DrawString(0, y, e.name, FONT_UI);
+                Display::DrawString(120, y, e.isStereo ? "S" : "M", FONT_UI);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
@@ -433,11 +433,11 @@ namespace CTAG {
             const PluginEntry &e = plugins[selectedPlugin];
             char buf[64];
             snprintf(buf, sizeof(buf), "%s >", e.name);
-            Display::DrawString(0, ROW(0), buf, FONT_DEEP);
+            Display::DrawString(0, ROW(0), buf, FONT_UI);
             const int optGap = LINE_H + 2;
             const char *opts[] = {"Ch 0", "Ch 1", "Both"};
             for (int i = 0; i < 3; i++)
-                Display::DrawString(0, ROW_HDR(1) + i * optGap, opts[i], FONT_DEEP);
+                Display::DrawString(0, ROW_HDR(1) + i * optGap, opts[i], FONT_UI);
             Display::InvertRect(0, ROW_HDR(1) + cursor * optGap - 1, 128, 8);
             Display::Flush();
         }
