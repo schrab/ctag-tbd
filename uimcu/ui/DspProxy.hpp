@@ -75,7 +75,14 @@ namespace CTAG {
                 char id[24];
                 char name[24];
                 char type[12];
-                int16_t min, max, current;
+                // int32, NOT int16: plugin param specs exceed the 16-bit
+                // range (Subbotnik pitch is 0..128000). int16 wrapped the
+                // spec max 128000 to -3072 and a live value 64000 to
+                // -1536, so the first encoder detent clamped 64001 into
+                // [0, -3072] and every further detent re-clamped — the
+                // value changed exactly once and then stuck. cv/trig stay
+                // int16 (slot indices, small).
+                int32_t min, max, current;
                 int16_t cv, trig;   // patched slot, -1 = none
                 bool hasCv, hasTrig; // capability: the member was present
                 bool isGroup;
