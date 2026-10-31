@@ -75,6 +75,16 @@ namespace CTAG {
             // + preset files from SPIFFS (used by the removeProcessor API).
             bool RemovePlugin(const string &id);
 
+            // Deferred model persistence: the model JSON lives on the same
+            // flash as the code, and a synchronous storeJSON stalls both
+            // cores' caches (~300 ms — the I2S DMA underruns and the audio
+            // mutes). Runtime changes mark the store pending; the link
+            // tick flushes once 5 s have passed without a change, so a
+            // burst of settings changes costs ONE stall, well after the
+            // user left the menu. Boot-time stores stay immediate.
+            void MarkStorePending();
+            void FlushStoreIfDue();
+
         private:
             void getSoundProcessors();
 
@@ -85,6 +95,8 @@ namespace CTAG {
             Document m;
             bool processorsDirty = true;
             bool configDirty = true;
+            bool storePending = false;
+            uint32_t lastStoreRequestMs = 0;
             string cachedProcessorsJson;
             string cachedConfigJson;
 #ifndef TBD_SIM

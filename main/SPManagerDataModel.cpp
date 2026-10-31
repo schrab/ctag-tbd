@@ -23,6 +23,7 @@ respective component folders / files if different from this license.
 #include <cstdio>
 #include <string>
 #include <fstream>
+#include "esp_timer.h"
 #include "SPManagerDataModel.hpp"
 #include "rapidjson/filereadstream.h"
 #include "rapidjson/writer.h"
@@ -95,7 +96,7 @@ bool SPManagerDataModel::RemovePlugin(const string &id) {
     remove((base + "mui-" + id + ".jsn").c_str());
     remove((base + "mp-" + id + ".jsn").c_str());
     processorsDirty = true;
-    storeJSON(m, MODELJSONFN);
+    MarkStorePending();
     return true;
 }
 
@@ -125,7 +126,7 @@ void SPManagerDataModel::SetActivePluginID(const string &id, const int chan) {
     if (!m["activeProcessors"].IsArray()) return;
     if (m["activeProcessors"].Size() == 0) return;
     m["activeProcessors"][chan].SetString(id, m.GetAllocator());
-    storeJSON(m, MODELJSONFN);
+    MarkStorePending();
 }
 
 void SPManagerDataModel::SetActivePatchNum(const int patchNum, const int chan) {
@@ -142,7 +143,7 @@ void SPManagerDataModel::SetActivePatchNum(const int patchNum, const int chan) {
             break;
         }
     }
-    storeJSON(m, MODELJSONFN);
+    MarkStorePending();
 }
 
 int SPManagerDataModel::GetActivePatchNum(const int chan) {
@@ -229,6 +230,22 @@ const char *SPManagerDataModel::GetCStrJSONConfiguration() {
     return cachedConfigJson.c_str();
 }
 
+void SPManagerDataModel::MarkStorePending() {
+    storePending = true;
+    lastStoreRequestMs = (uint32_t)(esp_timer_get_time() / 1000);
+}
+
+void SPManagerDataModel::FlushStoreIfDue() {
+    // The model file sits on the program flash: a synchronous storeJSON
+    // stalls both cores' caches (~300 ms) and mutes the audio. Runtime
+    // changes coalesce here — one write, 5 s after the last change.
+    if (!storePending) return;
+    uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000);
+    if (nowMs - lastStoreRequestMs < 5000) return;
+    storePending = false;
+    storeJSON(m, MODELJSONFN);
+}
+
 void SPManagerDataModel::SetConfigurationFromJSON(const string &data) {
     if (!m.HasMember("configuration")) return;
     Document d;
@@ -238,7 +255,7 @@ void SPManagerDataModel::SetConfigurationFromJSON(const string &data) {
     obj.CopyFrom(d, m.GetAllocator());
     m["configuration"] = obj.Move();
     configDirty = true;
-    storeJSON(m, MODELJSONFN);
+    MarkStorePending();
     //PrintSelf();
 }
 
