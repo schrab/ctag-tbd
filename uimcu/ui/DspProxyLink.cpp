@@ -37,6 +37,9 @@ respective component folders / files if different from this license.
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <atomic>
 #include <cstring>
 #include <string>
 
@@ -84,6 +87,10 @@ namespace CTAG {
             uint32_t loadPendingStartMs = 0;
             int loadPendingCh = 0;
             char loadPendingId[24] = "";
+
+            // OLED brightness from the latest config push; -1 = consumed.
+            // Applied by the menu task (display SPI has no cross-task lock).
+            std::atomic<int> pendingOledContrast{-1};
 
             uint32_t vu[4] = {0, 0, 0, 0};
             uint32_t snapshot = 0;
@@ -420,6 +427,16 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             } else if (strcmp(cmd, kMsgPushConfig) == 0) {
                 if (d.HasMember("config") && d["config"].IsString()) {
                     cacheConfig = d["config"].GetString();
+                    // Hand the configured OLED brightness to the menu task
+                    // (no DOM: the config can be sizeable and this runs on
+                    // the link task; the value is an escaped string).
+                    const char *p = strstr(cacheConfig.c_str(), "\"oled_brightness\"");
+                    if (p) {
+                        const char *q = strchr(p, ':');
+                        while (q && *q && (*q < '0' || *q > '9')) q++;
+                        if (q && *q)
+                            pendingOledContrast.store(atoi(q), std::memory_order_relaxed);
+                    }
                 }
             } else if (strcmp(cmd, kMsgPushPresets) == 0) {
                 int ch = d.HasMember("ch") && d["ch"].IsInt() ? d["ch"].GetInt() : 0;
@@ -525,6 +542,10 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         uint32_t DspProxy::LoadPendingStartMs() { return loadPendingStartMs; }
+
+        int DspProxy::TakePendingOledContrast() {
+            return pendingOledContrast.exchange(-1, std::memory_order_relaxed);
+        }
 
         const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int chan, int idx) {
             if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])

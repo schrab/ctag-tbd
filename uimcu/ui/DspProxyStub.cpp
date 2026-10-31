@@ -180,6 +180,7 @@ namespace CTAG {
 
         bool DspProxy::IsLoadPending() { return false; }
         uint32_t DspProxy::LoadPendingStartMs() { return 0; }
+        int DspProxy::TakePendingOledContrast() { return -1; }
 
         const char *DspProxy::GetCStrJSONActivePluginParams(int chan) {
             if (chan < 0 || chan > 1) return kParamsDefaultJson;

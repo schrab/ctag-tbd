@@ -394,10 +394,16 @@ namespace CTAG {
                 while (p && idx > 0) { p = strtok(nullptr, ","); idx--; }
                 snprintf(it.value, sizeof(it.value), "%s", p ? p : "off");
             }
-            // Levels preview live; all other items wait for OK/BACK. Never
-            // apply the full config here -- that persists to SPIFFS while
-            // holding the audio mutex and stalls both UI and DSP.
-            if (!it.deferred) previewCodecLevels();
+            // Levels preview live; OLED brightness previews live too (the
+            // contrast command is cheap and runs on this, the display task).
+            // All other items wait for OK/BACK. Never apply the full config
+            // here -- that persists to SPIFFS while holding the audio mutex
+            // and stalls both UI and DSP.
+            if (!it.deferred) {
+                previewCodecLevels();
+            } else if (strcmp(it.id, "oled_brightness") == 0) {
+                Display::Contrast(it.valInt);
+            }
             doRedraw();
         }
 

@@ -104,6 +104,13 @@ namespace CTAG {
             // plugin's params never flash on screen mid-load.
             static bool IsLoadPending();
             static uint32_t LoadPendingStartMs();
+
+            // OLED brightness plumbing: the link task parses the config
+            // push ("oled_brightness") and hands the value to the menu
+            // task, which owns the display — the bit-banged panel SPI has
+            // no lock, so ONLY the UI task may send commands. Returns the
+            // pending value once, -1 when nothing is pending.
+            static int TakePendingOledContrast();
             // NetRest convenience: serializes the table as the classic
             // {"params":[...]} document (rare path, built on demand).
             static const char *GetCStrJSONActivePluginParams(int chan);
