@@ -101,7 +101,9 @@ namespace CTAG {
             // Boot splash: title + build number + progress bar. UIMenu
             // holds it on screen until the DSP link handshakes, animating
             // fillPercent 0..100.
-            static void ShowSplash(int fillPercent);
+            // withText=false: ONLY the bar (plugin-load overlay) — the
+            // board boot keeps title + version above it.
+            static void ShowSplash(int fillPercent, bool withText = true);
             // Modal "DSP link lost" popup: rectangle frame drawn over the
             // current screen content (page underneath is not cleared).
             // UIMenu shows it whenever the link goes down after boot and

@@ -205,7 +205,10 @@ namespace CTAG {
                     uint32_t ms = xTaskGetTickCount() * portTICK_PERIOD_MS
                                   - DspProxy::LoadPendingStartMs();
                     constexpr uint32_t sweepMs = 1200;
-                    Display::ShowSplash((int)((ms % sweepMs) * 100 / sweepMs));
+                    // Plugin load: the bare bar only — the full splash with
+                    // title/version stays on the BOARD boot.
+                    Display::ShowSplash((int)((ms % sweepMs) * 100 / sweepMs),
+                                        /*withText=*/false);
                     InputEvent ev;
                     while (UserInput::GetEvent(ev, 0)) {} // no stale input past the load
                     redrawNeeded = true; // repaint the page the moment it lands
