@@ -97,6 +97,18 @@ namespace CTAG {
                            to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0) +
                            ",\"audioCycles\":" +
                            to_string(AUDIO::SoundProcessorManager::GetLastAudioTaskCycles()) +
+                           // Peak metering (0..1000 per block). Only live
+                           // while /link/metering armed the peak pass —
+                           // bench diagnostics read the same atomics the
+                           // MIX page draws.
+                           ",\"vuInL\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetVUPeak(0)) +
+                           ",\"vuInR\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetVUPeak(1)) +
+                           ",\"vuOutL\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetVUPeak(2)) +
+                           ",\"vuOutR\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetVUPeak(3)) +
                            ",\"activeGrains\":" +
                            to_string(mbeads_debug_get_active_grains()) +
                            ",\"helperActiveGrains\":" +
@@ -130,6 +142,104 @@ namespace CTAG {
                            ",\"elementsHelperModeOverride\":" +
                            to_string(elements_debug_get_mode_override()) +
                            "}";
+                return true;
+            }
+
+            if (s == "/debug/getLoopHist") {
+                // Audio-loop period history, oldest first, in 0.1 ms units
+                // (normal pacing ~232 = 23.2 ms). Spikes = the task started
+                // late → the I2S DMA starved → codec stutter. Optional
+                // {"len":N} truncates the reply (default 256).
+                int len = AUDIO::SoundProcessorManager::kLoopHistLen;
+                if (d.HasMember("len") && d["len"].IsInt()) {
+                    int l = d["len"].GetInt();
+                    if (l >= 16 && l <= AUDIO::SoundProcessorManager::kLoopHistLen)
+                        len = l;
+                }
+                uint32_t seq = AUDIO::SoundProcessorManager::GetLoopHistSeq();
+                const uint16_t *hist = AUDIO::SoundProcessorManager::loopHist;
+                string out = "[";
+                for (int k = len; k > 0; k--) {
+                    int i = static_cast<int>(
+                        (seq - k) & (AUDIO::SoundProcessorManager::kLoopHistLen - 1));
+                    out += to_string(hist[i]);
+                    if (k > 1) out += ",";
+                }
+                response = cmdEcho + ",\"seq\":" + to_string(seq) +
+                           ",\"hist\":" + out + "]}";
+                return true;
+            }
+
+            if (s == "/debug/clearFreeze") {
+                // Release a frozen click-capture ring and resume rolling.
+                AUDIO::SoundProcessorManager::ClearRingFrozen();
+                response = cmdEcho + ",\"ok\":1}";
+                return true;
+            }
+
+            if (s == "/debug/getAudioCapture") {
+                // The rolling output ring: the last kCaptureBlocks finished
+                // stereo blocks, oldest first, as int16 samples (float x
+                // scale, clamped). Optional {"blocks":1..8,"scale":N} to
+                // trade resolution against reply size while hunting the
+                // link's reply-size ceiling. Written continuously by the
+                // audio task — the read may straddle a block overwrite.
+                int blocks = AUDIO::SoundProcessorManager::kCaptureBlocks;
+                float scale = 8192.f;
+                if (d.HasMember("blocks") && d["blocks"].IsInt()) {
+                    int b = d["blocks"].GetInt();
+                    if (b >= 1 && b <= AUDIO::SoundProcessorManager::kCaptureBlocks)
+                        blocks = b;
+                }
+                if (d.HasMember("scale") && d["scale"].IsInt()) {
+                    int sv = d["scale"].GetInt();
+                    if (sv >= 64 && sv <= 32768) scale = static_cast<float>(sv);
+                }
+                const int kFrames = 32; // one stereo block
+                uint32_t endSeq =
+                    AUDIO::SoundProcessorManager::GetAudioRingSeq();
+                string out = "[";
+                for (int blk = blocks - 1; blk >= 0; blk--) {
+                    uint32_t slot =
+                        (endSeq - 1 - blk) &
+                        (AUDIO::SoundProcessorManager::kCaptureBlocks - 1);
+                    const float *f =
+                        AUDIO::SoundProcessorManager::audioRing[slot];
+                    for (int i = 0; i < kFrames * 2; i++) {
+                        int q = static_cast<int>(f[i] * scale);
+                        if (q > 32000) q = 32000;
+                        if (q < -32000) q = -32000;
+                        out += to_string(q);
+                        if (i < kFrames * 2 - 1) out += ",";
+                    }
+                    if (blk > 0) out += ",";
+                }
+                response = cmdEcho + ",\"seq\":" + to_string(endSeq) +
+                           ",\"frozen\":" +
+                           (AUDIO::SoundProcessorManager::GetRingFrozen() ? "1" : "0") +
+                           ",\"blocks\":" + to_string(blocks) +
+                           ",\"muteBlocks\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetMuteBlocks()) +
+                           ",\"data\":" + out + "],\"vuHist\":[";
+                {
+                    // Full-coverage per-block output peaks, oldest first.
+                    // The ring rotates once filled: start at the oldest
+                    // live slot (seq & mask) and wrap.
+                    uint32_t histSeq =
+                        AUDIO::SoundProcessorManager::GetVUHistSeq();
+                    const int kVUHistLen =
+                        AUDIO::SoundProcessorManager::kVUHistLen;
+                    const uint16_t *hist =
+                        AUDIO::SoundProcessorManager::vuHist;
+                    int start = static_cast<int>(histSeq & (kVUHistLen - 1));
+                    if (histSeq < static_cast<uint32_t>(kVUHistLen)) start = 0;
+                    for (int k = 0; k < kVUHistLen; k++) {
+                        int i = (start + k) & (kVUHistLen - 1);
+                        response += to_string(hist[i]);
+                        if (k < kVUHistLen - 1) response += ",";
+                    }
+                }
+                response += "]}";
                 return true;
             }
 

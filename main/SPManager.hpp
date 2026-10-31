@@ -121,6 +121,64 @@ namespace CTAG {
             // audio task stores per-block peaks scaled to 0..1000; it skips
             // the extra pass entirely otherwise (the DSP budget is tight).
             static void SetMeteringEnabled(bool on) { meteringEnabled = on; }
+
+            // Rolling output capture for bench click forensics: the last
+            // kCaptureBlocks blocks of the finished stereo output. Written
+            // unconditionally by the audio task; read by
+            // /debug/getAudioCapture. Races the writer by design — the
+            // capture is diagnostic, not a reference stream.
+            static constexpr int kCaptureBlocks = 8;
+            static float audioRing[kCaptureBlocks][64];
+            static atomic<uint32_t> audioRingSeq;
+            static uint32_t GetAudioRingSeq() {
+                return audioRingSeq.load(std::memory_order_relaxed);
+            }
+
+            // Full-coverage dropout forensics: per-block output peak
+            // (0..1000) for the last kVUHistLen blocks, written every block
+            // with no blind windows — /debug/getAudioCapture returns the
+            // history so bench analysis sees EVERY dropout. muteBlocks
+            // counts blocks the audio task muted because processMutex was
+            // held elsewhere (plugin load, preset I/O, config write).
+            static constexpr int kVUHistLen = 256;
+            static uint16_t vuHist[kVUHistLen];
+            static atomic<uint32_t> vuHistSeq;
+            static atomic<uint32_t> muteBlocks;
+            static uint32_t GetVUHistSeq() {
+                return vuHistSeq.load(std::memory_order_relaxed);
+            }
+            static uint32_t GetMuteBlocks() {
+                return muteBlocks.load(std::memory_order_relaxed);
+            }
+            // Millisecond timestamp of the last parameter edit (any
+            // channel, any source). The link's 10 Hz on-change push
+            // defers the full params JSON re-push (display-sync traffic,
+            // NOT the audio path — parameter changes are applied to the
+            // sound instantly) until edits have been quiet for a while:
+            // the C3 already knows the values it is setting, and the
+            // burst (regen + ~5 KB TX) measurably delayed the audio
+            // task and audibly clicked the output.
+            static uint32_t GetLastParamEditMs() {
+                return lastParamEditMs.load(std::memory_order_relaxed);
+            }
+            static bool GetRingFrozen() {
+                return ringFrozen.load(std::memory_order_relaxed);
+            }
+            static void ClearRingFrozen() {
+                ringFrozen.store(false, std::memory_order_relaxed);
+            }
+
+            // Audio-loop period history (0.1 ms units, saturated at 6553.5
+            // ms): the gap between consecutive loop iterations. Normal
+            // pacing is ~232 (23.2 ms block); a spike means the task was
+            // delayed past its deadline — the I2S DMA underruns and the
+            // codec stutters even though the rendered buffer is clean.
+            static constexpr int kLoopHistLen = 256;
+            static uint16_t loopHist[kLoopHistLen];
+            static atomic<uint32_t> loopHistSeq;
+            static uint32_t GetLoopHistSeq() {
+                return loopHistSeq.load(std::memory_order_relaxed);
+            }
             static uint32_t GetVUPeak(int channel) {
                 switch (channel) {
                     case 0: return vuInL.load(std::memory_order_relaxed);
@@ -141,6 +199,14 @@ namespace CTAG {
             static SemaphoreHandle_t processMutex;
             static atomic<uint32_t> cpuOverload;
             static atomic<uint32_t> lastAudioTaskCycles;
+            static atomic<uint32_t> lastParamEditMs;
+
+            // Click forensics: the output ring freezes itself when a block
+            // shows a sample-to-sample step far above the running norm —
+            // the frozen ring then holds the actual click waveform for
+            // /debug/getAudioCapture. Cleared via /debug/clearFreeze.
+            static atomic<bool> ringFrozen;
+
             static atomic<uint32_t> noiseGateCfg;
             static atomic<uint32_t> ch01Daisy;
             static atomic<uint32_t> toStereoCH0;

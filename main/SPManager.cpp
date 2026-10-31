@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_cpu.h"
+#include "esp_timer.h"
 #include "stdint.h"
 #include "string.h"
 #include "codec.hpp"
@@ -130,6 +131,22 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     }
 
     while (runAudioTask) {
+        // Loop-period history: the gap between iterations in 0.1 ms units.
+        // A spike means this iteration started late — the DMA starved and
+        // the codec emitted a stutter even if the rendered block is clean.
+        {
+            static int64_t lastLoopUs = 0;
+            int64_t nowUs = esp_timer_get_time();
+            int64_t period10 = (nowUs - lastLoopUs) / 100;
+            lastLoopUs = nowUs;
+            if (period10 < 0) period10 = 0;
+            if (period10 > 65535) period10 = 65535;
+            uint32_t slot =
+                loopHistSeq.load(std::memory_order_relaxed) & (kLoopHistLen - 1);
+            loopHist[slot] = static_cast<uint16_t>(period10);
+            loopHistSeq.fetch_add(1, std::memory_order_relaxed);
+        }
+
         // Marbles random modulation → CV/trig slots
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
@@ -234,6 +251,9 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         } else {
             // mute audio
             memset(fbuf, 0, BUF_SZ * 2 * sizeof(float));
+            // bench forensics: count contention mutes so dropouts can be
+            // attributed to mutex holders vs plugin output.
+            muteBlocks.fetch_add(1, std::memory_order_relaxed);
         }
 
         // to stereo conversion
@@ -303,15 +323,47 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         lastAudioTaskCycles.store(static_cast<uint32_t>(diff),
                                   std::memory_order_relaxed);
 
+        // Rolling output ring for bench click forensics: always capture the
+        // finished block (256 B memcpy per block, negligible) so
+        // /debug/getAudioCapture can fetch the sample-level transient
+        // around a parameter write — UNLESS a prior click froze it.
+        if (!ringFrozen.load(std::memory_order_relaxed)) {
+            // Discontinuity detector: max sample-to-sample step of this
+            // block (left channel) vs a slow EMA of the norm. A step >10x
+            // the norm (and above a floor) freezes the ring with the click
+            // inside.
+            float maxstep = 0.f;
+            for (uint32_t i = 1; i < BUF_SZ; i++) {
+                float d = fabsf(fbuf[i * 2] - fbuf[(i - 1) * 2]);
+                if (d > maxstep) maxstep = d;
+                d = fabsf(fbuf[i * 2 + 1] - fbuf[(i - 1) * 2 + 1]);
+                if (d > maxstep) maxstep = d;
+            }
+            static float stepAvg = 0.f;
+            stepAvg = stepAvg * 0.999f + maxstep * 0.001f;
+            if (maxstep > 0.02f && maxstep > stepAvg * 10.f) {
+                ringFrozen.store(true, std::memory_order_relaxed);
+            }
+            uint32_t slot =
+                audioRingSeq.load(std::memory_order_relaxed) & (kCaptureBlocks - 1);
+            memcpy(audioRing[slot], fbuf, sizeof(audioRing[0]));
+            audioRingSeq.fetch_add(1, std::memory_order_relaxed);
+        }
+
         // SD audio: mix playback into output
         CTAG::AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
         // SD audio: capture output for recording
         CTAG::AUDIO::SDAudio::RecordSamples(fbuf, BUF_SZ);
 
-        // VU meter: store output peaks (0..1000) for the MIX page. Sampled
-        // after soft clipping and tape playback so it reflects what the
-        // codec actually emits. Skipped entirely while metering is off.
-        if (meteringEnabled.load(std::memory_order_relaxed)) {
+        // Full-coverage output peak history (bench dropout forensics):
+        // every block, no gating, so /debug/getAudioCapture sees every
+        // dropout with no blind windows. Each entry packs the block's
+        // output peak (0..1000, 10 bits) AND its render-cycle count
+        // (>>12, 6 bits, 4096-cycle resolution) so a dip block reveals
+        // whether the render ran normally (content collapse) or the task
+        // stalled (scheduling). The MIX-page atomics stay gated by
+        // meteringEnabled (skips two atomic stores per block).
+        {
             float outMaxL = 0.f, outMaxR = 0.f;
             for (uint32_t i = 0; i < BUF_SZ; i++) {
                 float val = fabsf(fbuf[i * 2]);
@@ -319,8 +371,21 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
                 val = fabsf(fbuf[i * 2 + 1]);
                 if (val > outMaxR) outMaxR = val;
             }
-            vuOutL.store(static_cast<uint32_t>(outMaxL * 1000.0f + 0.5f), std::memory_order_relaxed);
-            vuOutR.store(static_cast<uint32_t>(outMaxR * 1000.0f + 0.5f), std::memory_order_relaxed);
+            uint32_t slot =
+                vuHistSeq.load(std::memory_order_relaxed) & (kVUHistLen - 1);
+            uint32_t peak =
+                static_cast<uint32_t>((outMaxL > outMaxR ? outMaxL : outMaxR) * 1000.f + 0.5f);
+            if (peak > 1023) peak = 1023;
+            uint32_t cycBucket = static_cast<uint32_t>(diff) >> 12;
+            if (cycBucket > 63) cycBucket = 63;
+            vuHist[slot] = static_cast<uint16_t>(peak | (cycBucket << 10));
+            vuHistSeq.fetch_add(1, std::memory_order_relaxed);
+            if (meteringEnabled.load(std::memory_order_relaxed)) {
+                vuOutL.store(static_cast<uint32_t>(outMaxL * 1000.0f + 0.5f),
+                             std::memory_order_relaxed);
+                vuOutR.store(static_cast<uint32_t>(outMaxR * 1000.0f + 0.5f),
+                             std::memory_order_relaxed);
+            }
         }
 
         // write raw float data back to CODEC
@@ -387,6 +452,15 @@ std::unique_ptr<SPManagerDataModel> SoundProcessorManager::model;
 DRAM_ATTR SemaphoreHandle_t SoundProcessorManager::processMutex;
 atomic<uint32_t> SoundProcessorManager::cpuOverload = 0;
 atomic<uint32_t> SoundProcessorManager::lastAudioTaskCycles = 0;
+float SoundProcessorManager::audioRing[SoundProcessorManager::kCaptureBlocks][64];
+atomic<uint32_t> SoundProcessorManager::audioRingSeq = 0;
+uint16_t SoundProcessorManager::vuHist[SoundProcessorManager::kVUHistLen];
+atomic<uint32_t> SoundProcessorManager::vuHistSeq = 0;
+atomic<uint32_t> SoundProcessorManager::muteBlocks = 0;
+uint16_t SoundProcessorManager::loopHist[SoundProcessorManager::kLoopHistLen];
+atomic<uint32_t> SoundProcessorManager::loopHistSeq = 0;
+atomic<uint32_t> SoundProcessorManager::lastParamEditMs = 0;
+atomic<bool> SoundProcessorManager::ringFrozen = false;
 atomic<uint32_t> SoundProcessorManager::noiseGateCfg;
 atomic<uint32_t> SoundProcessorManager::ch01Daisy;
 atomic<uint32_t> SoundProcessorManager::toStereoCH0;
@@ -473,6 +547,8 @@ void SoundProcessorManager::SetChannelParamValue(const int chan, const string &i
     // mismatched panel state can address the empty channel.
     if (chan < 0 || chan > 1 || sp[chan] == nullptr) return;
     sp[chan]->SetParamValue(id, key, val);
+    lastParamEditMs.store(static_cast<uint32_t>(esp_timer_get_time() / 1000),
+                          std::memory_order_relaxed);
 }
 
 void SoundProcessorManager::ChannelSavePreset(const int chan, const string &name, const int number) {
