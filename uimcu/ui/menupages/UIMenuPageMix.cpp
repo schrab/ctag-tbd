@@ -38,19 +38,18 @@ using namespace rapidjson;
 
 namespace CTAG {
     namespace CTRL {
-        // Strip order: input gain, input source, TAPE, output L, output R.
-        // The level strips preview the codec directly on every turn so the
-        // faders feel live; the source switch is deferred because re-routing
-        // the codec mid-edit pops. The IN strip meters the stereo input
-        // pair; each output strip meters only its own channel. The TAP
-        // strip is not a config fader: it meters the tape signal (from the
-        // stream's "tl" key) and its value line is the routing.
+        // Strip order: input gain, TAPE, output L, output R. The level
+        // strips preview the codec directly on every turn so the faders
+        // feel live. The IN strip meters the stereo input pair and carries
+        // the mic/line source under its meters (OK toggles it); the TAPE
+        // strip is not a config fader: it is the tape playback gain with
+        // the tape signal meter beside it (routing on OK, shown as its
+        // value line).
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
-                {"IN",  "input_gain",      0, 8,                        false, nullptr,               METER_IN,    2},
-                {"SRC", "input_source",    0, InputSource::COUNT - 1,  true,  InputSource::OPTIONS,  METER_NONE,  0},
-                {"TAPE", "",               0, 100,                       false, nullptr,               METER_NONE,  0},
-                {"O L", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_L, 1},
-                {"O R", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_R, 1},
+                {"IN",   "input_gain",      0, 8,                        false, METER_IN,    2},
+                {"TAPE", "",                0, 100,                      false, METER_NONE,  0},
+                {"LOUT", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, METER_OUT_L, 1},
+                {"ROUT", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, METER_OUT_R, 1},
         };
 
         void UIMenuPageMix::DebugStateJson(std::string &out) {
@@ -81,6 +80,7 @@ namespace CTAG {
             value[TAP_STRIP] = DspProxy::GetSdGain();
             tapeMeter = 0;
             tapeHold = 0;
+            source = 0;
             parseConfig();
         }
 
@@ -97,6 +97,7 @@ namespace CTAG {
 
         void UIMenuPageMix::parseConfig() {
             for (int i = 0; i < STRIPS; i++) value[i] = STRIP_TABLE[i].min;
+            source = 0;
 
             const char *json = DspProxy::GetCStrJSONConfiguration();
             if (!json) return;
@@ -109,65 +110,38 @@ namespace CTAG {
                 const Strip &st = STRIP_TABLE[i];
                 if (i == TAP_STRIP) continue; // not a config strip
                 if (!doc.HasMember(st.id) || !doc[st.id].IsString()) continue;
-                const char *s = doc[st.id].GetString();
-
-                if (st.enumOpts) {
-                    // input_source needs the alias table; other enums match the
-                    // option list literally.
-                    if (i == SRC_STRIP) {
-                        int idx = InputSource::Parse(s);
-                        if (idx >= 0) value[i] = idx;
-                        continue;
-                    }
-                    // Match against the option list; unknown values keep the min.
-                    char optCopy[32];
-                    snprintf(optCopy, sizeof(optCopy), "%s", st.enumOpts);
-                    int idx = 0;
-                    const char *p = optCopy;
-                    bool matched = false;
-                    // walk comma separated options without strtok (no need for
-                    // a second pass, keeps index in sync with the stored value)
-                    while (p != nullptr && *p != '\0') {
-                        const char *comma = strchr(p, ',');
-                        size_t len = comma ? (size_t)(comma - p) : strlen(p);
-                        if (len == strlen(s) && strncmp(p, s, len) == 0) {
-                            matched = true;
-                            break;
-                        }
-                        if (!comma) break;
-                        p = comma + 1;
-                        idx++;
-                    }
-                    if (matched) value[i] = idx;
-                } else {
-                    int v = atoi(s);
-                    if (v < st.min) v = st.min;
-                    if (v > st.max) v = st.max;
-                    value[i] = v;
-                }
+                int v = atoi(doc[st.id].GetString());
+                if (v < st.min) v = st.min;
+                if (v > st.max) v = st.max;
+                value[i] = v;
+            }
+            if (doc.HasMember("input_source") && doc["input_source"].IsString()) {
+                int idx = InputSource::Parse(doc["input_source"].GetString());
+                if (idx >= 0) source = idx;
             }
         }
 
         void UIMenuPageMix::valueText(int i, char *buf, size_t len) const {
-            const Strip &st = STRIP_TABLE[i];
-            if (st.enumOpts) {
-                char optCopy[32];
-                snprintf(optCopy, sizeof(optCopy), "%s", st.enumOpts);
-                int idx = 0;
-                const char *p = optCopy;
-                while (p != nullptr && *p != '\0' && idx < value[i]) {
-                    const char *comma = strchr(p, ',');
-                    if (!comma) break;
-                    p = comma + 1;
-                    idx++;
-                }
-                if (p == nullptr || *p == '\0') snprintf(buf, len, "off");
-                else {
-                    size_t optLen = strcspn(p, ",");
-                    snprintf(buf, len, "%.*s", (int)optLen, p);
-                }
-            } else {
-                snprintf(buf, len, "%d", value[i]);
+            snprintf(buf, len, "%d", value[i]);
+        }
+
+        // "mic"/"line" for the value under the IN meters.
+        void UIMenuPageMix::sourceText(char *buf, size_t len) const {
+            // Walk InputSource::OPTIONS by index (comma-separated list).
+            char optCopy[32];
+            snprintf(optCopy, sizeof(optCopy), "%s", InputSource::OPTIONS);
+            int idx = 0;
+            const char *p = optCopy;
+            while (p != nullptr && *p != '\0' && idx < source) {
+                const char *comma = strchr(p, ',');
+                if (!comma) break;
+                p = comma + 1;
+                idx++;
+            }
+            if (p == nullptr || *p == '\0') snprintf(buf, len, "mic");
+            else {
+                size_t optLen = strcspn(p, ",");
+                snprintf(buf, len, "%.*s", (int)optLen, p);
             }
         }
 
@@ -184,20 +158,25 @@ namespace CTAG {
                 if (st.deferred && !includeDeferred) continue;
 
                 char valStr[16];
-                if (st.enumOpts) {
-                    char tmp[16];
-                    valueText(i, tmp, sizeof(tmp));
-                    snprintf(valStr, sizeof(valStr), "%s", tmp);
-                } else {
-                    snprintf(valStr, sizeof(valStr), "%d", value[i]);
-                }
-
+                snprintf(valStr, sizeof(valStr), "%d", value[i]);
                 Value v(valStr, doc.GetAllocator());
                 if (doc.HasMember(st.id)) {
                     doc[st.id].Swap(v);
                 } else {
                     Value key(st.id, doc.GetAllocator());
                     doc.AddMember(key, v, doc.GetAllocator());
+                }
+                if (i == GAIN_STRIP) {
+                    // input_source lives on the IN strip
+                    char src[16];
+                    sourceText(src, sizeof(src));
+                    Value sv(src, doc.GetAllocator());
+                    if (doc.HasMember("input_source")) {
+                        doc["input_source"].Swap(sv);
+                    } else {
+                        Value k("input_source", doc.GetAllocator());
+                        doc.AddMember(k, sv, doc.GetAllocator());
+                    }
                 }
             }
 
@@ -247,13 +226,18 @@ namespace CTAG {
             int x = STRIP_X0 + i * STRIP_W + 2;
             // track
             Display::DrawRect(x, FADER_Y, FADER_W, FADER_H, false, true);
-            // value height, min 1px so a zero setting still shows the cap
+            // value height, min 1px so a zero setting still shows the cap;
+            // ALWAYS bottom-anchored. The selection highlight is a drawn
+            // outer frame — inverting the strip made the selected fader
+            // read as filling from the top.
             int range = st.max - st.min;
             int fillH = range > 0 ? ((value[i] - st.min) * (FADER_H - 2)) / range : 0;
             if (fillH < 1) fillH = 1;
             if (fillH > FADER_H - 2) fillH = FADER_H - 2;
             Display::DrawRect(x + 1, FADER_Y + FADER_H - 1 - fillH, FADER_W - 2, fillH, true, true);
-            if (i == cursor) Display::InvertRect(x - 1, FADER_Y - 1, FADER_W + 2, FADER_H + 2);
+            if (i == cursor) {
+                Display::DrawRect(x - 2, FADER_Y - 2, FADER_W + 4, FADER_H + 4, false, true);
+            }
         }
 
         void UIMenuPageMix::drawMeters(int i) {
@@ -265,32 +249,13 @@ namespace CTAG {
             }
         }
 
-        // Enum strips are discrete switches, not faders: the track is divided
-        // into one segment per option and the active segment is filled
-        // (mic = bottom, line = top). The value text below names it.
-        void UIMenuPageMix::drawSwitch(int i) {
-            const Strip &st = STRIP_TABLE[i];
-            int x = STRIP_X0 + i * STRIP_W + 2;
-            int nSeg = st.max - st.min + 1;
-            if (nSeg < 2) nSeg = 2;
-            Display::DrawRect(x, FADER_Y, FADER_W, FADER_H, false, true);
-            int segH = FADER_H / nSeg;
-            int seg = value[i] - st.min;
-            if (seg < 0) seg = 0;
-            if (seg >= nSeg) seg = nSeg - 1;
-            // active segment, inset 1px on all sides so the outline stays visible
-            Display::DrawRect(x + 1, FADER_Y + FADER_H - (seg + 1) * segH + 1,
-                              FADER_W - 2, segH - 2, true, true);
-            if (i == cursor) Display::InvertRect(x - 1, FADER_Y - 1, FADER_W + 2, FADER_H + 2);
-        }
-
         void UIMenuPageMix::drawStrip(int i) {
             const Strip &st = STRIP_TABLE[i];
             int x = STRIP_X0 + i * STRIP_W;
 
             Display::DrawString(x, LABEL_Y, st.label, FONT_UI);
             // No frame around the label: the fader already carries the
-            // whole-strip selection highlight.
+            // selection highlight.
 
             if (i == TAP_STRIP) {
                 // Tape strip: a real fader (playback gain, value encoder)
@@ -310,12 +275,18 @@ namespace CTAG {
                 return;
             }
 
-            if (st.enumOpts) drawSwitch(i); else drawFader(i);
+            drawFader(i);
             drawMeters(i);
 
             char val[16];
             valueText(i, val, sizeof(val));
             Display::DrawString(x, VALUE_Y, val, FONT_UI);
+            if (i == GAIN_STRIP) {
+                // The mic/line source lives under the IN meters (OK toggles).
+                char src[8];
+                sourceText(src, sizeof(src));
+                Display::DrawString(x, VALUE_Y + 9, src, FONT_UI);
+            }
         }
 
         void UIMenuPageMix::doRedraw() {
@@ -366,11 +337,10 @@ namespace CTAG {
         // Right encoder: live edit of the strip under the cursor (no edit
         // mode, no confirm — deinit() commits a staged edit when the page is
         // left, OK commits earlier on request). The TAPE fader drives the
-        // tape playback gain live; on the SRC strip it does nothing — the
-        // source switches on OK so the value encoder stays levels-only.
+        // tape playback gain live; on the IN strip the source switches on
+        // OK so the value encoder stays levels-only.
         void UIMenuPageMix::onValueEncoder(int delta) {
             if (delta == 0) return;
-            if (cursor == SRC_STRIP) return;
             const Strip &st = STRIP_TABLE[cursor];
 
             // Momentum on consecutive same-direction turns, matching the
@@ -413,17 +383,15 @@ namespace CTAG {
 
         void UIMenuPageMix::onButton(int btnId, bool longPress) {
             if (btnId == 2 && !longPress) {
-                if (cursor == SRC_STRIP) {
-                    // Source switches on OK: advance the enum and commit
+                if (cursor == GAIN_STRIP) {
+                    // Mic/line switches on OK: advance and commit
                     // immediately — re-routing the codec pops, so it must
                     // happen exactly on the user's press, not staged.
-                    value[SRC_STRIP] = value[SRC_STRIP] + 1 > STRIP_TABLE[SRC_STRIP].max
-                                           ? STRIP_TABLE[SRC_STRIP].min
-                                           : value[SRC_STRIP] + 1;
+                    source = (source + 1) % InputSource::COUNT;
                     applyCurrent(true);
                     dirty = false;
                 } else if (cursor == TAP_STRIP) {
-                    // Tape routing on OK, mirroring the SRC pattern: the
+                    // Tape routing on OK, mirroring the IN pattern: the
                     // value encoder on this strip is the level fader.
                     DspProxy::SetSdRoute(DspProxy::GetSdRoute() == 1 ? 0 : 1);
                 } else if (dirty) {

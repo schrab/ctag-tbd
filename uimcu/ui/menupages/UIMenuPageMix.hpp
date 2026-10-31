@@ -27,14 +27,15 @@ respective component folders / files if different from this license.
 
 namespace CTAG {
     namespace CTRL {
-        // Vertical-fader mixer page. Five strips: input gain, input source,
-        // TAPE (live tape level meter + output routing), output L, output R.
-        // The first and last two carry VU meters; the tape strip meters the
-        // tape signal and its value line shows the routing (OUT = main
-        // output, IN = plugin input) — toggled live with the right encoder
-        // while the strip is selected. Left encoder moves between strips,
-        // right encoder edits the active strip (no edit mode); continuous
-        // (non-deferred) strips re-apply the codec live while turning.
+        // Vertical-fader mixer page. Four strips: input gain (with the
+        // mic/line source toggled by OK and shown under the meters), TAPE
+        // (playback gain fader + live tape level meter, routing on OK),
+        // output L, output R — the first and last two carrying VU meters.
+        // Left encoder moves between strips, right encoder edits the active
+        // strip (no edit mode); continuous (non-deferred) strips re-apply
+        // the codec live while turning. All faders fill from the bottom;
+        // the selection is a drawn outer frame, never an inversion (an
+        // inverted fader reads as filling from the top).
         class UIMenuPageMix final : public UIMenuPage {
         public:
             void init() override;
@@ -53,14 +54,13 @@ namespace CTAG {
             void DebugStateJson(std::string &out) override;
 
         private:
-            // Layout: 5 strips across 128 px, 25 px wide with a 1 px margin.
+            // Layout: 4 strips across 128 px, 25 px wide with a 1 px margin.
             // Content sits below the persistent nav bar (rows 0..2).
-            static constexpr int STRIPS = 5;
-            static constexpr int GAIN_STRIP = 0;    // input_gain
-            static constexpr int SRC_STRIP = 1;     // input_source, needs alias handling
-            static constexpr int TAP_STRIP = 2;     // tape level + routing (not config)
-            static constexpr int OUT_L_STRIP = 3;   // ch0_codecLvlOut
-            static constexpr int OUT_R_STRIP = 4;   // ch1_codecLvlOut
+            static constexpr int STRIPS = 4;
+            static constexpr int GAIN_STRIP = 0;    // input_gain (+ mic/line on OK)
+            static constexpr int TAP_STRIP = 1;     // tape level + routing (not config)
+            static constexpr int OUT_L_STRIP = 2;   // ch0_codecLvlOut
+            static constexpr int OUT_R_STRIP = 3;   // ch1_codecLvlOut
             static constexpr int STRIP_W = 25;
             static constexpr int STRIP_X0 = 1;
             static constexpr int LABEL_Y = 5;
@@ -87,7 +87,6 @@ namespace CTAG {
                 int min;
                 int max;
                 bool deferred;
-                const char *enumOpts; // nullptr => plain int value
                 MeterSrc meter;
                 int meterN;           // bars: 2 for the stereo input, 1 per output strip
             };
@@ -103,6 +102,9 @@ namespace CTAG {
             // Tape strip: smoothed level (same smoothing as the VU strips).
             int tapeMeter;
             int tapeHold;
+            // Input source (InputSource index), shown under the IN meters
+            // and toggled with OK — it is NOT a fader.
+            int source;
 
             int encoderAccel;
             int lastEncDir;
@@ -114,10 +116,9 @@ namespace CTAG {
             void refreshTapeMeter();
             void drawStrip(int i);
             void drawFader(int i);
-            void drawSwitch(int i); // enum strips: discrete segments, not a fader
             void drawMeters(int i);
-            void drawTapeRow();
             void valueText(int i, char *buf, size_t len) const;
+            void sourceText(char *buf, size_t len) const;
         };
     }
 }
