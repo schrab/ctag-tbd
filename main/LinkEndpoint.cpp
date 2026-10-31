@@ -490,6 +490,7 @@ namespace CTAG {
                 string id0, id1;
                 uint32_t marbles = 0;
                 int sdMounted = -1;
+                uint32_t editSeq = 0;
             } lastPushed;
 
             // Record current hashes without pushing, right after the boot
@@ -518,22 +519,24 @@ namespace CTAG {
                     lastPushed.modelGen = gen;
                     h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONSoundProcessors()));
                     if (h != lastPushed.pluginList) { lastPushed.pluginList = h; pushPluginList(); }
-                // Defer the params re-push while edits are recent: the
-                // regen + ~5 KB TX burst delays the audio task past its
-                // DMA deadline (audible clicks on every detent), and the
-                // panel already reflects its own edits locally. One full
-                // push fires once edits have been quiet for 3 s.
-                // IMPORTANT: the skip must cover the HASH call too —
-                // GetCStrJSONActivePluginParams() regenerates the whole
-                // params JSON when dirty, which is the expensive half.
-                uint32_t editAgeMs = now - SoundProcessorManager::GetLastParamEditMs();
-                bool editsQuiet = SoundProcessorManager::GetLastParamEditMs() == 0 ||
-                                  editAgeMs > 3000;
-                if (editsQuiet) {
-                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(0)));
-                    if (h != lastPushed.params0) { lastPushed.params0 = h; pushParams(0); }
-                    h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(1)));
-                    if (h != lastPushed.params1) { lastPushed.params1 = h; pushParams(1); }
+                // Incremental parameter sync: ONE tiny pushParamValue frame
+                // per edit batch (coalesced by the tick), replacing the old
+                // full-params-JSON re-push — the regen + multi-KB TX burst
+                // delayed the audio task past its DMA deadline and clicked
+                // the output on every detent. The full params push remains
+                // only on wholesale syncs (boot, plugin/preset loads). The
+                // panel already applies its own edits; the frame keeps
+                // other views truthful. Edits landing within one tick
+                // coalesce into the latest value.
+                if (SoundProcessorManager::GetLastEditSeq() != lastPushed.editSeq) {
+                    lastPushed.editSeq = SoundProcessorManager::GetLastEditSeq();
+                    string s = "{\"cmd\":\"";
+                    s += kMsgPushParamValue;
+                    s += "\",\"ch\":" + to_string(SoundProcessorManager::GetLastEditCh());
+                    s += ",\"id\":\"" + string(SoundProcessorManager::GetLastEditId()) + "\"";
+                    s += ",\"current\":" + to_string(SoundProcessorManager::GetLastEditVal());
+                    s += "}";
+                    sendStr(s);
                 }
                     h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONConfiguration()));
                     if (h != lastPushed.config) { lastPushed.config = h; pushConfig(); }
