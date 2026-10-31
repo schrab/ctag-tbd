@@ -266,10 +266,48 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             }
             Document d;
             // The params frame is handled without any DOM (its handler
-            // never touches d) — skip the parse entirely for it.
-            if (strcmp(cmd, kMsgPushParams) != 0) {
+            // never touches d) — skip the parse entirely for it. Same for
+            // the tiny single-parameter value push.
+            if (strcmp(cmd, kMsgPushParams) != 0 &&
+                strcmp(cmd, kMsgPushParamValue) != 0) {
                 d.Parse(payload, len);
                 if (d.HasParseError() || !d.IsObject()) return;
+            }
+
+            if (strcmp(cmd, kMsgPushParamValue) == 0) {
+                // Incremental sync: one parameter value changed on the DSP.
+                // Update the cached table entry in place; refresh the page
+                // view at most ~5x/s (fast turns would otherwise re-parse
+                // the whole table per detent). Values for the row the user
+                // is editing are preserved by the page's edit-row guard.
+                int ch = -1, val = 0;
+                const char *id = nullptr;
+                {   // tiny manual extraction — the frame is machine-made
+                    const char *p = strstr(payload, "\"ch\":");
+                    if (p) ch = atoi(p + 5);
+                    p = strstr(payload, "\"id\":\"");
+                    if (p) id = p + 6;
+                    p = strstr(payload, "\"current\":");
+                    if (p) val = atoi(p + 10);
+                }
+                if (ch >= 0 && ch <= 1 && id && id[0]) {
+                    const char *qe = strchr(id, '"');
+                    size_t idlen = qe ? (size_t)(qe - id) : strlen(id);
+                    for (int i = 0; i < paramTableCount[ch]; i++) {
+                        DspProxy::DspParamEntry &e = paramTable[ch][i];
+                        if (strncmp(e.id, id, idlen) == 0 && e.id[idlen] == '\0') {
+                            e.current = val;
+                            uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+                            static uint32_t lastBumpMs = 0;
+                            if (nowMs - lastBumpMs >= 200 || lastBumpMs == 0) {
+                                lastBumpMs = nowMs;
+                                paramTableVersion++;
+                            }
+                            break;
+                        }
+                    }
+                }
+                return;
             }
 
             if (strcmp(cmd, kMsgPushPluginList) == 0) {
