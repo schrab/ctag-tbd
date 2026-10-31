@@ -71,7 +71,7 @@ void SDAudio::StartPlayback(const char *path) {
     underrun = false;
     playing = true;
     stopRequested = false;
-    xTaskCreatePinnedToCore(workerTask, "sd_audio", 4096, (void *)0, 5, nullptr, 0);
+    xTaskCreatePinnedToCore(workerTask, "sd_audio", 6144, (void *)0, 5, nullptr, 0);
 }
 
 void SDAudio::StartRecording(const char *path) {
@@ -83,7 +83,7 @@ void SDAudio::StartRecording(const char *path) {
     wavHeaderWritten = false;
     recording = true;
     stopRequested = false;
-    xTaskCreatePinnedToCore(workerTask, "sd_audio", 4096, (void *)1, 5, nullptr, 0);
+    xTaskCreatePinnedToCore(workerTask, "sd_audio", 6144, (void *)1, 5, nullptr, 0);
 }
 
 void SDAudio::Stop() {
@@ -141,7 +141,11 @@ uint32_t SDAudio::GetTotalFrames() { return totalFrames; }
 
 void SDAudio::workerTask(void *param) {
     bool isRecordingMode = (bool)param;
-    int16_t tmp[CHUNK_MAX * 2];
+    // STATIC, not on the stack: 4 KB would consume the whole 4 KB task
+    // stack (the WAV parse/write below would smash the TCB). Only one
+    // worker instance can run at a time (StartPlayback/StartRecording
+    // guard), so a single static buffer is safe.
+    static int16_t tmp[CHUNK_MAX * 2];
 
     if (isRecordingMode) {
         file = fopen(filePath, "wb");
@@ -215,40 +219,72 @@ void SDAudio::workerTask(void *param) {
             vTaskDelete(nullptr);
             return;
         }
-        uint8_t hdrBuf[44];
-        size_t n = fread(hdrBuf, 1, 44, file);
-        if (n != 44 || memcmp(hdrBuf, "RIFF", 4) != 0 || memcmp(hdrBuf + 8, "WAVE", 4) != 0) {
+        uint8_t tag[12];
+        size_t n = fread(tag, 1, 12, file);
+        if (n != 12 || memcmp(tag, "RIFF", 4) != 0 || memcmp(tag + 8, "WAVE", 4) != 0) {
             ESP_LOGE(TAG, "Not WAV: %s", filePath);
             fclose(file);
             playing = false;
             vTaskDelete(nullptr);
             return;
         }
-        numChannels = *(uint16_t *)(hdrBuf + 22);
-        // Find data chunk
-        totalFrames = 0;
+        // Chunk walk: fmt and data can sit behind LIST/INFO metadata chunks,
+        // and fmt may be 40 bytes (WAVE_FORMAT_EXTENSIBLE) — recorder/DAW
+        // files routinely fail the canonical 44-byte-header assumption.
         bool foundData = false;
-        while (1) {
-            uint8_t chunk[8];
-            if (fread(chunk, 1, 8, file) != 8) break;
+        bool fmtOk = false;
+        uint32_t dataSz = 0;
+        uint16_t audioFormat = 0, bitsPerSample = 0;
+        uint8_t chunk[8];
+        while (fread(chunk, 1, 8, file) == 8) {
             uint32_t chunkSz = *(uint32_t *)(chunk + 4);
+            if (memcmp(chunk, "fmt ", 4) == 0) {
+                uint8_t fmtBuf[40];
+                size_t toRead = chunkSz < sizeof(fmtBuf) ? chunkSz : sizeof(fmtBuf);
+                if (fread(fmtBuf, 1, toRead, file) != toRead) break;
+                if (chunkSz & 1) fseek(file, 1, SEEK_CUR);
+                audioFormat = *(uint16_t *)(fmtBuf + 0);
+                numChannels = *(uint16_t *)(fmtBuf + 2);
+                bitsPerSample = *(uint16_t *)(fmtBuf + 14);
+                fmtOk = true;
+                continue;
+            }
             if (memcmp(chunk, "data", 4) == 0) {
-                int bytesPerFrame = numChannels * 2;
-                totalFrames = chunkSz / bytesPerFrame;
-                bytePos = 0;
+                dataSz = chunkSz;
                 foundData = true;
                 break;
             }
-            chunkSz = (chunkSz + 1) & ~1; // pad
-            fseek(file, chunkSz, SEEK_CUR);
+            fseek(file, (chunkSz + 1) & ~1u, SEEK_CUR); // skip (+ pad)
         }
-        if (!foundData) {
-            ESP_LOGE(TAG, "No data chunk");
+        // The renderer reinterprets the stream as int16 frames: accept PCM
+        // (0x01) and WAVE_FORMAT_EXTENSIBLE (0xFFFE), 16-bit, mono/stereo.
+        if (!foundData || !fmtOk) {
+            ESP_LOGE(TAG, "No data chunk: %s", filePath);
             fclose(file);
             playing = false;
             vTaskDelete(nullptr);
             return;
         }
+        if (bitsPerSample != 16 || numChannels < 1 || numChannels > 2 ||
+            (audioFormat != 1 && audioFormat != 0xFFFE)) {
+            ESP_LOGE(TAG, "Unsupported WAV: fmt=0x%04x %uch %u-bit: %s",
+                     audioFormat, numChannels, bitsPerSample, filePath);
+            fclose(file);
+            playing = false;
+            vTaskDelete(nullptr);
+            return;
+        }
+        int bytesPerFrame = numChannels * 2;
+        if (dataSz == 0 || dataSz == 0xFFFFFFFFu) {
+            // Streamed/miswritten data size: fall back to the file length.
+            long at = ftell(file);
+            fseek(file, 0, SEEK_END);
+            long fsz = ftell(file);
+            fseek(file, at, SEEK_SET);
+            dataSz = (uint32_t)(fsz - at);
+        }
+        totalFrames = dataSz / bytesPerFrame;
+        bytePos = 0;
         ESP_LOGI(TAG, "Play: %s, %dch, %lu frames", filePath, numChannels, (unsigned long)totalFrames);
 
         writePos = 0;

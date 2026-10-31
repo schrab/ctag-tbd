@@ -139,9 +139,13 @@ constexpr const char *kMsgPushIoCaps       = "link/pushIoCaps";
 constexpr const char *kMsgStream = "link/stream";
 
 // SD proxy: "/link/fsList" request from the panel, "link/fsList" listing
-// push back; mounted state pushed on change.
-constexpr const char *kMsgFsList  = "link/fsList";
-constexpr const char *kMsgFsState = "link/fsState";
+// push back; mounted state pushed on change. The request is a COMMAND and
+// MUST carry the "/link/" prefix (see the midiIn note below) — the reply
+// tag stays slash-less. The request constant missing the slash once made
+// every Tape file listing come back empty ("No WAV files").
+constexpr const char *kMsgCmdFsList = "/link/fsList"; // panel → DSP request
+constexpr const char *kMsgFsList    = "link/fsList";  // DSP → panel reply
+constexpr const char *kMsgFsState   = "link/fsState";
 
 // MIDI transport: raw MIDI bytes as arrays of byte values. midiIn is
 // panel → DSP (DIN in + BLE), midiOut is DSP → panel (DIN out forwarding).

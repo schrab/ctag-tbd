@@ -701,7 +701,7 @@ namespace CTAG {
                 entries += "]";
                 string s = "{\"cmd\":\"";
                 s += kMsgFsList;
-                s += ",";
+                s += "\",";
                 appendEscapedField(s, "entries", entries.c_str());
                 if (d.HasMember("seq") && d["seq"].IsInt()) {
                     s += ",\"seq\":" + to_string(d["seq"].GetInt());
@@ -920,7 +920,7 @@ namespace CTAG {
                     response = "{\"ok\":1}";
                     return true;
                 }
-                if (cmdName == kMsgFsList) {
+                if (cmdName == kMsgCmdFsList) {
                     handleFsList(d);
                     return true;
                 }

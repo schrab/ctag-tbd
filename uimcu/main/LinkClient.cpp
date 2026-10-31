@@ -251,8 +251,8 @@ namespace CTAG {
             fsSeq++;
             char buf[128];
             snprintf(buf, sizeof(buf),
-                     "{\"cmd\":\"/link/fsList\",\"path\":\"%s\",\"seq\":%u}",
-                     path, (unsigned)fsSeq);
+                     "{\"cmd\":\"%s\",\"path\":\"%s\",\"seq\":%u}",
+                     kMsgCmdFsList, path, (unsigned)fsSeq);
             fsWaitingSeq = fsSeq;
             fsResult.clear();
             fsWaiting = true;

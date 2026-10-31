@@ -1037,9 +1037,14 @@ CONFIG_ESP_COREDUMP_ENABLE_TO_NONE=y
 # FAT Filesystem support
 #
 CONFIG_FATFS_VOLUME_COUNT=2
-CONFIG_FATFS_LFN_NONE=y
-# CONFIG_FATFS_LFN_HEAP is not set
+# LFN on the heap: real long filenames from the SD card (the Tape/Home
+# browsers show 8.3 aliases like 09FEB_~1.WAV without this); the SDAudio
+# worker runs on a small stack, so keep the LFN workspace out of it.
+# CONFIG_FATFS_LFN_NONE is not set
+CONFIG_FATFS_LFN_HEAP=y
 # CONFIG_FATFS_LFN_STACK is not set
+CONFIG_FATFS_MAX_LFN=255
+CONFIG_FATFS_API_ENCODING_UTF_8=y
 # CONFIG_FATFS_SECTOR_512 is not set
 CONFIG_FATFS_SECTOR_4096=y
 # CONFIG_FATFS_CODEPAGE_DYNAMIC is not set
