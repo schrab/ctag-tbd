@@ -293,10 +293,14 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "OLED Brightness");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = 255; it.valInt = 255; it.deferred = true;
+                it.min = 0; it.max = 100; it.valInt = 100; it.deferred = true;
                 if (doc.HasMember("oled_brightness") && doc["oled_brightness"].IsString()) {
                     snprintf(it.value, sizeof(it.value), "%s", doc["oled_brightness"].GetString());
                     it.valInt = atoi(it.value);
+                    // Legacy stores hold the old 0..255 scale — clamp into
+                    // the 0..100 range; the next commit writes it back.
+                    if (it.valInt > 100) it.valInt = 100;
+                    snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 }
                 itemCount++;
             }

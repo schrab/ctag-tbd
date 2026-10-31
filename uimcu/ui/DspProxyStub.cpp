@@ -97,7 +97,7 @@ namespace CTAG {
                 "\"ch1_toStereo\":\"off\",\"ch0_outputSoftClip\":\"off\",\"ch1_outputSoftClip\":\"off\","
                 "\"ch0_codecLvlOut\":\"33\",\"ch1_codecLvlOut\":\"33\",\"input_source\":\"mic\","
                 "\"input_gain\":\"0\",\"output_source\":\"all\",\"mixer_mode\":\"dac\","
-                "\"oled_brightness\":\"255\"}";
+                "\"oled_brightness\":\"100\"}";
 
             const char *kFavoritesJson =
                 "[{\"name\":\"Fav 0\",\"plug_0\":\"Elements\",\"plug_1\":\"\"},"
