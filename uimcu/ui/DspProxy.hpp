@@ -152,6 +152,10 @@ namespace CTAG {
             // and volatile (resets to 0 at DSP boot).
             static void SetSdRoute(int r);
             static int GetSdRoute();
+            // Tape playback level 0..100 % (volatile; the MIX TAPE fader
+            // drives it live).
+            static void SetSdGain(int percent);
+            static int GetSdGain();
             // Tape signal level 0..1000 from the 25 Hz stream ("tl" key).
             static uint32_t GetSdLevel();
 

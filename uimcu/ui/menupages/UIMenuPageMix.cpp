@@ -48,7 +48,7 @@ namespace CTAG {
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
                 {"IN",  "input_gain",      0, 8,                        false, nullptr,               METER_IN,    2},
                 {"SRC", "input_source",    0, InputSource::COUNT - 1,  true,  InputSource::OPTIONS,  METER_NONE,  0},
-                {"TAPE", "",               0, 1,                        false, nullptr,               METER_NONE,  0},
+                {"TAPE", "",               0, 100,                       false, nullptr,               METER_NONE,  0},
                 {"O L", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_L, 1},
                 {"O R", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_R, 1},
         };
@@ -76,6 +76,9 @@ namespace CTAG {
                 hold[i][0] = 0;
                 hold[i][1] = 0;
             }
+            // The TAPE fader is not config-backed: it seeds from the DSP's
+            // current playback gain.
+            value[TAP_STRIP] = DspProxy::GetSdGain();
             tapeMeter = 0;
             tapeHold = 0;
             parseConfig();
@@ -290,20 +293,20 @@ namespace CTAG {
             // whole-strip selection highlight.
 
             if (i == TAP_STRIP) {
-                // Tape strip: a vertical meter fed by the stream's tape
-                // level (same smoothing as the VU strips), the routing as
-                // its value line, and the label inverted while a recording
-                // is running. The selection highlight frames the meter with
-                // the same footprint the faders use.
+                // Tape strip: a real fader (playback gain, value encoder)
+                // beside a vertical meter of the actual tape signal, the
+                // routing as its value line, and the label inverted while a
+                // recording is running. drawFader carries the standard
+                // fader-style selection highlight.
                 if (DspProxy::SdIsRecording()) {
                     Display::InvertRect(x, LABEL_Y - 1, STRIP_W - 1, 9);
                 }
-                Display::DrawVUMeterV(x + 8, FADER_Y, VU_W + 2, VU_H,
+                drawFader(i);
+                Display::DrawVUMeterV(x + 11, FADER_Y, VU_W, VU_H,
                                       (float)tapeMeter / 1000.0f);
                 char val[8];
                 snprintf(val, sizeof(val), "%s", DspProxy::GetSdRoute() == 1 ? "IN" : "OUT");
                 Display::DrawString(x, VALUE_Y, val, FONT_UI);
-                if (i == cursor) Display::InvertRect(x + 7, FADER_Y - 1, (VU_W + 2) + 2, FADER_H + 2);
                 return;
             }
 
@@ -362,16 +365,11 @@ namespace CTAG {
 
         // Right encoder: live edit of the strip under the cursor (no edit
         // mode, no confirm — deinit() commits a staged edit when the page is
-        // left, OK commits earlier on request). On the TAP strip, any turn
-        // toggles the tape routing live; on the SRC strip it does nothing —
-        // the source switches on OK so the value encoder stays levels-only.
+        // left, OK commits earlier on request). The TAPE fader drives the
+        // tape playback gain live; on the SRC strip it does nothing — the
+        // source switches on OK so the value encoder stays levels-only.
         void UIMenuPageMix::onValueEncoder(int delta) {
             if (delta == 0) return;
-            if (cursor == TAP_STRIP) {
-                DspProxy::SetSdRoute(DspProxy::GetSdRoute() == 1 ? 0 : 1);
-                doRedraw();
-                return;
-            }
             if (cursor == SRC_STRIP) return;
             const Strip &st = STRIP_TABLE[cursor];
 
@@ -392,7 +390,9 @@ namespace CTAG {
             if (v > st.max) v = st.max;
             const bool changed = (v != value[cursor]);
             value[cursor] = v;
-            if (changed) dirty = true;
+            // The TAPE fader is live-applied, not config-backed — it must
+            // not arm the deferred commit.
+            if (changed && cursor != TAP_STRIP) dirty = true;
 
             // Preview only the affected codec registers. Do NOT call
             // applyCurrent() here: that rewrites the whole config and
@@ -404,6 +404,8 @@ namespace CTAG {
                     DspProxy::SetInputGain(value[GAIN_STRIP]);
                 } else if (cursor == OUT_L_STRIP || cursor == OUT_R_STRIP) {
                     DspProxy::SetOutputLevels(value[OUT_L_STRIP], value[OUT_R_STRIP]);
+                } else if (cursor == TAP_STRIP) {
+                    DspProxy::SetSdGain(value[TAP_STRIP]);
                 }
             }
             doRedraw();
@@ -420,6 +422,10 @@ namespace CTAG {
                                            : value[SRC_STRIP] + 1;
                     applyCurrent(true);
                     dirty = false;
+                } else if (cursor == TAP_STRIP) {
+                    // Tape routing on OK, mirroring the SRC pattern: the
+                    // value encoder on this strip is the level fader.
+                    DspProxy::SetSdRoute(DspProxy::GetSdRoute() == 1 ? 0 : 1);
                 } else if (dirty) {
                     applyCurrent(true);
                     dirty = false;

@@ -875,6 +875,16 @@ namespace CTAG {
                     }
                     return true;
                 }
+                if (cmdName == "/link/sdGain") {
+                    // Tape playback level, 0..100 % (SetGain clamps).
+                    if (d.HasMember("v") && d["v"].IsInt()) {
+                        AUDIO::SDAudio::SetGain(d["v"].GetInt());
+                        response = "{\"ok\":1}";
+                    } else {
+                        response = "{\"error\":\"bad v\"}";
+                    }
+                    return true;
+                }
                 // Live codec previews from the MIX/System pages. Deliberately
                 // NOT config commits — the pages commit persisted values via
                 // /link/configSet when editing ends (same split as the local

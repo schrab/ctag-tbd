@@ -44,6 +44,7 @@ std::atomic<bool> SDAudio::underrun{false};
 bool SDAudio::stopRequested = false;
 std::atomic<uint32_t> SDAudio::route{0};      // Route::MAIN_OUT
 std::atomic<uint32_t> SDAudio::levelPeak{0};
+std::atomic<uint32_t> SDAudio::gain{100};     // unity
 
 char SDAudio::filePath[64] = {};
 FILE *SDAudio::file = nullptr;
@@ -131,11 +132,12 @@ int SDAudio::MixPlayback(float *buf, int nFrames) {
         return 0;
     }
     int toRead = avail < (uint32_t)nFrames ? (int)avail : nFrames;
+    const float g = (float)gain.load(std::memory_order_relaxed) / 100.0f;
     float peak = 0.f;
     for (int i = 0; i < toRead; i++) {
         uint32_t idx = (rp + i) & (RING_SZ - 1);
-        float l = ring[idx * 2];
-        float r = ring[idx * 2 + 1];
+        float l = ring[idx * 2] * g;
+        float r = ring[idx * 2 + 1] * g;
         float al = fabsf(l), ar = fabsf(r);
         if (al > peak) peak = al;
         if (ar > peak) peak = ar;
@@ -176,6 +178,14 @@ void SDAudio::SetRoute(Route r) {
 }
 
 SDAudio::Route SDAudio::GetRoute() { return (Route)route.load(std::memory_order_relaxed); }
+
+void SDAudio::SetGain(int percent) {
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+    gain.store((uint32_t)percent, std::memory_order_relaxed);
+}
+
+int SDAudio::GetGain() { return (int)gain.load(std::memory_order_relaxed); }
 
 uint32_t SDAudio::GetLevelPeak() { return levelPeak.exchange(0); }
 
@@ -300,6 +310,12 @@ void SDAudio::workerTask(void *param) {
             // Recording timecode: GetPositionFrames() = bytePos / (2ch*2B).
             bytePos = recordedBytes;
             readPos.store((rp + toWrite) & (RING_SZ - 1), std::memory_order_release);
+            // One tick per chunk keeps the SD bus breathable: continuous
+            // fwrite at this priority starved FATFS ops from other tasks
+            // (the link task's directory scans timed out -> "No card or
+            // empty" while the tape ran). ~85 chunks/s still sustains
+            // ~2x the record bitrate; the ring absorbs the pauses.
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
 
         // Finalize WAV header
@@ -391,6 +407,11 @@ void SDAudio::workerTask(void *param) {
             }
             bytePos += framesRead * bytesPerFrame;
             writePos.store((wp + framesRead) & (RING_SZ - 1), std::memory_order_release);
+            // One tick per chunk keeps the SD bus breathable (same reason as
+            // the record loop): without the pause, continuous fread starved
+            // the link task's directory scans -> "No card or empty" while
+            // the tape played. ~85 chunks/s ≈ 2x the playback bitrate.
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
 
         fclose(file);

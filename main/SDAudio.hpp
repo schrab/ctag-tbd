@@ -59,6 +59,10 @@ public:
 
     static void SetRoute(int r) { SetRoute((Route)r); }
 
+    // Tape playback level, 0..100 % (volatile; 100 = unity after boot).
+    static void SetGain(int percent);
+    static int GetGain();
+
     // Called from audio task (IRAM safe, never blocks):
     // Returns actual frames mixed from SD into buf (stereo interleaved, -1..+1).
     static int MixPlayback(float *buf, int nFrames);
@@ -93,6 +97,7 @@ private:
     static bool stopRequested; // worker reads this
     static std::atomic<uint32_t> route;     // Route as int
     static std::atomic<uint32_t> levelPeak; // 0..1000, read-and-clear
+    static std::atomic<uint32_t> gain;      // playback level, 0..100 %
 
     static char filePath[64];
     static FILE *file;

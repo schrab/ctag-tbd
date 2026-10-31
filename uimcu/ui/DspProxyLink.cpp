@@ -100,6 +100,7 @@ namespace CTAG {
             uint32_t sdLevel = 0;
             bool sdMounted = false;
             int sdRoute = 0; // 0 = main out, 1 = plugin input (last set)
+            int sdGain = 100;
             int32_t activeFav = -1;
 
             // Mirrors the A1S pushMarbles key table (LinkEndpoint.cpp).
@@ -746,6 +747,17 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         int DspProxy::GetSdRoute() { return sdRoute; }
+
+        void DspProxy::SetSdGain(int percent) {
+            if (percent < 0) percent = 0;
+            if (percent > 100) percent = 100;
+            sdGain = percent;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/sdGain\",\"v\":%d}", percent);
+            sendCmd(buf);
+        }
+
+        int DspProxy::GetSdGain() { return sdGain; }
 
         uint32_t DspProxy::GetSdLevel() { return sdLevel; }
 

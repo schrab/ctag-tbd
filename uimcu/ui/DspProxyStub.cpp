@@ -120,6 +120,7 @@ namespace CTAG {
             bool sdPlaying = false, sdRecording = false;
             uint32_t sdTotalFrames = 0, sdPosFrames = 0;
             int sdRoute = 0;
+            int sdGain = 100;
 
             struct MarblesState {
                 int tModel = 0, tRange = 1, xyClockSource = 0;
@@ -275,6 +276,10 @@ namespace CTAG {
         void DspProxy::SetSdRoute(int r) { sdRoute = r; }
 
         int DspProxy::GetSdRoute() { return sdRoute; }
+
+        void DspProxy::SetSdGain(int percent) { sdGain = percent; }
+
+        int DspProxy::GetSdGain() { return sdGain; }
 
         uint32_t DspProxy::GetSdLevel() {
             // Fake tape level so the MIX-page row moves during bring-up.

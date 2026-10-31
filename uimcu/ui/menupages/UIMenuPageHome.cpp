@@ -432,14 +432,27 @@ namespace CTAG {
             // Directory contents come over the link (SD proxy, SDD §4.2);
             // entries have no "." or "..". The Windows metadata folder and
             // dot entries are hidden — pure noise on a musical instrument.
+            // Separate read/write slots: the write slot may not advance on a
+            // filtered entry (single-index compaction re-read the SAME slot
+            // forever — with "System Volume Information" first in the FAT
+            // root, every entry got filtered and the page showed
+            // "No card or empty").
             int n = DspProxy::ListSdDir(sdCurrentPath, sdEntries + sdFileCount,
                                         sdIsDir + sdFileCount,
                                         MAX_SD_FILES - sdFileCount);
+            int w = sdFileCount; // write slot (kept entries compact forward)
             for (int i = 0; i < n; i++) {
-                const char *name = sdEntries[sdFileCount];
+                const int r = sdFileCount + i; // read slot
+                const char *name = sdEntries[r];
                 if (strcasecmp(name, "System Volume Information") == 0 || name[0] == '.') continue;
-                sdFileCount++;
+                if (w != r) {
+                    strncpy(sdEntries[w], sdEntries[r], 31);
+                    sdEntries[w][31] = '\0';
+                    sdIsDir[w] = sdIsDir[r];
+                }
+                w++;
             }
+            sdFileCount = w;
         }
 
         void UIMenuPageHome::goUpSdDir() {
