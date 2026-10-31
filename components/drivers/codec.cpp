@@ -134,7 +134,7 @@ void Codec::setupI2SWM8731() {
     i2s_config.communication_format = (i2s_comm_format_t) I2S_COMM_FORMAT_STAND_I2S;
     i2s_config.intr_alloc_flags = ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_LEVEL3; // default interrupt priority would be 0
     i2s_config.dma_buf_count = 4;
-    i2s_config.dma_buf_len = 32;
+    i2s_config.dma_buf_len = 96;
     i2s_config.use_apll = true;
 
     static i2s_pin_config_t pin_config;
@@ -402,7 +402,7 @@ void Codec::setupI2SWM8978() {
     i2s_config.communication_format = (i2s_comm_format_t)I2S_COMM_FORMAT_STAND_I2S;
     i2s_config.intr_alloc_flags = ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_LEVEL3; // default interrupt priority would be 0
     i2s_config.dma_buf_count = 4;
-    i2s_config.dma_buf_len = 32;
+    i2s_config.dma_buf_len = 96;
     i2s_config.mclk_multiple = I2S_MCLK_MULTIPLE_128;
     i2s_config.use_apll = true;
 
