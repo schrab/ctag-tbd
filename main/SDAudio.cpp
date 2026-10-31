@@ -42,6 +42,8 @@ std::atomic<bool> SDAudio::playing{false};
 std::atomic<bool> SDAudio::recording{false};
 std::atomic<bool> SDAudio::underrun{false};
 bool SDAudio::stopRequested = false;
+std::atomic<uint32_t> SDAudio::route{0};      // Route::MAIN_OUT
+std::atomic<uint32_t> SDAudio::levelPeak{0};
 
 char SDAudio::filePath[64] = {};
 FILE *SDAudio::file = nullptr;
@@ -50,6 +52,7 @@ uint32_t SDAudio::totalFrames = 0;
 uint32_t SDAudio::bytePos = 0;
 bool SDAudio::wavHeaderWritten = false;
 uint32_t SDAudio::recordedBytes = 0;
+long SDAudio::dataStart = 0;
 
 void SDAudio::Init() {
     ring = (float *)heap_caps_malloc(RING_SZ * 2 * sizeof(float), MALLOC_CAP_SPIRAM);
@@ -62,7 +65,19 @@ void SDAudio::Init() {
 }
 
 void SDAudio::StartPlayback(const char *path) {
-    if (playing || recording) return;
+    if (recording) return;
+    if (playing) {
+        // Switch files while playing: ask the current worker to exit and
+        // wait for it to release the shared file/ring state, then respawn.
+        // The worker self-clears `playing` right before deleting itself.
+        stopRequested = true;
+        int waitMs = 100;
+        while (playing && waitMs-- > 0) vTaskDelay(pdMS_TO_TICKS(1));
+        if (playing) {
+            ESP_LOGW(TAG, "Previous playback would not stop; keeping %s", filePath);
+            return;
+        }
+    }
     snprintf(filePath, sizeof(filePath), "%s", path);
     writePos = 0;
     readPos = 0;
@@ -71,7 +86,12 @@ void SDAudio::StartPlayback(const char *path) {
     underrun = false;
     playing = true;
     stopRequested = false;
-    xTaskCreatePinnedToCore(workerTask, "sd_audio", 6144, (void *)0, 5, nullptr, 0);
+    // Priority 1 = same as the link task (link_ep, core 0): FreeRTOS time
+    // slicing keeps heartbeats flowing during continuous SD traffic. At the
+    // old prio 5 the worker starved link_ep while recording and the panel
+    // dropped the link ("DSP link lost" after 1 s of silence). The ~3 s
+    // ring absorbs any SD stalls.
+    xTaskCreatePinnedToCore(workerTask, "sd_audio", 6144, (void *)0, 1, nullptr, 0);
 }
 
 void SDAudio::StartRecording(const char *path) {
@@ -80,10 +100,12 @@ void SDAudio::StartRecording(const char *path) {
     writePos = 0;
     readPos = 0;
     recordedBytes = 0;
+    bytePos = 0;
+    numChannels = 2; // recordings are always 2ch (GetPositionFrames divides by it)
     wavHeaderWritten = false;
     recording = true;
     stopRequested = false;
-    xTaskCreatePinnedToCore(workerTask, "sd_audio", 6144, (void *)1, 5, nullptr, 0);
+    xTaskCreatePinnedToCore(workerTask, "sd_audio", 6144, (void *)1, 1, nullptr, 0);
 }
 
 void SDAudio::Stop() {
@@ -109,11 +131,20 @@ int SDAudio::MixPlayback(float *buf, int nFrames) {
         return 0;
     }
     int toRead = avail < (uint32_t)nFrames ? (int)avail : nFrames;
+    float peak = 0.f;
     for (int i = 0; i < toRead; i++) {
         uint32_t idx = (rp + i) & (RING_SZ - 1);
-        buf[i * 2] += ring[idx * 2];
-        buf[i * 2 + 1] += ring[idx * 2 + 1];
+        float l = ring[idx * 2];
+        float r = ring[idx * 2 + 1];
+        float al = fabsf(l), ar = fabsf(r);
+        if (al > peak) peak = al;
+        if (ar > peak) peak = ar;
+        buf[i * 2] += l;
+        buf[i * 2 + 1] += r;
     }
+    // Tape signal level for the MIX-page meter (0..1000); the 25 Hz link
+    // stream read-and-clears it.
+    levelPeak.store((uint32_t)(peak * 1000.f), std::memory_order_relaxed);
     readPos.store((rp + toRead) & (RING_SZ - 1), std::memory_order_release);
     return toRead;
 }
@@ -138,6 +169,76 @@ int SDAudio::RecordSamples(float *buf, int nFrames) {
 const char* SDAudio::GetFileName() { return filePath; }
 uint32_t SDAudio::GetPositionFrames() { return bytePos / (numChannels * 2); }
 uint32_t SDAudio::GetTotalFrames() { return totalFrames; }
+
+void SDAudio::SetRoute(Route r) {
+    route.store((uint32_t)r, std::memory_order_relaxed);
+    ESP_LOGI(TAG, "Route: %s", r == Route::PLUGIN_IN ? "PLUGIN_IN" : "MAIN_OUT");
+}
+
+SDAudio::Route SDAudio::GetRoute() { return (Route)route.load(std::memory_order_relaxed); }
+
+uint32_t SDAudio::GetLevelPeak() { return levelPeak.exchange(0); }
+
+bool SDAudio::ProbeWav(const char *path, WavInfo *out) {
+    if (!path || !out) return false;
+    memset(out, 0, sizeof(*out));
+    FILE *f = fopen(path, "rb");
+    if (!f) return false;
+    bool ok = false;
+    do {
+        uint8_t tag[12];
+        if (fread(tag, 1, 12, f) != 12 || memcmp(tag, "RIFF", 4) != 0 ||
+            memcmp(tag + 8, "WAVE", 4) != 0) {
+            break;
+        }
+        // Chunk walk: fmt and data can sit behind LIST/bext metadata chunks,
+        // and fmt may be 40 bytes (WAVE_FORMAT_EXTENSIBLE) — recorder/DAW
+        // files routinely fail the canonical 44-byte-header assumption.
+        bool foundData = false, fmtOk = false;
+        uint32_t dataSz = 0;
+        uint8_t chunk[8];
+        while (fread(chunk, 1, 8, f) == 8) {
+            uint32_t chunkSz = *(uint32_t *)(chunk + 4);
+            if (memcmp(chunk, "fmt ", 4) == 0) {
+                uint8_t fmtBuf[40];
+                size_t toRead = chunkSz < sizeof(fmtBuf) ? chunkSz : sizeof(fmtBuf);
+                if (fread(fmtBuf, 1, toRead, f) != toRead) break;
+                if (chunkSz & 1) fseek(f, 1, SEEK_CUR);
+                out->format = *(uint16_t *)(fmtBuf + 0);
+                out->channels = *(uint16_t *)(fmtBuf + 2);
+                out->sampleRate = *(uint16_t *)(fmtBuf + 4);
+                out->bits = *(uint16_t *)(fmtBuf + 14);
+                fmtOk = true;
+                continue;
+            }
+            if (memcmp(chunk, "data", 4) == 0) {
+                dataSz = chunkSz;
+                out->dataStart = ftell(f);
+                foundData = true;
+                break;
+            }
+            fseek(f, (chunkSz + 1) & ~1u, SEEK_CUR); // skip (+ pad)
+        }
+        if (!foundData || !fmtOk) break;
+        // The renderer reinterprets the stream as int16 frames: accept PCM
+        // (0x01) and WAVE_FORMAT_EXTENSIBLE (0xFFFE), 16-bit, mono/stereo.
+        if (out->bits != 16 || out->channels < 1 || out->channels > 2 ||
+            (out->format != 1 && out->format != 0xFFFE)) {
+            break;
+        }
+        if (dataSz == 0 || dataSz == 0xFFFFFFFFu) {
+            // Streamed/miswritten data size: fall back to the file length.
+            fseek(f, 0, SEEK_END);
+            long fsz = ftell(f);
+            dataSz = (uint32_t)(fsz - out->dataStart);
+        }
+        out->sizeBytes = (uint32_t)fseek(f, 0, SEEK_END) == 0 ? (uint32_t)ftell(f) : 0;
+        out->frames = dataSz / (out->channels * 2);
+        ok = true;
+    } while (false);
+    fclose(f);
+    return ok;
+}
 
 void SDAudio::workerTask(void *param) {
     bool isRecordingMode = (bool)param;
@@ -196,6 +297,8 @@ void SDAudio::workerTask(void *param) {
             }
             fwrite(tmp, sizeof(int16_t), toWrite * 2, file);
             recordedBytes += toWrite * 2 * sizeof(int16_t);
+            // Recording timecode: GetPositionFrames() = bytePos / (2ch*2B).
+            bytePos = recordedBytes;
             readPos.store((rp + toWrite) & (RING_SZ - 1), std::memory_order_release);
         }
 
@@ -219,74 +322,40 @@ void SDAudio::workerTask(void *param) {
             vTaskDelete(nullptr);
             return;
         }
-        uint8_t tag[12];
-        size_t n = fread(tag, 1, 12, file);
-        if (n != 12 || memcmp(tag, "RIFF", 4) != 0 || memcmp(tag + 8, "WAVE", 4) != 0) {
-            ESP_LOGE(TAG, "Not WAV: %s", filePath);
-            fclose(file);
+        fclose(file);
+        file = nullptr;
+        // Header parse via the shared walker (tolerates LIST/bext chunks
+        // and extensible fmt; validates 16-bit mono/stereo PCM).
+        WavInfo wi;
+        if (!ProbeWav(filePath, &wi)) {
+            ESP_LOGE(TAG, "Unsupported or broken WAV: %s", filePath);
             playing = false;
             vTaskDelete(nullptr);
             return;
         }
-        // Chunk walk: fmt and data can sit behind LIST/INFO metadata chunks,
-        // and fmt may be 40 bytes (WAVE_FORMAT_EXTENSIBLE) — recorder/DAW
-        // files routinely fail the canonical 44-byte-header assumption.
-        bool foundData = false;
-        bool fmtOk = false;
-        uint32_t dataSz = 0;
-        uint16_t audioFormat = 0, bitsPerSample = 0;
-        uint8_t chunk[8];
-        while (fread(chunk, 1, 8, file) == 8) {
-            uint32_t chunkSz = *(uint32_t *)(chunk + 4);
-            if (memcmp(chunk, "fmt ", 4) == 0) {
-                uint8_t fmtBuf[40];
-                size_t toRead = chunkSz < sizeof(fmtBuf) ? chunkSz : sizeof(fmtBuf);
-                if (fread(fmtBuf, 1, toRead, file) != toRead) break;
-                if (chunkSz & 1) fseek(file, 1, SEEK_CUR);
-                audioFormat = *(uint16_t *)(fmtBuf + 0);
-                numChannels = *(uint16_t *)(fmtBuf + 2);
-                bitsPerSample = *(uint16_t *)(fmtBuf + 14);
-                fmtOk = true;
-                continue;
-            }
-            if (memcmp(chunk, "data", 4) == 0) {
-                dataSz = chunkSz;
-                foundData = true;
-                break;
-            }
-            fseek(file, (chunkSz + 1) & ~1u, SEEK_CUR); // skip (+ pad)
-        }
-        // The renderer reinterprets the stream as int16 frames: accept PCM
-        // (0x01) and WAVE_FORMAT_EXTENSIBLE (0xFFFE), 16-bit, mono/stereo.
-        if (!foundData || !fmtOk) {
-            ESP_LOGE(TAG, "No data chunk: %s", filePath);
-            fclose(file);
+        numChannels = wi.channels;
+        totalFrames = wi.frames;
+        dataStart = wi.dataStart;
+        bytePos = 0;
+        ESP_LOGI(TAG, "Play: %s, %dch %uHz, %lu frames%s", filePath, numChannels,
+                 wi.sampleRate, (unsigned long)totalFrames,
+                 wi.sampleRate != 44100 ? " (rate mismatch, no resampler)" : "");
+
+        file = fopen(filePath, "rb");
+        if (!file) {
+            ESP_LOGE(TAG, "Can't reopen %s", filePath);
             playing = false;
             vTaskDelete(nullptr);
             return;
         }
-        if (bitsPerSample != 16 || numChannels < 1 || numChannels > 2 ||
-            (audioFormat != 1 && audioFormat != 0xFFFE)) {
-            ESP_LOGE(TAG, "Unsupported WAV: fmt=0x%04x %uch %u-bit: %s",
-                     audioFormat, numChannels, bitsPerSample, filePath);
+        if (fseek(file, dataStart, SEEK_SET) != 0) {
             fclose(file);
+            file = nullptr;
             playing = false;
             vTaskDelete(nullptr);
             return;
         }
         int bytesPerFrame = numChannels * 2;
-        if (dataSz == 0 || dataSz == 0xFFFFFFFFu) {
-            // Streamed/miswritten data size: fall back to the file length.
-            long at = ftell(file);
-            fseek(file, 0, SEEK_END);
-            long fsz = ftell(file);
-            fseek(file, at, SEEK_SET);
-            dataSz = (uint32_t)(fsz - at);
-        }
-        totalFrames = dataSz / bytesPerFrame;
-        bytePos = 0;
-        ESP_LOGI(TAG, "Play: %s, %dch, %lu frames", filePath, numChannels, (unsigned long)totalFrames);
-
         writePos = 0;
         readPos = 0;
 
@@ -299,9 +368,15 @@ void SDAudio::workerTask(void *param) {
                 continue;
             }
             uint32_t toWrite = free > CHUNK_MAX ? CHUNK_MAX : free;
-            int bytesPerFrame = numChannels * 2;
             size_t framesRead = fread(tmp, bytesPerFrame, toWrite, file);
-            if (framesRead == 0) break;
+            if (framesRead == 0) {
+                // End of file: loop until stopped.
+                if (playing && !stopRequested && fseek(file, dataStart, SEEK_SET) == 0) {
+                    bytePos = 0;
+                    continue;
+                }
+                break;
+            }
 
             for (uint32_t i = 0; i < framesRead; i++) {
                 uint32_t idx = (wp + i) & (RING_SZ - 1);

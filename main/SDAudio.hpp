@@ -29,6 +29,22 @@ namespace CTAG::AUDIO {
 
 class SDAudio final {
 public:
+    // Where MixPlayback injects the tape signal: straight onto the main
+    // output (post-plugins, what the codec emits), or into the plugin
+    // input buffer (fbuf == pd.buf) BEFORE the processors run.
+    enum class Route : int { MAIN_OUT = 0, PLUGIN_IN = 1 };
+
+    // WAV header facts (ProbeWav); sizes/lengths as stored in the file.
+    struct WavInfo {
+        uint32_t sizeBytes;   // whole file size on the card
+        uint32_t frames;      // data bytes / bytesPerFrame
+        uint16_t sampleRate;
+        uint16_t channels;
+        uint16_t bits;
+        uint16_t format;      // 1 = PCM, 0xFFFE = WAVE_FORMAT_EXTENSIBLE
+        long dataStart;       // file offset of the first audio frame
+    };
+
     static void Init();
     static void StartPlayback(const char *path);
     static void StartRecording(const char *path);
@@ -36,6 +52,12 @@ public:
     static bool IsPlaying();
     static bool IsRecording();
     static bool IsSDMounted();
+
+    // Tape signal routing (volatile; MAIN_OUT after boot).
+    static void SetRoute(Route r);
+    static Route GetRoute();
+
+    static void SetRoute(int r) { SetRoute((Route)r); }
 
     // Called from audio task (IRAM safe, never blocks):
     // Returns actual frames mixed from SD into buf (stereo interleaved, -1..+1).
@@ -47,6 +69,15 @@ public:
     static const char* GetFileName();
     static uint32_t GetPositionFrames(); // current play/record position
     static uint32_t GetTotalFrames();
+
+    // Tape signal peak (0..1000) of the last mixed block; read-and-clear,
+    // consumed by the 25 Hz link stream for the MIX-page meter.
+    static uint32_t GetLevelPeak();
+
+    // Header parse only (no streaming): chunk walk tolerating LIST/bext
+    // metadata and WAVE_FORMAT_EXTENSIBLE fmt; false if not a playable
+    // 16-bit mono/stereo PCM WAV.
+    static bool ProbeWav(const char *path, WavInfo *out);
 
 private:
     static void workerTask(void *param);
@@ -60,6 +91,8 @@ private:
     static std::atomic<bool> recording;
     static std::atomic<bool> underrun;
     static bool stopRequested; // worker reads this
+    static std::atomic<uint32_t> route;     // Route as int
+    static std::atomic<uint32_t> levelPeak; // 0..1000, read-and-clear
 
     static char filePath[64];
     static FILE *file;
@@ -68,6 +101,7 @@ private:
     static uint32_t bytePos;
     static bool wavHeaderWritten;
     static uint32_t recordedBytes;
+    static long dataStart; // playback: file offset of the first audio frame
 };
 
 }

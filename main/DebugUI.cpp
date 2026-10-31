@@ -29,6 +29,7 @@ respective component folders / files if different from this license.
 #include "SPManager.hpp"
 #include "LinkEndpoint.hpp"
 #include "codec.hpp"
+#include "SDAudio.hpp"
 #include "perf_monitor.hpp"
 
 #include "freertos/FreeRTOS.h"
@@ -43,6 +44,7 @@ respective component folders / files if different from this license.
 #include <cstdio>
 #include <cstring>
 #include <cstdarg>
+#include <unistd.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -454,6 +456,69 @@ namespace CTAG {
                 Writer<StringBuffer> writer(buf);
                 cur.Accept(writer);
                 AUDIO::SoundProcessorManager::SetConfigurationFromJSON(buf.GetString());
+                response = cmdEcho + ",\"ok\":1}";
+                return true;
+            }
+
+            if (s == "/debug/sdInfo") {
+                // Header-only WAV probe for the SD CARD file-info view (and
+                // the bench). Path must stay inside /sd. Refused while the
+                // transport is active: this runs on the link task, and a
+                // fopen concurrent with the record worker's fwrite was the
+                // suspected trigger of an intermittent DSP hang.
+                if (AUDIO::SDAudio::IsPlaying() || AUDIO::SDAudio::IsRecording()) {
+                    response = cmdEcho + ",\"error\":\"transport busy\"}";
+                    return true;
+                }
+                if (!d.HasMember("path") || !d["path"].IsString()) {
+                    response = cmdEcho + ",\"error\":\"missing path\"}";
+                    return true;
+                }
+                const char *path = d["path"].GetString();
+                if (strncmp(path, "/sd/", 4) != 0 || strstr(path, "..") != nullptr) {
+                    response = cmdEcho + ",\"error\":\"bad path\"}";
+                    return true;
+                }
+                AUDIO::SDAudio::WavInfo wi;
+                if (!AUDIO::SDAudio::ProbeWav(path, &wi)) {
+                    response = cmdEcho + ",\"error\":\"not a 16-bit PCM WAV\"}";
+                    return true;
+                }
+                response = cmdEcho +
+                           ",\"size\":" + to_string(wi.sizeBytes) +
+                           ",\"sr\":" + to_string(wi.sampleRate) +
+                           ",\"ch\":" + to_string(wi.channels) +
+                           ",\"bits\":" + to_string(wi.bits) +
+                           ",\"frames\":" + to_string(wi.frames) + "}";
+                return true;
+            }
+
+            if (s == "/debug/sdDelete") {
+                // Remove one file on the card. Refused while the transport is
+                // active (same link-task/SD-concurrency reason as sdInfo) and
+                // while the file is the active playback/recording source.
+                if (AUDIO::SDAudio::IsPlaying() || AUDIO::SDAudio::IsRecording()) {
+                    response = cmdEcho + ",\"error\":\"transport busy\"}";
+                    return true;
+                }
+                if (!d.HasMember("path") || !d["path"].IsString()) {
+                    response = cmdEcho + ",\"error\":\"missing path\"}";
+                    return true;
+                }
+                const char *path = d["path"].GetString();
+                if (strncmp(path, "/sd/", 4) != 0 || strstr(path, "..") != nullptr) {
+                    response = cmdEcho + ",\"error\":\"bad path\"}";
+                    return true;
+                }
+                if ((AUDIO::SDAudio::IsPlaying() || AUDIO::SDAudio::IsRecording()) &&
+                    strcmp(path, AUDIO::SDAudio::GetFileName()) == 0) {
+                    response = cmdEcho + ",\"error\":\"file in use\"}";
+                    return true;
+                }
+                if (unlink(path) != 0) {
+                    response = cmdEcho + ",\"error\":\"unlink failed\"}";
+                    return true;
+                }
                 response = cmdEcho + ",\"ok\":1}";
                 return true;
             }

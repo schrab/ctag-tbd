@@ -593,6 +593,7 @@ namespace CTAG {
                      + to_string(AUDIO::SoundProcessorManager::GetVUPeak(3)) + "]";
                 s += ",\"mb\":" + to_string(MarblesEngine::GetOutputSnapshot());
                 s += ",\"ov\":" + to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0);
+                s += ",\"tl\":" + to_string(AUDIO::SDAudio::GetLevelPeak());
                 s += ",\"sd\":{\"p\":" + to_string(AUDIO::SDAudio::IsPlaying() ? 1 : 0);
                 s += ",\"r\":" + to_string(AUDIO::SDAudio::IsRecording() ? 1 : 0);
                 s += ",\"pos\":" + to_string(AUDIO::SDAudio::GetPositionFrames());
@@ -697,6 +698,11 @@ namespace CTAG {
                         if (entries.size() > kTxScratch - 512) break;
                     }
                     closedir(dir);
+                } else {
+                    // Diagnostic: an opendir failure (or an SD busy with
+                    // recording traffic) shows up on the panel as an empty
+                    // card; leave a trace on the wire.
+                    ESP_LOGW(TAG, "fsList: opendir(%s) failed", path.c_str());
                 }
                 entries += "]";
                 string s = "{\"cmd\":\"";
@@ -850,6 +856,23 @@ namespace CTAG {
                 if (cmdName == kMsgCmdSdStop) {
                     AUDIO::SDAudio::Stop();
                     response = "{\"ok\":1}";
+                    return true;
+                }
+                if (cmdName == "/link/sdRoute") {
+                    // Tape signal routing: 0 = main output, 1 = plugin input.
+                    if (d.HasMember("v") && d["v"].IsInt()) {
+                        int v = d["v"].GetInt();
+                        if (v == 0 || v == 1) {
+                            AUDIO::SDAudio::SetRoute(
+                                v == 1 ? AUDIO::SDAudio::Route::PLUGIN_IN
+                                       : AUDIO::SDAudio::Route::MAIN_OUT);
+                            response = "{\"ok\":1}";
+                        } else {
+                            response = "{\"error\":\"bad v\"}";
+                        }
+                    } else {
+                        response = "{\"error\":\"bad v\"}";
+                    }
                     return true;
                 }
                 // Live codec previews from the MIX/System pages. Deliberately

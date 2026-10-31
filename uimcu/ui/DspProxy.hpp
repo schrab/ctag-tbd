@@ -148,6 +148,24 @@ namespace CTAG {
             static uint32_t SdGetTotalFrames();
             static uint32_t SdGetPositionFrames();
 
+            // Tape signal routing: 0 = main output, 1 = plugin input. Live
+            // and volatile (resets to 0 at DSP boot).
+            static void SetSdRoute(int r);
+            static int GetSdRoute();
+            // Tape signal level 0..1000 from the 25 Hz stream ("tl" key).
+            static uint32_t GetSdLevel();
+
+            // SD CARD file management (round trips over the link).
+            struct SdFileInfo {
+                uint32_t sizeBytes;
+                uint32_t frames;
+                uint16_t sampleRate;
+                uint16_t channels;
+                uint16_t bits;
+            };
+            static bool SdGetFileInfo(const char *path, SdFileInfo *out);
+            static bool SdDelete(const char *path);
+
             // ---- Favorites surface ----
             static std::string GetAllFavorites();
             static int32_t GetActiveFav();

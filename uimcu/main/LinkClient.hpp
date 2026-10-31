@@ -52,9 +52,11 @@ namespace CTAG {
             static bool SendCommand(const std::string &payload);
             // Synchronous SD listing round trip. On success `entries` holds
             // the raw JSON array [["name",isDir],...]. Returns false on
-            // timeout / offline.
+            // timeout / offline. The default timeout is generous: the DSP
+            // serves the scan from the link task while the SD may be busy
+            // with recording traffic.
             static bool RequestFsList(const char *path, std::string &entries,
-                                      int timeoutMs = 400);
+                                      int timeoutMs = 1200);
             // Synchronous /debug round trip for the bench channel: sends
             // `payload` verbatim and completes when DspProxy::OnLinkFrame
             // sees the DSP's /debug reply (LinkClient_NotifyDebug). On

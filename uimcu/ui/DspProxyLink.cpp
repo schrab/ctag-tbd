@@ -97,7 +97,9 @@ namespace CTAG {
             bool cpuOverload = false;
             bool sdPlaying = false, sdRecording = false;
             uint32_t sdPos = 0, sdTot = 0;
+            uint32_t sdLevel = 0;
             bool sdMounted = false;
+            int sdRoute = 0; // 0 = main out, 1 = plugin input (last set)
             int32_t activeFav = -1;
 
             // Mirrors the A1S pushMarbles key table (LinkEndpoint.cpp).
@@ -491,6 +493,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 }
                 if (d.HasMember("mb") && d["mb"].IsUint()) snapshot = d["mb"].GetUint();
                 if (d.HasMember("ov") && d["ov"].IsInt()) cpuOverload = d["ov"].GetInt() != 0;
+                if (d.HasMember("tl") && d["tl"].IsUint()) sdLevel = d["tl"].GetUint();
                 if (d.HasMember("sd") && d["sd"].IsObject()) {
                     const Value &s = d["sd"];
                     if (s.HasMember("p") && s["p"].IsInt()) sdPlaying = s["p"].GetInt() != 0;
@@ -733,6 +736,53 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         uint32_t DspProxy::SdGetTotalFrames() { return sdTot; }
 
         uint32_t DspProxy::SdGetPositionFrames() { return sdPos; }
+
+        void DspProxy::SetSdRoute(int r) {
+            if (r != 0 && r != 1) return;
+            sdRoute = r;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/sdRoute\",\"v\":%d}", r);
+            sendCmd(buf);
+        }
+
+        int DspProxy::GetSdRoute() { return sdRoute; }
+
+        uint32_t DspProxy::GetSdLevel() { return sdLevel; }
+
+        // The /debug/ round trips (LinkClient::RequestDebug) complete on the
+        // DSP's cmd-echoed reply; the sdInfo/sdDelete handlers live in the
+        // DSP's shared /debug dispatcher (DebugUI::handleCommand).
+        bool DspProxy::SdGetFileInfo(const char *path, SdFileInfo *out) {
+            if (!path || !out) return false;
+            memset(out, 0, sizeof(*out));
+            char buf[160];
+            snprintf(buf, sizeof(buf),
+                     "{\"cmd\":\"/debug/sdInfo\",\"path\":\"%s\"}", path);
+            string reply;
+            if (!LinkClient::RequestDebug(buf, reply)) return false;
+            Document d;
+            d.Parse(reply.c_str());
+            if (d.HasParseError() || !d.IsObject() || d.HasMember("error")) return false;
+            if (!d.HasMember("size") || !d["size"].IsUint()) return false;
+            out->sizeBytes = d["size"].GetUint();
+            if (d.HasMember("frames") && d["frames"].IsUint()) out->frames = d["frames"].GetUint();
+            if (d.HasMember("sr") && d["sr"].IsUint()) out->sampleRate = (uint16_t) d["sr"].GetUint();
+            if (d.HasMember("ch") && d["ch"].IsUint()) out->channels = (uint16_t) d["ch"].GetUint();
+            if (d.HasMember("bits") && d["bits"].IsUint()) out->bits = (uint16_t) d["bits"].GetUint();
+            return true;
+        }
+
+        bool DspProxy::SdDelete(const char *path) {
+            if (!path) return false;
+            char buf[160];
+            snprintf(buf, sizeof(buf),
+                     "{\"cmd\":\"/debug/sdDelete\",\"path\":\"%s\"}", path);
+            string reply;
+            if (!LinkClient::RequestDebug(buf, reply)) return false;
+            Document d;
+            d.Parse(reply.c_str());
+            return !d.HasParseError() && d.IsObject() && !d.HasMember("error");
+        }
 
         std::string DspProxy::GetAllFavorites() { return cacheFavorites; }
 

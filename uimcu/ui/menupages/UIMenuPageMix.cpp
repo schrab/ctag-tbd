@@ -38,14 +38,17 @@ using namespace rapidjson;
 
 namespace CTAG {
     namespace CTRL {
-        // Strip order: input gain, input source, output L, output R. The level
-        // strips preview the codec directly on every turn so the faders feel
-        // live; the source switch is deferred because re-routing the codec
-        // mid-edit pops. The IN strip meters the stereo input pair; each
-        // output strip meters only its own channel.
+        // Strip order: input gain, input source, TAPE, output L, output R.
+        // The level strips preview the codec directly on every turn so the
+        // faders feel live; the source switch is deferred because re-routing
+        // the codec mid-edit pops. The IN strip meters the stereo input
+        // pair; each output strip meters only its own channel. The TAP
+        // strip is not a config fader: it meters the tape signal (from the
+        // stream's "tl" key) and its value line is the routing.
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
                 {"IN",  "input_gain",      0, 8,                        false, nullptr,               METER_IN,    2},
                 {"SRC", "input_source",    0, InputSource::COUNT - 1,  true,  InputSource::OPTIONS,  METER_NONE,  0},
+                {"TAPE", "",               0, 1,                        false, nullptr,               METER_NONE,  0},
                 {"O L", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_L, 1},
                 {"O R", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, nullptr,            METER_OUT_R, 1},
         };
@@ -73,6 +76,8 @@ namespace CTAG {
                 hold[i][0] = 0;
                 hold[i][1] = 0;
             }
+            tapeMeter = 0;
+            tapeHold = 0;
             parseConfig();
         }
 
@@ -99,6 +104,7 @@ namespace CTAG {
 
             for (int i = 0; i < STRIPS; i++) {
                 const Strip &st = STRIP_TABLE[i];
+                if (i == TAP_STRIP) continue; // not a config strip
                 if (!doc.HasMember(st.id) || !doc[st.id].IsString()) continue;
                 const char *s = doc[st.id].GetString();
 
@@ -171,6 +177,7 @@ namespace CTAG {
 
             for (int i = 0; i < STRIPS; i++) {
                 const Strip &st = STRIP_TABLE[i];
+                if (i == TAP_STRIP) continue; // not a config strip
                 if (st.deferred && !includeDeferred) continue;
 
                 char valStr[16];
@@ -216,9 +223,25 @@ namespace CTAG {
             }
         }
 
+        // Tape level uses the same hold/decay smoothing as the VU strips,
+        // sourced from the stream's tape peak ("tl" key).
+        void UIMenuPageMix::refreshTapeMeter() {
+            int raw = (int)DspProxy::GetSdLevel();
+            if (raw > 1000) raw = 1000;
+            if (raw > tapeMeter) {
+                tapeMeter = raw;
+                tapeHold = VU_HOLD_TICKS;
+            } else if (tapeHold > 0) {
+                tapeHold--;
+            } else {
+                tapeMeter -= VU_DECAY_PER_TICK;
+                if (tapeMeter < 0) tapeMeter = 0;
+            }
+        }
+
         void UIMenuPageMix::drawFader(int i) {
             const Strip &st = STRIP_TABLE[i];
-            int x = STRIP_X0 + i * STRIP_W + 3;
+            int x = STRIP_X0 + i * STRIP_W + 2;
             // track
             Display::DrawRect(x, FADER_Y, FADER_W, FADER_H, false, true);
             // value height, min 1px so a zero setting still shows the cap
@@ -232,7 +255,7 @@ namespace CTAG {
 
         void UIMenuPageMix::drawMeters(int i) {
             if (STRIP_TABLE[i].meter == METER_NONE) return;
-            int bx = STRIP_X0 + i * STRIP_W + 13;
+            int bx = STRIP_X0 + i * STRIP_W + 11;
             for (int ch = 0; ch < STRIP_TABLE[i].meterN; ch++) {
                 float lvl = (float)meter[i][ch] / 1000.0f;
                 Display::DrawVUMeterV(bx + ch * (VU_W + 2), FADER_Y, VU_W, VU_H, lvl);
@@ -244,7 +267,7 @@ namespace CTAG {
         // (mic = bottom, line = top). The value text below names it.
         void UIMenuPageMix::drawSwitch(int i) {
             const Strip &st = STRIP_TABLE[i];
-            int x = STRIP_X0 + i * STRIP_W + 3;
+            int x = STRIP_X0 + i * STRIP_W + 2;
             int nSeg = st.max - st.min + 1;
             if (nSeg < 2) nSeg = 2;
             Display::DrawRect(x, FADER_Y, FADER_W, FADER_H, false, true);
@@ -265,6 +288,24 @@ namespace CTAG {
             Display::DrawString(x, LABEL_Y, st.label, FONT_UI);
             // No frame around the label: the fader already carries the
             // whole-strip selection highlight.
+
+            if (i == TAP_STRIP) {
+                // Tape strip: a vertical meter fed by the stream's tape
+                // level (same smoothing as the VU strips), the routing as
+                // its value line, and the label inverted while a recording
+                // is running. The selection highlight frames the meter with
+                // the same footprint the faders use.
+                if (DspProxy::SdIsRecording()) {
+                    Display::InvertRect(x, LABEL_Y - 1, STRIP_W - 1, 9);
+                }
+                Display::DrawVUMeterV(x + 8, FADER_Y, VU_W + 2, VU_H,
+                                      (float)tapeMeter / 1000.0f);
+                char val[8];
+                snprintf(val, sizeof(val), "%s", DspProxy::GetSdRoute() == 1 ? "IN" : "OUT");
+                Display::DrawString(x, VALUE_Y, val, FONT_UI);
+                if (i == cursor) Display::InvertRect(x + 7, FADER_Y - 1, (VU_W + 2) + 2, FADER_H + 2);
+                return;
+            }
 
             if (st.enumOpts) drawSwitch(i); else drawFader(i);
             drawMeters(i);
@@ -290,7 +331,17 @@ namespace CTAG {
             int before[STRIPS][2];
             memcpy(before, meter, sizeof(meter));
             refreshMeters();
-            if (memcmp(before, meter, sizeof(meter)) != 0) {
+            refreshTapeMeter();
+            static int lastDrawnTapeMeter = -1;
+            static bool lastDrawnRec = false;
+            static int lastDrawnRoute = -1;
+            bool tapeChanged = tapeMeter != lastDrawnTapeMeter ||
+                               DspProxy::SdIsRecording() != lastDrawnRec ||
+                               DspProxy::GetSdRoute() != lastDrawnRoute;
+            lastDrawnTapeMeter = tapeMeter;
+            lastDrawnRec = DspProxy::SdIsRecording();
+            lastDrawnRoute = DspProxy::GetSdRoute();
+            if (memcmp(before, meter, sizeof(meter)) != 0 || tapeChanged) {
                 doRedraw();
             }
         }
@@ -311,9 +362,17 @@ namespace CTAG {
 
         // Right encoder: live edit of the strip under the cursor (no edit
         // mode, no confirm — deinit() commits a staged edit when the page is
-        // left, OK commits earlier on request).
+        // left, OK commits earlier on request). On the TAP strip, any turn
+        // toggles the tape routing live; on the SRC strip it does nothing —
+        // the source switches on OK so the value encoder stays levels-only.
         void UIMenuPageMix::onValueEncoder(int delta) {
             if (delta == 0) return;
+            if (cursor == TAP_STRIP) {
+                DspProxy::SetSdRoute(DspProxy::GetSdRoute() == 1 ? 0 : 1);
+                doRedraw();
+                return;
+            }
+            if (cursor == SRC_STRIP) return;
             const Strip &st = STRIP_TABLE[cursor];
 
             // Momentum on consecutive same-direction turns, matching the
@@ -351,9 +410,20 @@ namespace CTAG {
         }
 
         void UIMenuPageMix::onButton(int btnId, bool longPress) {
-            if (btnId == 2 && !longPress && dirty) {
-                applyCurrent(true);
-                dirty = false;
+            if (btnId == 2 && !longPress) {
+                if (cursor == SRC_STRIP) {
+                    // Source switches on OK: advance the enum and commit
+                    // immediately — re-routing the codec pops, so it must
+                    // happen exactly on the user's press, not staged.
+                    value[SRC_STRIP] = value[SRC_STRIP] + 1 > STRIP_TABLE[SRC_STRIP].max
+                                           ? STRIP_TABLE[SRC_STRIP].min
+                                           : value[SRC_STRIP] + 1;
+                    applyCurrent(true);
+                    dirty = false;
+                } else if (dirty) {
+                    applyCurrent(true);
+                    dirty = false;
+                }
             }
             doRedraw();
         }

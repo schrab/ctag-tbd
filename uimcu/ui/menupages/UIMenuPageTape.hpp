@@ -46,6 +46,13 @@ namespace CTAG {
             int fileCount;
             static const int MAX_FILES = 32;
             char fileNames[MAX_FILES][32];
+            bool isDir[MAX_FILES];
+            char sdPath[64];      // current browse dir ("/sd" at root)
+
+            // Next recording name (tape_NNN.wav), computed on entering
+            // SP_RECORD by scanning /sd for taken numbers.
+            char recName[32];
+            bool recNameOk;
 
             // Live transport state as last drawn in MAIN (playing flag,
             // recording flag, elapsed seconds) so onTick repaints only on a
@@ -55,6 +62,8 @@ namespace CTAG {
             uint32_t lastDrawnSecond = 0;
 
             void scanFiles();
+            void goUpDir();
+            void computeRecName();
             void redrawMain();
             void redrawFileList();
             void redrawRecord();

@@ -119,6 +119,7 @@ namespace CTAG {
             bool metering = false;
             bool sdPlaying = false, sdRecording = false;
             uint32_t sdTotalFrames = 0, sdPosFrames = 0;
+            int sdRoute = 0;
 
             struct MarblesState {
                 int tModel = 0, tRange = 1, xyClockSource = 0;
@@ -270,6 +271,28 @@ namespace CTAG {
             }
             return sdPosFrames;
         }
+
+        void DspProxy::SetSdRoute(int r) { sdRoute = r; }
+
+        int DspProxy::GetSdRoute() { return sdRoute; }
+
+        uint32_t DspProxy::GetSdLevel() {
+            // Fake tape level so the MIX-page row moves during bring-up.
+            return (sdPlaying || sdRecording) ? 400u : 0u;
+        }
+
+        bool DspProxy::SdGetFileInfo(const char *path, SdFileInfo *out) {
+            (void)path;
+            if (!out) return false;
+            out->sizeBytes = 563036;
+            out->frames = 140759;
+            out->sampleRate = 48000;
+            out->channels = 2;
+            out->bits = 16;
+            return true;
+        }
+
+        bool DspProxy::SdDelete(const char *) { return true; }
 
         std::string DspProxy::GetAllFavorites() { return kFavoritesJson; }
 

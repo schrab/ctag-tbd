@@ -231,6 +231,13 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             }
         }
 
+        // Tape routed to the plugin input: mix into fbuf (== pd.buf) BEFORE
+        // the processors run so plugins hear the tape. MAIN_OUT routing
+        // mixes after the render instead (see below, pre-WriteBuffer).
+        if (AUDIO::SDAudio::GetRoute() == AUDIO::SDAudio::Route::PLUGIN_IN) {
+            AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
+        }
+
         // sound processors
         if (xSemaphoreTake(processMutex, 0) == pdTRUE) {
             // apply sound processors
@@ -347,8 +354,11 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             audioRingSeq.fetch_add(1, std::memory_order_relaxed);
         }
 
-        // SD audio: mix playback into output
-        CTAG::AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
+        // SD audio: mix playback into output (MAIN_OUT route; PLUGIN_IN was
+        // already mixed pre-plugin above)
+        if (CTAG::AUDIO::SDAudio::GetRoute() == CTAG::AUDIO::SDAudio::Route::MAIN_OUT) {
+            CTAG::AUDIO::SDAudio::MixPlayback(fbuf, BUF_SZ);
+        }
         // SD audio: capture output for recording
         CTAG::AUDIO::SDAudio::RecordSamples(fbuf, BUF_SZ);
 

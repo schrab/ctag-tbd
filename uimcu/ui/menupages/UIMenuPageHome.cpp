@@ -131,6 +131,10 @@ namespace CTAG {
                 if (cursor - scrollOffset >= VISIBLE_LINES) scrollOffset = cursor - (VISIBLE_LINES - 1);
                 if (scrollOffset > sdFileCount - VISIBLE_LINES) scrollOffset = sdFileCount - VISIBLE_LINES;
                 if (scrollOffset < 0) scrollOffset = 0;
+            } else if (subPage == SP_SD_INFO) {
+                cursor += delta;
+                if (cursor < 0) cursor = 0;
+                if (cursor > 1) cursor = 1; // DELETE / CANCEL
             } else if (subPage == SP_FAVORITES) {
                 cursor += delta;
                 if (cursor < 0) cursor = 0;
@@ -248,7 +252,28 @@ namespace CTAG {
                             cursor = 0;
                             scrollOffset = 0;
                         }
+                    } else if (cursor >= 0 && cursor < sdFileCount && !sdIsDir[cursor]) {
+                        // File: open the info/delete view.
+                        snprintf(sdInfoPath, sizeof(sdInfoPath), "%s/%s",
+                                 sdCurrentPath, sdEntries[cursor]);
+                        sdInfoOk = DspProxy::SdGetFileInfo(sdInfoPath, &sdInfo);
+                        subPage = SP_SD_INFO;
+                        cursor = 0;
                     }
+                }
+            } else if (subPage == SP_SD_INFO) {
+                if (btnId == 2 && !longPress) {
+                    if (cursor == 0 && sdInfoOk) {
+                        if (DspProxy::SdDelete(sdInfoPath)) {
+                            scanSdFiles();
+                            subPage = SP_SD_CARD;
+                        }
+                        // Failed delete stays on the info view (file busy /
+                        // unlink error); the user can CANCEL out.
+                    } else {
+                        subPage = SP_SD_CARD;
+                    }
+                    cursor = 0;
                 }
             }
             doRedraw();
@@ -291,6 +316,12 @@ namespace CTAG {
                 doRedraw();
                 return true;
             }
+            if (subPage == SP_SD_INFO) {
+                subPage = SP_SD_CARD;
+                cursor = 0;
+                doRedraw();
+                return true;
+            }
             if (subPage == SP_SD_CARD) {
                 if (strcmp(sdCurrentPath, "/sd") != 0) {
                     goUpSdDir();
@@ -319,6 +350,8 @@ namespace CTAG {
                 redrawFavorites();
             } else if (subPage == SP_SD_CARD) {
                 redrawSdCard();
+            } else if (subPage == SP_SD_INFO) {
+                redrawSdInfo();
             }
         }
 
@@ -397,10 +430,16 @@ namespace CTAG {
             }
 
             // Directory contents come over the link (SD proxy, SDD §4.2);
-            // entries have no "." or "..".
-            sdFileCount += DspProxy::ListSdDir(sdCurrentPath, sdEntries + sdFileCount,
-                                               sdIsDir + sdFileCount,
-                                               MAX_SD_FILES - sdFileCount);
+            // entries have no "." or "..". The Windows metadata folder and
+            // dot entries are hidden — pure noise on a musical instrument.
+            int n = DspProxy::ListSdDir(sdCurrentPath, sdEntries + sdFileCount,
+                                        sdIsDir + sdFileCount,
+                                        MAX_SD_FILES - sdFileCount);
+            for (int i = 0; i < n; i++) {
+                const char *name = sdEntries[sdFileCount];
+                if (strcasecmp(name, "System Volume Information") == 0 || name[0] == '.') continue;
+                sdFileCount++;
+            }
         }
 
         void UIMenuPageHome::goUpSdDir() {
@@ -436,6 +475,48 @@ namespace CTAG {
             Display::InvertRect(0, cy - 1, 128, 8);
             if (sdFileCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, sdFileCount, cursor);
+            Display::Flush();
+        }
+
+        void UIMenuPageHome::redrawSdInfo() {
+            Display::Clear();
+            // File name: the path's basename, clipped to the display width.
+            const char *base = strrchr(sdInfoPath, '/');
+            base = base ? base + 1 : sdInfoPath;
+            Display::DrawString(0, ROW(0), base, FONT_UI);
+            char buf[24];
+            if (sdInfoOk) {
+                if (sdInfo.sampleRate > 0) {
+                    uint32_t sec = sdInfo.frames / sdInfo.sampleRate;
+                    snprintf(buf, sizeof(buf), "%02u:%02u", (unsigned)(sec / 60), (unsigned)(sec % 60));
+                } else {
+                    snprintf(buf, sizeof(buf), "--:--");
+                }
+                Display::DrawString(0, ROW(1), buf, FONT_UI);
+                // Size: KB under 1 MB, MB from there.
+                uint32_t size = sdInfo.sizeBytes;
+                if (size >= 1024u * 1024u) {
+                    snprintf(buf, sizeof(buf), "%lu.%lu MB", (unsigned long)(size / (1024u * 1024u)),
+                             (unsigned long)((size % (1024u * 1024u)) * 10u / (1024u * 1024u)));
+                } else {
+                    snprintf(buf, sizeof(buf), "%lu KB", (unsigned long)(size / 1024u));
+                }
+                Display::DrawString(0, ROW(2), buf, FONT_UI);
+                snprintf(buf, sizeof(buf), "%luk %2uch %2ub", (unsigned long)sdInfo.sampleRate / 1000u,
+                         sdInfo.channels, sdInfo.bits);
+                Display::DrawString(0, ROW(3), buf, FONT_UI);
+            } else {
+                // The DSP refuses the info round trip while the transport is
+                // active (SD/file concurrency) — say so instead of blaming
+                // the file.
+                if (DspProxy::SdIsPlaying() || DspProxy::SdIsRecording())
+                    Display::DrawString(0, ROW(1), "TAPE BUSY", FONT_UI);
+                else
+                    Display::DrawString(0, ROW(1), "NOT A WAV", FONT_UI);
+            }
+            Display::DrawString(0, ROW(5), "DELETE", FONT_UI);
+            Display::DrawString(0, ROW(6), "CANCEL", FONT_UI);
+            Display::InvertRect(0, ROW(5 + cursor) - 1, 128, 8);
             Display::Flush();
         }
 

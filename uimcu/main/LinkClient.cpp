@@ -261,8 +261,11 @@ namespace CTAG {
 
             if (xSemaphoreTake(fsDone, pdMS_TO_TICKS(timeoutMs)) != pdTRUE) {
                 fsWaiting = false;
+                ESP_LOGW(TAG, "fsList TIMEOUT (%u ms) seq=%u", timeoutMs,
+                         (unsigned)fsWaitingSeq);
                 return false;
             }
+            ESP_LOGI(TAG, "fsList ok: %u B", (unsigned)fsResult.size());
             entries = fsResult;
             return true;
         }

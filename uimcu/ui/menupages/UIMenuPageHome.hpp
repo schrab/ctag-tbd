@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include "UIMenuPage.hpp"
+#include "DspProxy.hpp"
 
 namespace CTAG {
     namespace CTRL {
@@ -53,7 +54,7 @@ namespace CTAG {
                 char name[24];
             };
 
-            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_MIDI, SP_FAVORITES, SP_SD_CARD };
+            enum SubPage { SP_MAIN, SP_SELECT, SP_SELECT_CH, SP_SYSTEM, SP_MIDI, SP_FAVORITES, SP_SD_CARD, SP_SD_INFO };
 
             SubPage subPage;
             int cursor;
@@ -72,6 +73,12 @@ namespace CTAG {
             bool sdIsDir[MAX_SD_FILES];
             int sdFileCount;
             char sdCurrentPath[64];
+
+            // SP_SD_INFO: the file whose info is shown (path inside /sd),
+            // its probe result, and whether the delete row was confirmed.
+            char sdInfoPath[96];
+            DspProxy::SdFileInfo sdInfo;
+            bool sdInfoOk;
 
             int selChan;
             int selectedPlugin; // index of plugin being channel-assigned
@@ -94,6 +101,7 @@ namespace CTAG {
             void scanSdFiles();
             void goUpSdDir();
             void redrawSdCard();
+            void redrawSdInfo();
         };
     }
 }
