@@ -26,7 +26,6 @@ respective component folders / files if different from this license.
 #include "menupages/UIMenuPageHome.hpp"
 #include "menupages/UIMenuPageMix.hpp"
 #include "menupages/UIMenuPageParams.hpp"
-#include "menupages/UIMenuPageMidi.hpp"
 #include "menupages/UIMenuPageTape.hpp"
 #include "menupages/UIMenuPageMod.hpp"
 #include "freertos/FreeRTOS.h"
@@ -39,7 +38,7 @@ using namespace CTAG::DRIVERS;
 namespace CTAG {
     namespace CTRL {
         UIMenu::Panel UIMenu::currentPanel = UIMenu::PANEL_HOME;
-        UIMenuPage *UIMenu::pages[6] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+        UIMenuPage *UIMenu::pages[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
         UIMenu::NavState UIMenu::navState = UIMenu::ROOT;
         bool UIMenu::redrawNeeded = true;
         int UIMenu::screensaverTimer = 0;
@@ -65,7 +64,6 @@ namespace CTAG {
             pages[PANEL_TAPE] = new UIMenuPageTape();
             pages[PANEL_MOD] = new UIMenuPageMod();
             pages[PANEL_PARAMS] = new UIMenuPageParams();
-            pages[PANEL_MIDI] = new UIMenuPageMidi();
             ESP_LOGI(TAG, "Init: calling init on pages...");
             for (int i = 0; i < PANEL_COUNT; i++) pages[i]->init();
             navState = ROOT;
@@ -182,6 +180,13 @@ namespace CTAG {
                     redrawNeeded = true;
                 }
 
+                // Configured OLED brightness (from the DSP config push):
+                // applied HERE, on the display task — the bit-banged panel
+                // SPI has no cross-task lock. Also fires after a System
+                // page commit pushes a new config back.
+                int contrast = DspProxy::TakePendingOledContrast();
+                if (contrast >= 0) Display::Contrast(contrast);
+
                 // Plugin-load overlay: while a load is in flight show the
                 // boot-style loading bar INSTEAD of page content — the
                 // previous plugin's params must never flash on screen
@@ -221,8 +226,14 @@ namespace CTAG {
                                 if (steps > 1) steps /= 2;
                                 if (steps < -1) steps /= 2;
                                 if (steps == 0) steps = (ev.delta > 0) ? 1 : -1;
+                                // Finite scroll: clamp at the ends instead of
+                                // wrapping — scrolling left on MIX stays on
+                                // MIX, right on the last panel stays there.
                                 int prev = currentPanel;
-                                currentPanel = (Panel)((currentPanel + steps + PANEL_COUNT) % PANEL_COUNT);
+                                int target = (int)currentPanel + steps;
+                                if (target < 0) target = 0;
+                                if (target > PANEL_COUNT - 1) target = PANEL_COUNT - 1;
+                                currentPanel = (Panel)target;
                                 if (currentPanel != prev) {
                                     pages[prev]->deinit();
                                     pages[currentPanel]->init();
