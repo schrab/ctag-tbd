@@ -46,7 +46,12 @@ namespace CTAG {
             // be tens of KB) while the task drains continuously.
             constexpr size_t kRxRing = 16384;
             constexpr size_t kTxRing = 8192;
-            constexpr uint32_t kOfflineAfterMs = 10000;
+            // 1 s of silence = link down. The DSP streams at 25 Hz (40 ms
+            // period), so one missed second is ~25 lost frames — real
+            // quiet, not a hiccup. The short window is what makes the
+            // "DSP link lost" modal appear during A1S reboots/flashes
+            // instead of only after 10 s.
+            constexpr uint32_t kOfflineAfterMs = 1000;
             constexpr uint32_t kHelloPeriodMs = 1000;
             constexpr uint32_t kHeartbeatPeriodMs = 1000;
 
