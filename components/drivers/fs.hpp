@@ -31,6 +31,16 @@ namespace CTAG {
             static void InitFS();
             static bool InitSD();
             static bool IsSDMounted();
+            // Hot-swap support (SD CARD menu unmount/remount):
+            // Configure the card-detect input (GPIO34). Call once from InitFS.
+            static void InitCD();
+            // True when a card is physically in the slot (CD pin).
+            static bool IsSDPresent();
+            // Unmount the card (safe removal). Fails if nothing is mounted.
+            static bool UnmountSD();
+            // Mount the card without a reboot (re-runs the SDMMC host init
+            // and FAT mount). Fails when no card is present.
+            static bool MountSD();
         };
     }
 }

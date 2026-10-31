@@ -99,6 +99,7 @@ namespace CTAG {
             uint32_t sdPos = 0, sdTot = 0;
             uint32_t sdLevel = 0;
             bool sdMounted = false;
+            bool sdCardPresent = false;
             int sdRoute = 0; // 0 = main out, 1 = plugin input (last set)
             int sdGain = 100;
             int32_t activeFav = -1;
@@ -485,6 +486,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 parsePushMarbles(d);
             } else if (strcmp(cmd, kMsgPushIoCaps) == 0) {
                 if (d.HasMember("sd") && d["sd"].IsInt()) sdMounted = d["sd"].GetInt() != 0;
+                if (d.HasMember("cd") && d["cd"].IsInt()) sdCardPresent = d["cd"].GetInt() != 0;
             } else if (strcmp(cmd, kMsgStream) == 0) {
                 if (d.HasMember("vu") && d["vu"].IsArray()) {
                     const Value &a = d["vu"];
@@ -808,6 +810,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         bool DspProxy::IsSDMounted() { return sdMounted; }
+
+        bool DspProxy::IsSDPresent() { return sdCardPresent; }
+
+        void DspProxy::SdUnmount() { sendCmd("{\"cmd\":\"/link/sdUnmount\"}"); }
+
+        void DspProxy::SdMount() { sendCmd("{\"cmd\":\"/link/sdMount\"}"); }
 
         int DspProxy::ListSdDir(const char *path, char names[][32], bool *isDir, int max) {
             string entries;

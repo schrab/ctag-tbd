@@ -361,6 +361,7 @@ namespace CTAG {
                 string s = "{\"cmd\":\"";
                 s += kMsgPushIoCaps;
                 s += "\",\"sd\":" + to_string(FileSystem::IsSDMounted() ? 1 : 0);
+                s += ",\"cd\":" + to_string(FileSystem::IsSDPresent() ? 1 : 0);
                 s += "}";
                 sendStr(s);
             }
@@ -882,6 +883,31 @@ namespace CTAG {
                         response = "{\"ok\":1}";
                     } else {
                         response = "{\"error\":\"bad v\"}";
+                    }
+                    return true;
+                }
+                if (cmdName == "/link/sdUnmount") {
+                    // Safe removal from the SD CARD menu. Refused while the
+                    // transport holds the card open.
+                    if (AUDIO::SDAudio::IsPlaying() || AUDIO::SDAudio::IsRecording()) {
+                        response = "{\"error\":\"transport busy\"}";
+                    } else if (DRIVERS::FileSystem::UnmountSD()) {
+                        pushIoCaps();
+                        response = "{\"ok\":1}";
+                    } else {
+                        response = "{\"error\":\"unmount failed\"}";
+                    }
+                    return true;
+                }
+                if (cmdName == "/link/sdMount") {
+                    // Remount without a reboot (card swap / after unmount).
+                    if (DRIVERS::FileSystem::IsSDMounted()) {
+                        response = "{\"ok\":1}";
+                    } else if (DRIVERS::FileSystem::MountSD()) {
+                        pushIoCaps();
+                        response = "{\"ok\":1}";
+                    } else {
+                        response = "{\"error\":\"no card\"}";
                     }
                     return true;
                 }

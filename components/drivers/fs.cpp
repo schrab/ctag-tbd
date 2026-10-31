@@ -29,13 +29,29 @@ respective component folders / files if different from this license.
 #include "fs.hpp"
 #include "sdmmc_cmd.h"
 #include "driver/sdmmc_host.h"
+#include "driver/gpio.h"
 
 using namespace CTAG::DRIVERS;
 
 static sdmmc_card_t* sdcard = nullptr;
 
+// Card-detect: GPIO34, input-only (no internal pull — the socket provides
+// it). Active-low: the detect switch closes to GND with a card inserted.
+// Verify on the bench via the io-caps push ("cd" field) after flashing.
+static constexpr bool SD_CD_ACTIVE_LOW = true;
+
 void FileSystem::InitFS() {
     ESP_LOGI("fs", "Initializing LITTLEFS");
+
+    // Card-detect input: GPIO34 is input-only and resets as an input, but
+    // configure it explicitly so gpio_get_level is well-defined.
+    gpio_config_t cd = {};
+    cd.pin_bit_mask = 1ULL << GPIO_NUM_34;
+    cd.mode = GPIO_MODE_INPUT;
+    cd.pull_up_en = GPIO_PULLUP_DISABLE; // 34-39 have no internal pulls
+    cd.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    cd.intr_type = GPIO_INTR_DISABLE;
+    gpio_config(&cd);
 
     esp_vfs_littlefs_conf_t conf = {};
     conf.base_path = "/spiffs";
@@ -97,4 +113,37 @@ bool FileSystem::InitSD() {
 
 bool FileSystem::IsSDMounted() {
     return sdcard != nullptr;
+}
+
+void FileSystem::InitCD() {
+    // Kept as a no-op hook: the CD input is configured in InitFS before any
+    // consumer can poll it.
+}
+
+bool FileSystem::IsSDPresent() {
+    int lvl = gpio_get_level(GPIO_NUM_34);
+    return SD_CD_ACTIVE_LOW ? lvl == 0 : lvl != 0;
+}
+
+bool FileSystem::UnmountSD() {
+    if (sdcard == nullptr) return true;
+    // esp_vfs_fat_sdcard_unmount also deinitials the SDMMC host; MountSD
+    // re-runs the full init sequence.
+    esp_err_t err = esp_vfs_fat_sdcard_unmount("/sd", sdcard);
+    sdcard = nullptr;
+    if (err != ESP_OK) {
+        ESP_LOGE("fs", "SD unmount failed: %s", esp_err_to_name(err));
+        return false;
+    }
+    ESP_LOGI("fs", "SD card unmounted");
+    return true;
+}
+
+bool FileSystem::MountSD() {
+    if (sdcard != nullptr) return true; // already mounted
+    if (!IsSDPresent()) {
+        ESP_LOGW("fs", "Mount requested but no card present (CD pin)");
+        return false;
+    }
+    return InitSD();
 }

@@ -185,6 +185,11 @@ namespace CTAG {
 
             // ---- filesystem proxy (replaces direct /sd opendir) ----
             static bool IsSDMounted();
+            // Card-detect state from the io-caps push (GPIO34 on the DSP).
+            static bool IsSDPresent();
+            // Hot-swap: safe removal / remount without a reboot.
+            static void SdUnmount();
+            static void SdMount();
             // List one directory of the DSP-side SD card. names/isDir are
             // caller arrays of `max` entries; returns the entry count (no
             // "." or ".." entries; the pages add ".." themselves).

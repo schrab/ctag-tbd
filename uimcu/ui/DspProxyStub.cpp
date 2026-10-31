@@ -121,6 +121,7 @@ namespace CTAG {
             uint32_t sdTotalFrames = 0, sdPosFrames = 0;
             int sdRoute = 0;
             int sdGain = 100;
+            bool sdMounted = true;
 
             struct MarblesState {
                 int tModel = 0, tRange = 1, xyClockSource = 0;
@@ -305,7 +306,13 @@ namespace CTAG {
 
         void DspProxy::ActivateFavorite(int id) { activeFav = id; }
 
-        bool DspProxy::IsSDMounted() { return true; }
+        bool DspProxy::IsSDMounted() { return sdMounted; }
+
+        bool DspProxy::IsSDPresent() { return true; }
+
+        void DspProxy::SdUnmount() { sdMounted = false; }
+
+        void DspProxy::SdMount() { sdMounted = true; }
 
         int DspProxy::ListSdDir(const char *path, char names[][32], bool *isDir, int max) {
             const char **src;

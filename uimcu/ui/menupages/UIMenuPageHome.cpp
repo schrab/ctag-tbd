@@ -26,6 +26,8 @@ respective component folders / files if different from this license.
 #include "rapidjson/document.h"
 #include "UIMenuPageSystem.hpp"
 #include "UIMenuPageMidi.hpp"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <cstring>
 #include <cstdio>
 
@@ -242,7 +244,29 @@ namespace CTAG {
                 }
             } else if (subPage == SP_SD_CARD) {
                 if (btnId == 2 && !longPress) {
-                    if (cursor >= 0 && cursor < sdFileCount && sdIsDir[cursor]) {
+                    if (cursor >= 0 && cursor < sdFileCount &&
+                        strcmp(sdEntries[cursor], "*UNMOUNT") == 0) {
+                        // Safe removal; wait briefly for the io-caps push to
+                        // flip the cached mount state before redrawing.
+                        if (!(DspProxy::SdIsPlaying() || DspProxy::SdIsRecording())) {
+                            DspProxy::SdUnmount();
+                            for (int i = 0; i < 15 && DspProxy::IsSDMounted(); i++) {
+                                vTaskDelay(pdMS_TO_TICKS(100));
+                            }
+                        }
+                        scanSdFiles();
+                        cursor = 0;
+                        scrollOffset = 0;
+                    } else if (cursor >= 0 && cursor < sdFileCount &&
+                               strcmp(sdEntries[cursor], "*MOUNT") == 0) {
+                        DspProxy::SdMount();
+                        for (int i = 0; i < 20 && !DspProxy::IsSDMounted(); i++) {
+                            vTaskDelay(pdMS_TO_TICKS(100));
+                        }
+                        scanSdFiles();
+                        cursor = 0;
+                        scrollOffset = 0;
+                    } else if (cursor >= 0 && cursor < sdFileCount && sdIsDir[cursor]) {
                         if (strcmp(sdEntries[cursor], "..") == 0) {
                             goUpSdDir();
                         } else {
@@ -424,7 +448,14 @@ namespace CTAG {
 
         void UIMenuPageHome::scanSdFiles() {
             sdFileCount = 0;
-            if (!DspProxy::IsSDMounted()) return;
+            if (!DspProxy::IsSDMounted()) {
+                // Unmounted: offer remount (the CD pin state shows in the
+                // redraw as UNMOUNTED vs NO CARD).
+                strcpy(sdEntries[0], "*MOUNT");
+                sdIsDir[0] = false;
+                sdFileCount = 1;
+                return;
+            }
 
             bool atRoot = (strcmp(sdCurrentPath, "/sd") == 0);
             if (!atRoot) {
@@ -457,6 +488,12 @@ namespace CTAG {
                 w++;
             }
             sdFileCount = w;
+            // Trailing action row: safe removal from the browser.
+            if (sdFileCount < MAX_SD_FILES) {
+                strcpy(sdEntries[sdFileCount], "*UNMOUNT");
+                sdIsDir[sdFileCount] = false;
+                sdFileCount++;
+            }
         }
 
         void UIMenuPageHome::goUpSdDir() {
@@ -471,7 +508,14 @@ namespace CTAG {
 
         void UIMenuPageHome::redrawSdCard() {
             Display::Clear();
-            if (sdFileCount == 0) {
+            // Unmounted: a status line distinguishes a swapped-out card from
+            // an empty slot (CD pin); the *MOUNT action row renders below it.
+            const int row0 = DspProxy::IsSDMounted() ? 0 : 1;
+            if (!DspProxy::IsSDMounted()) {
+                Display::DrawString(0, ITEM_Y0,
+                                    DspProxy::IsSDPresent() ? "UNMOUNTED" : "NO CARD",
+                                    FONT_UI);
+            } else if (sdFileCount == 0) {
                 Display::DrawString(0, 24, "No card or empty", FONT_UI);
                 Display::Flush();
                 return;
@@ -479,7 +523,7 @@ namespace CTAG {
             int visible = ClampVisible(sdFileCount, scrollOffset, VISIBLE_ITEMS);
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
-                int y = ROW(i);
+                int y = ROW(row0 + i);
                 char buf[64];
                 if (sdIsDir[idx]) {
                     snprintf(buf, sizeof(buf), " [%s]", sdEntries[idx]);
@@ -488,7 +532,7 @@ namespace CTAG {
                 }
                 Display::DrawString(0, y, buf, FONT_UI);
             }
-            int cy = ROW(cursor - scrollOffset);
+            int cy = ROW(row0 + cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
             if (sdFileCount > VISIBLE_ITEMS)
                 Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, sdFileCount, cursor);
