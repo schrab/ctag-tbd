@@ -569,15 +569,22 @@ namespace CTAG {
                 if (idx >= endIdx) break;
                 const ParamInfo &pi = params[idx];
                 int y = ROW(i);
-                Display::DrawString(0, y, pi.name, Display::FONT_5X7);
                 char valBuf[16];
                 if (strcmp(pi.type, "bool") == 0) {
                     strcpy(valBuf, pi.current ? "ON" : "OFF");
-                } else if (strcmp(pi.type, "enum") == 0) {
-                    snprintf(valBuf, sizeof(valBuf), "%d", pi.current);
                 } else {
                     snprintf(valBuf, sizeof(valBuf), "%d", pi.current);
                 }
+                // Clip the name to the pixels left of the value: long spec
+                // names ("(2) Pitch (100 cent per semitone) A") otherwise
+                // overdraw the right-aligned value and the user reads only
+                // a digit fragment of it. FONT_5X7 has a fixed 6px advance.
+                int valW = 6 * (int)strlen(valBuf);
+                int nameChars = (127 - valW - 2) / 6;
+                if (nameChars < 0) nameChars = 0;
+                char nameBuf[sizeof(pi.name)];
+                snprintf(nameBuf, sizeof(nameBuf), "%.*s", nameChars, pi.name);
+                Display::DrawString(0, y, nameBuf, Display::FONT_5X7);
                 Display::DrawStringRight(127, y, valBuf, Display::FONT_5X7);
             }
             int cursorY = ROW(paramIndexToScreen(cursor));
