@@ -263,7 +263,11 @@ namespace CTAG {
                 }
             } else if (subPage == SP_SD_INFO) {
                 if (btnId == 2 && !longPress) {
-                    if (cursor == 0 && sdInfoOk) {
+                    // DELETE works regardless of the info probe result: a
+                    // broken-header file (truncated recording) shows
+                    // "NOT A WAV" but is exactly the one to remove, and the
+                    // DSP-side unlink only needs the path.
+                    if (cursor == 0) {
                         if (DspProxy::SdDelete(sdInfoPath)) {
                             scanSdFiles();
                             subPage = SP_SD_CARD;
