@@ -511,17 +511,30 @@ namespace CTAG {
                 lastPushed.sdMounted = FileSystem::IsSDMounted() ? 1 : 0;
             }
 
-            void pushOnChange() {
+            void pushOnChange(uint32_t now) {
                 uint32_t h;
                 uint32_t gen = CTAG::SP::ctagDataModelBase::GetGeneration();
                 if (gen != lastPushed.modelGen) {
                     lastPushed.modelGen = gen;
                     h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONSoundProcessors()));
                     if (h != lastPushed.pluginList) { lastPushed.pluginList = h; pushPluginList(); }
+                // Defer the params re-push while edits are recent: the
+                // regen + ~5 KB TX burst delays the audio task past its
+                // DMA deadline (audible clicks on every detent), and the
+                // panel already reflects its own edits locally. One full
+                // push fires once edits have been quiet for 3 s.
+                // IMPORTANT: the skip must cover the HASH call too —
+                // GetCStrJSONActivePluginParams() regenerates the whole
+                // params JSON when dirty, which is the expensive half.
+                uint32_t editAgeMs = now - SoundProcessorManager::GetLastParamEditMs();
+                bool editsQuiet = SoundProcessorManager::GetLastParamEditMs() == 0 ||
+                                  editAgeMs > 3000;
+                if (editsQuiet) {
                     h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(0)));
                     if (h != lastPushed.params0) { lastPushed.params0 = h; pushParams(0); }
                     h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONActivePluginParams(1)));
                     if (h != lastPushed.params1) { lastPushed.params1 = h; pushParams(1); }
+                }
                     h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONConfiguration()));
                     if (h != lastPushed.config) { lastPushed.config = h; pushConfig(); }
                     h = hashBytes(GetCStrSafe(SoundProcessorManager::GetCStrJSONGetPresets(0)));
@@ -684,7 +697,64 @@ namespace CTAG {
             }
 
             // Returns true when handled; `response` is sent framed to the panel.
+            // Fast, allocation-free parse for the highest-rate commands:
+            // parameter sets arrive up to ~100/s during fast encoder turns,
+            // and the generic RapidJSON parse below allocates a 4 KB DOM
+            // chunk per frame from the PSRAM-backed shared allocator — that
+            // SPI1 burst delayed the audio task ~1-2 ms per frame and
+            // clicked the output on every fast turn. The frames are flat
+            // and machine-generated (panel snprintf / bench script), so
+            // field extraction needs no allocator; malformed frames fall
+            // through to the generic parser.
+            bool parseParamSetFast(const string &doc, int &ch, char *id,
+                                   size_t idsz, char *key, size_t keysz,
+                                   int &val) {
+                const char *s = doc.c_str();
+                const char *p = strstr(s, "\"ch\":");
+                if (!p) return false;
+                ch = atoi(p + 5);
+                p = strstr(s, "\"id\":\"");
+                if (!p) return false;
+                p += 6;
+                size_t i = 0;
+                while (*p && *p != '"' && i + 1 < idsz) id[i++] = *p++;
+                id[i] = '\0';
+                p = strstr(s, "\"key\":\"");
+                if (!p) return false;
+                p += 7;
+                i = 0;
+                while (*p && *p != '"' && i + 1 < keysz) key[i++] = *p++;
+                key[i] = '\0';
+                p = strstr(s, "\"value\":");
+                if (!p) return false;
+                val = atoi(p + 8);
+                return id[0] != '\0';
+            }
+
             bool handleLinkCommand(const string &doc, string &response) {
+                // High-rate parameter sets: skip the DOM entirely.
+                if (doc.find("/link/paramSet") != string::npos ||
+                    doc.find("/debug/setPluginParam") != string::npos) {
+                    int ch, val;
+                    char id[64], key[16];
+                    if (parseParamSetFast(doc, ch, id, sizeof(id), key,
+                                          sizeof(key), val) &&
+                        ch >= 0 && ch <= 1) {
+                        SoundProcessorManager::SetChannelParamValue(ch, id,
+                                                                    key, val);
+                        if (doc.find("/debug/setPluginParam") != string::npos) {
+                            // bench frames embed the command in the "cmd"
+                            // member — echo it (the C3 frame parser drops
+                            // cmd-less replies; the seq is spliced in
+                            // upstream).
+                            response = "{\"cmd\":\"/debug/setPluginParam\",\"ok\":1}";
+                        } else {
+                            response = "{\"ok\":1}";
+                        }
+                        return true;
+                    }
+                    // malformed: fall through to the generic parser
+                }
                 Document d;
                 d.Parse(doc);
                 if (d.HasParseError() || !d.IsObject() || !d.HasMember("cmd")) return false;
@@ -962,7 +1032,7 @@ namespace CTAG {
                             }
                             if (now - lastPushMs >= kPushPeriodMs) {
                                 lastPushMs = now;
-                                pushOnChange();
+                                pushOnChange(now);
                             }
                             if (now - lastHeartbeatMs >= kHeartbeatPeriodMs) {
                                 lastHeartbeatMs = now;
@@ -1014,6 +1084,11 @@ namespace CTAG {
             ESP_ERROR_CHECK(uart_param_config(kUart, &uc));
             ESP_ERROR_CHECK(uart_driver_install(kUart, kRxRing, kTxRing, 0, nullptr, 0));
 
+            // PSRAM-first (96 KB): the internal heap must stay untouched —
+            // big-plugin params DOMs (Freakwaves/Elements) need it at load
+            // time, and starving it crash-looped the A1S. The per-edit
+            // burst is deferred while editing (see pushOnChange), so the
+            // PSRAM copy no longer collides with parameter turning.
             txScratch = (char *)heap_caps_malloc(kTxScratch, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
             if (txScratch == nullptr)
                 txScratch = (char *)heap_caps_malloc(kTxScratch, MALLOC_CAP_8BIT);
