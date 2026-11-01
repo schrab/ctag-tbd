@@ -74,6 +74,10 @@ namespace CTAG {
             // Bumped when a chunked push completes a channel's table; the
             // Params page watches it to refresh in place.
             uint32_t paramTableVersion = 0;
+            // Bumped on every presets push; the PRESETS list watches it so
+            // a store/overwrite done from the panel shows up without
+            // leaving the list (the DSP re-pushes on its presets hash).
+            uint32_t presetsVersion = 0;
             string cacheConfig = "{}";
             string cachePresets[2] = {"{\"presets\":[]}", "{\"presets\":[]}"};
             string cacheFavorites = "[]";
@@ -455,6 +459,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 int ch = d.HasMember("ch") && d["ch"].IsInt() ? d["ch"].GetInt() : 0;
                 if (ch >= 0 && ch <= 1 && d.HasMember("presets") && d["presets"].IsString()) {
                     cachePresets[ch] = d["presets"].GetString();
+                    presetsVersion++;
                 }
             } else if (strcmp(cmd, kMsgPushFavorites) == 0) {
                 if (d.HasMember("favs") && d["favs"].IsString()) {
@@ -543,6 +548,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         uint32_t DspProxy::GetParamTableVersion() { return paramTableVersion; }
+
+        uint32_t DspProxy::GetPresetsVersion() { return presetsVersion; }
 
         // Loading overlay: auto-expires after 5 s so a wedged load (no
         // push of either kind) can never hold the panel hostage.

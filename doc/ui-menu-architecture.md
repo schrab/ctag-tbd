@@ -220,12 +220,14 @@ To change fonts (e.g. to 04B_03__ at 5px), edit `FONT_H` and recompile — every
 ### PARAMS (`UIMenuPageParams`)
 | Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |------|--------------|---------|-----------------|------|
-| `MODE_SELECT` | EDIT / MAP / PSET (or dual Ch0:name / Ch1:name if two different mono plugins loaded) | Scroll cursor (0-2, or 0-3 with dual) | Enter selected mode (selects `chan` 0 or 1 for EDIT) | Return to ROOT |
+| `MODE_SELECT` | EDIT / MAP / PRESETS (or dual Ch0:name / Ch1:name if two different mono plugins loaded) | Scroll cursor (0-2, or 0-3 with dual) | Enter selected mode (selects `chan` 0 or 1 for EDIT) | Return to ROOT |
 | `MODE_GROUP` | Group list with param count, e.g. `Analogue BD (12)`, `Diffusion (5)` | Scroll list (auto-scroll, 7 visible) | Enter MODE_EDIT for that group | Back to MODE_SELECT |
-| `MODE_EDIT` | Param list for selected group (or all params if no groups) | Scroll list (auto-scroll, 7 visible) | Enter `MODE_VALUEEDIT` for selected param | Back to MODE_GROUP (or MODE_SELECT if no groups) |
-| `MODE_VALUEEDIT` | Same as MODE_EDIT layout | Adjust param value (`pi.current += delta`) | Confirm value → return to MODE_EDIT | Back to MODE_EDIT (no save) |
-| `MODE_MAP` | CV slot editor for selected param (-1=None, 0-99=slot index) | Scroll CV slot (-1 through 99, names from CVSlotNames.hpp) | Confirm slot via `SetChannelParamValue(chan, id, "cv", slot)` → MODE_EDIT | Exit without saving → MODE_EDIT |
-| `MODE_PSET` | "Not implemented" placeholder | No-op | No-op | Back to MODE_SELECT |
+| `MODE_EDIT` | Param list for selected group (or all params if no groups); right encoder live-edits the value under the cursor | Scroll list (auto-scroll, 7 visible) | Map shortcut for mappable params; "play" param = momentary trigger | Back to MODE_GROUP (or MODE_SELECT if no groups) |
+| `MODE_MAP` | CV/gate source list for selected param ([Learn CC], None, MB.*, CC slots, fixed slots) | Scroll source list | Confirm slot via `SetChannelParamValue(chan, id, "cv"/"trig", slot)` → MODE_EDIT | Exit without saving → MODE_EDIT |
+| `MODE_PRESETS` | Preset list + blank separator + `[STORE PRESET]` action row (cursor skips the gap; empty list lands on the store row) | Scroll list (auto-scroll, 7 visible) | Preset: load. `[STORE PRESET]`: save current settings as new preset (random CV-alternating two-word name, e.g. `Mizato Brus`) | Back to MODE_SELECT |
+| — | Long-press OK on a preset **overwrites** it with the current settings, keeping its name (`/link/presetSave` overwrite branch) | — | — | — |
+
+Both store and overwrite show a transient toast (`Stored <name>` / `Overwrote <name>`) — `Display::DrawPopup` over the list, auto-dismissed after 1.5 s via the page's tick. The list refreshes in place when the DSP's `link/pushPresets` push lands (`DspProxy::GetPresetsVersion()` watched in `onTick`, same pattern as the param-table version).
 
 Long-press on a param in MODE_EDIT enters MODE_MAP. `ParamInfo[256]` and `GroupInfo[32]` in SPIRAM. Standalone leaf params get implicit "General" group. If only one group exists, it auto-opens into MODE_EDIT directly (skipping MODE_GROUP). MODE_MAP shows "MAPPING" title + "OK=save BACK=exit" instruction.
 

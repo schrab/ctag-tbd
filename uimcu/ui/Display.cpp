@@ -324,19 +324,23 @@ void Display::ShowSplash(int fillPercent, bool withText) {
     Flush();
 }
 
-// Modal link-lost popup, drawn OVER the current screen content: opaque
-// interior (so the page text underneath cannot bleed through), 1px frame,
-// message in the standard norns font centered inside.
-void Display::ShowDspLostPopup() {
-    const char *msg = "DSP link lost";
+// Modal popup, drawn OVER the current screen content: opaque interior
+// (so the page text underneath cannot bleed through), 1px frame, message
+// centered inside. No own Flush — callers compose it into their redraw
+// pass; ShowDspLostPopup flushes immediately for the UIMenu link watch.
+void Display::DrawPopup(const char *msg, Font font) {
     int tw = 0;
     for (const char *p = msg; *p; ++p)
-        tw += FontAdvance(FONT_NORNS_6X7, (unsigned char)*p);
+        tw += FontAdvance(font, (unsigned char)*p);
     const int fw = tw + 10, fh = 15;
     const int fx = (128 - fw) / 2, fy = 25;
     DrawRect(fx, fy, fw, fh, true, false);
     DrawRect(fx, fy, fw, fh, false, true);
-    DrawString(fx + 5, fy + 4, msg, FONT_NORNS_6X7);
+    DrawString(fx + 5, fy + 4, msg, font);
+}
+
+void Display::ShowDspLostPopup() {
+    DrawPopup("DSP link lost");
     Flush();
 }
 

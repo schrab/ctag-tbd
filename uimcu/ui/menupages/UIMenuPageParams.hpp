@@ -84,6 +84,15 @@ namespace CTAG {
             PresetInfo presets[MAX_PRESETS];
             int presetCount;
             int presetChan; // channel we're editing presets for
+            // MODE_PRESETS: the list is presets + an empty separator row +
+            // a [STORE PRESET] action row (cursor never rests on the gap).
+            // toastMsg/toastUntil: transient action feedback drawn as a
+            // popup over the list ("Stored xyz", "Overwrote xyz").
+            // presetsVersion: DspProxy presets-cache version this parse was
+            // built from; onTick refreshes when a newer push completes.
+            char toastMsg[32];
+            uint32_t toastUntil = 0;
+            uint32_t presetsVersion = 0;
 
             int mapParamIdx;
             // MODE_MAP: one unified, capability-filtered source list per param
@@ -109,6 +118,8 @@ namespace CTAG {
 
             void parseParams();
             void parsePresets(int chan);
+            void showToast(const char *msg);
+            int presetRowCount() const; // presets + gap + store row
             void enterParamList(bool withMapHint);
             void redrawSelect();
             void redrawGroup();

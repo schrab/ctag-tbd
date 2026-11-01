@@ -26,7 +26,8 @@ respective component folders / files if different from this license.
 #include "rapidjson/document.h"
 #include <cstdlib>
 #include <cstring>
-#include <cstdlib>
+#include <cctype>
+#include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -70,6 +71,27 @@ namespace CTAG {
                 } else {
                     snprintf(buf, buflen, "%s", TrigSlotName(slot));
                 }
+            }
+
+            // Random preset name for panel-side stores (no text entry on
+            // the panel): two pronounceable words of random 3..9-letter
+            // length, consonant-vowel alternating, capitalized first
+            // letters — "Mizato Brus" style. Alphanumeric only, so it is
+            // safe inside the unescaped-JSON presetSave frame.
+            void GeneratePresetName(char *buf, int buflen) {
+                constexpr const char *kConsonants = "bcdfghjklmnpqrstvwxyz";
+                constexpr const char *kVowels = "aeiou";
+                int pos = 0;
+                for (int w = 0; w < 2 && pos < buflen - 1; ++w) {
+                    if (w > 0) buf[pos++] = ' ';
+                    int len = 3 + (int)(esp_random() % 7); // 3..9
+                    for (int i = 0; i < len && pos < buflen - 1; ++i) {
+                        char c = (i % 2 == 0) ? kConsonants[esp_random() % 21]
+                                              : kVowels[esp_random() % 5];
+                        buf[pos++] = (i == 0) ? (char)toupper((unsigned char)c) : c;
+                    }
+                }
+                buf[pos] = '\0';
             }
         }
 
@@ -199,6 +221,7 @@ namespace CTAG {
         void UIMenuPageParams::parsePresets(int chan) {
             presetCount = 0;
             presetChan = chan;
+            presetsVersion = DspProxy::GetPresetsVersion();
             const char *json = DspProxy::GetCStrJSONGetPresets(chan);
             if (!json) return;
 
@@ -215,6 +238,20 @@ namespace CTAG {
                 pi.number = p.HasMember("number") ? p["number"].GetInt() : i;
                 presetCount++;
             }
+        }
+
+        // MODE_PRESETS list rows: stored presets, an empty separator row,
+        // then the [STORE PRESET] action row. The cursor skips the gap.
+        int UIMenuPageParams::presetRowCount() const {
+            return presetCount + 2;
+        }
+
+        // Transient action feedback (toast): popup over the list, auto-
+        // dismissed by onTick. Menu-task only — the display has no
+        // cross-task lock.
+        void UIMenuPageParams::showToast(const char *msg) {
+            snprintf(toastMsg, sizeof(toastMsg), "%s", msg);
+            toastUntil = xTaskGetTickCount() + pdMS_TO_TICKS(1500);
         }
 
         int UIMenuPageParams::paramIndexToScreen(int idx) const {
@@ -261,14 +298,19 @@ namespace CTAG {
                 if (scrollOffset > endIdx - VISIBLE_ITEMS) scrollOffset = endIdx - VISIBLE_ITEMS;
                 if (scrollOffset < startIdx) scrollOffset = startIdx;
             } else if (mode == MODE_PRESETS) {
-                if (presetCount == 0) return;
+                // Rows: presets, gap (never selected), [STORE PRESET].
+                int rows = presetRowCount();
                 int newCursor = cursor + delta;
                 if (newCursor < 0) newCursor = 0;
-                if (newCursor >= presetCount) newCursor = presetCount - 1;
+                if (newCursor >= rows) newCursor = rows - 1;
+                // Skip over the blank separator row without stopping.
+                if (newCursor == presetCount) newCursor += (delta >= 0) ? 1 : -1;
+                if (newCursor < 0) newCursor = 0;
+                if (newCursor >= rows) newCursor = rows - 1;
                 if (newCursor != cursor) { encoderAccel = 0; lastEncDir = 0; }
                 cursor = newCursor;
                 // auto-scroll
-                ClampScroll(cursor, scrollOffset, presetCount, VISIBLE_ITEMS);
+                ClampScroll(cursor, scrollOffset, rows, VISIBLE_ITEMS);
             }
             doRedraw();
         }
@@ -349,7 +391,11 @@ namespace CTAG {
                         mode = MODE_PRESETS;
                         cursor = 0;
                         scrollOffset = 0;
+                        toastUntil = 0;
                         parsePresets(chan);
+                        // Empty list: row 0 is the separator, land on the
+                        // store row instead.
+                        if (presetCount == 0) cursor = 1;
                     }
                 }
             } else if (mode == MODE_GROUP) {
@@ -421,20 +467,37 @@ namespace CTAG {
                     }
                 }
             } else if (mode == MODE_PRESETS) {
-                if (btnId == 2 && !longPress) {
-                    // load selected preset
-                    if (presetCount > 0 && cursor >= 0 && cursor < presetCount) {
-                        DspProxy::ChannelLoadPreset(presetChan, presets[cursor].number);
-                        mode = MODE_SELECT;
-                        cursor = 0;
-                    }
-                } else if (btnId == 2 && longPress) {
-                    // save current as new preset
-                    if (presetCount > 0) {
-                        int nextNum = presets[presetCount - 1].number + 1;
-                        DspProxy::ChannelSavePreset(presetChan, "User", nextNum);
-                        // re-parse to show updated list
-                        parsePresets(presetChan);
+                if (btnId == 2) {
+                    bool onStoreRow = cursor >= presetCount + 1;
+                    if (onStoreRow) {
+                        // Store the current settings as a NEW preset under a
+                        // generated name (append). No immediate re-parse —
+                        // the DSP's presets push lands asynchronously and
+                        // onTick refreshes the list from it.
+                        char name[24];
+                        GeneratePresetName(name, sizeof(name));
+                        int nextNum = (presetCount > 0)
+                                          ? presets[presetCount - 1].number + 1
+                                          : 0;
+                        DspProxy::ChannelSavePreset(presetChan, name, nextNum);
+                        char msg[sizeof(toastMsg)];
+                        snprintf(msg, sizeof(msg), "Stored %s", name);
+                        showToast(msg);
+                    } else if (cursor < presetCount) {
+                        if (!longPress) {
+                            // load selected preset
+                            DspProxy::ChannelLoadPreset(presetChan, presets[cursor].number);
+                            mode = MODE_SELECT;
+                            cursor = 0;
+                        } else {
+                            // overwrite: replace the preset's contents with
+                            // the current settings, keeping its name
+                            DspProxy::ChannelSavePreset(presetChan, presets[cursor].name,
+                                                        presets[cursor].number);
+                            char msg[sizeof(toastMsg)];
+                            snprintf(msg, sizeof(msg), "Overwrote %s", presets[cursor].name);
+                            showToast(msg);
+                        }
                     }
                 }
             }
@@ -676,6 +739,18 @@ namespace CTAG {
                 }
                 changed = true;
             }
+            // MODE_PRESETS: a panel-side store/overwrite (or a save from
+            // the web UI) triggers a presets push; refresh the open list
+            // in place instead of showing the stale parse until re-entry.
+            if (mode == MODE_PRESETS &&
+                DspProxy::GetPresetsVersion() != presetsVersion) {
+                parsePresets(presetChan);
+                int rows = presetRowCount();
+                if (cursor >= rows) cursor = rows - 1;
+                if (cursor == presetCount) cursor = presetCount + 1; // skip gap
+                ClampScroll(cursor, scrollOffset, rows, VISIBLE_ITEMS);
+                changed = true;
+            }
             if (mode == MODE_MAP && mapLearning && !DspProxy::IsLearning()) {
                 mapLearning = false;
                 changed = true;
@@ -693,12 +768,20 @@ namespace CTAG {
                 mapHintUntil = 0;
                 changed = true;
             }
+            if (toastUntil != 0 &&
+                (int32_t)(xTaskGetTickCount() - toastUntil) >= 0) {
+                toastUntil = 0;
+                changed = true;
+            }
             if (changed) doRedraw();
         }
 
         bool UIMenuPageParams::wantsTick() const {
             return (mode == MODE_MAP && mapLearning) || mapHintUntil != 0 ||
-                   DspProxy::GetParamTableVersion() != tableVersion;
+                   DspProxy::GetParamTableVersion() != tableVersion ||
+                   toastUntil != 0 ||
+                   (mode == MODE_PRESETS &&
+                    DspProxy::GetPresetsVersion() != presetsVersion);
         }
 
         // Shared "open the parameter list" path for the EDIT and MAP menu
@@ -777,24 +860,25 @@ namespace CTAG {
 
         void UIMenuPageParams::redrawPresets() {
             Display::Clear();
-            if (presetCount == 0) {
-                Display::DrawString(0, 24, "No presets", FONT_UI);
-                Display::Flush();
-                return;
-            }
-            int visible = ClampVisible(presetCount, scrollOffset, VISIBLE_ITEMS);
+            // rows: stored presets, one blank separator, [STORE PRESET]
+            int rows = presetRowCount();
+            int visible = ClampVisible(rows, scrollOffset, VISIBLE_ITEMS);
             for (int i = 0; i < visible; i++) {
                 int idx = scrollOffset + i;
-                const PresetInfo &pi = presets[idx];
                 int y = ROW(i);
-                char buf[64];
-                snprintf(buf, sizeof(buf), "%s", pi.name);
-                Display::DrawString(0, y, buf, FONT_UI);
+                if (idx < presetCount) {
+                    Display::DrawString(0, y, presets[idx].name, FONT_UI);
+                } else if (idx == presetCount + 1) {
+                    Display::DrawString(0, y, "[STORE PRESET]", FONT_UI);
+                }
+                // idx == presetCount: the separator row stays blank
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
-            if (presetCount > VISIBLE_ITEMS)
-                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, presetCount, cursor);
+            if (rows > VISIBLE_ITEMS)
+                Display::DrawScrollbar(SCROLLBAR_X, ITEM_Y0, VISIBLE_ITEMS * LINE_H, rows, cursor);
+            // transient action feedback over the list
+            if (toastUntil != 0) Display::DrawPopup(toastMsg, FONT_UI);
             Display::Flush();
         }
     }

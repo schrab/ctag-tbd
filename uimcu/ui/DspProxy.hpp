@@ -95,6 +95,10 @@ namespace CTAG {
             // preset loads, so the Params page watches it to refresh in place
             // instead of trusting its parse from page entry.
             static uint32_t GetParamTableVersion();
+            // Increments on every presets push; the PRESETS list watches it
+            // so a store/overwrite shows up in the open list without
+            // re-entering the page (the push lands asynchronously).
+            static uint32_t GetPresetsVersion();
 
             // Plugin-load overlay: true between a SetSoundProcessorChannel
             // request and the arrival of the loaded plugin's params table

@@ -104,10 +104,13 @@ namespace CTAG {
             // withText=false: ONLY the bar (plugin-load overlay) — the
             // board boot keeps title + version above it.
             static void ShowSplash(int fillPercent, bool withText = true);
-            // Modal "DSP link lost" popup: rectangle frame drawn over the
-            // current screen content (page underneath is not cleared).
-            // UIMenu shows it whenever the link goes down after boot and
-            // repaints the page once it recovers.
+            // Modal popup: opaque rectangle frame drawn over the current
+            // screen content (page underneath is not cleared), message
+            // centered inside. No own Flush — the caller composes it into
+            // its redraw pass. UIMenu shows the link-lost variant whenever
+            // the link goes down after boot and repaints the page once it
+            // recovers; pages use it for transient action feedback.
+            static void DrawPopup(const char *msg, Font font = FONT_NORNS_6X7);
             static void ShowDspLostPopup();
 
             // Framebuffer drawing primitives
