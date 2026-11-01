@@ -1,0 +1,275 @@
+# Copyright 2016 Emilie Gillet.
+# 
+# Author: Emilie Gillet (emilie.o.gillet@gmail.com)
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# 
+# See http://creativecommons.org/licenses/MIT/ for more information.
+
+# System specifications
+F_CRYSTAL      = 8000000L
+F_CPU          = 72000000L
+SYSCLOCK       = SYSCLK_FREQ_72MHz
+FAMILY         = f37x
+# USB            = enabled
+
+APPLICATION_LARGE = TRUE
+BOOTLOADER        = plaits_bootloader
+
+# Preferred upload command
+UPLOAD_COMMAND  = upload_combo_jtag_erase_first
+
+# Packages to build
+TARGET         = plaits
+PACKAGES       = plaits \
+		plaits/drivers \
+		plaits/dsp \
+		plaits/dsp/fm \
+		plaits/dsp/fx \
+		plaits/dsp/chords \
+		plaits/dsp/drum_modelling \
+		plaits/dsp/engine \
+		plaits/dsp/engine2 \
+		plaits/dsp/physical_modelling \
+		plaits/dsp/speech \
+		stm_audio_bootloader/fsk \
+		stmlib/dsp \
+		stmlib/utils \
+		stmlib/system
+PACKAGES       += $(PLAITS_EXTRA_PACKAGES)
+RESOURCES      = plaits/resources
+
+TOOLCHAIN_PATH ?= /usr/local/arm-4.8.3/
+
+include stmlib/makefile.inc
+
+# Constants out of loops. stmlib's CCFLAGS carry -fno-move-loop-invariants,
+# which kept GCC from hoisting loop-invariant work -- above all constant loads
+# -- so every pass of a DSP loop reloaded its constants from flash literal
+# pools: wait states, and a stall on instruction fetch. Hoisting them made
+# every preset smaller (Stock -1.6 KB) and cut QEMU's flash data reads by
+# 16-47% on the engines nearest the CPU line, with identical output.
+CCFLAGS += -fmove-loop-invariants
+
+# PLAITS_SLOW_FLASH_DATA=1 (the default) compiles the hottest DSP objects with
+# -mslow-flash-data: the constants left in their loops are built with
+# movw/movt instead of read from flash. With it on every object, the module
+# ran the engines still over the CPU line 0.04-0.10 lower
+# (slow_flash_ab_2026-09-30_*); this list is those engines plus voice.o, at
+# ~5-10% of each object's size. The hosted builder and build.sh fall back to
+# 0 when a palette does not fit flash with it. Keep this list in sync with
+# SLOW_FLASH_DATA_OBJECTS in alt_firmwares/plaits_lab_builder/container_server.py
+# (test_container_server.py checks the two).
+PLAITS_SLOW_FLASH_DATA ?= 1
+PLAITS_SLOW_FLASH_DATA_OBJECTS = \
+  voice.o particle_engine.o modal_engine.o modal_voice.o resonator.o \
+  string_engine.o string_voice.o string.o chord_engine.o chiptune_engine.o \
+  six_op_engine.o scanned_engine.o
+ifeq ($(PLAITS_SLOW_FLASH_DATA),1)
+$(patsubst %,$(BUILD_DIR)%,$(PLAITS_SLOW_FLASH_DATA_OBJECTS)): \
+  CCFLAGS += -mslow-flash-data
+endif
+# Fluted is the one engine the hoisting slowed: its strike went 0.953 ->
+# 1.027 of the period on the module (overrun_sweep_2026-10-01_final_g1), and
+# -mslow-flash-data on top only brought it to 0.992 (..._final_gA). It keeps
+# the code it measured 0.953 with: no hoisting, no -mslow-flash-data.
+$(BUILD_DIR)fluted_engine.o: CCFLAGS += -fno-move-loop-invariants
+
+# Extra compiler flags for experiments; empty in every normal build.
+CCFLAGS += $(PLAITS_EXTRA_CFLAGS)
+
+# PLAITS_SINE_LUT_IN_RAM=1 links lut_sine (2564 B) into .data, so startup
+# copies it to SRAM: nearly every engine reads it, and read from flash each
+# lookup costs wait states and stalls instruction fetch (DX7 + TRIG measured
+# 1.044 -> 0.972 of the period; alt_firmwares/research/cpu_audit/
+# sine_ram_ab_2026-09-30_*.json). The table stays
+# const in the generated resources.cc; only its object section is renamed, so
+# the stock linker script places it and .data's initializers still follow
+# .text in flash. The hosted builder turns this on and falls back to 0 when a
+# palette does not have the RAM.
+ifeq ($(PLAITS_SINE_LUT_IN_RAM),1)
+$(BUILD_DIR)resources.o: plaits/resources.cc
+	$(CXX) -c $(CCFLAGS) $(CPPFLAGS) $< -o $@
+	$(OBJCOPY) --rename-section \
+		.rodata._ZN6plaits8lut_sineE=.data._ZN6plaits8lut_sineE,alloc,load,contents,data \
+		$@
+endif
+
+# Optimize control, startup, and callback glue for size while leaving the voice
+# renderer and every synthesis engine at -O2. FillBuffer itself only dispatches
+# to those hot paths, so this recovers flash without slowing their DSP loops.
+# leds.o is deliberately NOT in this list: Leds::Write runs in the audio
+# interrupt on every LED refresh, and its loop at -Os cost ~0.02 of the period
+# on the module (224 bytes buys the -O2 unroll).
+$(BUILD_DIR)plaits.o \
+$(BUILD_DIR)ui.o \
+$(BUILD_DIR)settings.o \
+$(BUILD_DIR)parameter_randomizer.o \
+$(BUILD_DIR)user_data_receiver.o \
+$(BUILD_DIR)audio_dac.o \
+$(BUILD_DIR)cv_adc.o \
+$(BUILD_DIR)firmware_update_adc.o \
+$(BUILD_DIR)pots_adc.o \
+$(BUILD_DIR)switches.o \
+$(BUILD_DIR)debug_port.o \
+$(BUILD_DIR)packet_decoder.o \
+$(BUILD_DIR)bootloader_utils.o \
+$(BUILD_DIR)chord_bank.o \
+$(BUILD_DIR)system_clock.o \
+$(BUILD_DIR)system_stm32f37x.o: CCFLAGS += -Os
+
+# The STM peripheral library is initialization and register-access glue, not
+# synthesis DSP. Its default -O2 expansion is expensive on a 224 KB target;
+# size optimization keeps the same hardware behavior and leaves the audio
+# renderer and engine inner loops untouched.
+$(BUILD_DIR)stm32f37x_%.o: CCFLAGS += -Os
+
+# Stock engines that sit well inside the CPU budget, built for size to fund
+# -O2 where it matters (ui_poll.cc runs every block). Measured before choosing
+# them: QEMU instruction counts +1% (Waveshaping) and +0.6% (Bass Drum) with
+# bit-identical output, against 0.73 and 0.90 worst-case load on the module;
+# together ~2 KB of flash. (Snare was rejected: +18% and different output.)
+# Wavetable joined them when those two alone left the stock palette 128 B short
+# of room for the calibration procedure: -Os is both ~700 B smaller and 1.7%
+# FEWER instructions per block, with bit-identical output. (Filtered Noise was
+# rejected: +13%. Speech: +4% in its formant mode.)
+$(BUILD_DIR)waveshaping_engine.o $(BUILD_DIR)bass_drum_engine.o \
+$(BUILD_DIR)wavetable_engine.o: CCFLAGS += -Os
+
+# The hosted builder generates engine_config.h with the recipe's engine registry
+# (PLAITS_ENGINE_MEMBERS, reached through voice.h) and its compile-time option
+# macros (the PLAITS_BUILD_* / PLAITS_ENGINE_COUNT values that build_config.h
+# otherwise defaults). Only the objects below read those macros — directly via
+# build_config.h (settings, chord_bank, scale_voices, ui), through voice.h
+# (voice, plaits), or through plaits/dsp/engine/engine.h (every engine, and
+# resonator) — so force-including the generated config into just these keeps
+# every other object recipe-independent and reusable from ccache across recipes.
+#
+# This list MUST cover every built .cc that reaches engine_config.h or
+# build_config.h, or that uses a recipe macro some other way; a missing one
+# would silently compile with default options instead of the recipe's.
+# engine.h is the trap: it never includes build_config.h, yet EngineParameters
+# and the Engine vtable change shape with PLAITS_BUILD_ENABLE_SYNC_INPUT and the
+# FM options, so an engine left off this list reads the wrong field offsets
+# (Supersaw Chords read a stray byte as its stereo flag, 2026-10-07).
+# check_config_scope.py enforces all of it at build time.
+# ENGINE_CONFIG is empty for ordinary firmware builds, which fall back to the
+# checked-in default headers via each unit's own #include.
+RECIPE_CONFIG_OBJS = voice.o plaits.o ui.o ui_poll.o settings.o chord_bank.o scale_voices.o scale_wavetable_voices.o pots_adc.o switches.o sync_input.o audio_rate_timer.o cv_adc.o acid_engine.o additive_engine.o analog_percussion_engine.o chord_engine.o grain_engine.o speech_engine.o swarm_engine.o waveshaping_engine.o fm_engine.o vowel_fof_engine.o wavetable_engine.o virtual_analog_engine.o virtual_analog_dual_engine.o virtual_analog_crossfade_engine.o virtual_analog_variant_engine.o virtual_analog_vcf_engine.o wave_terrain_engine.o attractor_engine.o bass_drum_engine.o brass_engine.o blown_engine.o bowed_engine.o bubbletime_engine.o buzz_engine.o bytebeat_engine.o chiptune_engine.o circuit_zaps_engine.o clap_engine.o csaw_engine.o chords_supersaw_engine.o cymbal_engine.o diatonic_chord_engine.o digital_modulation_engine.o dual_sync_engine.o fluted_engine.o fold_engine.o formant_speech_engine.o freshets_formant_engine.o gendy_engine.o glisson_engine.o granular_cloud_engine.o harmonics_engine.o helix_engine.o hi_hat_engine.o kick_engine.o lockstep_engine.o loopback_engine.o lpc_speech_engine.o metalwork_engine.o modal_engine.o morph_engine.o natural_speech_engine.o noise_engine.o noise_bank_engine.o particle_engine.o particle_burst_engine.o phase_distortion_engine.o phase_flock_engine.o phase_weave_engine.o plucked_engine.o pulsar_engine.o question_mark_engine.o raw_fm_engine.o reed_pipe_engine.o ring_mod_engine.o rulefield_engine.o saw_comb_engine.o saw_square_engine.o saw_swarm_engine.o scale_stack_engine.o scanned_engine.o shakers_engine.o sideband_engine.o six_op_engine.o skins_engine.o snare_drum_engine.o snare_engine.o spectral_spiral_engine.o string_engine.o string_machine_engine.o struck_bell_engine.o struck_drum_engine.o sub_oscillator_engine.o tapfield_engine.o toy_engine.o triple_engine.o undertow_engine.o vosim_engine.o vowel_engine.o wave_paraphonic_engine.o wave_scan_engine.o wavetable_chord_engine.o wavetable_scale_stack_engine.o z_filter_engine.o zxphase48k_engine.o zxpulse48k_engine.o resonator.o
+RECIPE_CONFIG_TARGETS = $(patsubst %,$(BUILD_DIR)%,$(RECIPE_CONFIG_OBJS))
+ifneq ($(ENGINE_CONFIG),)
+$(RECIPE_CONFIG_TARGETS): CPPFLAGS += -include $(ENGINE_CONFIG)
+$(RECIPE_CONFIG_TARGETS): $(ENGINE_CONFIG)
+# Exactly ONE object defines the swappable FM bank arrays; the rest see a
+# declaration and skip the initializers. The single definition is what makes the
+# region table meaningful — two per-unit copies would sit at different addresses,
+# so UserData::Save (plaits.o) would erase and reprogram one while the engine
+# (voice.o) kept reading the other, and a transfer would appear to do nothing.
+# It also keeps six of the seven recipe-config objects from parsing up to 16 KB
+# of packed patch data they never reference.
+$(BUILD_DIR)voice.o: CPPFLAGS += -DPLAITS_ENGINE_CONFIG_OWNS_USER_DATA_BANKS
+endif
+
+# Speech-bank data is independent of the engine registry and can be much larger
+# than the ordinary recipe config. Compile it once into the shared LPC
+# controller; Original Speech and LPC Words reach it through small helpers.
+ifneq ($(SPEECH_CONFIG),)
+$(BUILD_DIR)lpc_speech_synth_controller.o: CPPFLAGS += -include $(SPEECH_CONFIG)
+endif
+
+# Compile the decoded-frame controller path only for recipes that carry a
+# Speech-bank resource. The macro changes LPCSpeechSynthWordBank's class layout,
+# so every object that lays out Voice, SpeechEngine, or LPCSpeechEngine must see
+# the same value. Applying it only to the method implementations corrupts the
+# following Voice members during startup even when the recipe has no raw banks.
+# The split engines both use the shared custom-bank helpers, so their method
+# implementations must see the same value too. Legacy/default palettes keep the
+# stock code footprint by compiling all of these objects with the value 0.
+SPEECH_LAYOUT_OBJS = voice.o plaits.o ui.o ui_poll.o speech_engine.o lpc_speech_engine.o lpc_speech_synth_controller.o lpc_speech_synth_phonemes.o
+ifneq ($(SPEECH_BANKS_ENABLED),)
+$(patsubst %,$(BUILD_DIR)%,$(SPEECH_LAYOUT_OBJS)): CPPFLAGS += -DPLAITS_HAS_CUSTOM_SPEECH_BANKS=$(SPEECH_BANKS_ENABLED)
+endif
+
+# Natural Speech word banks. Unlike the Speech macro this one changes no class
+# layout -- it only selects which arrays the engine reads -- so it applies to
+# the engine's own object alone. The object name comes from the registered
+# package's source filename, so the builder passes it rather than the makefile
+# guessing it.
+ifneq ($(NATURAL_SPEECH_CONFIG),)
+$(BUILD_DIR)$(NATURAL_SPEECH_OBJ): CPPFLAGS += -include $(NATURAL_SPEECH_CONFIG) -DPLAITS_HAS_CUSTOM_NATURAL_SPEECH_BANKS=1
+endif
+
+# Per-engine stereo (OUT/AUX as an L/R pair) is gated at compile time by
+# PLAITS_STEREO_<X> (default 1 in stereo_config.h). To disable an engine's
+# stereo the hosted builder passes PLAITS_STEREO_<X>=0, and the rule below adds
+# -DPLAITS_STEREO_<X>=0 to ONLY that engine's object — so each engine caches as
+# just two variants (on/off) and the default (all-stereo) build's warm ccache is
+# untouched (no flag is added when the value is 1/unset). <MACRO>:<object> pairs;
+# the three DX7 banks share six_op_engine, hence SIX_OP.
+#
+# PLAITS_STEREO_ALL=0 disables every engine's stereo at once. It is a
+# convenience for local mono builds — the flash-tightest palettes only link
+# in mono, and spelling out fifty PLAITS_STEREO_<X>=0 vars by hand is
+# error-prone (see AGENTS.md "Required validation"). It emits exactly the same
+# per-object -D flags as the explicit form, so ccache keys are unchanged and
+# the hosted builder, which always passes the per-engine vars, is unaffected.
+# A per-engine PLAITS_STEREO_<X>=1 does NOT override it; this is an all-mono
+# switch, not a default.
+PLAITS_STEREO_MODELS = \
+  VIRTUAL_ANALOG:virtual_analog_engine WAVESHAPING:waveshaping_engine \
+  VIRTUAL_ANALOG_DUAL:virtual_analog_dual_engine \
+  VIRTUAL_ANALOG_CROSSFADE:virtual_analog_crossfade_engine \
+  VIRTUAL_ANALOG_VARIANT:virtual_analog_variant_engine \
+  TWO_OP_FM:fm_engine GRANULAR_FORMANT:grain_engine HARMONIC:additive_engine \
+  WAVETABLE:wavetable_engine CHORDS:chord_engine SPEECH:speech_engine \
+  FORMANT_SPEECH:formant_speech_engine LPC_SPEECH:lpc_speech_engine \
+  SWARM:swarm_engine FILTERED_NOISE:noise_engine PARTICLE_NOISE:particle_engine \
+  INHARMONIC_STRING:string_engine MODAL_RESONATOR:modal_engine \
+  ANALOG_BASS_DRUM:bass_drum_engine ANALOG_SNARE:snare_drum_engine \
+  ANALOG_HI_HAT:hi_hat_engine VIRTUAL_ANALOG_VCF:virtual_analog_vcf_engine \
+  WAVE_TERRAIN:wave_terrain_engine CHIPTUNE:chiptune_engine SIX_OP:six_op_engine \
+  GLISSON:glisson_engine GENDY:gendy_engine SCANNED:scanned_engine \
+  LOOPBACK:loopback_engine LOCKSTEP:lockstep_engine TAPFIELD:tapfield_engine \
+  PHASE_WEAVE:phase_weave_engine SIDEBAND_BANK:sideband_engine \
+  UNDERTOW:undertow_engine REED_PIPE:reed_pipe_engine \
+  PHASE_FLOCK:phase_flock_engine RULEFIELD:rulefield_engine \
+  TOY:toy_engine BOWED:bowed_engine CSAW:csaw_engine \
+  RING_MOD:ring_mod_engine VOWEL_FOF:vowel_fof_engine \
+  DIGITAL_MODULATION:digital_modulation_engine CLAP:clap_engine \
+  ANALOG_PERCUSSION:analog_percussion_engine \
+  FRESHETS_FORMANT:freshets_formant_engine \
+  NATURAL_SPEECH:natural_speech_engine \
+  BUBBLETIME:bubbletime_engine ZXPHASE48K:zxphase48k_engine \
+  ZXPULSE48K:zxpulse48k_engine ACID:acid_engine \
+  CHORDS_SUPERSAW:chords_supersaw_engine
+define _plaits_stereo_rule
+$(BUILD_DIR)$(word 2,$(subst :, ,$(1))).o: CPPFLAGS += $$(if $$(filter 0,$$(PLAITS_STEREO_$(word 1,$(subst :, ,$(1)))) $$(PLAITS_STEREO_ALL)),-DPLAITS_STEREO_$(word 1,$(subst :, ,$(1)))=0)
+endef
+$(foreach _m,$(PLAITS_STEREO_MODELS),$(eval $(call _plaits_stereo_rule,$(_m))))
+
+# Rule for building the firmware update file
+wav:  $(TARGET_BIN)
+	python stm_audio_bootloader/qpsk/encoder.py \
+		-t stm32f3 -k -s 48000 -b 12000 -c 6000 -p 256 \
+		$(TARGET_BIN)
+
+user_data_image:
+	$(BASE_JTAG_CMD) \
+		-c "dump_image plaits_user_data.bin 0x08007000 0x01000" \
+		$(POSTLUDE)

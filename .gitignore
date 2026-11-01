@@ -11,21 +11,8 @@ ctag-bba/
 .zcode/
 temp_*.txt
 
-# components/rubato is a working clone of github.com/lylepmills/eurorack
-# (Rubato Audio Plaits Lab). The full clone is ~150 MB of working tree, but the
-# firmware build and the TBPalette engine-config generator only need the plaits
-# subtree and the model catalog, so only those are committed.
-/components/rubato/*
-!/components/rubato/AGENTS.md
-!/components/rubato/README.md
-!/components/rubato/plaits/
-/components/rubato/plaits/hardware_design/
-/components/rubato/plaits/test/
-/components/rubato/plaits/drivers/
-/components/rubato/plaits/tools/
-!/components/rubato/alt_firmwares/
-/components/rubato/alt_firmwares/*
-!/components/rubato/alt_firmwares/plaits_lab_catalog/
-/components/rubato/alt_firmwares/plaits_lab_catalog/*
-!/components/rubato/alt_firmwares/plaits_lab_catalog/catalog.json
-!/components/rubato/alt_firmwares/plaits_lab_catalog/README.md
+# components/rubato is the user's working clone of github.com/lylepmills/eurorack
+# (Rubato Audio Plaits Lab, ~150 MB). The firmware builds against the vendored,
+# namespace-renamed copy at components/mutable/rubato (see its VENDOR_README.md),
+# so the clone itself stays untracked.
+/components/rubato/

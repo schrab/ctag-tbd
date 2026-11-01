@@ -1,0 +1,5137 @@
+{
+  "schemaVersion": 1,
+  "sdk": "plaits-engine-cpp-v1",
+  "packageVersion": "1.0.0",
+  "retiredEngines": {
+    "virtual-analog-dual": "virtual-analog-variant",
+    "virtual-analog-crossfade": "virtual-analog-variant"
+  },
+  "fmCapabilities": {
+    "linearTzfm": [
+      "virtual-analog",
+      "virtual-analog-dual",
+      "virtual-analog-crossfade",
+      "virtual-analog-variant",
+      "waveshaping",
+      "two-op-fm",
+      "harmonic",
+      "wavetable",
+      "swarm",
+      "virtual-analog-vcf",
+      "phase-distortion",
+      "wave-terrain",
+      "pulsar",
+      "loopback",
+      "phase-weave",
+      "sideband-bank",
+      "phase-flock",
+      "spectral-spiral",
+      "toy",
+      "ring-mod",
+      "fold",
+      "buzz",
+      "saw-swarm",
+      "harmonics",
+      "vosim",
+      "wave-scan",
+      "digital-modulation",
+      "vowel-fof",
+      "raw-fm",
+      "triple"
+    ],
+    "fastFm": [
+      "virtual-analog",
+      "virtual-analog-dual",
+      "virtual-analog-crossfade",
+      "virtual-analog-variant",
+      "waveshaping",
+      "two-op-fm",
+      "wavetable",
+      "virtual-analog-vcf",
+      "gendy",
+      "pulsar",
+      "loopback",
+      "lockstep",
+      "tapfield",
+      "phase-weave",
+      "sideband-bank",
+      "attractor",
+      "reed-pipe",
+      "phase-flock",
+      "rulefield",
+      "spectral-spiral",
+      "toy",
+      "csaw",
+      "ring-mod",
+      "buzz",
+      "particle-burst",
+      "harmonics",
+      "vosim",
+      "question-mark",
+      "sub-oscillator",
+      "digital-modulation",
+      "saw-comb",
+      "vowel-fof",
+      "raw-fm",
+      "shakers",
+      "freshets-formant",
+      "circuit-zaps"
+    ]
+  },
+  "engineCapabilityReview": {
+    "version": 1,
+    "reviewed": [
+      "virtual-analog",
+      "virtual-analog-dual",
+      "virtual-analog-crossfade",
+      "virtual-analog-variant",
+      "waveshaping",
+      "two-op-fm",
+      "granular-formant",
+      "harmonic",
+      "wavetable",
+      "chords",
+      "speech",
+      "formant-speech",
+      "lpc-speech",
+      "swarm",
+      "filtered-noise",
+      "particle-noise",
+      "inharmonic-string",
+      "modal-resonator",
+      "analog-bass-drum",
+      "analog-snare",
+      "analog-hi-hat",
+      "virtual-analog-vcf",
+      "phase-distortion",
+      "dx7-bank-a",
+      "dx7-bank-b",
+      "dx7-bank-c",
+      "wave-terrain",
+      "string-machine",
+      "chiptune",
+      "natural-speech",
+      "glisson",
+      "gendy",
+      "scanned",
+      "pulsar",
+      "loopback",
+      "lockstep",
+      "tapfield",
+      "phase-weave",
+      "sideband-bank",
+      "attractor",
+      "undertow",
+      "reed-pipe",
+      "phase-flock",
+      "rulefield",
+      "spectral-spiral",
+      "z-filter",
+      "toy",
+      "csaw",
+      "ring-mod",
+      "fold",
+      "buzz",
+      "dual-sync",
+      "granular-cloud",
+      "morph",
+      "noise-bank",
+      "particle-burst",
+      "saw-square",
+      "saw-swarm",
+      "vowel",
+      "harmonics",
+      "vosim",
+      "plucked",
+      "blown",
+      "struck-bell",
+      "struck-drum",
+      "kick",
+      "snare",
+      "cymbal",
+      "wave-scan",
+      "wave-paraphonic",
+      "fluted",
+      "question-mark",
+      "bowed",
+      "sub-oscillator",
+      "digital-modulation",
+      "saw-comb",
+      "vowel-fof",
+      "raw-fm",
+      "triple",
+      "bytebeat",
+      "diatonic-chord",
+      "scale-stack",
+      "wavetable-chord",
+      "wavetable-scale-stack",
+      "shakers",
+      "brass",
+      "helix",
+      "skins",
+      "circuit-zaps",
+      "metalwork",
+      "clap",
+      "analog-percussion",
+      "freshets-formant",
+      "bubbletime",
+      "zxphase48k",
+      "zxpulse48k",
+      "acid",
+      "chords-supersaw"
+    ]
+  },
+  "engines": [
+    {
+      "id": "virtual-analog",
+      "packageId": "mutable-instruments/virtual-analog",
+      "name": "Virtual Analog",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Continuously variable analog waveforms with detuning and sync.",
+      "tags": [
+        "analog",
+        "oscillator",
+        "sync"
+      ],
+      "controls": [
+        "Detune",
+        "Variable square",
+        "Variable saw",
+        "Oscillator balance"
+      ],
+      "outputs": [
+        "Mono: mixed variable oscillators. Stereo: left channel, with the square panned left of center and the detuned saw right of center.",
+        "Mono: synchronized oscillator pair. Stereo: right channel of that panned pair; the sync oscillator is not rendered."
+      ],
+      "artwork": {
+        "icon": "/model-icons/virtual-analog.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/virtual_analog_engine.h",
+        "className": "VirtualAnalogEngine",
+        "member": "virtual_analog_engine_",
+        "files": [
+          "plaits/dsp/engine/virtual_analog_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "virtual-analog-dual",
+      "packageId": "mutable-instruments/virtual-analog-dual",
+      "name": "Virtual Analog Dual",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "One of Emilie Gillet's alternate virtual-analog designs preserved in the Plaits source: independent waveforms, interval detuning, and a synchronized alternate output.",
+      "tags": [
+        "analog",
+        "oscillator",
+        "sync",
+        "variant"
+      ],
+      "controls": [
+        "Detune and sync",
+        "Primary waveform",
+        "Secondary waveform",
+        "Detune range"
+      ],
+      "outputs": [
+        "Mono: equal primary/detuned-secondary mix. Stereo: left-weighted primary/detuned-secondary mix.",
+        "Mono: equal primary/hard-sync-secondary mix. Stereo: right-weighted primary/detuned-secondary mix."
+      ],
+      "artwork": {
+        "icon": "/model-icons/virtual-analog.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/virtual_analog_dual_engine.h",
+        "className": "VirtualAnalogDualEngine",
+        "member": "virtual_analog_dual_engine_",
+        "files": [
+          "plaits/dsp/engine/virtual_analog_dual_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.436,
+        "auxGain": 0.436
+      }
+    },
+    {
+      "id": "virtual-analog-crossfade",
+      "packageId": "mutable-instruments/virtual-analog-crossfade",
+      "name": "Virtual Analog Crossfade",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "One of Emilie Gillet's alternate virtual-analog designs preserved in the Plaits source: a waveform pair crossfading from detune through dry tone to hard sync.",
+      "tags": [
+        "analog",
+        "oscillator",
+        "sync",
+        "variant"
+      ],
+      "controls": [
+        "Detune",
+        "Detune to sync",
+        "Common waveform",
+        "Detune range"
+      ],
+      "outputs": [
+        "Mono: detuned-pair to dry-primary to hard-sync path. Stereo: a nearby left point on that crossfade.",
+        "Mono: detuned secondary oscillator. Stereo: a nearby right point on the detune-to-sync crossfade."
+      ],
+      "artwork": {
+        "icon": "/model-icons/virtual-analog.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/virtual_analog_crossfade_engine.h",
+        "className": "VirtualAnalogCrossfadeEngine",
+        "member": "virtual_analog_crossfade_engine_",
+        "files": [
+          "plaits/dsp/engine/virtual_analog_crossfade_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.35,
+        "auxGain": 0.35
+      }
+    },
+    {
+      "id": "waveshaping",
+      "packageId": "mutable-instruments/waveshaping",
+      "name": "Waveshaping",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "A variable waveshaper for clean sines, folded tones, and hard edges.",
+      "tags": [
+        "wavefolder",
+        "digital",
+        "harmonic"
+      ],
+      "controls": [
+        "Waveshaper waveform",
+        "Fold amount",
+        "Waveform asymmetry",
+        "Wavefolder symmetry"
+      ],
+      "outputs": [
+        "Mono: waveshaped oscillator. Stereo: left channel, with the first wavefolder table panned left of center and the second right of center.",
+        "Mono: alternate waveshaping response. Stereo: right channel of that same panned pair of folder tables."
+      ],
+      "artwork": {
+        "icon": "/model-icons/waveshaping.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/waveshaping_engine.h",
+        "className": "WaveshapingEngine",
+        "member": "waveshaping_engine_",
+        "files": [
+          "plaits/dsp/engine/waveshaping_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.7,
+        "auxGain": 0.6
+      }
+    },
+    {
+      "id": "two-op-fm",
+      "packageId": "mutable-instruments/two-op-fm",
+      "name": "Two-op FM",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "FM",
+      "description": "A focused two-operator FM voice spanning pure bells to metallic noise.",
+      "tags": [
+        "fm",
+        "bell",
+        "metallic"
+      ],
+      "controls": [
+        "Ratio",
+        "Index",
+        "Feedback",
+        "Modulator detune"
+      ],
+      "outputs": [
+        "Mono: FM voice. Stereo: left channel, with the carrier panned slightly left of center and the sub-oscillator slightly right.",
+        "Mono: sub-oscillator. Stereo: right channel of that same carrier and sub pair."
+      ],
+      "artwork": {
+        "icon": "/model-icons/two-op-fm.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/fm_engine.h",
+        "className": "FMEngine",
+        "member": "fm_engine_",
+        "files": [
+          "plaits/dsp/engine/fm_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.6,
+        "auxGain": 0.6
+      }
+    },
+    {
+      "id": "granular-formant",
+      "packageId": "mutable-instruments/granular-formant",
+      "name": "Granular Formant",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Granular",
+      "description": "Granular formants and filtered noise animated around the fundamental.",
+      "tags": [
+        "granular",
+        "formant",
+        "vocal"
+      ],
+      "controls": [
+        "Formant ratio",
+        "Formant frequency",
+        "Formant width and shape",
+        "Carrier bleed"
+      ],
+      "outputs": [
+        "Mono: granular formant voice. Stereo: left channel, with the two grainlets panned apart.",
+        "Mono: filtered-noise variant. Stereo: right channel of that grainlet pair; the noise variant is not rendered."
+      ],
+      "artwork": {
+        "icon": "/model-icons/granular-formant.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/grain_engine.h",
+        "className": "GrainEngine",
+        "member": "grain_engine_",
+        "files": [
+          "plaits/dsp/engine/grain_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.7,
+        "auxGain": 0.6
+      }
+    },
+    {
+      "id": "harmonic",
+      "packageId": "mutable-instruments/harmonic",
+      "name": "Harmonic Oscillator",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Additive",
+      "description": "A bank of additive partials with spectral balance and timbral motion.",
+      "tags": [
+        "additive",
+        "partials",
+        "organ"
+      ],
+      "controls": [
+        "Spectral bumps",
+        "Prominent harmonic",
+        "Bump shape",
+        "Odd/even balance"
+      ],
+      "outputs": [
+        "Additive partial bank.",
+        "Mono: complementary organ subset. Stereo: magnitude-matched phase-rotated copy of the full partial bank."
+      ],
+      "artwork": {
+        "icon": "/model-icons/harmonic.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/additive_engine.h",
+        "className": "AdditiveEngine",
+        "member": "additive_engine_",
+        "files": [
+          "plaits/dsp/engine/additive_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "wavetable",
+      "packageId": "mutable-instruments/wavetable",
+      "name": "Wavetable",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "Smooth travel through an extensive collection of integrated waves.",
+      "tags": [
+        "wavetable",
+        "digital",
+        "morphing"
+      ],
+      "controls": [
+        "Bank",
+        "Row",
+        "Column",
+        "Phase warp"
+      ],
+      "outputs": [
+        "Interpolated wavetable.",
+        "Mono: 5-bit version of the wavetable. Stereo: magnitude-matched phase-rotated copy."
+      ],
+      "artwork": {
+        "icon": "/model-icons/wavetable.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/wavetable_engine.h",
+        "className": "WavetableEngine",
+        "member": "wavetable_engine_",
+        "files": [
+          "plaits/dsp/engine/wavetable_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.6,
+        "auxGain": 0.6
+      }
+    },
+    {
+      "id": "chords",
+      "packageId": "mutable-instruments/chords",
+      "name": "Chords",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Polyphonic",
+      "description": "Four-voice chord voicings with selectable waveforms and inversions.",
+      "tags": [
+        "chord",
+        "polyphonic",
+        "harmony"
+      ],
+      "controls": [
+        "Chord",
+        "Inversion and transposition",
+        "Waveform",
+        "Voice-group balance"
+      ],
+      "outputs": [
+        "Mono: full chord. Stereo: left side of the chord spread.",
+        "Mono: root or alternate voice group. Stereo: right side of the chord spread."
+      ],
+      "artwork": {
+        "icon": "/model-icons/chords.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/chord_engine.h",
+        "className": "ChordEngine",
+        "member": "chord_engine_",
+        "files": [
+          "plaits/dsp/engine/chord_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "chord-bank"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "speech",
+      "packageId": "mutable-instruments/speech",
+      "name": "Speech",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Vocal",
+      "description": "Vowels, phonemes, speech synthesis, and word banks in one voice.",
+      "tags": [
+        "speech",
+        "vocal",
+        "phoneme"
+      ],
+      "controls": [
+        "Model and word bank",
+        "Species",
+        "Phoneme or word",
+        "Spectral emphasis"
+      ],
+      "outputs": [
+        "Mono: speech synthesizer. Stereo: left channel, with the voice panned slightly left of center and the secondary path slightly right.",
+        "Mono: raw excitation or alternate voice. Stereo: right channel of that same widened pair."
+      ],
+      "artwork": {
+        "icon": "/model-icons/speech.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/speech_engine.h",
+        "className": "SpeechEngine",
+        "member": "speech_engine_",
+        "behavior": "speech",
+        "files": [
+          "plaits/dsp/engine/speech_engine.cc",
+          "plaits/dsp/speech/lpc_speech_synth.cc",
+          "plaits/dsp/speech/lpc_speech_synth_controller.cc",
+          "plaits/dsp/speech/lpc_speech_synth_phonemes.cc",
+          "plaits/dsp/speech/lpc_speech_synth_words.cc",
+          "plaits/dsp/speech/naive_speech_synth.cc",
+          "plaits/dsp/speech/sam_speech_synth.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.7,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "formant-speech",
+      "packageId": "rubato/formant-speech",
+      "name": "Speech Sounds",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Vocal",
+      "description": "A split of Emilie Gillet's Speech model in the Plaits source: Naive, SAM, and LPC phonemes spread continuously across one playable model.",
+      "tags": [
+        "speech",
+        "vocal",
+        "formant",
+        "sam",
+        "phoneme",
+        "variant"
+      ],
+      "controls": [
+        "Model",
+        "Species",
+        "Vowel",
+        "Spectral emphasis"
+      ],
+      "outputs": [
+        "Mono: excitation-to-voice-to-sharpened-voice path. Stereo: left blend of the voice and secondary signal.",
+        "Mono: raw excitation or secondary signal. Stereo: right blend of the voice and secondary signal."
+      ],
+      "artwork": {
+        "icon": "/model-icons/speech-sounds.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/formant_speech_engine.h",
+        "className": "FormantSpeechEngine",
+        "member": "formant_speech_engine_",
+        "files": [
+          "plaits/dsp/engine2/formant_speech_engine.cc",
+          "plaits/dsp/speech/lpc_speech_synth.cc",
+          "plaits/dsp/speech/lpc_speech_synth_controller.cc",
+          "plaits/dsp/speech/lpc_speech_synth_phonemes.cc",
+          "plaits/dsp/speech/naive_speech_synth.cc",
+          "plaits/dsp/speech/sam_speech_synth.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.84,
+        "auxGain": 0.96
+      }
+    },
+    {
+      "id": "lpc-speech",
+      "packageId": "rubato/lpc-speech",
+      "name": "LPC Words",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Vocal",
+      "description": "A split of Emilie Gillet's Speech model in the Plaits source: LPC word banks with selected stock or custom banks, direct speed, and recorded prosody.",
+      "tags": [
+        "speech",
+        "vocal",
+        "words",
+        "lpc",
+        "variant"
+      ],
+      "controls": [
+        "Word bank",
+        "Vocal tract",
+        "Word",
+        "Speed"
+      ],
+      "outputs": [
+        "Mono: LPC speech voice. Stereo: left blend of the voice and raw excitation.",
+        "Mono: raw LPC excitation. Stereo: right blend of the voice and raw excitation."
+      ],
+      "artwork": {
+        "icon": "/model-icons/lpc-words.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/lpc_speech_engine.h",
+        "className": "LPCSpeechEngine",
+        "member": "lpc_speech_engine_",
+        "behavior": "lpc-words",
+        "files": [
+          "plaits/dsp/engine2/lpc_speech_engine.cc",
+          "plaits/dsp/speech/lpc_speech_synth.cc",
+          "plaits/dsp/speech/lpc_speech_synth_controller.cc",
+          "plaits/dsp/speech/lpc_speech_synth_phonemes.cc",
+          "plaits/dsp/speech/lpc_speech_synth_words.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.7,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "swarm",
+      "packageId": "mutable-instruments/swarm",
+      "name": "Swarm",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Texture",
+      "description": "A cloud of detuned sawtooth oscillators for supersaws and drones.",
+      "tags": [
+        "swarm",
+        "supersaw",
+        "drone"
+      ],
+      "controls": [
+        "Pitch randomization",
+        "Grain density",
+        "Grain duration and overlap",
+        "Size dispersion"
+      ],
+      "outputs": [
+        "Mono: sawtooth swarm. Stereo: left channel, with the eight saw voices panned by detune rank.",
+        "Mono: sine swarm. Stereo: right channel of that same spread; the sine swarm is not rendered."
+      ],
+      "artwork": {
+        "icon": "/model-icons/swarm.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/swarm_engine.h",
+        "className": "SwarmEngine",
+        "member": "swarm_engine_",
+        "files": [
+          "plaits/dsp/engine/swarm_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -3.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "filtered-noise",
+      "packageId": "mutable-instruments/filtered-noise",
+      "name": "Filtered Noise",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Noise",
+      "description": "Clocked noise and multimode filtering for pitched or diffuse spectra.",
+      "tags": [
+        "noise",
+        "filter",
+        "clocked"
+      ],
+      "controls": [
+        "Filter response",
+        "Clock frequency",
+        "Resonance",
+        "Filter position"
+      ],
+      "outputs": [
+        "Filtered noise.",
+        "Mono: two separated band-pass voices. Stereo: decorrelated matching filter."
+      ],
+      "artwork": {
+        "icon": "/model-icons/filtered-noise.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/noise_engine.h",
+        "className": "NoiseEngine",
+        "member": "noise_engine_",
+        "files": [
+          "plaits/dsp/engine/noise_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -1.0,
+        "auxGain": -1.0
+      }
+    },
+    {
+      "id": "particle-noise",
+      "packageId": "mutable-instruments/particle-noise",
+      "name": "Particle Noise",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Noise",
+      "description": "Random particles excite a resonant network from sparse ticks to clouds.",
+      "tags": [
+        "particle",
+        "noise",
+        "texture"
+      ],
+      "controls": [
+        "Frequency randomization",
+        "Density",
+        "Filter type",
+        "Diffusion"
+      ],
+      "outputs": [
+        "Mono: resonant particles. Stereo: left channel, with the six particles spread across fixed pan positions.",
+        "Mono: raw particle impulses. Stereo: right channel of that same spread."
+      ],
+      "artwork": {
+        "icon": "/model-icons/particle-noise.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/particle_engine.h",
+        "className": "ParticleEngine",
+        "member": "particle_engine_",
+        "files": [
+          "plaits/dsp/engine/particle_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -2.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "inharmonic-string",
+      "packageId": "mutable-instruments/inharmonic-string",
+      "name": "Inharmonic String",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Physical",
+      "description": "A physical string model moving from clean plucks to inharmonic material.",
+      "tags": [
+        "string",
+        "physical",
+        "pluck"
+      ],
+      "controls": [
+        "Inharmonicity",
+        "Brightness",
+        "Damping",
+        "Excitation duration"
+      ],
+      "outputs": [
+        "Mono: physical string. Stereo: left channel, with the three strings panned across fixed positions.",
+        "Mono: raw exciter. Stereo: right channel of that same spread."
+      ],
+      "artwork": {
+        "icon": "/model-icons/inharmonic-string.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/string_engine.h",
+        "className": "StringEngine",
+        "member": "string_engine_",
+        "files": [
+          "plaits/dsp/engine/string_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "physical-string"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": -1.0,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "modal-resonator",
+      "packageId": "mutable-instruments/modal-resonator",
+      "name": "Modal Resonator",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Physical",
+      "description": "Modal synthesis for strings, plates, tubes, bells, and struck objects.",
+      "tags": [
+        "modal",
+        "physical",
+        "resonator"
+      ],
+      "controls": [
+        "Material",
+        "Brightness",
+        "Damping",
+        "Exciter resonance"
+      ],
+      "outputs": [
+        "Mono: modal resonator. Stereo: left channel, with even-numbered modes leaning left and odd-numbered modes right.",
+        "Mono: raw exciter. Stereo: right channel of that same mode split."
+      ],
+      "artwork": {
+        "icon": "/model-icons/modal-resonator.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/modal_engine.h",
+        "className": "ModalEngine",
+        "member": "modal_engine_",
+        "files": [
+          "plaits/dsp/engine/modal_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "physical-modal"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": -1.0,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "analog-bass-drum",
+      "packageId": "mutable-instruments/analog-bass-drum",
+      "name": "Analog Bass Drum",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Drums",
+      "description": "A punchy synthesized kick with controllable tone, decay, and drive.",
+      "tags": [
+        "drum",
+        "kick",
+        "percussion"
+      ],
+      "controls": [
+        "Attack and overdrive",
+        "Brightness",
+        "Decay",
+        "Pitch-envelope punch"
+      ],
+      "outputs": [
+        "Mono: analog-modeled bass drum. Stereo: left channel, with the two kick models panned close to center.",
+        "Mono: synthetic bass drum. Stereo: right channel of that same pair."
+      ],
+      "artwork": {
+        "icon": "/model-icons/analog-bass-drum.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/bass_drum_engine.h",
+        "className": "BassDrumEngine",
+        "member": "bass_drum_engine_",
+        "files": [
+          "plaits/dsp/engine/bass_drum_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "analog-snare",
+      "packageId": "mutable-instruments/analog-snare",
+      "name": "Analog Snare",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Drums",
+      "description": "A modeled snare combining tuned oscillators and filtered noise.",
+      "tags": [
+        "drum",
+        "snare",
+        "percussion"
+      ],
+      "controls": [
+        "Harmonic/noise balance",
+        "Mode balance",
+        "Decay",
+        "Shell inharmonicity"
+      ],
+      "outputs": [
+        "Mono: analog-modeled snare. Stereo: left channel, with the two snare models panned apart.",
+        "Mono: synthetic snare. Stereo: right channel of that same pair."
+      ],
+      "artwork": {
+        "icon": "/model-icons/analog-snare.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/snare_drum_engine.h",
+        "className": "SnareDrumEngine",
+        "member": "snare_drum_engine_",
+        "files": [
+          "plaits/dsp/engine/snare_drum_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "analog-hi-hat",
+      "packageId": "mutable-instruments/analog-hi-hat",
+      "name": "Analog Hi-hat",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Drums",
+      "description": "Metallic cymbal oscillators and noise shaped into crisp hi-hats.",
+      "tags": [
+        "drum",
+        "hat",
+        "cymbal",
+        "percussion"
+      ],
+      "controls": [
+        "Metal/noise balance",
+        "High-pass cutoff",
+        "Decay",
+        "Oscillator spacing"
+      ],
+      "outputs": [
+        "Mono: analog-modeled hi-hat. Stereo: left channel, with the two hi-hat models panned apart.",
+        "Mono: synthetic hi-hat. Stereo: right channel of that same pair."
+      ],
+      "artwork": {
+        "icon": "/model-icons/analog-hi-hat.png",
+        "kind": "official",
+        "tone": "red"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/hi_hat_engine.h",
+        "className": "HiHatEngine",
+        "member": "hi_hat_engine_",
+        "files": [
+          "plaits/dsp/engine/hi_hat_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "virtual-analog-vcf",
+      "packageId": "mutable-instruments/virtual-analog-vcf",
+      "name": "VA + VCF",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Classic oscillator shapes through a resonant virtual-analog filter.",
+      "tags": [
+        "analog",
+        "filter",
+        "lead",
+        "bass"
+      ],
+      "controls": [
+        "Resonance and filter character",
+        "Filter cutoff",
+        "Waveform and sub level",
+        "Drive"
+      ],
+      "outputs": [
+        "Mono: two-stage low-pass output. Stereo: left channel, the low-pass body with the high band added as a side signal.",
+        "Mono: soft-clipped high-pass output. Stereo: right channel, the same body with that side signal subtracted."
+      ],
+      "artwork": {
+        "icon": "/model-icons/virtual-analog-vcf.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/virtual_analog_vcf_engine.h",
+        "className": "VirtualAnalogVCFEngine",
+        "member": "virtual_analog_vcf_engine_",
+        "files": [
+          "plaits/dsp/engine2/virtual_analog_vcf_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "phase-distortion",
+      "packageId": "mutable-instruments/phase-distortion",
+      "name": "Phase Distortion",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "Casio-inspired phase distortion with animated harmonic contours.",
+      "tags": [
+        "digital",
+        "phase",
+        "bright"
+      ],
+      "controls": [
+        "Distortion frequency",
+        "Distortion amount",
+        "Asymmetry",
+        "Modulator ratio"
+      ],
+      "outputs": [
+        "Hard-synced phase-distortion voice; the left channel in stereo, unchanged.",
+        "Free-running phase-modulation voice; the right channel in stereo, unchanged. The two oscillators are already decorrelated."
+      ],
+      "artwork": {
+        "icon": "/model-icons/phase-distortion.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/phase_distortion_engine.h",
+        "className": "PhaseDistortionEngine",
+        "member": "phase_distortion_engine_",
+        "files": [
+          "plaits/dsp/engine2/phase_distortion_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.7,
+        "auxGain": 0.7
+      }
+    },
+    {
+      "id": "dx7-bank-a",
+      "packageId": "mutable-instruments/dx7-bank-a",
+      "name": "6-Op FM Bank A",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "FM",
+      "description": "The first bank of classic DX7-compatible six-operator FM patches stored in Plaits user data.",
+      "tags": [
+        "fm",
+        "dx7",
+        "six operator",
+        "preset"
+      ],
+      "controls": [
+        "Patch",
+        "Brightness / carrier tilt",
+        "Envelope",
+        "Network detune"
+      ],
+      "outputs": [
+        "Six-operator FM voice; left channel in stereo.",
+        "Same voice mix in mono; right channel in stereo."
+      ],
+      "artwork": {
+        "icon": "/model-icons/dx7-bank-a.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/six_op_engine.h",
+        "className": "SixOpEngine",
+        "member": "six_op_engine_",
+        "userDataBank": 0,
+        "files": [
+          "plaits/dsp/engine2/six_op_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "fm-core"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "dx7-bank-b",
+      "packageId": "mutable-instruments/dx7-bank-b",
+      "name": "6-Op FM Bank B",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "FM",
+      "description": "The second bank of classic DX7-compatible six-operator FM patches stored in Plaits user data.",
+      "tags": [
+        "fm",
+        "dx7",
+        "six operator",
+        "preset"
+      ],
+      "controls": [
+        "Patch",
+        "Brightness / carrier tilt",
+        "Envelope",
+        "Network detune"
+      ],
+      "outputs": [
+        "Six-operator FM voice; left channel in stereo.",
+        "Same voice mix in mono; right channel in stereo."
+      ],
+      "artwork": {
+        "icon": "/model-icons/dx7-bank-b.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/six_op_engine.h",
+        "className": "SixOpEngine",
+        "member": "six_op_engine_",
+        "userDataBank": 1,
+        "files": [
+          "plaits/dsp/engine2/six_op_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "fm-core"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "dx7-bank-c",
+      "packageId": "mutable-instruments/dx7-bank-c",
+      "name": "6-Op FM Bank C",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "FM",
+      "description": "The third bank of classic DX7-compatible six-operator FM patches stored in Plaits user data.",
+      "tags": [
+        "fm",
+        "dx7",
+        "six operator",
+        "preset"
+      ],
+      "controls": [
+        "Patch",
+        "Brightness / carrier tilt",
+        "Envelope",
+        "Network detune"
+      ],
+      "outputs": [
+        "Six-operator FM voice; left channel in stereo.",
+        "Same voice mix in mono; right channel in stereo."
+      ],
+      "artwork": {
+        "icon": "/model-icons/dx7-bank-c.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/six_op_engine.h",
+        "className": "SixOpEngine",
+        "member": "six_op_engine_",
+        "userDataBank": 2,
+        "files": [
+          "plaits/dsp/engine2/six_op_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "fm-core"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "wave-terrain",
+      "packageId": "mutable-instruments/wave-terrain",
+      "name": "Wave Terrain",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "Two-dimensional navigation across a continuously changing terrain.",
+      "tags": [
+        "terrain",
+        "digital",
+        "evolving"
+      ],
+      "controls": [
+        "Terrain",
+        "Path radius",
+        "Path offset",
+        "Y offset"
+      ],
+      "outputs": [
+        "Wave-terrain scan.",
+        "The alternate Sine(y + z) projection of the same trajectory; used as the right channel in stereo."
+      ],
+      "artwork": {
+        "icon": "/model-icons/wave-terrain.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/wave_terrain_engine.h",
+        "className": "WaveTerrainEngine",
+        "member": "wave_terrain_engine_",
+        "files": [
+          "plaits/dsp/engine2/wave_terrain_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.7,
+        "auxGain": 0.7
+      }
+    },
+    {
+      "id": "string-machine",
+      "packageId": "mutable-instruments/string-machine",
+      "name": "String Machine",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Polyphonic",
+      "description": "Divide-down ensemble strings with chord voicings and lush animation.",
+      "tags": [
+        "strings",
+        "ensemble",
+        "chord",
+        "polyphonic"
+      ],
+      "controls": [
+        "Chord",
+        "Filter and chorus",
+        "Waveform and registration",
+        "Ensemble amount"
+      ],
+      "outputs": [
+        "Voices 1 and 3 predominantly; the left channel in stereo, unchanged.",
+        "Voices 2 and 4 predominantly; the right channel in stereo, unchanged."
+      ],
+      "artwork": {
+        "icon": "/model-icons/string-machine.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/string_machine_engine.h",
+        "className": "StringMachineEngine",
+        "member": "string_machine_engine_",
+        "files": [
+          "plaits/dsp/engine2/string_machine_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "chord-bank"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "chiptune",
+      "packageId": "mutable-instruments/chiptune",
+      "name": "Chiptune",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "Three square-wave voices with arpeggiation and game-console grit.",
+      "tags": [
+        "chip",
+        "square",
+        "arp",
+        "game"
+      ],
+      "controls": [
+        "Chord",
+        "Arpeggio or inversion",
+        "Pulse width and sync",
+        "Register preset"
+      ],
+      "outputs": [
+        "Mono: chiptune chord or arpeggio. Stereo: left channel, with the chord voices spread across fixed positions and the arpeggio alternating sides.",
+        "Mono: NES triangle bass. Stereo: right channel of that spread; the bass stays centered."
+      ],
+      "artwork": {
+        "icon": "/model-icons/chiptune.png",
+        "kind": "custom",
+        "tone": "amber"
+      },
+      "source": {
+        "header": "plaits/dsp/engine2/chiptune_engine.h",
+        "className": "ChiptuneEngine",
+        "member": "chiptune_engine_",
+        "behavior": "chiptune",
+        "files": [
+          "plaits/dsp/engine2/chiptune_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "chord-bank"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.5,
+        "auxGain": 0.5
+      }
+    },
+    {
+      "id": "natural-speech",
+      "packageId": "rubato/natural-speech",
+      "name": "Natural Speech",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Vocal",
+      "description": "Spoken words resynthesized through a vocal tract you can reshape, from mumbled to over-enunciated.",
+      "tags": [
+        "speech",
+        "voice",
+        "vocal tract",
+        "words"
+      ],
+      "controls": [
+        "Word bank",
+        "Vocal tract",
+        "Word",
+        "Articulation"
+      ],
+      "outputs": [
+        "Mono: the voice. Stereo: the voice leaning left, with the whisper opposite it.",
+        "Mono: a whisper, the same tract driven by noise alone. Stereo: the right channel of the widened pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/natural_speech_engine.h",
+        "className": "NaturalSpeechEngine",
+        "member": "natural_speech_engine_",
+        "files": [
+          "plaits/dsp/engine2/natural_speech_engine.cc"
+        ],
+        "behavior": "natural-speech"
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.425,
+        "auxGain": 1.425
+      }
+    },
+    {
+      "id": "glisson",
+      "packageId": "rubato/glisson",
+      "name": "Glisson",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Granular",
+      "description": "Overlapping grains trace randomized upward and downward pitch glides.",
+      "tags": [
+        "experimental",
+        "grain",
+        "glissando",
+        "chirp"
+      ],
+      "controls": [
+        "Scatter",
+        "Grains",
+        "Direction",
+        "Trajectory"
+      ],
+      "outputs": [
+        "Mono: selected chirp direction. Stereo: selected chirps moving through the left channel.",
+        "Mono: counter-moving chirps. Stereo: selected chirps moving through the right channel."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/glisson_engine.h",
+        "className": "GlissonEngine",
+        "member": "glisson_engine_",
+        "files": [
+          "plaits/dsp/engine2/glisson_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.311,
+        "auxGain": 1.311
+      }
+    },
+    {
+      "id": "gendy",
+      "packageId": "rubato/gendy",
+      "name": "GENDY",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Stochastic",
+      "description": "A waveform continuously rewritten by amplitude and duration random walks.",
+      "tags": [
+        "experimental",
+        "stochastic",
+        "xenakis",
+        "random"
+      ],
+      "controls": [
+        "Breakpoints",
+        "Amplitude walk",
+        "Duration walk",
+        "Interpolation"
+      ],
+      "outputs": [
+        "Mono: selected interpolation of the stochastic waveform. Stereo: its primary phase readout.",
+        "Mono: raw stepped waveform. Stereo: an antipodal readout of the same evolving breakpoints."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/gendy_engine.h",
+        "className": "GendyEngine",
+        "member": "gendy_engine_",
+        "files": [
+          "plaits/dsp/engine2/gendy_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.95,
+        "auxGain": 0.95
+      }
+    },
+    {
+      "id": "scanned",
+      "packageId": "rubato/scanned",
+      "name": "Scanned",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Physical",
+      "description": "Scan across a slowly evolving network of coupled virtual masses.",
+      "tags": [
+        "experimental",
+        "scanned",
+        "physical",
+        "evolving"
+      ],
+      "controls": [
+        "Structure",
+        "Scan path",
+        "Wavefold",
+        "Evolution speed"
+      ],
+      "outputs": [
+        "Mono: mass-position scan. Stereo: first pickup on the shared virtual system.",
+        "Mono: spatial derivative. Stereo: a second pickup one quarter of the scan span away."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/scanned_engine.h",
+        "className": "ScannedEngine",
+        "member": "scanned_engine_",
+        "files": [
+          "plaits/dsp/engine2/scanned_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -1.0,
+        "auxGain": -1.0
+      }
+    },
+    {
+      "id": "pulsar",
+      "packageId": "rubato/pulsar",
+      "name": "Pulsar",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Microsound",
+      "description": "Windowed tone bursts move from sparse impulses to clustered formant rhythms.",
+      "tags": [
+        "experimental",
+        "pulsar",
+        "microsound",
+        "formant",
+        "burst"
+      ],
+      "controls": [
+        "Formant",
+        "Pulse width",
+        "Clusters",
+        "Skew"
+      ],
+      "outputs": [
+        "Primary pulse train; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Complementary phase-offset train; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/pulsar_engine.h",
+        "className": "PulsarEngine",
+        "member": "pulsar_engine_",
+        "files": [
+          "plaits/dsp/engine2/pulsar_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.104,
+        "auxGain": 1.104
+      }
+    },
+    {
+      "id": "loopback",
+      "packageId": "rubato/loopback",
+      "name": "Loopback",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Feedback",
+      "description": "A normalized feedback-AM loop creates recursive sidebands without running away.",
+      "tags": [
+        "experimental",
+        "feedback",
+        "am",
+        "sideband"
+      ],
+      "controls": [
+        "Feedback ratio",
+        "Recursion depth",
+        "Delay topology",
+        "Feedback symmetry"
+      ],
+      "outputs": [
+        "Mono: feedback-AM body. Stereo: left blend of the body and recursive sidebands.",
+        "Mono: isolated recursive sidebands. Stereo: right blend of the body and recursive sidebands."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/loopback_engine.h",
+        "className": "LoopbackEngine",
+        "member": "loopback_engine_",
+        "files": [
+          "plaits/dsp/engine2/loopback_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.53,
+        "auxGain": 0.53
+      }
+    },
+    {
+      "id": "lockstep",
+      "packageId": "rubato/lockstep",
+      "name": "Lockstep",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "PLL",
+      "description": "An audible internal phase-locked loop hunts, slips, and captures harmonic ratios.",
+      "tags": [
+        "experimental",
+        "pll",
+        "sync",
+        "ratio"
+      ],
+      "controls": [
+        "Lock ratio",
+        "Loop bandwidth",
+        "Detector character",
+        "Capture and damping"
+      ],
+      "outputs": [
+        "Mono: PLL follower. Stereo: left blend of the follower and reference oscillators.",
+        "Mono: acquisition charge-pump and phase error. Stereo: right blend of the follower and reference oscillators."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/lockstep_engine.h",
+        "className": "LockstepEngine",
+        "member": "lockstep_engine_",
+        "files": [
+          "plaits/dsp/engine2/lockstep_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.364,
+        "auxGain": 0.364
+      }
+    },
+    {
+      "id": "tapfield",
+      "packageId": "rubato/tapfield",
+      "name": "Tapfield",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Bitwise",
+      "description": "Pitch-clocked Galois feedback registers become repeating binary wavefields.",
+      "tags": [
+        "experimental",
+        "lfsr",
+        "binary",
+        "digital"
+      ],
+      "controls": [
+        "Register topology",
+        "Bit decoding",
+        "Bit corruption",
+        "Slew"
+      ],
+      "outputs": [
+        "Mono: decoded register field. Stereo: forward-order decode of the shared register.",
+        "Mono: raw carry stream. Stereo: reversed-order decode of the shared register."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/tapfield_engine.h",
+        "className": "TapfieldEngine",
+        "member": "tapfield_engine_",
+        "files": [
+          "plaits/dsp/engine2/tapfield_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "phase-weave",
+      "packageId": "rubato/phase-weave",
+      "name": "Phase Weave",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Phase",
+      "description": "Four asymmetric harmonic voices weave through moving cancellation geometries.",
+      "tags": [
+        "experimental",
+        "phase",
+        "cancellation",
+        "harmonic"
+      ],
+      "controls": [
+        "Constellation",
+        "Phase spread",
+        "Cancellation",
+        "Rotation and drive"
+      ],
+      "outputs": [
+        "Mono: weighted cancellation field. Stereo: left spread of the four harmonic voices.",
+        "Mono: orthogonal pair differences. Stereo: right spread of the four harmonic voices."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/phase_weave_engine.h",
+        "className": "PhaseWeaveEngine",
+        "member": "phase_weave_engine_",
+        "files": [
+          "plaits/dsp/engine2/phase_weave_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.93,
+        "auxGain": 0.93
+      }
+    },
+    {
+      "id": "sideband-bank",
+      "packageId": "rubato/sideband-bank",
+      "name": "Sideband Bank",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Additive",
+      "description": "Finite discrete-summation banks build compact geometric ladders above and below a carrier.",
+      "tags": [
+        "experimental",
+        "dsf",
+        "sideband",
+        "additive"
+      ],
+      "controls": [
+        "Partial spacing",
+        "Geometric rolloff",
+        "Partial count",
+        "Upper/lower bias"
+      ],
+      "outputs": [
+        "Mono: upper sideband bank. Stereo: full spectrum biased 85/15 toward the upper bank.",
+        "Mono: lower sideband bank. Stereo: full spectrum biased 85/15 toward the lower bank."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/sideband_engine.h",
+        "className": "SidebandEngine",
+        "member": "sideband_engine_",
+        "files": [
+          "plaits/dsp/engine2/sideband_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.511,
+        "auxGain": 0.511
+      }
+    },
+    {
+      "id": "attractor",
+      "packageId": "rubato/attractor",
+      "name": "Attractor",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Chaos",
+      "description": "A bounded three-state cyclic flow turns deterministic attractor motion into audio.",
+      "tags": [
+        "experimental",
+        "chaos",
+        "attractor",
+        "nonlinear"
+      ],
+      "controls": [
+        "Lobe density",
+        "Damping and chaos",
+        "Coordinate scan",
+        "Rate skew"
+      ],
+      "outputs": [
+        "Selected attractor coordinate; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Coordinate one step behind in the cyclic flow; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/attractor_engine.h",
+        "className": "AttractorEngine",
+        "member": "attractor_engine_",
+        "files": [
+          "plaits/dsp/engine2/attractor_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.113,
+        "auxGain": 1.113
+      }
+    },
+    {
+      "id": "undertow",
+      "packageId": "rubato/undertow",
+      "name": "Undertow",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Subharmonic",
+      "description": "Six integer undertones blend through original registrations and a warped divider lattice.",
+      "tags": [
+        "experimental",
+        "subharmonic",
+        "undertone",
+        "divider"
+      ],
+      "controls": [
+        "Registration",
+        "Wave colour",
+        "Anchor balance",
+        "Lattice stretch"
+      ],
+      "outputs": [
+        "Mono: registered undertone mixture. Stereo: left spread of that same registered mixture.",
+        "Mono: hollow alternating lattice without the anchor. Stereo: right spread of the registered mixture."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/undertow_engine.h",
+        "className": "UndertowEngine",
+        "member": "undertow_engine_",
+        "files": [
+          "plaits/dsp/engine2/undertow_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.246,
+        "auxGain": 1.246
+      }
+    },
+    {
+      "id": "reed-pipe",
+      "packageId": "rubato/reed-pipe",
+      "name": "Reed Pipe",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Physical",
+      "description": "A nonlinear reed excites a fractional-delay bore with a movable pressure pickup.",
+      "tags": [
+        "experimental",
+        "reed",
+        "waveguide",
+        "physical"
+      ],
+      "controls": [
+        "Bore pickup",
+        "Breath pressure",
+        "Reed stiffness",
+        "Bore reflection"
+      ],
+      "outputs": [
+        "Mono: pressure at the movable bore pickup. Stereo: left bore pickup.",
+        "Mono: reed flow. Stereo: right bore pickup a fixed third of the bore away."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/reed_pipe_engine.h",
+        "className": "ReedPipeEngine",
+        "member": "reed_pipe_engine_",
+        "files": [
+          "plaits/dsp/engine2/reed_pipe_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.129,
+        "auxGain": 1.129
+      }
+    },
+    {
+      "id": "phase-flock",
+      "packageId": "rubato/phase-flock",
+      "name": "Phase Flock",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Coupled",
+      "description": "Seven mean-field phase oscillators disperse, synchronize, and split into antipodal clusters.",
+      "tags": [
+        "experimental",
+        "kuramoto",
+        "coupled",
+        "synchronization"
+      ],
+      "controls": [
+        "Frequency spread",
+        "Coupling",
+        "Cluster order",
+        "Phase lag"
+      ],
+      "outputs": [
+        "Mono: first circular moment. Stereo: left spread of the seven oscillators.",
+        "Mono: second circular moment. Stereo: right spread of the seven oscillators."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/phase_flock_engine.h",
+        "className": "PhaseFlockEngine",
+        "member": "phase_flock_engine_",
+        "files": [
+          "plaits/dsp/engine2/phase_flock_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.467,
+        "auxGain": 0.467
+      }
+    },
+    {
+      "id": "rulefield",
+      "packageId": "rubato/rulefield",
+      "name": "Rulefield",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Cellular",
+      "description": "Elementary cellular-automaton generations become evolving 32-cell wavecycles.",
+      "tags": [
+        "experimental",
+        "cellular automaton",
+        "wavetable",
+        "digital"
+      ],
+      "controls": [
+        "CA rule",
+        "Cells to edges",
+        "Evolution rate",
+        "Interpolation"
+      ],
+      "outputs": [
+        "Mono: cell-to-edge wavecycle blend. Stereo: first spatial read of that blend.",
+        "Mono: inter-generation activity. Stereo: antipodal spatial read of the cell-to-edge blend."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/rulefield_engine.h",
+        "className": "RulefieldEngine",
+        "member": "rulefield_engine_",
+        "files": [
+          "plaits/dsp/engine2/rulefield_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "spectral-spiral",
+      "packageId": "rubato/spectral-spiral",
+      "name": "Spectral Spiral",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Feedback",
+      "description": "A complex delay loop repeatedly frequency-shifts an analytic harmonic source.",
+      "tags": [
+        "experimental",
+        "frequency shifter",
+        "feedback",
+        "spectral"
+      ],
+      "controls": [
+        "Source richness",
+        "Shift spacing",
+        "Feedback",
+        "Shift direction"
+      ],
+      "outputs": [
+        "Forward spectral spiral; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Quadrature counter-shift projection; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/spectral_spiral_engine.h",
+        "className": "SpectralSpiralEngine",
+        "member": "spectral_spiral_engine_",
+        "files": [
+          "plaits/dsp/engine2/spectral_spiral_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.891,
+        "auxGain": 0.891
+      }
+    },
+    {
+      "id": "z-filter",
+      "packageId": "mutable-instruments/z-filter",
+      "name": "Z Filter",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Braids' four filter models in one slot: a windowed resonator burst rung against a polarity-flipped pulse train and its integral.",
+      "tags": [
+        "braids",
+        "filter",
+        "resonator",
+        "subtractive"
+      ],
+      "controls": [
+        "Model",
+        "Cutoff",
+        "Shape",
+        "Bend"
+      ],
+      "outputs": [
+        "The filter model HARMONICS selects.",
+        "Its complement, so LP pairs with HP and PK with BP. The stereo toggle does not change this fixed model pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/z_filter_engine.h",
+        "className": "ZFilterEngine",
+        "member": "z_filter_engine_",
+        "files": [
+          "plaits/dsp/engine2/z_filter_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.059,
+        "auxGain": 1.059
+      }
+    },
+    {
+      "id": "toy",
+      "packageId": "mutable-instruments/toy",
+      "name": "Toy",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Bitwise",
+      "description": "A bit-mangled phase ramp read through a sample-and-hold clock that can free-run or lock to the played note.",
+      "tags": [
+        "braids",
+        "bitwise",
+        "lo-fi",
+        "digital"
+      ],
+      "controls": [
+        "Mangle",
+        "Crush",
+        "Clock",
+        "Fold"
+      ],
+      "outputs": [
+        "Mono: the reconstruction-filtered mangled stream. Stereo: the filtered left stream.",
+        "Mono: the unfiltered aliased stream. Stereo: a filtered right stream whose hold clock runs slightly fast."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/toy_engine.h",
+        "className": "ToyEngine",
+        "member": "toy_engine_",
+        "files": [
+          "plaits/dsp/engine2/toy_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.56,
+        "auxGain": -0.56
+      }
+    },
+    {
+      "id": "csaw",
+      "packageId": "mutable-instruments/csaw",
+      "name": "CSaw",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "The emblematic Braids sawtooth, with a notch cut into the start of every cycle and a bendable ramp.",
+      "tags": [
+        "braids",
+        "sawtooth",
+        "analog",
+        "subtractive"
+      ],
+      "controls": [
+        "Depth",
+        "Width",
+        "Bend",
+        "Tilt"
+      ],
+      "outputs": [
+        "Mono: the notched sawtooth. Stereo: the notched sawtooth on the left.",
+        "Mono: a variable-width pulse. Stereo: a second notched saw on the right, with mirrored depth and an offset bend."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/csaw_engine.h",
+        "className": "CSawEngine",
+        "member": "csaw_engine_",
+        "files": [
+          "plaits/dsp/engine2/csaw_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.493,
+        "auxGain": 0.493
+      }
+    },
+    {
+      "id": "ring-mod",
+      "packageId": "mutable-instruments/ring-mod",
+      "name": "Ring Mod",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "A carrier ring-modulated by two independently detuned sines, driven through a saturating shaper.",
+      "tags": [
+        "braids",
+        "ring modulation",
+        "sideband",
+        "digital"
+      ],
+      "controls": [
+        "Detune 1",
+        "Detune 2",
+        "Depth",
+        "Drive"
+      ],
+      "outputs": [
+        "Mono: the full three-way ring product. Stereo: the same product on the left.",
+        "Mono: the first modulator alone. Stereo: the carrier times the first modulator on the right."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/ring_mod_engine.h",
+        "className": "RingModEngine",
+        "member": "ring_mod_engine_",
+        "files": [
+          "plaits/dsp/engine2/ring_mod_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -1.5,
+        "auxGain": -1.5
+      }
+    },
+    {
+      "id": "fold",
+      "packageId": "mutable-instruments/fold",
+      "name": "Fold",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Waveshaping",
+      "description": "Braids' two wavefolders crossfaded against each other, the sine one saturating where the triangle one keeps folding. The model Plaits' Waveshaping model descends from, with the second curve it left behind.",
+      "tags": [
+        "braids",
+        "wavefolder",
+        "waveshaping",
+        "harmonics"
+      ],
+      "controls": [
+        "Blend",
+        "Fold",
+        "Symmetry",
+        "Drive"
+      ],
+      "outputs": [
+        "Mono: the two folders crossfaded at Blend. Stereo: the same sound with a small leftward blend offset.",
+        "Mono: the complementary folder crossfade. Stereo: the same sound with a small rightward blend offset."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/fold_engine.h",
+        "className": "FoldEngine",
+        "member": "fold_engine_",
+        "files": [
+          "plaits/dsp/engine2/fold_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.512,
+        "auxGain": -0.512
+      }
+    },
+    {
+      "id": "buzz",
+      "packageId": "mutable-instruments/buzz",
+      "name": "Buzz",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "Braids' two unison-tuned band-limited pulse trains, summed. Harmonic count comes from a wavetable zone lookup, not a live additive sum, so the sweep is a flat spectrum with a hard cutoff moving through it, not a shaped one.",
+      "tags": [
+        "braids",
+        "pulse",
+        "wavetable",
+        "detune",
+        "buzz"
+      ],
+      "controls": [
+        "Detune",
+        "Buzz",
+        "Spread",
+        "Reach"
+      ],
+      "outputs": [
+        "The two voices summed, or the first voice alone in stereo.",
+        "The two voices' difference, or the second voice alone in stereo."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/buzz_engine.h",
+        "className": "BuzzEngine",
+        "member": "buzz_engine_",
+        "files": [
+          "plaits/dsp/engine2/buzz_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.591,
+        "auxGain": 0.591
+      }
+    },
+    {
+      "id": "dual-sync",
+      "packageId": "mutable-instruments/dual-sync",
+      "name": "Dual Sync",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Braids' two hard-sync models in one engine: a master oscillator syncs a slave swept up to 64 semitones above it, crossfaded against it. Virtual Analog's sync square shares one knob with pulse width and gain, and has no balance.",
+      "tags": [
+        "braids",
+        "sync",
+        "oscillator",
+        "analog"
+      ],
+      "controls": [
+        "Balance",
+        "Interval",
+        "Shape",
+        "Reset"
+      ],
+      "outputs": [
+        "Mono: the master and slave crossfaded at Balance. Stereo: the same sound with a small leftward balance offset.",
+        "Mono: the complementary master/slave crossfade. Stereo: the same sound with a small rightward balance offset."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/dual_sync_engine.h",
+        "className": "DualSyncEngine",
+        "member": "dual_sync_engine_",
+        "files": [
+          "plaits/dsp/engine2/dual_sync_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.618,
+        "auxGain": -0.618
+      }
+    },
+    {
+      "id": "granular-cloud",
+      "packageId": "mutable-instruments/granular-cloud",
+      "name": "Granular Cloud",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Granular",
+      "description": "Braids' asynchronous grain cloud: four windowed sine grains respawning on a coin flip, each taking a fresh random pitch. Where Granular Formant stays locked to a carrier, this one scatters until the pitch is gone.",
+      "tags": [
+        "braids",
+        "granular",
+        "grains",
+        "stochastic",
+        "cloud"
+      ],
+      "controls": [
+        "Scatter",
+        "Grain",
+        "Shape",
+        "Density"
+      ],
+      "outputs": [
+        "Mono: all four grains summed. Stereo: the left side of the fixed four-grain pan spread.",
+        "Mono: the cloud's amplitude on one steady tone at the played pitch. Stereo: the right side of the four-grain pan spread."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/granular_cloud_engine.h",
+        "className": "GranularCloudEngine",
+        "member": "granular_cloud_engine_",
+        "files": [
+          "plaits/dsp/engine2/granular_cloud_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.103,
+        "auxGain": 0.689
+      }
+    },
+    {
+      "id": "morph",
+      "packageId": "mutable-instruments/morph",
+      "name": "Morph",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Braids' one-knob walk from triangle through saw to a narrowing pulse, into a low-pass that tracks the note and a tanh fuzz. Virtual Analog shares the waveforms and has neither.",
+      "tags": [
+        "braids",
+        "analog",
+        "morph",
+        "fuzz"
+      ],
+      "controls": [
+        "Fuzz",
+        "Shape",
+        "Tone",
+        "Drive"
+      ],
+      "outputs": [
+        "Mono: the filtered and fuzzed voice. Stereo: the processed voice at the lower Fuzz offset on the left.",
+        "Mono: the dry morph oscillator. Stereo: the processed voice at the higher Fuzz offset on the right."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/morph_engine.h",
+        "className": "MorphEngine",
+        "member": "morph_engine_",
+        "files": [
+          "plaits/dsp/engine2/morph_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.375,
+        "auxGain": -0.375
+      }
+    },
+    {
+      "id": "noise-bank",
+      "packageId": "mutable-instruments/noise-bank",
+      "name": "Noise Bank",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Noise",
+      "description": "Braids' three noise models in one slot: noise through a resonant filter, two resonant peaks, and a sample-and-hold whose random sequence loops into a pitched buzz.",
+      "tags": [
+        "braids",
+        "noise",
+        "resonator",
+        "sample and hold"
+      ],
+      "controls": [
+        "Model",
+        "Color",
+        "Shape",
+        "Drive"
+      ],
+      "outputs": [
+        "The selected model.",
+        "Its fixed complement: the notch, the peak difference, or a second sequence. The stereo toggle does not change this pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/noise_bank_engine.h",
+        "className": "NoiseBankEngine",
+        "member": "noise_bank_engine_",
+        "files": [
+          "plaits/dsp/engine2/noise_bank_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.704,
+        "auxGain": 0.704
+      }
+    },
+    {
+      "id": "particle-burst",
+      "packageId": "mutable-instruments/particle-burst",
+      "name": "Particle Burst",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Noise",
+      "description": "Braids' PRTC: three fixed-interval resonant filters, a chord above the note, re-struck by a shared decaying noise burst at a random rate. Plaits' Particle Noise scatters six particles around one pitch instead — a cloud, not a chord.",
+      "tags": [
+        "braids",
+        "particle",
+        "resonator",
+        "noise",
+        "percussive"
+      ],
+      "controls": [
+        "Scatter",
+        "Density",
+        "Chord width",
+        "Decay"
+      ],
+      "outputs": [
+        "The three resonant filters, summed.",
+        "Mono: the raw decaying-noise burst before filtering. Stereo: a second, fully independent filter bank and RNG stream, for genuinely decorrelated left and right bursts."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/particle_burst_engine.h",
+        "className": "ParticleBurstEngine",
+        "member": "particle_burst_engine_",
+        "files": [
+          "plaits/dsp/engine2/particle_burst_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "saw-square",
+      "packageId": "mutable-instruments/saw-square",
+      "name": "Saw Square",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Braids' variable saw and variable square, driven from one shared TIMBRE knob that opens one as it closes the other, crossfaded by COLOR. Virtual Analog runs the same pair of waveforms independently; this is the coupled, single-knob version.",
+      "tags": [
+        "braids",
+        "saw",
+        "square",
+        "oscillator"
+      ],
+      "controls": [
+        "Blend",
+        "Shape",
+        "Phase",
+        "Square Level"
+      ],
+      "outputs": [
+        "Mono: the saw/square crossfade at Blend. Stereo: the same pair with a small leftward blend offset.",
+        "Mono: the complementary saw/square crossfade. Stereo: the same pair with a small rightward blend offset."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/saw_square_engine.h",
+        "className": "SawSquareEngine",
+        "member": "saw_square_engine_",
+        "files": [
+          "plaits/dsp/engine2/saw_square_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.029,
+        "auxGain": 1.029
+      }
+    },
+    {
+      "id": "saw-swarm",
+      "packageId": "mutable-instruments/saw-swarm",
+      "name": "Saw Swarm",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Braids' seven-voice detuned sawtooth chorus, soft-clipped and carved by a resonant filter tracking the note. A fixed chorus of deliberately raw, aliasing sawtooths — not the granular cloud of Plaits' own Swarm model.",
+      "tags": [
+        "braids",
+        "sawtooth",
+        "detune",
+        "filter",
+        "digital"
+      ],
+      "controls": [
+        "Color",
+        "Detune",
+        "Filter",
+        "Resonance"
+      ],
+      "outputs": [
+        "The filtered swarm at the dialed-in Filter position.",
+        "Mono: the mirrored filter position. Stereo: a magnitude-matched phase-rotated copy of the filtered swarm."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/saw_swarm_engine.h",
+        "className": "SawSwarmEngine",
+        "member": "saw_swarm_engine_",
+        "files": [
+          "plaits/dsp/engine2/saw_swarm_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -1.201,
+        "auxGain": -1.201
+      }
+    },
+    {
+      "id": "vowel",
+      "packageId": "mutable-instruments/vowel",
+      "name": "Vowel",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Vocal",
+      "description": "Braids' table-driven vowel synthesizer: three formants read at sixteen steps a cycle, gated by a ramp that restarts every pitch period, through a tanh shaper. The stepped ancestor of Speech's SAM mode.",
+      "tags": [
+        "braids",
+        "formant",
+        "vocal",
+        "vowel"
+      ],
+      "controls": [
+        "Spread",
+        "Shift",
+        "Vowel",
+        "Grain"
+      ],
+      "outputs": [
+        "Mono: the shaped formant stack. Stereo: the shaped stack with a small downward formant shift on the left.",
+        "Mono: the clean stack ahead of the overdrive. Stereo: the shaped stack with a small upward formant shift on the right."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/vowel_engine.h",
+        "className": "VowelEngine",
+        "member": "vowel_engine_",
+        "files": [
+          "plaits/dsp/engine2/vowel_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.877,
+        "auxGain": -1.566
+      }
+    },
+    {
+      "id": "harmonics",
+      "packageId": "mutable-instruments/harmonics",
+      "name": "Harmonics",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Additive",
+      "description": "Braids' twelve-partial additive stack, with two Lorentzian bumps sliding over the harmonic series. Its integer amplitude slew gates quiet partials out entirely, the grain the Plaits Harmonic Oscillator's float smoothing does not have.",
+      "tags": [
+        "braids",
+        "additive",
+        "partials",
+        "formant"
+      ],
+      "controls": [
+        "Color",
+        "Peak",
+        "Spread",
+        "Width"
+      ],
+      "outputs": [
+        "Mono: the twelve-partial stack at Peak. Stereo: the same stack with a small leftward Peak offset.",
+        "Mono: the stack with Peak reflected. Stereo: the same stack with a small rightward Peak offset."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/harmonics_engine.h",
+        "className": "HarmonicsEngine",
+        "member": "harmonics_engine_",
+        "files": [
+          "plaits/dsp/engine2/harmonics_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "vosim",
+      "packageId": "mutable-instruments/vosim",
+      "name": "VOSIM",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Vocal",
+      "description": "Braids' VOSM: two sine formants under a bell window the played note restarts. Both formant pitches are absolute and set independently, reaching pairs Granular Formant's ratio control cannot, and the 2:1 balance is a knob.",
+      "tags": [
+        "braids",
+        "vosim",
+        "formant",
+        "grain"
+      ],
+      "controls": [
+        "Formant 2",
+        "Formant 1",
+        "Window",
+        "Balance"
+      ],
+      "outputs": [
+        "Mono: the grain train at Balance. Stereo: the same voice with a small leftward balance offset.",
+        "Mono: the grain train with Balance mirrored. Stereo: the same voice with a small rightward balance offset."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/vosim_engine.h",
+        "className": "VosimEngine",
+        "member": "vosim_engine_",
+        "files": [
+          "plaits/dsp/engine2/vosim_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.694,
+        "auxGain": -0.694
+      }
+    },
+    {
+      "id": "plucked",
+      "packageId": "mutable-instruments/plucked",
+      "name": "Plucked",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Physical",
+      "description": "Braids' PLUK: three round-robin Karplus-Strong voices, a noise burst dropped into a resonant loop per strike. Inharmonic String is the same round robin with a far more elaborate model; this keeps PLUK's own stochastic damping instead.",
+      "tags": [
+        "braids",
+        "karplus-strong",
+        "pluck",
+        "string",
+        "percussive"
+      ],
+      "controls": [
+        "Pluck",
+        "Damping",
+        "Chord",
+        "Stretch"
+      ],
+      "outputs": [
+        "All three round-robin voices, summed.",
+        "Mono: the raw noise excitation only, silent between strikes. Stereo: dropped in favor of panning each voice to a fixed round-robin position."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/plucked_engine.h",
+        "className": "PluckedEngine",
+        "member": "plucked_engine_",
+        "files": [
+          "plaits/dsp/engine2/plucked_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "chord-bank"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.537,
+        "auxGain": 1.537
+      }
+    },
+    {
+      "id": "blown",
+      "packageId": "mutable-instruments/blown",
+      "name": "Blown",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Physical",
+      "description": "Braids' blown bore: one delay line closed by an inverting reflection, driven by a clipped reed and a breath pressure the noise rides on. Its tone filter sits outside the loop, so the body color and the pipe are separate controls.",
+      "tags": [
+        "braids",
+        "physical",
+        "waveguide",
+        "wind"
+      ],
+      "controls": [
+        "Body",
+        "Focus",
+        "Blow",
+        "Reed"
+      ],
+      "outputs": [
+        "The bore heard through the body filter, which is what the module emits.",
+        "Mono: the raw bore pressure, before the body filter. Stereo: a second pickup 0.62 of the way down the same bore, through its own copy of the body filter, so the two channels are one standing wave heard at two points."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/blown_engine.h",
+        "className": "BlownEngine",
+        "member": "blown_engine_",
+        "files": [
+          "plaits/dsp/engine2/blown_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -2.23,
+        "auxGain": -2.23
+      }
+    },
+    {
+      "id": "struck-bell",
+      "packageId": "mutable-instruments/struck-bell",
+      "name": "Struck Bell",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Additive",
+      "description": "Braids' BELL: eleven fixed inharmonic partials, additively synthesized and struck once per trigger, sharing one decay curve and one odd/even detune. A fixed hand-tuned voicing, not a stretched-harmonic formula.",
+      "tags": [
+        "braids",
+        "bell",
+        "additive",
+        "percussive",
+        "struck",
+        "inharmonic"
+      ],
+      "controls": [
+        "Detune",
+        "Decay",
+        "Brightness",
+        "Decay spread"
+      ],
+      "outputs": [
+        "The eleven-partial sum. Tracks the module's own output closely.",
+        "Mono: the five highest partials alone, a bright fast-decaying companion voice. Stereo: a magnitude-matched phase-rotated copy of the full bell, widening the same eleven partials without retuning them."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/struck_bell_engine.h",
+        "className": "StruckBellEngine",
+        "member": "struck_bell_engine_",
+        "files": [
+          "plaits/dsp/engine2/struck_bell_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.325,
+        "auxGain": 1.325
+      }
+    },
+    {
+      "id": "struck-drum",
+      "packageId": "mutable-instruments/struck-drum",
+      "name": "Struck Drum",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Additive",
+      "description": "Braids' DRUM: six fixed partials struck once per trigger. Two are ring-modulated by lowpass-filtered noise instead of played straight — a different mechanism from a resonator excited by noise.",
+      "tags": [
+        "braids",
+        "drum",
+        "additive",
+        "percussive",
+        "struck",
+        "noise"
+      ],
+      "controls": [
+        "Color",
+        "Decay",
+        "Spread",
+        "Decay spread"
+      ],
+      "outputs": [
+        "The six-partial mix. Tracks the module's own output closely.",
+        "Mono: the two noise-ring-modulated partials alone, without the direct tone or the harmonics sum. Stereo: a second, independently-filtered noise realization for the right channel, sharing the same tonal partials as the left."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/struck_drum_engine.h",
+        "className": "StruckDrumEngine",
+        "member": "struck_drum_engine_",
+        "files": [
+          "plaits/dsp/engine2/struck_drum_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.243,
+        "auxGain": 1.243
+      }
+    },
+    {
+      "id": "kick",
+      "packageId": "mutable-instruments/kick",
+      "name": "Kick",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Drums",
+      "description": "Braids' self-enveloping kick: two decaying pulses into a bandpass that jumps up in pitch for a brief click, then self-brightens. A different mechanism from Plaits' own Analog Bass Drum, which clicks with FM rather than a retuned filter.",
+      "tags": [
+        "braids",
+        "drum",
+        "kick",
+        "percussion"
+      ],
+      "controls": [
+        "Tone",
+        "Decay",
+        "Balance",
+        "Punch"
+      ],
+      "outputs": [
+        "Mono: the self-enveloped kick. Stereo: the kick body plus a small excitation side signal on the left.",
+        "Mono: the raw excitation pulses before the resonator. Stereo: the kick body minus that side signal on the right."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/kick_engine.h",
+        "className": "KickEngine",
+        "member": "kick_engine_",
+        "files": [
+          "plaits/dsp/engine2/kick_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.0,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "snare",
+      "packageId": "mutable-instruments/snare",
+      "name": "Snare",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Drums",
+      "description": "Braids' SNAR: two decaying pulses into two fixed-interval tonal resonators, and a decaying noise burst into a third, high resonator, all self-enveloping and summed. A note strikes shorter the higher it is played.",
+      "tags": [
+        "braids",
+        "drum",
+        "snare",
+        "percussion",
+        "noise"
+      ],
+      "controls": [
+        "Snap",
+        "Tone",
+        "Snap balance",
+        "Spread"
+      ],
+      "outputs": [
+        "Mono: the full self-enveloping snare. Stereo: the snare plus a small snap side signal on the left.",
+        "Mono: the snap resonator alone. Stereo: the snare minus that side signal on the right."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/snare_engine.h",
+        "className": "SnareEngine",
+        "member": "snare_engine_",
+        "files": [
+          "plaits/dsp/engine2/snare_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "cymbal",
+      "packageId": "mutable-instruments/cymbal",
+      "name": "Cymbal",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Drums",
+      "description": "Braids' CYMBAL: six square oscillators through a resonant bandpass, crossfaded against clocked noise through a resonant highpass. Free-running, not self-enveloping.",
+      "tags": [
+        "braids",
+        "drum",
+        "cymbal",
+        "hihat",
+        "percussion",
+        "noise",
+        "metallic"
+      ],
+      "controls": [
+        "Color",
+        "Tone",
+        "Spread",
+        "Resonance"
+      ],
+      "outputs": [
+        "The crossfaded pair, Braids' own signal.",
+        "Mono: the complementary crossfade, always favoring the side MAIN does not. Stereo: a second, independent raw-noise stream and a small opposing offset on Color."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/cymbal_engine.h",
+        "className": "CymbalEngine",
+        "member": "cymbal_engine_",
+        "files": [
+          "plaits/dsp/engine2/cymbal_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.206,
+        "auxGain": 1.206
+      }
+    },
+    {
+      "id": "wave-scan",
+      "packageId": "mutable-instruments/wave-scan",
+      "name": "Wave Scan",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Wavetable",
+      "description": "Braids' three wavetable models in one slot, over its own set of 256 8-bit waves: 20 named banks, a 16x16 interpolated map, and a curated line with a phase-domain crush.",
+      "tags": [
+        "braids",
+        "wavetable",
+        "scanning",
+        "lo-fi"
+      ],
+      "controls": [
+        "Model",
+        "Scan",
+        "Shape",
+        "Snap"
+      ],
+      "outputs": [
+        "Mono: the scanned readout. Stereo: the same scan with a small leftward crossfade offset.",
+        "Mono: the adjacent wave, opposite map corner, or other crush endpoint. Stereo: the scan with a small rightward offset."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/wave_scan_engine.h",
+        "className": "WaveScanEngine",
+        "member": "wave_scan_engine_",
+        "files": [
+          "plaits/dsp/engine2/wave_scan_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.614,
+        "auxGain": -0.614
+      }
+    },
+    {
+      "id": "wave-paraphonic",
+      "packageId": "mutable-instruments/wave-paraphonic",
+      "name": "Wave Paraphonic",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Polyphonic",
+      "description": "Four wavetable voices play the active Plaits chord table over Braids' 33-wave scan line, with per-voice wave fan and continuous interval scaling.",
+      "tags": [
+        "braids",
+        "wavetable",
+        "chord",
+        "paraphonic"
+      ],
+      "controls": [
+        "Chord",
+        "Wave",
+        "Fan",
+        "Spread"
+      ],
+      "outputs": [
+        "Mono: all four chord voices summed. Stereo: the left side of the fixed four-voice pan spread.",
+        "Mono: the chord table's first voice alone. Stereo: the right side of the four-voice pan spread."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/wave_paraphonic_engine.h",
+        "className": "WaveParaphonicEngine",
+        "member": "wave_paraphonic_engine_",
+        "files": [
+          "plaits/dsp/engine2/wave_paraphonic_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.278,
+        "auxGain": 1.278
+      },
+      "sharedModules": [
+        "chord-bank"
+      ]
+    },
+    {
+      "id": "fluted",
+      "packageId": "mutable-instruments/fluted",
+      "name": "Fluted",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Physical",
+      "description": "A jet flute derived from Braids' FLUT: a bore and a jet delay line sharing one loop, driven by an asymmetric cubic jet and a breath the noise multiplies. It overblows into a higher register, as the module does.",
+      "tags": [
+        "braids",
+        "physical",
+        "waveguide",
+        "wind"
+      ],
+      "controls": [
+        "Embouchure",
+        "Air",
+        "Blow",
+        "Body"
+      ],
+      "outputs": [
+        "The bore pressure at the far end, which is what the module emits.",
+        "A second tap halfway along the same bore, level-matched but decorrelated. The stereo toggle does not change this fixed two-pickup pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/fluted_engine.h",
+        "className": "FlutedEngine",
+        "member": "fluted_engine_",
+        "files": [
+          "plaits/dsp/engine2/fluted_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.8,
+        "auxGain": -0.8
+      }
+    },
+    {
+      "id": "question-mark",
+      "packageId": "mutable-instruments/question-mark",
+      "name": "Question Mark",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Noise",
+      "description": "Braids' hidden model, reachable on the module only with the marquee set to “49”: a Morse transmitter keying a sine over a drifting noise bed, through a squared-distortion stage.",
+      "tags": [
+        "braids",
+        "morse",
+        "easter-egg",
+        "noise",
+        "radio"
+      ],
+      "controls": [
+        "Static",
+        "Speed",
+        "Bed",
+        "Grit"
+      ],
+      "outputs": [
+        "The transmission, the module's own signal.",
+        "Mono: the keyed carrier alone, before the bed and the distortion. Stereo: a second full transmission whose noise draws come from an independent generator, so the tone stays centered and the bed opens out."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/question_mark_engine.h",
+        "className": "QuestionMarkEngine",
+        "member": "question_mark_engine_",
+        "files": [
+          "plaits/dsp/engine2/question_mark_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -1.327,
+        "auxGain": -1.327
+      }
+    },
+    {
+      "id": "virtual-analog-variant",
+      "packageId": "mutable-instruments/virtual-analog-variant",
+      "name": "Virtual Analog Variant",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "Emilie Gillet's two alternate virtual-analog designs preserved in the Plaits source, unified: a detuned or hard-synced second oscillator on one trajectory, with independently spread waveshapes.",
+      "tags": [
+        "analog",
+        "oscillator",
+        "sync",
+        "variant"
+      ],
+      "controls": [
+        "Interval",
+        "Waveshape",
+        "Detune to sync",
+        "Shape spread"
+      ],
+      "outputs": [
+        "Mono: the primary with the detuned or hard-synced oscillator, as set by MORPH. Stereo: left channel, a point just below the primary/detuned mix.",
+        "Mono: the primary against a hard-synced oscillator at the HARMONICS ratio, half and half. Stereo: right channel, a point just above the primary/detuned mix."
+      ],
+      "artwork": {
+        "icon": "/model-icons/virtual-analog.png",
+        "kind": "official",
+        "tone": "green"
+      },
+      "source": {
+        "header": "plaits/dsp/engine/virtual_analog_variant_engine.h",
+        "className": "VirtualAnalogVariantEngine",
+        "member": "virtual_analog_variant_engine_",
+        "files": [
+          "plaits/dsp/engine/virtual_analog_variant_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.337,
+        "auxGain": 0.337
+      }
+    },
+    {
+      "id": "bowed",
+      "packageId": "mutable-instruments/bowed",
+      "name": "Bowed",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Physical",
+      "description": "A bowed string waveguide with a stick-slip friction exciter, a movable bow, and an adjustable instrument body.",
+      "tags": [
+        "braids",
+        "waveguide",
+        "physical",
+        "string"
+      ],
+      "controls": [
+        "Bow position",
+        "Bow pressure",
+        "Nut damping",
+        "Body"
+      ],
+      "outputs": [
+        "Mono: the bridge pickup through the instrument body. Stereo: the same bridge pickup on the left.",
+        "Mono: the bow exciter before the string and body. Stereo: the neck pickup through the body on the right."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/bowed_engine.h",
+        "className": "BowedEngine",
+        "member": "bowed_engine_",
+        "files": [
+          "plaits/dsp/engine2/bowed_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -2.993,
+        "auxGain": -2.993
+      }
+    },
+    {
+      "id": "sub-oscillator",
+      "packageId": "mutable-instruments/sub-oscillator",
+      "name": "Sub Osc",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Subtractive",
+      "description": "A shaped main oscillator against a square sub one or two octaves down, loudest at both ends of the sub control.",
+      "tags": [
+        "braids",
+        "sub",
+        "oscillator",
+        "subtractive"
+      ],
+      "controls": [
+        "Shape",
+        "Width",
+        "Sub level",
+        "Sub width"
+      ],
+      "outputs": [
+        "The main oscillator blended with the sub.",
+        "The sub oscillator alone, at full level. The stereo toggle does not change this fixed main/sub pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/sub_oscillator_engine.h",
+        "className": "SubOscillatorEngine",
+        "member": "sub_oscillator_engine_",
+        "files": [
+          "plaits/dsp/engine2/sub_oscillator_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.593,
+        "auxGain": -0.593
+      }
+    },
+    {
+      "id": "digital-modulation",
+      "packageId": "mutable-instruments/digital-modulation",
+      "name": "Digital Modulation",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Digital",
+      "description": "A carrier driven by a framed packet of dibits through a four-point constellation, with an openable frame.",
+      "tags": [
+        "braids",
+        "modulation",
+        "packet",
+        "digital"
+      ],
+      "controls": [
+        "Frame",
+        "Symbol rate",
+        "Shaping",
+        "Payload"
+      ],
+      "outputs": [
+        "Mono: the complete in-phase plus quadrature carrier. Stereo: the in-phase component on the left.",
+        "Mono: the DC-blocked symbol staircase. Stereo: the quadrature carrier component on the right."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/digital_modulation_engine.h",
+        "className": "DigitalModulationEngine",
+        "member": "digital_modulation_engine_",
+        "files": [
+          "plaits/dsp/engine2/digital_modulation_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.768,
+        "auxGain": -0.698
+      }
+    },
+    {
+      "id": "saw-comb",
+      "packageId": "mutable-instruments/saw-comb",
+      "name": "Saw Comb",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Feedback",
+      "description": "A band-limited exciter through a comb whose pitch is decoupled from the played note, with genuinely bipolar feedback.",
+      "tags": [
+        "braids",
+        "comb",
+        "feedback",
+        "resonator"
+      ],
+      "controls": [
+        "Resonance",
+        "Comb pitch",
+        "Exciter",
+        "Loop tilt"
+      ],
+      "outputs": [
+        "Comb output.",
+        "Second comb tap a fifth below the main one. The stereo toggle does not change this fixed two-tap pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/saw_comb_engine.h",
+        "className": "SawCombEngine",
+        "member": "saw_comb_engine_",
+        "files": [
+          "plaits/dsp/engine2/saw_comb_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.547,
+        "auxGain": -0.547
+      }
+    },
+    {
+      "id": "vowel-fof",
+      "packageId": "mutable-instruments/vowel-fof",
+      "name": "Vowel FOF",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Vocal",
+      "description": "Five very narrow filters sweeping five vowels across five vocal registers, with the formant balance Braids leaves flat. The ancestor of Speech's naive mode, on the same vowel and register grid, carried here at finer resolution.",
+      "tags": [
+        "braids",
+        "formant",
+        "vocal",
+        "vowel"
+      ],
+      "controls": [
+        "Brightness",
+        "Vowel",
+        "Register",
+        "Formant tilt"
+      ],
+      "outputs": [
+        "Formant bank.",
+        "Glottal source, level-matched to the main output only near mid register; upper-formant weighting in stereo."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/vowel_fof_engine.h",
+        "className": "VowelFofEngine",
+        "member": "vowel_fof_engine_",
+        "files": [
+          "plaits/dsp/engine2/vowel_fof_engine.cc",
+          "plaits/dsp/engine2/vowel_fof_data.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -3.045,
+        "auxGain": -3.045
+      }
+    },
+    {
+      "id": "raw-fm",
+      "packageId": "mutable-instruments/raw-fm",
+      "name": "Raw FM",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "FM",
+      "description": "Braids' three FM models on one axis: self-feedback, plain two-operator FM, and chaotic frequency feedback. The ancestor of Two-op FM, sharing its ratio quantizer and feedback axis, run raw: unfiltered feedback, no oversampling.",
+      "tags": [
+        "braids",
+        "fm",
+        "feedback",
+        "chaotic"
+      ],
+      "controls": [
+        "Ratio",
+        "Index",
+        "Character",
+        "Depth"
+      ],
+      "outputs": [
+        "Carrier.",
+        "Modulator. The stereo toggle does not change this fixed carrier/modulator pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/raw_fm_engine.h",
+        "className": "RawFmEngine",
+        "member": "raw_fm_engine_",
+        "files": [
+          "plaits/dsp/engine2/raw_fm_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.45,
+        "auxGain": -0.45
+      }
+    },
+    {
+      "id": "triple",
+      "packageId": "mutable-instruments/triple",
+      "name": "Triple",
+      "author": "Emilie Gillet",
+      "origin": "Mutable Instruments",
+      "family": "Polyphonic",
+      "description": "Three oscillators with two continuously swept interval knobs, morphing together through square, saw, triangle, and sine. It overlaps Chords and Swarm in territory, not lineage: intervals you sweep rather than a table you author.",
+      "tags": [
+        "braids",
+        "detune",
+        "polyphonic",
+        "interval"
+      ],
+      "controls": [
+        "Spread",
+        "Interval",
+        "Waveform",
+        "Shape"
+      ],
+      "outputs": [
+        "Three-voice mix.",
+        "Undetuned root voice. The stereo toggle does not change this fixed mix/root pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/triple_engine.h",
+        "className": "TripleEngine",
+        "member": "triple_engine_",
+        "files": [
+          "plaits/dsp/engine2/triple_engine.cc",
+          "plaits/dsp/engine2/triple_engine_data.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.774,
+        "auxGain": -0.774
+      }
+    },
+    {
+      "id": "bytebeat",
+      "packageId": "bees-in-the-trees/bytebeat",
+      "name": "Bytebeat",
+      "author": "Tim Churches",
+      "origin": "Community",
+      "family": "Digital",
+      "description": "Four integer expressions read as audio, pitch-tracked and with an openable mask width. From Tim Churches' Bees-in-the-Trees firmware for Braids.",
+      "tags": [
+        "braids",
+        "bees-in-the-trees",
+        "bytebeat",
+        "lo-fi",
+        "digital"
+      ],
+      "controls": [
+        "Term A",
+        "Term B",
+        "Expression",
+        "Mask width"
+      ],
+      "outputs": [
+        "Bytebeat stream; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Same expression at half the tick rate; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/bytebeat_engine.h",
+        "className": "BytebeatEngine",
+        "member": "bytebeat_engine_",
+        "files": [
+          "plaits/dsp/engine2/bytebeat_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.653,
+        "auxGain": -0.653
+      }
+    },
+    {
+      "id": "diatonic-chord",
+      "packageId": "braids-renaissance/diatonic-chord",
+      "name": "Diatonic Chord",
+      "author": "Tom Burns",
+      "origin": "Community",
+      "family": "Polyphonic",
+      "description": "Chords stacked in scale degrees rather than fixed intervals, so the quality follows the played note. From Tom Burns' Braids Renaissance firmware.",
+      "tags": [
+        "braids",
+        "braids renaissance",
+        "chord",
+        "diatonic",
+        "polyphonic",
+        "scale"
+      ],
+      "controls": [
+        "Chord",
+        "Spread",
+        "Waveform",
+        "Scale"
+      ],
+      "outputs": [
+        "Diatonic chord; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Root voice; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/diatonic_chord_engine.h",
+        "className": "DiatonicChordEngine",
+        "member": "diatonic_chord_engine_",
+        "files": [
+          "plaits/dsp/engine2/diatonic_chord_engine.cc",
+          "plaits/dsp/engine2/scale_voices.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -1.213,
+        "auxGain": -1.213
+      }
+    },
+    {
+      "id": "scale-stack",
+      "packageId": "braids-renaissance/scale-stack",
+      "name": "Scale Stack",
+      "author": "Tom Burns",
+      "origin": "Community",
+      "family": "Polyphonic",
+      "description": "Five voices spaced an equal number of scale degrees apart, sweeping from cluster to wide chord without ever leaving the scale. From Tom Burns' Braids Renaissance firmware.",
+      "tags": [
+        "braids",
+        "braids renaissance",
+        "stack",
+        "polyphonic",
+        "scale",
+        "interval"
+      ],
+      "controls": [
+        "Span",
+        "Spread",
+        "Waveform",
+        "Scale"
+      ],
+      "outputs": [
+        "Five-voice scale stack; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Root voice; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/scale_stack_engine.h",
+        "className": "ScaleStackEngine",
+        "member": "scale_stack_engine_",
+        "files": [
+          "plaits/dsp/engine2/scale_stack_engine.cc",
+          "plaits/dsp/engine2/scale_voices.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -1.148,
+        "auxGain": -1.148
+      }
+    },
+    {
+      "id": "wavetable-chord",
+      "packageId": "braids-renaissance/wavetable-chord",
+      "name": "Wavetable Diatonic Chord",
+      "author": "Tom Burns",
+      "origin": "Community",
+      "family": "Polyphonic",
+      "description": "Diatonic chords over Braids Renaissance's WTCH scan, with independent voice spread and wavetable position. From Tom Burns' Braids Renaissance firmware.",
+      "tags": [
+        "braids",
+        "braids renaissance",
+        "chord",
+        "diatonic",
+        "polyphonic",
+        "scale",
+        "wavetable"
+      ],
+      "controls": [
+        "Chord",
+        "Spread",
+        "Wavetable",
+        "Scale"
+      ],
+      "outputs": [
+        "Wavetable chord; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Root voice; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/wavetable_chord_engine.h",
+        "className": "WavetableChordEngine",
+        "member": "wavetable_chord_engine_",
+        "files": [
+          "plaits/dsp/engine2/wavetable_chord_engine.cc",
+          "plaits/dsp/engine2/scale_voices.cc",
+          "plaits/dsp/engine2/scale_wavetable_voices.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.65,
+        "auxGain": -0.65
+      }
+    },
+    {
+      "id": "wavetable-scale-stack",
+      "packageId": "braids-renaissance/wavetable-scale-stack",
+      "name": "Wavetable Scale Stack",
+      "author": "Tom Burns",
+      "origin": "Community",
+      "family": "Polyphonic",
+      "description": "Five scale-spaced voices over Braids Renaissance's WTx6 scan, with independent span, spread, and wavetable position. From Tom Burns' Braids Renaissance firmware.",
+      "tags": [
+        "braids",
+        "braids renaissance",
+        "stack",
+        "polyphonic",
+        "scale",
+        "interval",
+        "wavetable"
+      ],
+      "controls": [
+        "Span",
+        "Spread",
+        "Wavetable",
+        "Scale"
+      ],
+      "outputs": [
+        "Five-voice wavetable stack; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Root voice; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/wavetable_scale_stack_engine.h",
+        "className": "WavetableScaleStackEngine",
+        "member": "wavetable_scale_stack_engine_",
+        "files": [
+          "plaits/dsp/engine2/wavetable_scale_stack_engine.cc",
+          "plaits/dsp/engine2/scale_voices.cc",
+          "plaits/dsp/engine2/scale_wavetable_voices.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -0.6,
+        "auxGain": -0.6
+      }
+    },
+    {
+      "id": "shakers",
+      "packageId": "rubato/shakers",
+      "name": "Shakers",
+      "author": "Lyle Mills, after Perry R. Cook and Gary P. Scavone",
+      "origin": "Rubato Lab",
+      "family": "Percussion",
+      "description": "Sixteen shaken and scraped instruments from Perry Cook's PhISEM, which models the statistics of colliding objects rather than any one object's shape.",
+      "tags": [
+        "stk",
+        "phisem",
+        "percussion",
+        "shaker",
+        "stochastic",
+        "physical"
+      ],
+      "controls": [
+        "Instrument",
+        "Shake",
+        "Decay",
+        "Objects"
+      ],
+      "outputs": [
+        "Resonant instrument model; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Bare collision train before resonance; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/shakers_engine.h",
+        "className": "ShakersEngine",
+        "member": "shakers_engine_",
+        "files": [
+          "plaits/dsp/engine2/shakers_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.0,
+        "auxGain": 1.0
+      }
+    },
+    {
+      "id": "brass",
+      "packageId": "rubato/brass",
+      "name": "Brass",
+      "author": "Lyle Mills, after Perry R. Cook and Gary P. Scavone",
+      "origin": "Rubato Lab",
+      "family": "Physical",
+      "description": "A lip-reed brass instrument after Perry R. Cook and Gary P. Scavone's STK brass model. Breath makes it speak, and the lip knob climbs the bore's harmonic series the way a bugle player does.",
+      "tags": [
+        "brass",
+        "lip",
+        "physical",
+        "waveguide",
+        "wind",
+        "stk"
+      ],
+      "controls": [
+        "Lip",
+        "Breath",
+        "Bell",
+        "Buzz"
+      ],
+      "outputs": [
+        "Pressure inside the mouthpiece; the stereo toggle does not change this fixed MAIN/AUX pair.",
+        "Valve flow that drives the bore; the stereo toggle does not change this fixed MAIN/AUX pair."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/brass_engine.h",
+        "className": "BrassEngine",
+        "member": "brass_engine_",
+        "files": [
+          "plaits/dsp/engine2/brass_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": -2.087,
+        "auxGain": 1.67
+      }
+    },
+    {
+      "id": "helix",
+      "packageId": "rubato/helix",
+      "name": "Helix",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Chords",
+      "description": "A chord stacked across octaves on a Shepard helix, gliding endlessly up or down without ever changing register.",
+      "tags": [
+        "shepard",
+        "chord",
+        "drone",
+        "glide"
+      ],
+      "controls": [
+        "Chord",
+        "Glide",
+        "Fold",
+        "Spread"
+      ],
+      "outputs": [
+        "Mono: folded chord. Stereo: folded left channel of the Shepard helix.",
+        "Mono: unfolded chord. Stereo: folded right channel of the Shepard helix."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/helix_engine.h",
+        "className": "HelixEngine",
+        "member": "helix_engine_",
+        "files": [
+          "plaits/dsp/engine2/helix_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      },
+      "sharedModules": [
+        "chord-bank"
+      ],
+      "artwork": {
+        "color": "#5796E4"
+      }
+    },
+    {
+      "id": "skins",
+      "packageId": "rubato/skins",
+      "name": "Skins",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Percussion",
+      "description": "Struck membrane modes move from a round open head to a tighter loaded skin, with center, rim, damping, and pitch-dive control.",
+      "tags": [
+        "drum",
+        "hand drum",
+        "membrane",
+        "modal",
+        "percussion",
+        "physical"
+      ],
+      "controls": [
+        "Membrane",
+        "Strike",
+        "Damping",
+        "Pressure"
+      ],
+      "outputs": [
+        "Mono: the full membrane and strike. Stereo: the left membrane pickup.",
+        "Mono: rim-weighted upper modes and dry slap. Stereo: the right membrane pickup."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/skins_engine.h",
+        "className": "SkinsEngine",
+        "member": "skins_engine_",
+        "files": [
+          "plaits/dsp/engine2/skins_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.438,
+        "auxGain": 1.438
+      }
+    },
+    {
+      "id": "circuit-zaps",
+      "packageId": "rubato/circuit-zaps",
+      "name": "Circuit Zaps",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Percussion",
+      "description": "Falling-pitch electronic strikes cross two oscillators into ring-modulated zaps, sparks, and driven discharges.",
+      "tags": [
+        "electronic",
+        "percussion",
+        "pitch envelope",
+        "ring modulation",
+        "sweep",
+        "zap"
+      ],
+      "controls": [
+        "Topology",
+        "Dive",
+        "Tail",
+        "Charge"
+      ],
+      "outputs": [
+        "Mono: the saturated electronic percussion voice. Stereo: the left crossed circuit and independent spark.",
+        "Mono: the clean oscillators and attack transient. Stereo: the right crossed circuit and independent spark."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/circuit_zaps_engine.h",
+        "className": "CircuitZapsEngine",
+        "member": "circuit_zaps_engine_",
+        "files": [
+          "plaits/dsp/engine2/circuit_zaps_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 0.88,
+        "auxGain": 0.88
+      }
+    },
+    {
+      "id": "metalwork",
+      "packageId": "rubato/metalwork",
+      "name": "Metalwork",
+      "author": "Lyle Mills",
+      "origin": "Rubato Lab",
+      "family": "Percussion",
+      "description": "Paired inharmonic modes turn one struck-metal model into anvil, agogo, plate, and gong families with controllable beating.",
+      "tags": [
+        "agogo",
+        "anvil",
+        "gong",
+        "metal",
+        "modal",
+        "percussion",
+        "plate"
+      ],
+      "controls": [
+        "Object",
+        "Hardness",
+        "Damping",
+        "Beating"
+      ],
+      "outputs": [
+        "Mono: the complete struck object. Stereo: the left modal pickup.",
+        "Mono: upper modes and dry metal strike. Stereo: the right modal pickup."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/metalwork_engine.h",
+        "className": "MetalworkEngine",
+        "member": "metalwork_engine_",
+        "files": [
+          "plaits/dsp/engine2/metalwork_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 2.545,
+        "auxGain": 2.545
+      }
+    },
+    {
+      "id": "clap",
+      "packageId": "community/clap",
+      "name": "Analog Clap",
+      "author": "Dylan Bolink",
+      "origin": "Community",
+      "family": "Drums",
+      "description": "808-style clap, noise gated a few milliseconds at a time into a wide band with a steep bottom, and a longer tail for the room. Four hands become seven that disagree; unpatched, an audience.",
+      "tags": [
+        "community",
+        "drum",
+        "clap",
+        "808",
+        "percussion",
+        "noise",
+        "applause"
+      ],
+      "controls": [
+        "Hands",
+        "Tone",
+        "Room",
+        "Spacing"
+      ],
+      "outputs": [
+        "Mono: hands and room. Stereo: left clap with independently placed hands and noise.",
+        "Mono: dry hands through a higher band. Stereo: right clap with independently placed hands and noise."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/clap_engine.h",
+        "className": "ClapEngine",
+        "member": "clap_engine_",
+        "files": [
+          "plaits/dsp/engine2/clap_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.062,
+        "auxGain": 1.062
+      },
+      "artwork": {
+        "color": "#009a98"
+      }
+    },
+    {
+      "id": "analog-percussion",
+      "packageId": "community/analog-percussion",
+      "name": "Analog Percussion",
+      "author": "Dylan Bolink",
+      "origin": "Community",
+      "family": "Drums",
+      "description": "The 808's tuned percussion: toms, congas, rimshot, claves, and cowbell are points in one plane of pitch, ring length, and material rather than separate instruments.",
+      "tags": [
+        "community",
+        "drum",
+        "808",
+        "tom",
+        "conga",
+        "rimshot",
+        "clave",
+        "cowbell",
+        "percussion",
+        "resonator"
+      ],
+      "controls": [
+        "Click",
+        "Material",
+        "Decay",
+        "Ratio"
+      ],
+      "outputs": [
+        "Mono: both modes and the click, through a high-pass band as Material moves clockwise. Stereo: left percussion voice.",
+        "Mono: an enveloped octave-down strike or drone. Stereo: right percussion voice."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/analog_percussion_engine.h",
+        "className": "AnalogPercussionEngine",
+        "member": "analog_percussion_engine_",
+        "files": [
+          "plaits/dsp/engine2/analog_percussion_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": true,
+        "outGain": 1.013,
+        "auxGain": 1.013
+      },
+      "artwork": {
+        "color": "#009a98"
+      }
+    },
+    {
+      "id": "freshets-formant",
+      "packageId": "community/freshets-formant",
+      "name": "Freshets Formant",
+      "author": "Dylan Bolink",
+      "origin": "Community",
+      "family": "Formant",
+      "description": "A driver oscillator firing a Serge-style AD envelope read through a waveshaper. Pulses arriving mid-attack are skipped, so low ratios subdivide the driver instead of retriggering it. Ported from Tides 2 Freshets alternative firmware.",
+      "tags": [
+        "community",
+        "formant",
+        "serge",
+        "tides",
+        "waveshaping",
+        "sub-octave"
+      ],
+      "controls": [
+        "Ratio",
+        "Smoothness",
+        "Slope",
+        "Shape"
+      ],
+      "outputs": [
+        "Mono: formant waveform. Stereo: left formant voice.",
+        "Mono: hollow logic pulse with optional sub-octave. Stereo: right formant voice from a slightly detuned envelope."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/freshets_formant_engine.h",
+        "className": "FreshetsFormantEngine",
+        "member": "freshets_formant_engine_",
+        "files": [
+          "plaits/dsp/engine2/freshets_formant_engine.cc",
+          "plaits/dsp/engine2/freshets_formant_shapes.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.4,
+        "auxGain": 0.856
+      },
+      "artwork": {
+        "color": "#009a98"
+      }
+    },
+    {
+      "id": "bubbletime",
+      "packageId": "community/bubbletime",
+      "name": "BubbleTime",
+      "author": "Combust",
+      "origin": "Community",
+      "family": "Experimental",
+      "description": "A bubbly point-process instrument: strike timing drawn from a rigidity ladder (hyperuniform to clustered) pings chord-tone plucks. A bubbling timing generator at CV rates; a bubbling arp at audio rates.",
+      "tags": [
+        "community",
+        "bubbletime",
+        "point-process",
+        "percussion",
+        "rhythm",
+        "statistics"
+      ],
+      "controls": [
+        "Rigidity",
+        "Tempo/Char",
+        "Wrap",
+        "Loop"
+      ],
+      "outputs": [
+        "Mono: gap-melody resonator pings. Stereo: left channel, with bubble positions derived from the two wrap rings.",
+        "Mono: polymetric XOR accent gates. Stereo: right channel, with bubble positions derived from the two wrap rings."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/bubbletime_engine.h",
+        "className": "BubbleTimeEngine",
+        "member": "bubbletime_engine_",
+        "files": [
+          "plaits/dsp/engine2/bubbletime_engine.cc",
+          "plaits/dsp/engine2/ars_luts.h"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 1.0
+      },
+      "sharedModules": [
+        "chord-bank"
+      ]
+    },
+    {
+      "id": "zxphase48k",
+      "packageId": "community/zxphase48k",
+      "name": "ZxPhase48k",
+      "author": "Combust",
+      "origin": "Community",
+      "family": "Chiptune",
+      "description": "ZX Spectrum beeper interference synthesis: two squares boolean-combined on a 1-bit bus that also XORs with its own past — a boolean flanger. Audio into V/OCT is crushed block-rate FM, on purpose.",
+      "tags": [
+        "community",
+        "chiptune",
+        "1-bit",
+        "beeper",
+        "zx-spectrum"
+      ],
+      "controls": [
+        "Mix method",
+        "PWM",
+        "Interval",
+        "Clean/Ghost"
+      ],
+      "outputs": [
+        "Mono: boolean-combined bus. Stereo: shorter phase-rotated left channel.",
+        "Mono: oscillator 2 solo. Stereo: longer phase-rotated right channel derived from the same boolean bus."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/zxphase48k_engine.h",
+        "className": "ZxPhase48kEngine",
+        "member": "zxphase48k_engine_",
+        "files": [
+          "plaits/dsp/engine2/zxphase48k_engine.cc",
+          "plaits/dsp/engine2/pulse_core.h"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.8,
+        "auxGain": 0.8
+      }
+    },
+    {
+      "id": "zxpulse48k",
+      "packageId": "community/zxpulse48k",
+      "name": "ZxPulse48k",
+      "author": "Combust",
+      "origin": "Community",
+      "family": "Chiptune",
+      "description": "Follin-style 1-bit pulse-frequency modulation: chord-bank driven pin-train stacks and arpeggios with pulse-width-as-volume, tick-quantized echo, load-dependent pitch pull, and selectable voice-level stereo.",
+      "tags": [
+        "community",
+        "chiptune",
+        "1-bit",
+        "beeper",
+        "pfm"
+      ],
+      "controls": [
+        "Chord",
+        "Pin width",
+        "Stack/Arp",
+        "Echo/Pull"
+      ],
+      "outputs": [
+        "Mono: band-limited pin-train sum. Stereo: left voice field.",
+        "Mono: raw aliased pin bus. Stereo: right voice field."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/zxpulse48k_engine.h",
+        "className": "ZxPulse48kEngine",
+        "member": "zxpulse48k_engine_",
+        "files": [
+          "plaits/dsp/engine2/zxpulse48k_engine.cc",
+          "plaits/dsp/engine2/pulse_core.h"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 1.824,
+        "auxGain": 1.824
+      },
+      "sharedModules": [
+        "chord-bank"
+      ]
+    },
+    {
+      "id": "acid",
+      "packageId": "community/acid",
+      "name": "Acid",
+      "author": "Dylan Bolink",
+      "origin": "Community",
+      "family": "Acid",
+      "description": "A silver-box bassline voice: one saw-to-pulse oscillator into a four-pole ladder, then a diode-style clipper. The filter sweep is DECAY through MORPH's attenuverter, and LEVEL is a real accent.",
+      "tags": [
+        "community",
+        "acid",
+        "bassline",
+        "diode ladder",
+        "resonant filter",
+        "accent",
+        "distortion"
+      ],
+      "controls": [
+        "Resonance",
+        "Drive",
+        "Cutoff",
+        "Waveform"
+      ],
+      "outputs": [
+        "Mono: filter output through the asymmetric drive stage. Stereo: left channel, with cutoff offset below center.",
+        "Mono: clean filter tap before the clipper. Stereo: right channel, with cutoff offset above center."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/acid_engine.h",
+        "className": "AcidEngine",
+        "member": "acid_engine_",
+        "files": [
+          "plaits/dsp/engine2/acid_engine.cc"
+        ]
+      },
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.631,
+        "auxGain": 0.631
+      },
+      "artwork": {
+        "color": "#009a98"
+      }
+    },
+    {
+      "id": "chords-supersaw",
+      "packageId": "community/chords-supersaw",
+      "name": "Supersaw Chords",
+      "author": "Dirk Hoppmann",
+      "origin": "Community",
+      "family": "Polyphonic",
+      "description": "Chords on unevenly detuned saw stacks, with a saturator on TIMBRE and the detune spread on MORPH.",
+      "tags": [
+        "chord",
+        "polyphonic",
+        "harmony",
+        "supersaw",
+        "detune",
+        "pad",
+        "drive",
+        "community"
+      ],
+      "controls": [
+        "Chord",
+        "Drive",
+        "Detune spread",
+        "Stack size"
+      ],
+      "outputs": [
+        "Mono: the whole chord. Stereo: the left side of the detune spread.",
+        "Mono: the root voice, boosted. Stereo: the right side of the detune spread."
+      ],
+      "source": {
+        "header": "plaits/dsp/engine2/chords_supersaw_engine.h",
+        "className": "ChordsSupersawEngine",
+        "member": "chords_supersaw_engine_",
+        "files": [
+          "plaits/dsp/engine2/chords_supersaw_engine.cc"
+        ]
+      },
+      "sharedModules": [
+        "chord-bank"
+      ],
+      "postProcessing": {
+        "alreadyEnveloped": false,
+        "outGain": 0.983,
+        "auxGain": 0.983
+      }
+    }
+  ],
+  "manuals": {
+    "virtual-analog": {
+      "controls": {
+        "harmonics": "Detunes the paired oscillators through closely spaced and musical intervals.",
+        "timbre": "Sweeps a variable square from narrow pulse through full square to hard-sync formants.",
+        "morph": "Sweeps a variable saw from triangle through saw to an increasingly wide notch.",
+        "macro": "Crossfades the square and variable-saw components around the stock midpoint."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "virtual-analog-dual": {
+      "controls": {
+        "harmonics": "Detunes the secondary oscillator through musical intervals and sets the mono hard-sync AUX ratio.",
+        "timbre": "Changes the primary oscillator continuously from saw through square and pulse shapes.",
+        "morph": "Changes the secondary oscillator independently through the same variable waveform range.",
+        "macro": "Scales interval detuning from unison to twice the original range; the midpoint is Emilie's original spread."
+      },
+      "trigger": "The oscillator phases free-run; patched TRIG restarts Plaits' shared decay and low-pass-gate envelope."
+    },
+    "virtual-analog-crossfade": {
+      "controls": {
+        "harmonics": "Detunes the secondary oscillator through closely spaced and musical intervals.",
+        "timbre": "Moves the main output from a detuned pair through the dry primary to progressively harder synchronization.",
+        "morph": "Changes the common oscillator waveform continuously from saw through square and pulse shapes.",
+        "macro": "Scales interval detuning from unison to twice the original range; the midpoint is Emilie's original spread."
+      },
+      "trigger": "The oscillator phases free-run; patched TRIG restarts Plaits' shared decay and low-pass-gate envelope."
+    },
+    "waveshaping": {
+      "controls": {
+        "harmonics": "Changes the waveshaper waveform before the signal reaches the wavefolder.",
+        "timbre": "Increases wavefolding from a clean tone to dense folded spectra.",
+        "morph": "Changes waveform asymmetry from a symmetric triangle toward skewed shapes.",
+        "macro": "Offsets the wavefolder symmetry from negative through centered to positive bias."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "two-op-fm": {
+      "controls": {
+        "harmonics": "Selects the carrier-to-modulator frequency ratio.",
+        "timbre": "Raises the FM index from a pure carrier to bright sidebands.",
+        "morph": "Feeds the modulator back into itself for increasingly complex spectra.",
+        "macro": "Detunes the modulator up to a semitone either side of the selected ratio. In tune at noon."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "granular-formant": {
+      "controls": {
+        "harmonics": "Sets the frequency ratio between the two formant components.",
+        "timbre": "Sets the formant frequency independently of the played fundamental.",
+        "morph": "Changes formant width and the shape of each windowed grain.",
+        "macro": "Brings the carrier through the stock suppressed-carrier texture."
+      },
+      "trigger": "Restarts the internal envelope and grain articulation when TRIG is patched."
+    },
+    "harmonic": {
+      "controls": {
+        "harmonics": "Changes the number of spectral bumps and the ripples distributed around them.",
+        "timbre": "Selects the most prominent harmonic, like moving a band-pass filter's cutoff.",
+        "morph": "Changes each spectral bump from broad and flat to narrow and peaked.",
+        "macro": "Rebalances odd and even partials around the stock midpoint."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "wavetable": {
+      "controls": {
+        "harmonics": "Selects a family within the integrated wavetable collection.",
+        "timbre": "Moves across one dimension of the selected table.",
+        "morph": "Moves across the second dimension with smooth interpolation.",
+        "macro": "Warps oscillator phase to create new variants of the selected wave."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "chords": {
+      "controls": {
+        "harmonics": "Selects the chord from the active chord table.",
+        "timbre": "Changes chord inversion and transposition across the four voices.",
+        "morph": "Changes waveform from divide-down string and organ registrations into wavetable scanning.",
+        "macro": "Balances the two internally grouped sets of chord voices."
+      },
+      "trigger": "Restarts the internal envelope and rearticulates the chord when TRIG is patched."
+    },
+    "speech": {
+      "controls": {
+        "harmonics": "Crossfades the speech models, then selects LPC word banks.",
+        "timbre": "Changes voice species by shifting formants or changing the emulated speech-chip clock.",
+        "morph": "Selects the vowel, phoneme, word, or word segment for the active speech model.",
+        "macro": "In mono, moves from raw excitation through the stock voice to sharper emphasis; stereo replaces this axis with a fixed voice/excitation spread."
+      },
+      "trigger": "Advances or restarts speech material according to the selected model."
+    },
+    "formant-speech": {
+      "controls": {
+        "harmonics": "Moves continuously from the five-formant naive voice through SAM to interpolated LPC phonemes.",
+        "timbre": "Changes vocal species, register, formant frequencies, or speech-chip character for the active model.",
+        "morph": "Moves continuously through the available vowel and phoneme shapes for the active model.",
+        "macro": "Moves from raw excitation through the stock voice to sharper spectral emphasis."
+      },
+      "trigger": "Adds the source models' brief consonant or glottal articulation at the start of a note."
+    },
+    "lpc-speech": {
+      "controls": {
+        "harmonics": "Selects one of the active stock or custom LPC word banks across the full dial.",
+        "timbre": "Shifts the LPC vocal tract while keeping the played note as the pitch reference, matching Original Speech's LPC range.",
+        "morph": "Selects a word or a position within the active LPC word bank.",
+        "macro": "Changes playback speed around the original recording speed at noon."
+      },
+      "trigger": "Plays the selected word. With TRIG patched and FM unpatched, the FM attenuverter restores or inverts its recorded pitch contour."
+    },
+    "swarm": {
+      "controls": {
+        "harmonics": "Changes the amount of random pitch spread across the eight swarm voices.",
+        "timbre": "Changes grain density from sparse particles to a continuous swarm.",
+        "morph": "Changes grain duration and overlap, merging into continuous oscillators at maximum.",
+        "macro": "Widens the distribution of grain sizes around the stock midpoint."
+      },
+      "trigger": "Restarts the internal envelope and rearticulates the swarm when TRIG is patched."
+    },
+    "filtered-noise": {
+      "controls": {
+        "harmonics": "Sweeps the primary filter response continuously from low-pass through band-pass to high-pass.",
+        "timbre": "Sets the variable clock frequency of the noise source.",
+        "morph": "Raises resonance from broad noise to sharply pitched bands.",
+        "macro": "Offsets the filter response from low-pass toward high-pass around the HARMONICS setting."
+      },
+      "trigger": "Restarts the internal envelope and resets the variable noise clock when TRIG is patched."
+    },
+    "particle-noise": {
+      "controls": {
+        "harmonics": "Randomizes particle frequencies around the played note.",
+        "timbre": "Changes particle density from isolated ticks to a continuous cloud.",
+        "morph": "Changes filter type: diffused all-pass textures below noon, then increasingly resonant band-pass filters.",
+        "macro": "Adds diffusion from a dry particle stream to a dense cloud."
+      },
+      "trigger": "Restarts the internal envelope and particle articulation when TRIG is patched."
+    },
+    "inharmonic-string": {
+      "controls": {
+        "harmonics": "Changes string dispersion from harmonic plucks to inharmonic material.",
+        "timbre": "Brightens the excitation and resonating string.",
+        "morph": "Changes damping from short, muted plucks to long resonances.",
+        "macro": "Lengthens the excitation from a short strike toward a scrape."
+      },
+      "trigger": "Strikes the modeled string; unpatched TRIG allows continuous internal excitation."
+    },
+    "modal-resonator": {
+      "controls": {
+        "harmonics": "Changes modal structure across strings, plates, tubes, and bells.",
+        "timbre": "Brightens the exciter and upper resonant modes.",
+        "morph": "Changes damping and the decay time of the resonator.",
+        "macro": "Focuses the exciter from broad noise toward a pitched impulse."
+      },
+      "trigger": "Strikes the modeled resonator; unpatched TRIG allows continuous internal excitation."
+    },
+    "analog-bass-drum": {
+      "controls": {
+        "harmonics": "Changes attack sharpness, pitch-envelope amount, and overdrive.",
+        "timbre": "Changes the drum's brightness.",
+        "morph": "Sets decay from a short knock to a sustained kick.",
+        "macro": "Changes pitch-envelope punch from restrained to exaggerated."
+      },
+      "trigger": "Fires a new bass-drum hit with velocity taken from LEVEL."
+    },
+    "analog-snare": {
+      "controls": {
+        "harmonics": "Balances the tuned shell oscillators against the filtered noise component.",
+        "timbre": "Balances the different resonant modes of the modeled shell.",
+        "morph": "Sets decay for the shell and noise components.",
+        "macro": "Spreads the shell modes from compact to strongly inharmonic."
+      },
+      "trigger": "Fires a new snare hit with velocity taken from LEVEL."
+    },
+    "analog-hi-hat": {
+      "controls": {
+        "harmonics": "Balances the metallic oscillator bank against filtered noise.",
+        "timbre": "Sweeps the high-pass filter cutoff from dark and closed to bright and open.",
+        "morph": "Sets decay from a tight closed hat to a longer open sound.",
+        "macro": "Spreads metallic oscillator frequencies from compact to widely separated."
+      },
+      "trigger": "Fires a new hi-hat hit with velocity taken from LEVEL."
+    },
+    "virtual-analog-vcf": {
+      "controls": {
+        "harmonics": "Changes filter character from a gentle four-pole response through resonance to a harsher two-pole response.",
+        "timbre": "Sweeps the virtual-analog filter cutoff.",
+        "morph": "Sweeps classic oscillator waveforms and introduces a sub-oscillator near the ends.",
+        "macro": "Increases oscillator and filter drive from clean to saturated."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "phase-distortion": {
+      "controls": {
+        "harmonics": "Selects the distortion or modulator frequency through quantized ratios.",
+        "timbre": "Raises the amount of phase distortion or phase modulation.",
+        "morph": "Changes the asymmetry of the phase-distortion waveform.",
+        "macro": "Moves the modulator ratio from an octave down through unison to an octave up."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "dx7-bank-a": {
+      "controls": {
+        "harmonics": "Selects a patch from the first built-in six-operator FM bank.",
+        "timbre": "Changes brightness by scaling modulator levels. On all-carrier algorithm 32 patches, turns from lower-frequency carriers toward higher-frequency carriers.",
+        "morph": "Changes envelope timing and articulation across the operator network.",
+        "macro": "Detunes the modulator network, darkening below noon and saturating above it."
+      },
+      "trigger": "Restarts the selected patch envelopes."
+    },
+    "dx7-bank-b": {
+      "controls": {
+        "harmonics": "Selects a patch from the second built-in six-operator FM bank.",
+        "timbre": "Changes brightness by scaling modulator levels. On all-carrier algorithm 32 patches, turns from lower-frequency carriers toward higher-frequency carriers.",
+        "morph": "Changes envelope timing and articulation across the operator network.",
+        "macro": "Detunes the modulator network, darkening below noon and saturating above it."
+      },
+      "trigger": "Restarts the selected patch envelopes."
+    },
+    "dx7-bank-c": {
+      "controls": {
+        "harmonics": "Selects a patch from the third built-in six-operator FM bank.",
+        "timbre": "Changes brightness by scaling modulator levels. On all-carrier algorithm 32 patches, turns from lower-frequency carriers toward higher-frequency carriers.",
+        "morph": "Changes envelope timing and articulation across the operator network.",
+        "macro": "Detunes the modulator network, darkening below noon and saturating above it."
+      },
+      "trigger": "Restarts the selected patch envelopes."
+    },
+    "wave-terrain": {
+      "controls": {
+        "harmonics": "Selects the terrain or waveform family used by the two-dimensional scan.",
+        "timbre": "Changes the radius of the elliptical path scanned across the terrain.",
+        "morph": "Offsets the path along the terrain's X axis.",
+        "macro": "Offsets the Y-axis path to reveal complementary terrain contours."
+      },
+      "trigger": "Restarts the internal envelope when TRIG is patched."
+    },
+    "string-machine": {
+      "controls": {
+        "harmonics": "Selects the chord from the active chord table.",
+        "timbre": "Changes filter cutoff, chorus depth, and chorus amount together.",
+        "morph": "Changes the divide-down waveform and drawbar-style registration.",
+        "macro": "Moves ensemble depth from dry through the stock setting to fully wet."
+      },
+      "trigger": "Restarts the internal envelope and rearticulates the string chord."
+    },
+    "chiptune": {
+      "controls": {
+        "harmonics": "Selects the chord or interval pattern of the square-wave voices.",
+        "timbre": "Selects arpeggiator direction and range when clocked, or chord inversion when unclocked.",
+        "morph": "Changes pulse width and synchronization of the square-wave voices.",
+        "macro": "Selects stepped register and inversion presets around the stock center step."
+      },
+      "trigger": "Advances the arpeggiator and restarts its envelope on each patched TRIG pulse."
+    },
+    "glisson": {
+      "controls": {
+        "harmonics": "Spreads grain starting pitches around the played note.",
+        "timbre": "Changes the number of overlapping grains in the cloud.",
+        "morph": "Moves grain motion from downward chirps through static grains to upward chirps.",
+        "macro": "Changes grain duration and bends each pitch trajectory."
+      },
+      "trigger": "Restarts and re-randomizes the grain cloud."
+    },
+    "gendy": {
+      "controls": {
+        "harmonics": "Changes the stochastic waveform from three to nine breakpoints.",
+        "timbre": "Changes the depth of the breakpoint amplitude random walk.",
+        "morph": "Changes the depth of the segment-duration random walk.",
+        "macro": "Moves interpolation from stepped through linear to smooth."
+      },
+      "trigger": "Creates a new stochastic breakpoint waveform and restarts its cycle."
+    },
+    "scanned": {
+      "controls": {
+        "harmonics": "Changes excitation width, stiffness, and alternating-mass inharmonicity.",
+        "timbre": "Changes mass irregularity and warps the spatial scan path.",
+        "morph": "Moves from damping into increasingly strong nonlinear wavefolding.",
+        "macro": "Changes the speed of the slowly evolving physical system."
+      },
+      "trigger": "Strikes the virtual system; unpatched TRIG gently drives it continuously."
+    },
+    "pulsar": {
+      "controls": {
+        "harmonics": "Raises the carrier formant from the fundamental into tightly packed upper partials.",
+        "timbre": "Changes each pulsar window from a short impulse to a broad burst.",
+        "morph": "Increases the number of interleaved pulse clusters within each cycle.",
+        "macro": "Moves MAIN and AUX pulse peaks in opposite directions from early pluck to late swell."
+      },
+      "trigger": "Restarts the pulsar cycle."
+    },
+    "loopback": {
+      "controls": {
+        "harmonics": "Selects the feedback modulation ratio.",
+        "timbre": "Raises recursion depth while the loop remains amplitude-normalized.",
+        "morph": "Changes the delay and feedback topology of the recursive loop.",
+        "macro": "Moves feedback symmetry from negative through bipolar to positive."
+      },
+      "trigger": "Clears and rephases the feedback loop."
+    },
+    "lockstep": {
+      "controls": {
+        "harmonics": "Selects the stepped ratio pursued by the internal phase-locked loop.",
+        "timbre": "Changes loop bandwidth from slow hunting to tight tracking.",
+        "morph": "Moves the phase detector from sinusoidal to increasingly wrapped behavior.",
+        "macro": "Changes capture range and damping around the selected lock ratio."
+      },
+      "trigger": "Knocks the follower out of lock so it must reacquire the input ratio."
+    },
+    "tapfield": {
+      "controls": {
+        "harmonics": "Selects a pitch-clocked feedback-register topology from 9 to 24 bits.",
+        "timbre": "Moves between equal, binary-weighted, and Gray-decoded bit fields.",
+        "morph": "Introduces deterministic corruption into the evolving register.",
+        "macro": "Smooths the decoded field from hard bit steps toward a slewed waveform."
+      },
+      "trigger": "Restores a repeatable feedback-register seed."
+    },
+    "phase-weave": {
+      "controls": {
+        "harmonics": "Changes the asymmetric voice constellation and even/odd balance.",
+        "timbre": "Spreads relative phase among the four harmonic voices.",
+        "morph": "Moves the summed field from positive through bipolar cancellation.",
+        "macro": "Rotates the voice pairs and increases drive into the cancellation geometry."
+      },
+      "trigger": "Rephases the harmonic voice bank."
+    },
+    "sideband-bank": {
+      "controls": {
+        "harmonics": "Changes spacing between the finite sideband partials.",
+        "timbre": "Changes the geometric amplitude rolloff across each sideband ladder.",
+        "morph": "Selects how many partials are retained in the finite sum.",
+        "macro": "Biases energy between the upper and lower sideband banks."
+      },
+      "trigger": "Rephases both finite sideband banks."
+    },
+    "attractor": {
+      "controls": {
+        "harmonics": "Changes the density and spacing of the attractor lobes.",
+        "timbre": "Moves the flow from damped motion into a more chaotic regime.",
+        "morph": "Scans the audible projection among the X, Y, and Z coordinates.",
+        "macro": "Skews coordinate integration rates to reshape the cyclic motion."
+      },
+      "trigger": "Deterministically reseeds the three-state flow."
+    },
+    "undertow": {
+      "controls": {
+        "harmonics": "Moves through five interpolated undertone registrations.",
+        "timbre": "Changes the divider voices from triangle through BLEP saw to pulse.",
+        "morph": "Balances the pitch anchor against the undertone lattice.",
+        "macro": "Contracts or expands the deepest divider relationships."
+      },
+      "trigger": "Phase-aligns all divider voices."
+    },
+    "reed-pipe": {
+      "controls": {
+        "harmonics": "Moves the pressure pickup through the bore and changes its contribution.",
+        "timbre": "Raises breath pressure from soft excitation into nonlinear reed motion.",
+        "morph": "Changes reed stiffness and introduces breath noise.",
+        "macro": "Changes bore reflection loss and high-frequency brightness."
+      },
+      "trigger": "Adds a brief pressure tongue to articulate the modeled pipe."
+    },
+    "phase-flock": {
+      "controls": {
+        "harmonics": "Spreads the seven oscillators' natural frequencies.",
+        "timbre": "Raises mean-field coupling from dispersion toward synchronization.",
+        "morph": "Moves attraction from a single cluster toward antipodal two-cluster order.",
+        "macro": "Adds phase lag and frustration to the coupling field."
+      },
+      "trigger": "Scatters the oscillator phases."
+    },
+    "rulefield": {
+      "controls": {
+        "harmonics": "Selects the elementary cellular-automaton rule.",
+        "timbre": "Moves the wavecycle readout from cell states toward spatial edges.",
+        "morph": "Changes how quickly new cellular generations replace the current field.",
+        "macro": "Moves table lookup from stepped through linear to smooth interpolation."
+      },
+      "trigger": "Restores the repeatable seed for the selected rule."
+    },
+    "spectral-spiral": {
+      "controls": {
+        "harmonics": "Changes the richness of the analytic harmonic source.",
+        "timbre": "Changes frequency-shift spacing on every trip around the complex loop.",
+        "morph": "Raises feedback to extend the spectral spiral through more rotations.",
+        "macro": "Moves the shift direction from downward through stationary to upward."
+      },
+      "trigger": "Clears and rephases the complex feedback loop."
+    },
+    "z-filter": {
+      "controls": {
+        "harmonics": "Selects the lowpass, peaking, bandpass, and highpass filter models.",
+        "timbre": "Sweeps the filter cutoff from below the note to ten octaves above it.",
+        "morph": "Morphs the filter excitation from saw through square at noon to triangle.",
+        "macro": "Bends the burst envelope from the flat stock ramp toward a sharp percussive attack."
+      },
+      "trigger": "Restarts the excitation phases and integral without clearing the resonator state."
+    },
+    "toy": {
+      "controls": {
+        "harmonics": "Sweeps the bit-mangling operand from clean tone to shattered noise.",
+        "timbre": "Raises the sample-and-hold rate from a coarse stutter to smooth.",
+        "morph": "Moves the sample-hold clock from free-running to locked to the played note.",
+        "macro": "Biases the fold operand, shifting which harmonics the mangler keeps."
+      },
+      "trigger": "Restarts the phase ramp and both sample-and-hold clocks without replacing the held samples."
+    },
+    "csaw": {
+      "controls": {
+        "harmonics": "Deepens the notch cut into each sawtooth cycle.",
+        "timbre": "Moves the notch from the start of the cycle toward its end.",
+        "morph": "Bends the sawtooth ramp from concave through straight to convex.",
+        "macro": "Tilts the notched segment, flattening the step at one extreme and doubling it at the other."
+      },
+      "trigger": "Restarts the oscillator phase so each triggered note begins at the same point."
+    },
+    "ring-mod": {
+      "controls": {
+        "harmonics": "Detunes the first modulator through harmonic and clangorous intervals.",
+        "timbre": "Detunes the second modulator, thickening the sideband cluster.",
+        "morph": "Fades from a bare carrier to full three-way ring modulation.",
+        "macro": "Drives the output shaper, from clean multiplication to hard saturation."
+      },
+      "trigger": "Realigns the carrier and both modulator phases so each triggered note starts alike."
+    },
+    "fold": {
+      "controls": {
+        "harmonics": "Crossfades from the sine folder, which saturates, to the triangle folder, which keeps folding.",
+        "timbre": "Sets how hard both folders are driven, from a barely bent wave to the module's full depth.",
+        "morph": "Offsets the wave into one half of the folder, adding the even harmonics a symmetric source cannot make.",
+        "macro": "Pushes the folders past the depth the module stops at, or holds them back below it."
+      },
+      "trigger": "Restarts the oscillator phase so each triggered note folds from the same point."
+    },
+    "buzz": {
+      "controls": {
+        "harmonics": "Detunes the second voice from unison, within whatever reach TWIST sets.",
+        "timbre": "Sweeps harmonic count upward from a bare sine to the fullest stack the module holds for that note.",
+        "morph": "Offsets the second voice's harmonic content away from the first, zero at noon.",
+        "macro": "Widens the detune past the module's own sub-semitone ceiling, up to an octave apart."
+      },
+      "trigger": "Realigns the two oscillator phases so each triggered note starts alike."
+    },
+    "dual-sync": {
+      "controls": {
+        "harmonics": "Crossfades from the master oscillator alone to the synced slave alone.",
+        "timbre": "Sets how far above the master the synced slave sits, from unison to just under 64 semitones.",
+        "morph": "Runs from the module's sync square to its sync saw, and through the blend between them that the module has no path to.",
+        "macro": "Moves where in its own cycle the slave restarts on each sync pulse; the module always restarts it at the beginning."
+      },
+      "trigger": "Realigns the master and slave oscillator phases so each triggered note starts alike."
+    },
+    "granular-cloud": {
+      "controls": {
+        "harmonics": "Widens the random pitch each grain takes when it respawns, from unison to a cloud with no pitch left.",
+        "timbre": "Sets grain length, from long overlapping windows down to short ones that respawn far more often.",
+        "morph": "Slides where the grain window peaks, from a reversed swell through the module's symmetric window to a struck grain.",
+        "macro": "Sets how readily a finished grain respawns, from a sputtering cloud full of gaps up to four voices that never leave one."
+      },
+      "trigger": "The engine itself ignores TRIG and its grains keep running; Plaits' shared envelope still shapes a patched note."
+    },
+    "morph": {
+      "controls": {
+        "harmonics": "Closes the low-pass onto the note while raising the fuzz from dry to wet, welded as the module welds them.",
+        "timbre": "Walks one oscillator from triangle through saw to square, then narrows the square into a pulse.",
+        "morph": "Offsets the low-pass five octaves either side of where Fuzz put it — the coupling the module cannot undo.",
+        "macro": "Gain into the overdrive, from a soft saturation up to a hard clip. The module welds it at unity."
+      },
+      "trigger": "Restarts the morph oscillator phase so each triggered note begins alike."
+    },
+    "noise-bank": {
+      "controls": {
+        "harmonics": "Selects filtered noise, twin peaks, or clocked noise.",
+        "timbre": "Resonance for the two filtered models; loop length of the random sequence for the clocked one.",
+        "morph": "Lowpass to bandpass to highpass, the second peak's interval, or the number of sample-and-hold levels.",
+        "macro": "Pushes the output through the module's overdrive shaper, or backs it out into the clean part of the curve."
+      },
+      "trigger": "Reseeds and restarts only the Clocked model's looping sequence; Filtered and Twin Peaks keep running."
+    },
+    "particle-burst": {
+      "controls": {
+        "harmonics": "Jitters each filter around its own fixed interval; the lowest one jitters about three quarters as far as the other two.",
+        "timbre": "Sets how often a burst fires, from a few sparse ticks a second to a dense rattle.",
+        "morph": "Scales the three filters' fixed intervals from unison, through the module's own voicing, to double the spread.",
+        "macro": "Reshapes the burst envelope from a short tick, through the module's fixed length, to a long bloom."
+      },
+      "trigger": "The engine itself ignores TRIG and its random bursts keep running; Plaits' shared envelope still shapes a patched note."
+    },
+    "saw-square": {
+      "controls": {
+        "harmonics": "Crossfades from the saw to the attenuated square.",
+        "timbre": "Opens the saw's pulse width as it narrows the square's, or the reverse — one knob, two waveforms.",
+        "morph": "Offsets the square's phase against the saw's — the module's two oscillators are always locked together.",
+        "macro": "Braids fixes the square at 58% of full level; this sweeps that attenuation from silent to unattenuated."
+      },
+      "trigger": "Realigns the saw and square phases at the selected Phase offset."
+    },
+    "saw-swarm": {
+      "controls": {
+        "harmonics": "The filter's cutoff: on the note a third of the way up, closing below that twice as fast as it opens above.",
+        "timbre": "Spreads the seven saws apart in pitch, from unison to a wide, wavering chorus.",
+        "morph": "Sweeps the same filter's response from lowpass, through the module's own highpass at center, to bandpass.",
+        "macro": "The filter's resonance, fixed in the module — calmer below center, a controlled peak above it."
+      },
+      "trigger": "Randomizes the phases of all seven saw oscillators."
+    },
+    "vowel": {
+      "controls": {
+        "harmonics": "Pulls the upper two formants toward the first or pushes them apart, past the vowels in the module's list.",
+        "timbre": "Scales all three formants together, from a large vocal tract to a small one.",
+        "morph": "Walks the nine phoneme frames, crossfading between neighbours.",
+        "macro": "Shortens or stretches the burst inside each pitch period, from a tight grain to a ramp still open at the reset."
+      },
+      "trigger": "Selects and articulates a new consonant without resetting the oscillator or formant phases."
+    },
+    "harmonics": {
+      "controls": {
+        "harmonics": "Braids' COLOR, welded as the module has it: the bumps narrow toward both ends while the second one grows.",
+        "timbre": "Slides the first bump from the fundamental to the twelfth partial; the second follows at half that index plus six.",
+        "morph": "Moves the second bump off the module's fixed relation, six partials either way. Center is Braids.",
+        "macro": "Scales the bump width around whatever Color chose, so the two stop sharing a knob. Noon is Braids."
+      },
+      "trigger": "Realigns the shared partial phase so each triggered note starts alike."
+    },
+    "vosim": {
+      "controls": {
+        "harmonics": "The second formant's pitch, also absolute and set independently of the first.",
+        "timbre": "The first formant's pitch, absolute rather than tracking the note.",
+        "morph": "Sets how much of each cycle the bell spends opening: a narrow spike, the module's one sixteenth, or half.",
+        "macro": "Shifts weight between the two formants, from formant 2 alone to formant 1 alone. The detent is the module's fixed 2:1."
+      },
+      "trigger": "Restarts the carrier and both formant phases so each triggered grain train begins alike."
+    },
+    "plucked": {
+      "controls": {
+        "harmonics": "How much of one string period gets struck with noise, from a narrow flick to most of the cycle.",
+        "timbre": "Below noon, extra muting under the decay. Above noon, random skipped filter passes stretch and detune it toward metal.",
+        "morph": "Picks a chord from the chord table; each strike plays its next tone. Unison, the module, fully counter-clockwise.",
+        "macro": "How far Damping's random detuning reaches: off at the bottom, the module's ceiling at noon, past it above."
+      },
+      "trigger": "Plucks the next voice in the three-string round robin."
+    },
+    "blown": {
+      "controls": {
+        "harmonics": "Braids' COLOR: the corner of the body filter the bore is heard through. Its live travel narrows with the note.",
+        "timbre": "Braids' TIMBRE: how much noise rides on the breath. Low is turbulent, airy, and quiet; high is steady and loud.",
+        "morph": "Mouth pressure, which Braids welds at 0.8. Down for an under-blown pipe, up to drive the reed into its clip.",
+        "macro": "The reed's rest offset, which Braids welds at 0.7. Down for a loose reed, up for one pinned open most of the cycle."
+      },
+      "trigger": "Flushes the bore pressure while leaving the breath, filter state, and delay position running."
+    },
+    "struck-bell": {
+      "controls": {
+        "harmonics": "Spreads alternate partials apart around the module's own fixed ratios: every other one up, the rest down.",
+        "timbre": "Blends the module's two decay tables, short at 0 to long near the top; past about 98% the bell drones forever.",
+        "morph": "Tilts each partial's strike amplitude by position: soft mallet toward 0, the module's amplitudes at noon, hard toward 1.",
+        "macro": "Sets how much faster high partials decay than low: uniform toward 0, the module's spread at noon, exaggerated toward 1."
+      },
+      "trigger": "Strikes or re-strikes the eleven-partial bell."
+    },
+    "struck-drum": {
+      "controls": {
+        "harmonics": "The noise's cutoff, the six-partial harmonics level, and a two-voice noise crossfade, coupled as the module does.",
+        "timbre": "Blends between the module's two decay tables; past about 98% the drum drones and never loses energy.",
+        "morph": "Scales the six fixed partial ratios together, from unison at 0 through the module's own voicing at noon to double at 1.",
+        "macro": "How much faster high partials decay than low: uniform toward 0, the module's own spread at noon, exaggerated toward 1."
+      },
+      "trigger": "Strikes or re-strikes the six-partial drum."
+    },
+    "kick": {
+      "controls": {
+        "harmonics": "The output filter's brightness — Braids' COLOR, applied after the resonator.",
+        "timbre": "The resonator's decay — Braids' TIMBRE. Turning it up lengthens the boom toward near-self-oscillation.",
+        "morph": "Crossfades the two excitation pulses. Centered is native level; the ends fade one out to just click or just thump.",
+        "macro": "Scales the self-brightening dynamic filter modulation around the module's one fixed amount, from off to 4x."
+      },
+      "trigger": "Strikes or re-strikes the self-enveloped kick."
+    },
+    "snare": {
+      "controls": {
+        "harmonics": "The noise burst's peak level, and past noon, how long both the snap and the tone ring.",
+        "timbre": "Balances the two tonal resonators, which sound at the note itself and an octave above it.",
+        "morph": "Crossfades the tonal sum against the snap resonator. Centered is the module's own unweighted sum.",
+        "macro": "Widens the interval between the two tonal resonators: unison at 0, the module's octave at noon, two at 1."
+      },
+      "trigger": "Strikes or re-strikes the self-enveloped snare."
+    },
+    "cymbal": {
+      "controls": {
+        "harmonics": "Crossfades from the resonant metallic noise to the resonant raw noise, the module's own COLOR.",
+        "timbre": "Sets the cutoff shared by both filters, from a dull thud to an open, bright hiss.",
+        "morph": "Scales the five detuned partials' distance from the root, from unison to double the module's own spread.",
+        "macro": "Scales both filters' resonance around the module's fixed setting, from damped and dull to near-ringing."
+      },
+      "trigger": "The engine itself ignores TRIG and keeps running; Plaits' shared envelope still shapes a patched note."
+    },
+    "wave-scan": {
+      "controls": {
+        "harmonics": "Selects the banks, the 16x16 map, or the curated line.",
+        "timbre": "Position within the bank, along the map's X axis, or along the line.",
+        "morph": "Which of the 20 banks, the map's Y axis, or the line's four-zone crush.",
+        "macro": "Steps the scan between whole waves above noon, blurs it into their sum below; Braids exactly at the detent."
+      },
+      "trigger": "The engine itself ignores TRIG and its wavetable phase keeps running; Plaits' shared envelope still shapes a patched note."
+    },
+    "wave-paraphonic": {
+      "controls": {
+        "harmonics": "Selects a position in the active chord table.",
+        "timbre": "Scans the 33-wave line all four voices read, crossfading between neighbours.",
+        "morph": "Offsets each voice further along the scan line, so the four read different waves.",
+        "macro": "Scales every table interval, from a unison at zero through the table verbatim at noon to double width."
+      },
+      "trigger": "Randomizes all four wavetable phases and snaps their frequencies to the current chord."
+    },
+    "fluted": {
+      "controls": {
+        "harmonics": "Braids' COLOR: splits one fixed loop length between jet and bore. Moves the embouchure without moving the pitch.",
+        "timbre": "Braids' TIMBRE: breath turbulence, 51% depth down to 1%. Backwards, as the module's is: low airy, high steady.",
+        "morph": "Breath pressure, welded at twice the envelope in Braids. Under- or over-blow the pipe until it changes register.",
+        "macro": "The bore's damping, which Braids ties rigidly to the note and gives no knob. Down for a dark pipe, up for a bright one."
+      },
+      "trigger": "Restarts the excitation envelope, flushes both delay lines, and clears the reflection filter."
+    },
+    "question-mark": {
+      "controls": {
+        "harmonics": "The module's own COLOR: the noise bed's floor and the distortion depth together, as one knob.",
+        "timbre": "The keying rate, from a 123 ms dit to a 37 ms one — the module's own TIMBRE.",
+        "morph": "The noise level on its own, from a bare keyed tone to well past the module's loudest bed.",
+        "macro": "The squared distortion on its own, from a clean sum to twice the module's depth."
+      },
+      "trigger": "Restarts the Morse transmission from its first symbol."
+    },
+    "virtual-analog-variant": {
+      "controls": {
+        "harmonics": "Detune interval: unison at noon, stepping by fifths and octaves to two octaves up or down. Also sets the AUX sync ratio.",
+        "timbre": "Changes both oscillators together from saw through square to narrow pulse.",
+        "morph": "Below noon fades in the detuned oscillator; at noon only the primary sounds; above noon crossfades into hard sync.",
+        "macro": "Spreads the two waveshapes around TIMBRE, the primary half as far as the secondary; at noon both match."
+      },
+      "trigger": "The oscillator phases free-run; patched TRIG restarts Plaits' shared decay and low-pass-gate envelope."
+    },
+    "bowed": {
+      "controls": {
+        "harmonics": "Moves the bow from near the bridge to well up the neck.",
+        "timbre": "Increases bow pressure from a thin whistle to a hard scrape.",
+        "morph": "Opens the nut damping from tight and choked to loose and ringing.",
+        "macro": "Tilts the instrument body darker or brighter around the stock resonance."
+      },
+      "trigger": "Restarts the bow stroke and clears both string delay lines."
+    },
+    "sub-oscillator": {
+      "controls": {
+        "harmonics": "Crossfades the main oscillator between a square and a variable saw, off one shared phase.",
+        "timbre": "Closes the square's pulse and, at the saw end, drives its two ramps apart into an octave-up double ramp.",
+        "morph": "Adds the sub two octaves down below noon and one octave down above it, with none at noon.",
+        "macro": "Narrows the sub oscillator's pulse below noon, leaving it square above."
+      },
+      "trigger": "The engine itself ignores TRIG and its oscillators free-run; Plaits' shared envelope still shapes a patched note."
+    },
+    "digital-modulation": {
+      "controls": {
+        "harmonics": "Lengthens the packet from a rapid 32-symbol burst to Braids' full 1,088-symbol frame.",
+        "timbre": "Raises the symbol rate from a slow stutter to a buzzing carrier.",
+        "morph": "Shapes the symbol transitions from hard steps to smooth glides.",
+        "macro": "Sweeps the payload byte around the stock packet contents."
+      },
+      "trigger": "Restarts the packet from its preamble without resetting the carrier or the byte already in flight."
+    },
+    "saw-comb": {
+      "controls": {
+        "harmonics": "Sweeps comb feedback from inverted through a single echo to a ringing resonance that still decays.",
+        "timbre": "Detunes the comb up to 64 semitones either side of the note; the upward end stops at MIDI 128.",
+        "morph": "Morphs the exciter from a bright saw to a narrow pulse.",
+        "macro": "Damps the feedback loop below noon and brightens it above."
+      },
+      "trigger": "The engine itself ignores TRIG and the comb keeps ringing; Plaits' shared envelope still shapes a patched note."
+    },
+    "vowel-fof": {
+      "controls": {
+        "harmonics": "Tilts the excitation from a dark buzz to a bright breathy hiss.",
+        "timbre": "Sweeps the vowel through the five phonemes: /a/, /e/, /i/, /o/, /u/.",
+        "morph": "Steps the vocal register from bass through tenor, countertenor, and alto to soprano.",
+        "macro": "Restores the formant amplitude balance the stock model leaves flat. Centered is flat, exactly as hardware."
+      },
+      "trigger": "Re-initializes the filter bank; the model has no internal envelope and otherwise ignores TRIG."
+    },
+    "raw-fm": {
+      "controls": {
+        "harmonics": "Steps the modulator ratio through the tuned intervals. The modulator saturates once note plus ratio hits 116.",
+        "timbre": "Raises the modulation index linearly to a full cycle. Below noon pitch tames it, -1.5625% per semitone over 72.",
+        "morph": "Moves from self-feedback through plain FM into chaotic wavetable feedback, which drops the modulator an octave.",
+        "macro": "Sets how deeply the feedback path drives itself around the stock amount."
+      },
+      "trigger": "Realigns the carrier and modulator phases and clears the feedback memory."
+    },
+    "triple": {
+      "controls": {
+        "harmonics": "Spreads the second voice through closely spaced and musical intervals.",
+        "timbre": "Spreads the third voice independently of the second.",
+        "morph": "Morphs all three voices from square through saw and triangle to sine.",
+        "macro": "Narrows the pulse and slope of all three voices below the stock symmetry."
+      },
+      "trigger": "Realigns all three oscillator phases so each triggered note starts alike."
+    },
+    "bytebeat": {
+      "controls": {
+        "harmonics": "Sets the first coefficient inside the expression, which mostly governs its harmonic density.",
+        "timbre": "Sets the second coefficient, which mostly governs how the pattern evolves over time.",
+        "morph": "Selects one of four expressions, from the softest and most tonal to the harshest.",
+        "macro": "Opens the mask from two bits of the expression to twelve, past the stock eight."
+      },
+      "trigger": "Restarts the stream past the silent opening of the expressions."
+    },
+    "diatonic-chord": {
+      "controls": {
+        "harmonics": "Steps through sixteen chord shapes, from triads up through elevenths and the suspended set.",
+        "timbre": "Detunes the voices against each other and folds them where the waveform is still near sine.",
+        "morph": "Morphs every voice from sine through triangle and saw to square.",
+        "macro": "Selects the scale the chord is built from, which is what decides its quality."
+      },
+      "trigger": "Realigns every voice so a struck chord starts the same way each time."
+    },
+    "scale-stack": {
+      "controls": {
+        "harmonics": "Sets the spacing between voices, from one scale degree up to sixteen.",
+        "timbre": "Detunes the voices against each other and folds them where the waveform is still near sine.",
+        "morph": "Morphs every voice from sine through triangle and saw to square.",
+        "macro": "Selects the scale the stack is quantized to, which is what the spacing counts in."
+      },
+      "trigger": "Realigns every voice so a struck stack starts the same way each time."
+    },
+    "wavetable-chord": {
+      "controls": {
+        "harmonics": "Steps through the same sixteen scale-degree chord shapes as Diatonic Chord.",
+        "timbre": "Spreads the voices symmetrically, independent of the selected table position.",
+        "morph": "Scans WTCH's 33-wave mini-wave line.",
+        "macro": "Selects the scale the chord is built from, which decides its quality."
+      },
+      "trigger": "Realigns every voice so a struck chord starts the same way each time."
+    },
+    "wavetable-scale-stack": {
+      "controls": {
+        "harmonics": "Sets the spacing between voices, from one scale degree up to sixteen.",
+        "timbre": "Spreads the voices symmetrically, independent of the selected table position.",
+        "morph": "Scans WTx6's 33-wave mini-wave line.",
+        "macro": "Selects the scale whose degrees define the stack spacing."
+      },
+      "trigger": "Realigns every voice so a struck stack starts the same way each time."
+    },
+    "shakers": {
+      "controls": {
+        "harmonics": "Steps through sixteen instruments, from a maraca through bells and gravel to a guiro.",
+        "timbre": "Sets the ongoing collision rate while TRIG is unpatched or a patched gate is high; a rising trigger still injects a full one-shot strike.",
+        "morph": "How long the instrument keeps ringing after each collision, around its measured decay.",
+        "macro": "How many objects are inside, from a couple of large ones to a dense hiss of small ones."
+      },
+      "trigger": "Strikes it once and lets it ring out, or one pass of the stick for the guiro and wrench. Hold the gate to keep shaking."
+    },
+    "brass": {
+      "controls": {
+        "harmonics": "Lip tension. Climbs the bore's partials — unison, fifth, octave, tenth, twelfth — and bends each one sharp as it rises.",
+        "timbre": "Raises breath pressure from gentle to strong, staying above the model's oscillation threshold across the full range.",
+        "morph": "Bell size, from a stopped horn that barely sustains to an open one that rings and overblows easily.",
+        "macro": "Buzz. How far the lips swing into closure each cycle — a soft flutter at the bottom, a real mouthpiece buzz at the top."
+      },
+      "trigger": "Empties the bore and resets the lips so each note starts the same way."
+    },
+    "helix": {
+      "controls": {
+        "harmonics": "Selects the chord, voiced at every octave of the helix at once.",
+        "timbre": "Sets the glide: centered is still, either side sends the stack endlessly rising or falling.",
+        "morph": "Folds the summed voices, from clean through progressively harder wavefolding.",
+        "macro": "Sets how much of the helix you hear at once, from a tight chord to a wide cloud of octaves."
+      },
+      "trigger": "Strikes the low-pass gate while the helix keeps gliding underneath."
+    },
+    "skins": {
+      "controls": {
+        "harmonics": "Retensions the mode ratios from a round open head toward a tighter loaded skin.",
+        "timbre": "Moves the strike from the center's low body toward a bright rim slap.",
+        "morph": "Opens the head from a short muted knock to a long resonant ring.",
+        "macro": "Adds hand pressure: stronger pitch dive and faster loss of the upper modes."
+      },
+      "trigger": "Strikes the membrane and restarts its downward pitch bend."
+    },
+    "circuit-zaps": {
+      "controls": {
+        "harmonics": "Crosses a swept sine with a harder twin, then multiplies them into ring modulation.",
+        "timbre": "Deepens and lengthens the fall from a fifth above the note to a four-octave plunge.",
+        "morph": "Extends the discharge from a clipped blip to a ringing electronic trail.",
+        "macro": "Adds a noisy electrical spark and pushes the output circuit into soft saturation."
+      },
+      "trigger": "Starts a new falling-pitch discharge and electrical spark."
+    },
+    "metalwork": {
+      "controls": {
+        "harmonics": "Selects anvil, agogo, plate, or gong mode ratios on the next strike.",
+        "timbre": "Trades a soft low mallet response for a hard upper-mode strike.",
+        "morph": "Opens the object from a dry knock to a long metal ring.",
+        "macro": "Detunes a paired copy of every mode from stable metal to slow shimmering interference."
+      },
+      "trigger": "Strikes the object and samples the current Object selection for that hit."
+    },
+    "clap": {
+      "controls": {
+        "harmonics": "Sets the hands in a triggered clap from one through seven. Past noon, their timing and level begin to disagree. With TRIG unpatched, this becomes the audience density instead.",
+        "timbre": "Sets the width of the noise band around a fixed center, from narrow and hollow through the original width at noon to open and crisp.",
+        "morph": "Sets the room tail behind the hands, from 8 ms to 1.2 seconds, with the original 32 ms at noon.",
+        "macro": "Sets the interval between hands from 4 ms to 35 ms, with the 808's 10 ms at noon. In the unpatched single-hand audience mode, it has no audible effect."
+      },
+      "trigger": "With TRIG patched, each rising edge fires the selected multi-hand clap. Unpatched, the engine becomes a free-running audience of single claps."
+    },
+    "analog-percussion": {
+      "controls": {
+        "harmonics": "Sets the noise crack at the strike. With TRIG unpatched, it sets the drone's tone-to-noise balance instead.",
+        "timbre": "Fades in a second oscillator at the Ratio interval, then shapes both modes toward square waves through a high-pass band. Cowbell sounds live clockwise.",
+        "morph": "Sets the ring length. With TRIG unpatched, it becomes the drone level, matching the stock analog drum models.",
+        "macro": "Moves the second mode's ratio away from the value selected by Material. Noon keeps the default ratio."
+      },
+      "trigger": "With TRIG patched, each rising edge strikes the two tuned modes, click, and octave-down AUX voice. Unpatched, the engine becomes a continuous percussion drone."
+    },
+    "freshets-formant": {
+      "controls": {
+        "harmonics": "Sets the formant frequency as a ratio of the driver across plus or minus four octaves, with an exact unison detent at noon.",
+        "timbre": "Below noon, closes a low-pass filter on MAIN while AUX fades out. Above noon, opens a wavefolder and adds a sub-octave to AUX.",
+        "morph": "Sets the attack and decay balance of the formant envelope.",
+        "macro": "Sweeps the envelope transfer curve from arccos S-curves through triangle at noon to near-sine and bump shapes."
+      },
+      "trigger": "Realigns the driver oscillator and retriggers any envelope that is no longer in its attack stage."
+    },
+    "natural-speech": {
+      "controls": {
+        "harmonics": "Selects which bank of words the module speaks from.",
+        "timbre": "Resizes the vocal tract, from a larger head to a smaller one, without changing the pitch.",
+        "morph": "Chooses the word. With nothing patched into TRIG it scrubs by hand across the whole bank instead.",
+        "macro": "Sets how hard the voice articulates: mumbled toward one sustained vowel, or over-enunciated."
+      },
+      "trigger": "Speaks the selected word once."
+    },
+    "bubbletime": {
+      "controls": {
+        "harmonics": "Moves through the spacing-statistics ladder: rigid sigma-delta, jittered lattice, quasiperiodic, GUE, GOE, Poisson, then clustered.",
+        "timbre": "Below noon, sets necklace tempo from quarter speed to full speed without changing pitch. Above noon, changes the selected timing zone's character.",
+        "morph": "Below noon, chooses a wrap modulus from 3 through 16 and its chord. Above noon, sets the base-tone interval from sub-octave through octave.",
+        "macro": "Counter-clockwise tightens the loop to eight gaps; noon stores 64; clockwise adds fresh ensemble draws, ending in full free-run."
+      },
+      "trigger": "Replays the stored realization from gap zero. Hold TRIG for about 1.5 seconds to draw a new seed."
+    },
+    "zxphase48k": {
+      "controls": {
+        "harmonics": "Moves through XOR, OR, and AND mix zones. Within each zone, clockwise motion increases the 1-bit self-XOR feedback comb from off to shimmer.",
+        "timbre": "Counter-clockwise gives static squares. Clockwise motion deepens and speeds the tick-clocked duty-cycle sweep on oscillator 2.",
+        "morph": "Moves from fine beating into a quantized interval ladder: fourth, fifth, octave, twelfth, and two octaves, with LFSR noise at the top.",
+        "macro": "Counter-clockwise arms the triggered pitch kick; noon is neutral; clockwise adds the parasite-carrier sheen."
+      },
+      "trigger": "Resets both oscillator phases and reseeds the noise register. With Clean/Ghost counter-clockwise, it also fires the pitch kick."
+    },
+    "zxpulse48k": {
+      "controls": {
+        "harmonics": "Selects a chord from the firmware chord bank, including the current Palette chord tables.",
+        "timbre": "Sets speaker on-time per click, from whisper-thin pins to full-bodied pulses. In this synthesis method, width acts as the level control.",
+        "morph": "The lower half stacks chord voices one at a time. The upper half arpeggiates the chord, with rate increasing toward tick speed.",
+        "macro": "Clockwise deepens the Follin echo to about 220 ms; noon keeps the authentic three-cent pull; counter-clockwise exaggerates dying-speaker sag."
+      },
+      "trigger": "Restarts all pin phases, the frame tick, and the arpeggio."
+    },
+    "acid": {
+      "controls": {
+        "harmonics": "Raises ladder feedback from a plain low-pass response into self-oscillating squelch, with less resonance as cutoff closes.",
+        "timbre": "Drives the filtered voice into a soft-kneed asymmetric clipper. LEVEL accent pushes the drive harder.",
+        "morph": "Sweeps cutoff from roughly 26 Hz to 4.2 kHz with half keyboard tracking. Its unpatched attenuverter becomes ENV MOD.",
+        "macro": "Moves from a narrow pulse through saw at noon to square clockwise."
+      },
+      "trigger": "Patched TRIG drives Plaits' shared envelope and accent sweep. Unpatched, the voice drones with every control still live."
+    },
+    "chords-supersaw": {
+      "controls": {
+        "harmonics": "Selects the chord from the shared chord bank, as in the stock model.",
+        "timbre": "Drives the mix into a soft limiter. Adds harmonics and density, not level.",
+        "morph": "Spreads each chord tone's oscillators apart, from a tight stack to a wide supersaw.",
+        "macro": "Oscillators per chord tone, one to three. Turning it down also buys back CPU."
+      },
+      "trigger": "A rising TRIG restarts every saw from the same spread of phases, so each note opens wide rather than as one loud edge. Unpatched, the chord drones."
+    }
+  },
+  "presets": {
+    "experimental": [
+      "virtual-analog",
+      "waveshaping",
+      "two-op-fm",
+      "granular-formant",
+      "harmonic",
+      "wavetable",
+      "chords",
+      "pulsar",
+      "swarm",
+      "filtered-noise",
+      "particle-noise",
+      "inharmonic-string",
+      "modal-resonator",
+      "analog-bass-drum",
+      "analog-snare",
+      "analog-hi-hat",
+      "virtual-analog-vcf",
+      "phase-distortion",
+      "dx7-bank-a",
+      "dx7-bank-b",
+      "dx7-bank-c",
+      "wave-terrain",
+      "string-machine",
+      "chiptune",
+      "glisson",
+      "scanned",
+      "reed-pipe",
+      "phase-weave",
+      "sideband-bank",
+      "undertow",
+      "phase-flock",
+      "spectral-spiral"
+    ],
+    "stock": [
+      "virtual-analog",
+      "waveshaping",
+      "two-op-fm",
+      "granular-formant",
+      "harmonic",
+      "wavetable",
+      "chords",
+      "speech",
+      "swarm",
+      "filtered-noise",
+      "particle-noise",
+      "inharmonic-string",
+      "modal-resonator",
+      "analog-bass-drum",
+      "analog-snare",
+      "analog-hi-hat",
+      "virtual-analog-vcf",
+      "phase-distortion",
+      "dx7-bank-a",
+      "dx7-bank-b",
+      "dx7-bank-c",
+      "wave-terrain",
+      "string-machine",
+      "chiptune"
+    ]
+  }
+}

@@ -19,7 +19,7 @@ Append-only log; newest entries at the bottom. One entry per milestone/commit.
 - Verdict: TBPalette object + 32 KB scratch ≈ 56 KB vs the 110,592 B STEREO arena → embed
   all engines in one Voice; the placement-new fallback from the plan is NOT needed.
 
-## 2026-11-02 — Phase 1: vendor + fork patches — code complete, host-verified, NOT YET COMMITTED
+## 2026-11-02 — Phase 1: vendor + fork patches — committed
 
 - Vendored `components/mutable/rubato/` from the user's clone: `rplaits/` (renamed plaits
   subtree, namespace **rplaits**), catalog.json, upstream AGENTS/README, `VENDOR_README.md`
