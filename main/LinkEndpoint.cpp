@@ -491,6 +491,7 @@ namespace CTAG {
                 string id0, id1;
                 uint32_t marbles = 0;
                 int sdMounted = -1;
+                int sdCd = -1;
                 uint32_t editSeq = 0;
             } lastPushed;
 
@@ -511,6 +512,7 @@ namespace CTAG {
                 lastPushed.modelGen = CTAG::SP::ctagDataModelBase::GetGeneration();
                 lastPushed.marbles = hashMarbles();
                 lastPushed.sdMounted = FileSystem::IsSDMounted() ? 1 : 0;
+                lastPushed.sdCd = FileSystem::IsSDPresent() ? 1 : 0;
             }
 
             void pushOnChange(uint32_t now) {
@@ -580,6 +582,13 @@ namespace CTAG {
                 int mounted = FileSystem::IsSDMounted() ? 1 : 0;
                 if (mounted != lastPushed.sdMounted) {
                     lastPushed.sdMounted = mounted;
+                    pushIoCaps();
+                }
+                // Card-detect changes (card pulled/inserted while unmounted)
+                // keep the panel's CD cache fresh for the MOUNT pre-check.
+                int cd = FileSystem::IsSDPresent() ? 1 : 0;
+                if (cd != lastPushed.sdCd) {
+                    lastPushed.sdCd = cd;
                     pushIoCaps();
                 }
             }

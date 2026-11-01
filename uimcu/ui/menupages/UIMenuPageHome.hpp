@@ -92,6 +92,11 @@ namespace CTAG {
             // so onTick repaints only on a change.
             int lastDrawnOnline = -1;
 
+            // Transient feedback on the UNMOUNT/MOUNT item (NO CARD / BUSY):
+            // shown in place of the label until this tick deadline.
+            uint32_t sdMsgUntilMs = 0;
+            const char *sdMsg = nullptr;
+
             void parsePlugins();
             void parseFavorites();
             void redrawMain();

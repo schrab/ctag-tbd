@@ -192,8 +192,14 @@ namespace CTAG {
                         strcpy(sdCurrentPath, "/sd");
                         scanSdFiles();
                     } else if (cursor == 5) { // UNMOUNT / MOUNT (card hot-swap)
+                        const uint32_t nowMs =
+                            (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
                         if (DspProxy::IsSDMounted()) {
-                            if (!(DspProxy::SdIsPlaying() || DspProxy::SdIsRecording())) {
+                            if (DspProxy::SdIsPlaying() || DspProxy::SdIsRecording()) {
+                                // Refused: say so instead of doing nothing.
+                                sdMsg = "BUSY";
+                                sdMsgUntilMs = nowMs + 1500;
+                            } else {
                                 DspProxy::SdUnmount();
                                 // Wait briefly for the io-caps push to flip
                                 // the cached state; the label follows it.
@@ -201,6 +207,11 @@ namespace CTAG {
                                     vTaskDelay(pdMS_TO_TICKS(100));
                                 }
                             }
+                        } else if (!DspProxy::IsSDPresent()) {
+                            // CD pin says the slot is empty — nothing to
+                            // mount, no round trip, no dead press.
+                            sdMsg = "NO CARD";
+                            sdMsgUntilMs = nowMs + 1500;
                         } else {
                             DspProxy::SdMount();
                             for (int i = 0; i < 20 && !DspProxy::IsSDMounted(); i++) {
@@ -382,6 +393,12 @@ namespace CTAG {
             lastDrawnOnline = DspProxy::IsOnline() ? 1 : 0;
             const char *items[] = {"SELECT", "SYSTEM", "MIDI", "FAVORITES", "SD CARD",
                                    DspProxy::IsSDMounted() ? "UNMOUNT" : "MOUNT", "SLEEP"};
+            // Transient mount feedback replaces the item label for ~1.5 s.
+            const uint32_t nowMs =
+                (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+            if (!DspProxy::IsSDMounted() && sdMsg && nowMs < sdMsgUntilMs) {
+                items[5] = sdMsg;
+            }
             for (int i = 0; i < 7; i++)
                 Display::DrawString(0, ROW(i), items[i], FONT_UI);
             if (favActiveId >= 0) {
@@ -408,6 +425,14 @@ namespace CTAG {
             // MAIN is the only view with live content (the DSP OFF label):
             // repaint when the link state flips while the page idles on
             // screen, instead of waiting for the next input event.
+            if (subPage == SP_MAIN && sdMsg) {
+                const uint32_t nowMs =
+                    (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+                if (nowMs >= sdMsgUntilMs) {
+                    sdMsg = nullptr; // transient label expired -> revert
+                    doRedraw();
+                }
+            }
             if (subPage == SP_MAIN &&
                 lastDrawnOnline != (DspProxy::IsOnline() ? 1 : 0)) {
                 doRedraw();
