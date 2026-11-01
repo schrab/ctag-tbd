@@ -23,6 +23,7 @@ respective component folders / files if different from this license.
 #include "Display.hpp"
 #include "DspProxy.hpp"
 #include "InputSource.hpp"
+#include "UIMenu.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -125,7 +126,7 @@ namespace CTAG {
             snprintf(buf, len, "%d", value[i]);
         }
 
-        // "mic"/"line" for the value under the IN meters.
+        // "mic"/"line" — full names for the config write.
         void UIMenuPageMix::sourceText(char *buf, size_t len) const {
             // Walk InputSource::OPTIONS by index (comma-separated list).
             char optCopy[32];
@@ -143,6 +144,12 @@ namespace CTAG {
                 size_t optLen = strcspn(p, ",");
                 snprintf(buf, len, "%.*s", (int)optLen, p);
             }
+        }
+
+        // Short forms for the value line: "5 lin" / "5 mic" — one line with
+        // the gain number, per the strip's 25 px width.
+        void UIMenuPageMix::sourceShort(char *buf, size_t len) const {
+            snprintf(buf, len, "%s", source == 1 ? "lin" : "mic");
         }
 
         void UIMenuPageMix::applyCurrent(bool includeDeferred) {
@@ -228,24 +235,26 @@ namespace CTAG {
             Display::DrawRect(x, FADER_Y, FADER_W, FADER_H, false, true);
             // value height, min 1px so a zero setting still shows the cap;
             // ALWAYS bottom-anchored. The selection highlight is a drawn
-            // outer frame — inverting the strip made the selected fader
-            // read as filling from the top.
+            // outer frame (only while the panel is open for editing — at
+            // ROOT nothing is editable), never an inversion: an inverted
+            // fader reads as filling from the top.
             int range = st.max - st.min;
             int fillH = range > 0 ? ((value[i] - st.min) * (FADER_H - 2)) / range : 0;
             if (fillH < 1) fillH = 1;
             if (fillH > FADER_H - 2) fillH = FADER_H - 2;
             Display::DrawRect(x + 1, FADER_Y + FADER_H - 1 - fillH, FADER_W - 2, fillH, true, true);
-            if (i == cursor) {
+            if (UIMenu::IsPanelEdit() && i == cursor) {
                 Display::DrawRect(x - 2, FADER_Y - 2, FADER_W + 4, FADER_H + 4, false, true);
             }
         }
 
         void UIMenuPageMix::drawMeters(int i) {
             if (STRIP_TABLE[i].meter == METER_NONE) return;
-            int bx = STRIP_X0 + i * STRIP_W + 11;
+            // 1 px clear of the selection frame's right edge.
+            int bx = STRIP_X0 + i * STRIP_W + 12;
             for (int ch = 0; ch < STRIP_TABLE[i].meterN; ch++) {
                 float lvl = (float)meter[i][ch] / 1000.0f;
-                Display::DrawVUMeterV(bx + ch * (VU_W + 2), FADER_Y, VU_W, VU_H, lvl);
+                Display::DrawVUMeterV(bx + ch * (VU_W + 2), FADER_Y, VU_W, VU_H, lvl, false);
             }
         }
 
@@ -267,8 +276,8 @@ namespace CTAG {
                     Display::InvertRect(x, LABEL_Y - 1, STRIP_W - 1, 9);
                 }
                 drawFader(i);
-                Display::DrawVUMeterV(x + 11, FADER_Y, VU_W, VU_H,
-                                      (float)tapeMeter / 1000.0f);
+                Display::DrawVUMeterV(x + 12, FADER_Y, VU_W, VU_H,
+                                      (float)tapeMeter / 1000.0f, false);
                 char val[8];
                 snprintf(val, sizeof(val), "%s", DspProxy::GetSdRoute() == 1 ? "IN" : "OUT");
                 Display::DrawString(x, VALUE_Y, val, FONT_UI);
@@ -280,13 +289,14 @@ namespace CTAG {
 
             char val[16];
             valueText(i, val, sizeof(val));
-            Display::DrawString(x, VALUE_Y, val, FONT_UI);
             if (i == GAIN_STRIP) {
-                // The mic/line source lives under the IN meters (OK toggles).
+                // Source rides right of the gain number, one line for all
+                // bottom labels.
                 char src[8];
-                sourceText(src, sizeof(src));
-                Display::DrawString(x, VALUE_Y + 9, src, FONT_UI);
+                sourceShort(src, sizeof(src));
+                snprintf(val, sizeof(val), "%d %s", value[GAIN_STRIP], src);
             }
+            Display::DrawString(x, VALUE_Y, val, FONT_UI);
         }
 
         void UIMenuPageMix::doRedraw() {

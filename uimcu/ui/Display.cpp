@@ -528,9 +528,17 @@ void Display::DrawStringRight(int x, int y, const char *str, Font font) {
     DrawString(x - strWidth, y, str, font);
 }
 
-void Display::DrawVUMeter(int x, int y, int w, int h, float level) {
+void Display::DrawVUMeter(int x, int y, int w, int h, float level, bool frame) {
     if (level < 0.0f) level = 0.0f;
     if (level > 1.0f) level = 1.0f;
+    if (!frame) {
+        int fillW = (int)(level * w);
+        if (fillW > w) fillW = w;
+        if (fillW > 0) {
+            DrawRect(x, y, fillW, h, true, true);
+        }
+        return;
+    }
     int fillW = (int)(level * w);
     if (fillW > w) fillW = w;
     DrawRect(x, y, w, h, false, true);
@@ -539,9 +547,18 @@ void Display::DrawVUMeter(int x, int y, int w, int h, float level) {
     }
 }
 
-void Display::DrawVUMeterV(int x, int y, int w, int h, float level) {
+void Display::DrawVUMeterV(int x, int y, int w, int h, float level, bool frame) {
     if (level < 0.0f) level = 0.0f;
     if (level > 1.0f) level = 1.0f;
+    if (!frame) {
+        // Frameless bar: the fill uses the full box, no outline.
+        int fillH = (int)(level * h);
+        if (fillH > h) fillH = h;
+        if (fillH > 0) {
+            DrawRect(x, y + h - fillH, w, fillH, true, true);
+        }
+        return;
+    }
     DrawRect(x, y, w, h, false, true);
     int fillH = (int)(level * (h - 2));
     if (fillH > h - 2) fillH = h - 2;

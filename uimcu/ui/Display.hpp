@@ -118,8 +118,8 @@ namespace CTAG {
             static void InvertRect(int x, int y, int w, int h);
             static void DrawString(int x, int y, const char *str, Font font = FONT_8X8);
             static void DrawStringRight(int x, int y, const char *str, Font font = FONT_8X8);
-            static void DrawVUMeter(int x, int y, int w, int h, float level);
-            static void DrawVUMeterV(int x, int y, int w, int h, float level);
+            static void DrawVUMeter(int x, int y, int w, int h, float level, bool frame = true);
+            static void DrawVUMeterV(int x, int y, int w, int h, float level, bool frame = true);
             static void DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos);
             static int FontAdvance(Font f);
             static int FontAdvance(Font f, unsigned char c);

@@ -46,6 +46,10 @@ namespace CTAG {
             // state instead of inferring it from pixels.
             // navState: 0=ROOT 1=PANEL_IN. panel: Panel enum value.
             static void GetDebugState(int &navState, int &panel);
+            // True while a panel is open for editing (PANEL_IN): pages draw
+            // in-page selection highlights only when the user can act on
+            // them — at ROOT nothing is editable yet.
+            static bool IsPanelEdit();
 
             // Pages can request a panel switch with the target page opened
             // in its editing view: HOME jumps to PARAMS after a plugin or

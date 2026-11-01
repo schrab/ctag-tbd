@@ -81,6 +81,8 @@ namespace CTAG {
             panelOut = (int)currentPanel;
         }
 
+        bool UIMenu::IsPanelEdit() { return navState == PANEL_IN; }
+
         void UIMenu::RequestFramebufferShot() {
             fbShotReady = false;
             fbShotPending = true;

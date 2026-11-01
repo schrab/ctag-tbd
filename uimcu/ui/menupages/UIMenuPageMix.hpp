@@ -65,16 +65,18 @@ namespace CTAG {
             static constexpr int STRIP_X0 = 1;
             static constexpr int LABEL_Y = 5;
             static constexpr int FADER_Y = 14;
-            static constexpr int FADER_H = 28;
+            // Faders/meters run deep into the page: the bottom third used to
+            // sit empty. Values line lives just under the selection frame.
+            static constexpr int FADER_H = 38;
             static constexpr int FADER_W = 7;
             static constexpr int VU_W = 5;
-            static constexpr int VU_H = 28;
+            static constexpr int VU_H = 38;
             // Meter smoothing, tuned for the 25 Hz tick: hold the peak
             // briefly (200 ms) then fall at DECAY_PER_TICK (1200/s) for a
             // ~1.7 s release from full scale.
             static constexpr int VU_DECAY_PER_TICK = 48;
             static constexpr int VU_HOLD_TICKS = 5;
-            static constexpr int VALUE_Y = 45;
+            static constexpr int VALUE_Y = 55;
 
             // First VU channel of the strip's meter: IN meters the stereo
             // input pair (vu 0+1), each output strip meters its own channel
@@ -118,7 +120,8 @@ namespace CTAG {
             void drawFader(int i);
             void drawMeters(int i);
             void valueText(int i, char *buf, size_t len) const;
-            void sourceText(char *buf, size_t len) const;
+            void sourceText(char *buf, size_t len) const;  // full names (config write)
+            void sourceShort(char *buf, size_t len) const; // value line: "lin"/"mic"
         };
     }
 }
