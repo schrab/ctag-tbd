@@ -186,11 +186,16 @@ namespace CTAG {
                         scrollOffset = 0;
                         parseFavorites();
                     } else if (cursor == 4) { // SD CARD
-                        subPage = SP_SD_CARD;
-                        cursor = 0;
-                        scrollOffset = 0;
-                        strcpy(sdCurrentPath, "/sd");
-                        scanSdFiles();
+                        // No card / unmounted: the submenu is a dead end —
+                        // the mount state is already visible on the
+                        // UNMOUNT/MOUNT item, so do not enter.
+                        if (DspProxy::IsSDMounted()) {
+                            subPage = SP_SD_CARD;
+                            cursor = 0;
+                            scrollOffset = 0;
+                            strcpy(sdCurrentPath, "/sd");
+                            scanSdFiles();
+                        }
                     } else if (cursor == 5) { // UNMOUNT / MOUNT (card hot-swap)
                         const uint32_t nowMs =
                             (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
