@@ -135,28 +135,44 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
 
     // modulation
     float fAD = paramAD.Process();
-    patch.brightness = brightness / 4095.f;
+    if (cv_brightness != -1) {
+        patch.brightness = fabsf(data.cv[cv_brightness]);
+    } else {
+        patch.brightness = brightness / 4095.f;
+    }
     if (cv_mod_brightness != -1) {
         patch.brightness += data.cv[cv_mod_brightness] * mod_brightness / 4095.f;
     } else {
         patch.brightness += fAD * mod_brightness / 4095.f;
     }
     CONSTRAIN(patch.brightness, 0.f, 1.f);
-    patch.damping = damping / 4095.f;
+    if (cv_damping != -1) {
+        patch.damping = fabsf(data.cv[cv_damping]);
+    } else {
+        patch.damping = damping / 4095.f;
+    }
     if (cv_mod_damping != -1) {
         patch.damping += data.cv[cv_mod_damping] * mod_damping / 4095.f;
     } else {
         patch.damping += fAD * mod_damping / 4095.f;
     }
     CONSTRAIN(patch.damping, 0.f, 1.f);
-    patch.position = position / 4095.f;
+    if (cv_position != -1) {
+        patch.position = fabsf(data.cv[cv_position]);
+    } else {
+        patch.position = position / 4095.f;
+    }
     if (cv_mod_position != -1) {
         patch.position += data.cv[cv_mod_position] * mod_position / 4095.f;
     } else {
         patch.position += fAD * mod_position / 4095.f;
     }
     CONSTRAIN(patch.position, 0.f, 1.f);
-    patch.structure = structure / 4095.f;
+    if (cv_structure != -1) {
+        patch.structure = fabsf(data.cv[cv_structure]);
+    } else {
+        patch.structure = structure / 4095.f;
+    }
     if (cv_mod_structure != -1) {
         patch.structure += data.cv[cv_mod_structure] * mod_structure / 4095.f;
     } else {

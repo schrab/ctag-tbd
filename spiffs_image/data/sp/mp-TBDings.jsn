@@ -20,19 +20,23 @@
         },
         {
           "id": "structure",
-          "current": 2047
+          "current": 2047,
+          "cv": -1
         },
         {
           "id": "brightness",
-          "current": 2047
+          "current": 2047,
+          "cv": -1
         },
         {
           "id": "damping",
-          "current": 2047
+          "current": 2047,
+          "cv": -1
         },
         {
           "id": "position",
-          "current": 2047
+          "current": 2047,
+          "cv": -1
         },
         {
           "id": "chords",

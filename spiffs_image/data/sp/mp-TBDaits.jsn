@@ -31,11 +31,13 @@
         },
         {
           "id": "timbre",
-          "current": 2047
+          "current": 2047,
+          "cv": -1
         },
         {
           "id": "morph",
-          "current": 2047
+          "current": 2047,
+          "cv": -1
         },
         {
           "id": "lpg_color",
