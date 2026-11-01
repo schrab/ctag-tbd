@@ -238,7 +238,7 @@ Four control strips across the 128px display (25px wide each). Every fader is a 
 | Strip | Label | Config key | Range | Applied |
 |-------|-------|-----------|-------|---------|
 | 0 | `IN` | `input_gain` | 0–8 (+0…+24dB) | live |
-| 1 | `TAPE` | — (not config) | 0–100 % tape playback gain (`/link/sdGain`, seeded from the DSP on entry, never staged) | live |
+| 1 | `TAPE` | `tape_gain` | 0–100 % tape playback gain (persisted; live preview via `/link/sdGain`, applied from config by SPManager at boot and on commits) | live + persisted |
 | 2 | `LOUT` | `ch0_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
 | 3 | `ROUT` | `ch1_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
 
@@ -263,7 +263,7 @@ Value line (one line for all strips): IN shows the gain number **and** the sourc
 - The tape strip meters the **tape signal** (peak of what `MixPlayback` adds, post-gain) from the stream's `tl` key — read-and-clear, same hold/decay smoothing as the VU strips.
 - The page opts into the 25 Hz tick with `wantsTick()` → `true`; `onTick()` re-samples and repaints only when a bar moved. Peak-hold 5 ticks then linear decay of 48/tick gives roughly a 1.7s release from full scale.
 
-**Persistence:** same `applyCurrent()` pattern as the System page — reads the full config JSON, overlays the managed keys (`input_gain`, `input_source`, `ch0/ch1_codecLvlOut`; the TAPE strip is skipped), calls `SetConfigurationFromJSON()`. `deinit()` calls `applyCurrent(true)`. Live strips re-apply on every encoder turn; the mic/line source commits on its OK press (re-routing the codec pops, so it must happen exactly there).
+**Persistence:** same `applyCurrent()` pattern as the System page — reads the full config JSON, overlays the managed keys (`input_gain`, `input_source`, `tape_gain`, `ch0/ch1_codecLvlOut`), calls `SetConfigurationFromJSON()`. `deinit()` calls `applyCurrent(true)`. Live strips re-apply on every encoder turn; the mic/line source commits on its OK press (re-routing the codec pops, so it must happen exactly there).
 
 **Codec range has one owner.** `es8388::OUTPUT_VOLUME_MAX` (33) is the register ceiling; `Codec::MAX_OUTPUT_LEVEL` aliases it in `codec.hpp` (63 for the other codec builds) and is used by the MIX strips, the System page and `SPManager::updateConfiguration()`. Do not reintroduce a per-file `#ifdef CONFIG_TBD_BBA_CODEC_ES8388` range: a missing `sdkconfig.h` then selects the wrong branch silently, which is exactly how the faders once offered 0–63 on hardware that stops at 33. `codec.hpp` now includes `sdkconfig.h` explicitly for this reason.
 

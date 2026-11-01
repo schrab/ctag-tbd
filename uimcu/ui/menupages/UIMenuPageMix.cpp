@@ -48,7 +48,7 @@ namespace CTAG {
         // value line).
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
                 {"IN",   "input_gain",      0, 8,                        false, METER_IN,    2},
-                {"TAPE", "",                0, 100,                      false, METER_NONE,  0},
+                {"TAPE", "tape_gain",       0, 100,                      false, METER_NONE,  0},
                 {"LOUT", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, METER_OUT_L, 1},
                 {"ROUT", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, METER_OUT_R, 1},
         };
@@ -76,9 +76,8 @@ namespace CTAG {
                 hold[i][0] = 0;
                 hold[i][1] = 0;
             }
-            // The TAPE fader is not config-backed: it seeds from the DSP's
-            // current playback gain.
-            value[TAP_STRIP] = DspProxy::GetSdGain();
+            // The TAPE fader is config-backed ("tape_gain"); parseConfig
+            // fills it (default unity until the config carries the key).
             tapeMeter = 0;
             tapeHold = 0;
             source = 0;
@@ -98,11 +97,8 @@ namespace CTAG {
 
         void UIMenuPageMix::parseConfig() {
             for (int i = 0; i < STRIPS; i++) {
-                // The TAPE strip is not config-backed — its value was seeded
-                // from the DSP's playback gain in init(); resetting it here
-                // wiped the seed and the fader showed 0 on every entry.
-                if (i == TAP_STRIP) continue;
-                value[i] = STRIP_TABLE[i].min;
+                // TAPE defaults to unity when no config carries it yet.
+                value[i] = (i == TAP_STRIP) ? 100 : STRIP_TABLE[i].min;
             }
             source = 0;
 
@@ -115,7 +111,6 @@ namespace CTAG {
 
             for (int i = 0; i < STRIPS; i++) {
                 const Strip &st = STRIP_TABLE[i];
-                if (i == TAP_STRIP) continue; // not a config strip
                 if (!doc.HasMember(st.id) || !doc[st.id].IsString()) continue;
                 int v = atoi(doc[st.id].GetString());
                 if (v < st.min) v = st.min;
@@ -167,7 +162,6 @@ namespace CTAG {
 
             for (int i = 0; i < STRIPS; i++) {
                 const Strip &st = STRIP_TABLE[i];
-                if (i == TAP_STRIP) continue; // not a config strip
                 if (st.deferred && !includeDeferred) continue;
 
                 char valStr[16];
@@ -376,9 +370,7 @@ namespace CTAG {
             if (v > st.max) v = st.max;
             const bool changed = (v != value[cursor]);
             value[cursor] = v;
-            // The TAPE fader is live-applied, not config-backed — it must
-            // not arm the deferred commit.
-            if (changed && cursor != TAP_STRIP) dirty = true;
+            if (changed) dirty = true;
 
             // Preview only the affected codec registers. Do NOT call
             // applyCurrent() here: that rewrites the whole config and

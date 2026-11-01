@@ -696,6 +696,14 @@ void SoundProcessorManager::updateConfiguration() {
     ESP_LOGI("SPM", "inGain='%s'", inGain.c_str());
     if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
 
+    // tape playback level (MIX TAPE fader; 0..100 %)
+    string tapeGain = model->GetConfigurationData("tape_gain");
+    if (!tapeGain.empty()) {
+        int tg = std::stoi(tapeGain);
+        CONSTRAIN(tg, 0, 100)
+        AUDIO::SDAudio::SetGain(tg);
+    }
+
     // output source
     string outSrc = model->GetConfigurationData("output_source");
     ESP_LOGI("SPM", "outSrc='%s'", outSrc.c_str());
