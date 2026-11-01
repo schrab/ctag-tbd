@@ -78,9 +78,23 @@ last values if the C3 dies).
 ### 4.1 Commands (UI → DSP)
 Reuse the existing debug command set as-is: `setActivePlugin`,
 `setPluginParam`, `getPluginParams`, `getConfig`, `setConfigValue`,
-`getAudioStats`, `setElementsMode`, plus new thin wrappers for the DspProxy
-surface (§6): presets save/load, favorites activate, SDAudio start/stop,
-MarblesEngine get/set (or full-state set, §4.2), MIDI enable flags.
+`getAudioStats`, `setElementsMode`, plus thin wrappers for the DspProxy
+surface (§6): presets save/load, favorites activate, SDAudio
+start/stop/route/gain, SD card unmount/mount, MarblesEngine get/set (or
+full-state set, §4.2), MIDI enable flags.
+
+Tape/SD additions (panel-link dispatcher, all carry the `/link/` prefix —
+the gate drops anything else):
+
+| Command | Payload → reply | Notes |
+|---------|-----------------|-------|
+| `/link/fsList` | `{path,seq}` → cmd-echoed `link/fsList` with the escaped entries array | request/reply tags differ (see protocol.hpp) |
+| `/link/sdStartPlayback`, `/link/sdStartRecording`, `/link/sdStop` | `{path}` → `{ok:1}` | fire-and-forget wrappers |
+| `/link/sdRoute` | `{v:0\|1}` → `{ok:1}` | tape routing: 0 = main out, 1 = plugin input |
+| `/link/sdGain` | `{v:0..100}` → `{ok:1}` | tape playback level |
+| `/link/sdUnmount`, `/link/sdMount` | → `{ok:1}` or `{error:...}` | hot-swap; unmount refused while the transport runs |
+| `/debug/sdInfo` | `{path}` → size/sr/ch/bits/frames | header probe (`SDAudio::ProbeWav`); refused while the transport runs |
+| `/debug/sdDelete` | `{path}` → `{ok:1}` | unlink; refuses the active file / transport-busy |
 
 ### 4.2 Pushes (DSP → UI)
 - **Boot metadata** (once, after handshake): plugin list JSON, active plugin
@@ -88,10 +102,15 @@ MarblesEngine get/set (or full-state set, §4.2), MIDI enable flags.
   state, IO capabilities.
 - **On-change pushes**: param values changed by MIDI learn / REST; active
   plugin switch; config commits.
-- **Streaming @10 Hz**: VU peaks (4×uint32), Marbles output snapshot
-  (bitfield, `MarblesEngine::GetOutputSnapshot`), CPU overload flag.
-- **SD proxy**: directory listings for HOME/TAPE (pages scan `/sd` via POSIX
-  today, `UIMenuPageHome.cpp:340–353`) → `fs.list`/`fs.isMounted` messages.
+- **Streaming @25 Hz**: VU peaks (4×uint32), Marbles output snapshot
+  (bitfield, `MarblesEngine::GetOutputSnapshot`), CPU overload flag, tape
+  signal peak (`tl`, read-and-clear from `SDAudio::GetLevelPeak`) and the
+  transport state object (`sd`: playing/recording/pos/tot).
+- **SD proxy**: directory listings for HOME/TAPE → `/link/fsList` request
+  (1200 ms round trip — the DSP serves the scan from the link task while
+  the SD may be busy with tape traffic), `link/fsList` reply, and
+  `link/pushIoCaps` carrying the mounted state (`sd`) and card-detect
+  level (`cd`), pushed at boot, on change, and after mount/unmount.
 - **MIDI transport**: raw MIDI bytes as hex arrays, C3→A1S into the parser.
   MIDI line rate is 3125 B/s max; JSON overhead is irrelevant at 921600.
   Out: A1S→C3 for DIN-out forwarding if ever needed.
@@ -168,12 +187,15 @@ Condensed catalog (representative file:line; full audit in session log):
   live per encoder step (Mix:324/326), `MAX_OUTPUT_LEVEL`/`DEFAULT_OUTPUT_LEVEL`
   constants (Mix:49–61), `DebugReadReg` (DebugUI:344).
 - **SDAudio**: Stop/StartPlayback/StartRecording/IsPlaying/IsRecording/
-  GetTotalFrames/GetPositionFrames (Tape:97–161).
+  GetTotalFrames/GetPositionFrames, plus SetRoute/GetRoute (main out vs.
+  plugin input), SetGain/GetGain (playback level), GetLevelPeak (stream
+  metering) and ProbeWav (header-only info for the SD CARD browser).
 - **Favorites**: GetActiveFav/GetAllFavorites/ActivateFavorite (Home:80–206).
 - **BtMidiReceiver/Midi flags**: MIDI page only (MidiPage:47–162) — becomes
   C3-local.
-- **Filesystem**: `IsSDMounted` + direct `opendir/readdir` on `/sd`
-  (Home:331–353, Tape:46–60) → SD proxy messages.
+- **Filesystem**: `IsSDMounted`, `IsSDPresent` (GPIO34 card detect),
+  `UnmountSD`/`MountSD` (hot-swap) + directory listings → SD proxy
+  messages (`/link/fsList`, `/link/sdUnmount`, `/link/sdMount`).
 - **Debug-only**: `DebugStateJson`, `UIMenu::GetDebugState`, framebuffer
   shot (dies with the A1S UI at P6).
 

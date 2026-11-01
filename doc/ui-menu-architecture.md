@@ -208,10 +208,14 @@ To change fonts (e.g. to 04B_03__ at 5px), edit `FONT_H` and recompile — every
 ### HOME (`UIMenuPageHome`)
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |---------|--------------|---------|-----------------|------|
-| `SP_MAIN` | Menu items: SELECT, SYSTEM, FAVORITES, SD CARD, SLEEP | Scroll cursor (0-5) | Enter sub-page at cursor (SYSTEM → SP_SYSTEM, lazy-allocates UIMenuPageSystem) | Return to ROOT |
+| `SP_MAIN` | Menu items: SELECT, SYSTEM, MIDI, FAVORITES, SD CARD, UNMOUNT/MOUNT, SLEEP (7 items; the mount label flips with the card state and flashes NO CARD/BUSY as transient feedback) | Scroll cursor (0-6) | Enter sub-page at cursor (SYSTEM/MIDI lazy-allocate; SD CARD is a no-op when the card is not mounted; UNMOUNT/MOUNT toggles the card mount state) | Return to ROOT |
 | `SP_SELECT` | Plugin list (parsed from JSON, max 64) | Scroll list (auto-scroll, 7 visible) | Load plugin: stereo → ch0 directly, mono → channel picker | Back to SP_MAIN |
 | `SP_SELECT_CH` | Channel options: Ch0 / Ch1 / Both | Scroll 3 options | Load to selected channel(s) | Back to SP_SELECT |
 | `SP_SYSTEM` | System config page (delegates to UIMenuPageSystem) | Forwarded to System page | Forwarded to System page | System page onBack() → SP_MAIN |
+| `SP_MIDI` | MIDI submenu (delegates to UIMenuPageMidi) | Forwarded to Midi page | Forwarded to Midi page | Midi page onBack() → SP_MAIN |
+| `SP_FAVORITES` | Favorites list (max 10) | Scroll list | Activate favorite → jumps to PARAMS | Back to SP_MAIN |
+| `SP_SD_CARD` | SD browser: folders (`[name]`), `.wav` files; `..` climbs out; System Volume Information and dot entries hidden. Entry is a no-op when the card is not mounted (the mount state lives on the UNMOUNT/MOUNT item) | Scroll list (auto-scroll, 7 visible) | Dir → descend; file → SP_SD_INFO | Not at root → climb one level; at root → SP_MAIN |
+| `SP_SD_INFO` | File info: name, `MM:SS` duration, size, `44k 2ch 16b` format line, DELETE / CANCEL. "NOT A WAV" for broken headers, "TAPE BUSY" while the transport runs | Cursor on DELETE/CANCEL | DELETE → unlinks and rescans (works for broken-header files too); CANCEL → SP_SD_CARD | Back to SP_SD_CARD |
 
 ### PARAMS (`UIMenuPageParams`)
 | Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
@@ -229,31 +233,37 @@ Long-press on a param in MODE_EDIT enters MODE_MAP. `ParamInfo[256]` and `GroupI
 
 ### MIX (`UIMenuPageMix`) — Vertical Fader Mixer
 
-Four control strips laid out across the 128px display (30px wide each, 4px margin). Each strip is a vertical fader; the input-gain strip and both output strips carry a pair of L/R VU meters to the right of the fader.
+Four control strips across the 128px display (25px wide each). Every fader is a vertical bar filling **from the bottom**; the input strip and both output strips carry frameless VU meters beside the fader (1px clear of the selection frame). All bottom labels sit on one line at the same height.
 
 | Strip | Label | Config key | Range | Applied |
 |-------|-------|-----------|-------|---------|
 | 0 | `IN` | `input_gain` | 0–8 (+0…+24dB) | live |
-| 1 | `SRC` | `input_source` | enum `mic,line` (legacy `line1`/`line2` accepted on load) | deferred |
-| 2 | `O L` | `ch0_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
-| 3 | `O R` | `ch1_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
+| 1 | `TAPE` | — (not config) | 0–100 % tape playback gain (`/link/sdGain`, seeded from the DSP on entry, never staged) | live |
+| 2 | `LOUT` | `ch0_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
+| 3 | `ROUT` | `ch1_codecLvlOut` | 0–`Codec::MAX_OUTPUT_LEVEL` (33 on ES8388) | live |
 
-| Mode | What it shows | Encoder | OK (BTN2_SHORT) | Back |
-|------|--------------|---------|-----------------|------|
-| Browse | All four strips; active strip outlined around its label | Move between strips (0-3) | Enter edit mode on active strip | Return to ROOT |
-| Edit | Active fader inverted | Adjust value (quadratic accel, clamped to strip range) | Exit edit, committing deferred items | Exit edit, committing deferred items |
+Value line (one line for all strips): IN shows the gain number **and** the source right of it (`8 lin` — norns proportional advances make it fit); TAPE shows the routing `OUT`/`IN`; outputs show their numbers.
 
-Header shows `MIX` left and either the input source or `EDIT` right.
+| Mode | What it shows | Left encoder | Right encoder | OK (BTN2_SHORT) | Back |
+|------|--------------|--------------|---------------|-----------------|------|
+| Browse/edit | All strips; the selected one gets a drawn outer frame (only while the panel is open for editing — `UIMenu::IsPanelEdit()`; nothing shows at ROOT) | Move between strips (0-3) | Adjust value (quadratic accel, clamped); IN: also re-applies the codec live; TAPE: also re-applies the tape gain live | IN → toggle mic/line (immediate commit — re-routing pops); TAPE → toggle tape routing OUT/IN (live); else commit staged values | Return to ROOT (committing staged values) |
 
-**Output routing and mixer mode are deliberately NOT here** — `output_source`, `mixer_mode`, `ng_config`, `ch0/ch1_toStereo` and soft-clip remain on the System page. MIX is only the level faders plus the input source switch.
+**UI rules learned the hard way:**
+- Never highlight a fader with `InvertRect` — the color flip makes the selected fader read as filling from the top. Draw an outer frame instead.
+- The mic/line source is NOT a fader and NOT a segmented switch graphic — it is text under the IN meters, switched by OK. The value encoder stays levels-only.
+- The TAPE strip's routing toggles with the value encoder; its value line is the route.
+- The frameless meter mode is `DrawVUMeterV(..., frame=false)`; silent meters are invisible by design.
+
+**Output routing and mixer mode are deliberately NOT here** — `output_source`, `mixer_mode`, `ng_config`, `ch0/ch1_toStereo` and soft-clip remain on the System page. The **tape output routing** (main output vs. plugin input) IS here, on the TAPE strip, because it is tape-domain.
 
 **VU metering:**
 - `SoundProcessorManager::SetMeteringEnabled(true)` in `init()`, `false` in `deinit()` — the output peak pass costs cycles in the audio task, so it only runs while this page is open. Input peaking runs unconditionally regardless (the noise gate needs it).
 - Input peaks (`vuInL/R`) are captured during the existing DC-cut loop; output peaks (`vuOutL/R`) are captured in a separate pass **after** soft clipping and `SDAudio::MixPlayback()`, so they reflect what the codec actually emits including tape playback.
 - All four are `atomic<uint32_t>` scaled 0–1000. Read via `GetVUPeak(channel)`: 0/1 = in L/R, 2/3 = out L/R.
-- The page opts into the ~4 Hz pump with `wantsTick()` → `true`; `onTick()` re-samples and repaints. Sampling is peak-hold 2 ticks then linear decay of 120/tick, giving roughly a 1.7s release from full scale.
+- The tape strip meters the **tape signal** (peak of what `MixPlayback` adds, post-gain) from the stream's `tl` key — read-and-clear, same hold/decay smoothing as the VU strips.
+- The page opts into the 25 Hz tick with `wantsTick()` → `true`; `onTick()` re-samples and repaints only when a bar moved. Peak-hold 5 ticks then linear decay of 48/tick gives roughly a 1.7s release from full scale.
 
-**Persistence:** same `applyCurrent()` pattern as the System page — reads the full config JSON, overlays the four managed keys, calls `SetConfigurationFromJSON()`. `deinit()` calls `applyCurrent(true)`. Live strips re-apply on every encoder turn; `input_source` waits for OK/BACK because re-routing the codec mid-edit pops.
+**Persistence:** same `applyCurrent()` pattern as the System page — reads the full config JSON, overlays the managed keys (`input_gain`, `input_source`, `ch0/ch1_codecLvlOut`; the TAPE strip is skipped), calls `SetConfigurationFromJSON()`. `deinit()` calls `applyCurrent(true)`. Live strips re-apply on every encoder turn; the mic/line source commits on its OK press (re-routing the codec pops, so it must happen exactly there).
 
 **Codec range has one owner.** `es8388::OUTPUT_VOLUME_MAX` (33) is the register ceiling; `Codec::MAX_OUTPUT_LEVEL` aliases it in `codec.hpp` (63 for the other codec builds) and is used by the MIX strips, the System page and `SPManager::updateConfiguration()`. Do not reintroduce a per-file `#ifdef CONFIG_TBD_BBA_CODEC_ES8388` range: a missing `sdkconfig.h` then selects the wrong branch silently, which is exactly how the faders once offered 0–63 on hardware that stops at 33. `codec.hpp` now includes `sdkconfig.h` explicitly for this reason.
 
@@ -293,11 +303,17 @@ Two constraints learned the hard way, both worth preserving:
 
 
 ### TAPE (`UIMenuPageTape`)
+The transport lives on the DSP (`SDAudio`) — playback/recording **continue in the background** across panel switches; `deinit()` is deliberately empty and re-entering shows the live state.
+
 | SubPage | What it shows | Encoder | OK (BTN2_SHORT) | Back |
 |---------|--------------|---------|-----------------|------|
-| `SP_MAIN` | PLAY FILE / RECORD / STOP (or PLAYING/RECORDING status) | Scroll cursor (0-2) | PL→file list, REC→record screen, STOP→stop | Return to ROOT |
-| `SP_FILELIST` | .wav files from SD card | Scroll list (auto-scroll, 7 visible) | Load selected file for playback | Back to SP_MAIN |
-| `SP_RECORD` | START REC / CANCEL | Scroll cursor (0-1) | START→record, CANCEL→stop | Back to SP_MAIN |
+| `SP_MAIN` | Idle: PLAY FILE / RECORD. Playing: `PLAY MM:SS/MM:SS` / STOP. Recording: `REC MM:SS` / STOP (the orphan STOP is gone when idle) | Cursor 0-1 in every state (status row / action row) | Idle: row0 → file list, row1 → record screen. Active: row1 → STOP | Return to ROOT |
+| `SP_FILELIST` | Folders (`[name]`) + `.wav` files of the current dir; `..` climbs out; System Volume Information and dot entries hidden. "No SD card"/"No WAV files" states | Scroll list (auto-scroll, 7 visible) | Dir → descend; `.wav` → start playback (looped) | Not at root → climb; at root → SP_MAIN |
+| `SP_RECORD` | Next free `tape_NNN.wav` name (or NO FREE NAME) / START REC / CANCEL | Cursor on START/CANCEL | START → record to that path; CANCEL → stop | Back to SP_MAIN |
+
+**Playback loops until stopped** (`SDAudio` worker rewinds to the data chunk at EOF). Selecting another file while playing restarts the worker. Recordings capture the **main output** post-plugins/post-tape (`RecordSamples` runs after `MixPlayback`), 16-bit/2ch/44.1 kHz WAV with a proper header (the fmt chunk size field was once left zero — `ProbeWav` now tolerates those legacy files). The tape **output routing** (main out vs. plugin input) lives on the MIX page's TAPE strip.
+
+The browser lists come over the link (`DspProxy::ListSdDir` → `/link/fsList`, 1200 ms timeout — the DSP serves the scan from the link task while the SD may be busy with tape traffic).
 
 ### SYSTEM (`UIMenuPageSystem`) — HOME sub-page
 System config is entered as `SP_SYSTEM` from HOME's `SP_MAIN` (cursor=1, "SYSTEM"). It is NOT a panel tab. Instances are lazy-allocated in `UIMenuPageHome::onButton()` to keep boot allocation small.
