@@ -64,4 +64,33 @@ Append-only log; newest entries at the bottom. One entry per milestone/commit.
     LittleFS `storage.bin` packaged with TBPalette descriptors.
   - `idf.py build` (Panel / ESP32-C3): SUCCESS. Binary size 0xbed70 (2.3 MB / 75% free).
 
+## 2026-11-02 — Phase 4: Flashed hardware & bench verification — ALL PASSED
+
+- **Hardware Flashing**:
+  - DSP (ESP32-A1S) flashed on `/dev/ttyUSB0` (app partition + storage.bin).
+  - Panel controller (ESP32-C3) flashed on `/dev/ttyACM0`.
+- **Bench Performance & CPU Sweep (`tools/tbpalette/bench_tbpalette.py`)**:
+  - Loaded `TBPalette` on channel 0 without issue.
+  - Swept all 98 models (0..97) live:
+    - **0 cpuOverloads** across all 98 models.
+    - Max audio task cycles: **91,584 cycles** per 32 samples (Model 21, Phase Distortion), utilizing **52.6%** of the 174,150-cycle budget.
+    - Loop pacing histogram rock solid: `[7, 7, 7, 7, 7, 7, 7, 7]` (~2.9 ms pacing).
+    - Verified `macro` parameter (4th pot) and `stereo` toggle live readback.
+    - Arena allocator test: swapped channel 0 to `TBDings` and back to `TBPalette` cleanly.
+- **UI & Preset Hardware Bench Drive (`tools/tbpalette/bench_ui_drive.py`)**:
+  - Navigated panel UI via `/debug/injectEvent`: ROOT -> PANEL_PARAMS (PANEL_IN) -> MODE_GROUP -> MODE_EDIT.
+  - Stepped `smodel` across key models and verified OLED display rendering without truncation or glitches:
+    - Model 0: `Virtual Analog`
+    - Model 21: `Phase Distortion`
+    - Model 22: `Six Op DX7 Bank 1`
+    - Model 82: `Wavetable Diatonic Chord`
+    - Model 97: `Supersaw Chords`
+  - Preset save/recall verified end-to-end via the panel's PRESETS menu:
+    - Stored preset with `smodel=21`, `macro=2048` via `[STORE PRESET]` action row with generated name.
+    - Toast notification `Stored <name>` verified.
+    - Mutated engine state to `smodel=0`, `macro=0`.
+    - Loaded the stored preset from the PRESETS menu.
+    - Verified engine parameters restored accurately: `smodel=21`, `macro=2048`.
+
+
 

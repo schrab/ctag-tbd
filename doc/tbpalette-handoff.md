@@ -15,10 +15,10 @@ user's clone at `components/rubato` (gitignored, reference only).
 | Phase | Status |
 |---|---|
 | 0 — host sizeof probe | **DONE** — gate PASSED: 98 engines sum 25,888 B; `sizeof(rplaits::Voice@98)` = **23,024 B**; largest engine SixOpEngine 2,088 B. Object + 32 KB scratch ≈ 56 KB of the 110,592 B STEREO arena → no fallback needed. |
-| 1 — vendor Rubato plaits into build | **DONE in working tree, NOT YET COMMITTED** — host smoke test green (both trees compile/link/render; see below). |
-| 2 — TBPalette plugin + JSON specs | not started |
-| 3 — uimcu label pool for 98 names | not started |
-| 4 — idf build + bench | not started |
+| 1 — vendor Rubato plaits into build | **DONE** — committed in `1fb4a071`. |
+| 2 — TBPalette plugin + JSON specs | **DONE** — committed in `d5a56048`. |
+| 3 — uimcu label pool for 98 names | **DONE** — committed in `d5a56048`. |
+| 4 — idf build + bench verification | **DONE** — host tests green, flashed to both boards, bench tested (all 98 models swept, 0 cpuOverload, true stereo, macro 4th pot, preset store/recall via UI, OLED text verified across models). |
 
 ## Uncommitted change set (commit as Phase 1)
 
