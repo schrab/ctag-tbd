@@ -75,11 +75,11 @@ namespace CTAG {
             // Params page watches it to refresh in place.
             uint32_t paramTableVersion = 0;
             // Per-value text labels ("texts" arrays in the plugin spec,
-            // e.g. the 24 TBDaits engine names). Kept out of DspParamEntry
-            // (the 80 B stride x 320-entry table stays untouched): a shared
-            // NUL-terminated pool per channel plus per-entry offset/count
+            // e.g. the 24 TBDaits / 98 TBPalette engine names). Kept out of
+            // DspParamEntry (the 80 B stride x 320-entry table stays untouched):
+            // a shared NUL-terminated pool per channel plus per-entry offset/count
             // parallel arrays; count 0 = numeric display fallback.
-            char labelPool[2][1024];
+            char labelPool[2][2560];
             uint16_t labelUsed[2] = {0, 0};
             uint16_t labelOff[2][DspProxy::DSP_MAX_PARAMS];
             uint8_t labelCount[2][DspProxy::DSP_MAX_PARAMS];
@@ -448,11 +448,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                         uint16_t off = labelUsed[ch];
                         uint8_t n = 0;
                         for (auto &t : v["texts"].GetArray()) {
-                            if (n >= 32) break;
+                            if (n >= 128) break;
                             if (!t.IsString()) continue;
                             size_t room = sizeof(labelPool[ch]) - labelUsed[ch];
-                            if (room < 16) break;
-                            size_t len = strnlen(t.GetString(), 15);
+                            if (room < 2) break;
+                            size_t len = strnlen(t.GetString(), 20);
+                            if (len >= room) len = room - 1;
                             memcpy(&labelPool[ch][labelUsed[ch]], t.GetString(), len);
                             labelPool[ch][labelUsed[ch] + len] = '\0';
                             labelUsed[ch] += len + 1;

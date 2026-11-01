@@ -41,22 +41,8 @@
 #define PAGE_SIZE 0x800
 
 inline void FLASH_Unlock() { }
-
-inline void FLASH_ErasePage(uint32_t address) {
-  printf("--- Erasing page at %08x ---\n", address);
-}
-
-inline void FLASH_ProgramWord(uint32_t address, uint32_t word) {
-  if (address % 32 == 0) {
-    printf("%08x ", address);
-  }
-  printf(
-      "%08x ",
-      (word >> 24) | ((word & 0x00ff0000) >> 8) | ((word & 0x0000ff00) << 8) | (word << 24));
-  if (address % 32 == 28) {
-    printf("\n");
-  }
-}
+inline void FLASH_ErasePage(uint32_t) { }
+inline void FLASH_ProgramWord(uint32_t, uint32_t) { }
 
 #else
 

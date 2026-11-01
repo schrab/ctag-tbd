@@ -41,3 +41,27 @@ Append-only log; newest entries at the bottom. One entry per milestone/commit.
   `git add components/rubato` staged a gitlink (untracked clone, fixed).
 - Full details: `doc/tbpalette-handoff.md`.
 
+## 2026-11-02 — Phase 2 & 3: plugin, specs, panel label pool, host & idf builds green
+
+- **Phase 2 (Plugin + JSON specs)**:
+  - Created `components/ctagSoundProcessor/ctagSoundProcessorTBPalette.{hpp,cpp}`:
+    wrapped `rplaits::Voice` with 32 KB scratch buffer (`stmlib::BufferAllocator`), stereo interleaved
+    output, active-low trigger, `fastfabs` CV unipolar handling, clamped `smodel` [0..97].
+  - Parameters: `smodel` (0..97), `frequency`, `level`, `harmonics`, `timbre`, `morph`, `macro`
+    (mapped to `patch.freqlock_param` with `patch.locked_frequency_pot_option = 1`), `lpg_color`,
+    `lpg_decay`, `trigger`, `stereo` bool (`patch.aux_output_option` 1/0, default 1 ON), and
+    modulation group (`mod_freq`, `mod_timbre`, `mod_morph`, `mod_macro`).
+  - Added `spiffs_image/data/sp/mui-TBPalette.jsn` (98 engine texts) and `mp-TBPalette.jsn` (default preset).
+  - Fixed format specifiers in `rplaits/user_data.h` mock flash stubs for Xtensa toolchain format checking.
+- **Phase 3 (Panel label pool)**:
+  - Updated `uimcu/ui/DspProxyLink.cpp`: raised `labelPool` from 1024 to 2560 bytes per channel,
+    increased max labels per param from 32 to 128, max string length from 15 to 20.
+  - Widened `valBuf` in `uimcu/ui/menupages/UIMenuPageParams.cpp` from 16 to 24 chars to avoid display truncation.
+- **Verification**:
+  - Added `tests/host/test_tbpalette_smoke.cpp` and `tests/host/run_tbpalette_tests.sh`: sweeps all 98
+    Rubato Plaits models and all 24 stock Plaits models in one binary with finite output checks. PASS.
+  - `idf.py build` (DSP / ESP32-A1S): SUCCESS. Binary size 0x306ac0 (493 KB / 14% free in partition).
+    LittleFS `storage.bin` packaged with TBPalette descriptors.
+  - `idf.py build` (Panel / ESP32-C3): SUCCESS. Binary size 0xbed70 (2.3 MB / 75% free).
+
+

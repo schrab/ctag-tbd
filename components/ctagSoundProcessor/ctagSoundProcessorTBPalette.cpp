@@ -1,0 +1,216 @@
+/***************
+CTAG TBD >>to be determined<< is an open source eurorack synthesizer module.
+
+A project conceived within the Creative Technologies Arbeitsgruppe of
+Kiel University of Applied Sciences: https://www.creative-technologies.de
+
+(c) 2026 by Robert Manzke. All rights reserved.
+
+The CTAG TBD software is licensed under the GNU General Public License
+(GPL 3.0), available here: https://www.gnu.org/licenses/gpl-3.0.txt
+
+The CTAG TBD hardware design is released under the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0).
+Details here: https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+CTAG TBD is provided "as is" without any express or implied warranties.
+
+License and copyright details for specific submodules are included in their
+respective component folders / files if different from this license.
+***************/
+
+#include "ctagSoundProcessorTBPalette.hpp"
+#include "perf_monitor.hpp"
+#include <iostream>
+#include "helpers/ctagFastMath.hpp"
+
+using namespace CTAG::SP;
+
+void ctagSoundProcessorTBPalette::Init(std::size_t blockSize, void *blockPtr) {
+    knowYourself();
+    model = std::make_unique<ctagSPDataModel>(id, isStereo);
+    LoadPreset(0);
+
+    // Assert that the arena remainder has at least 32 KB scratch buffer
+    assert(blockSize >= 32768);
+    shared_buffer = (char *) blockPtr;
+
+    stmlib::BufferAllocator allocator(shared_buffer, 32768);
+    voice.Init(&allocator);
+
+    patch.engine = 0;
+    patch.lpg_colour = 0.5f;
+    patch.decay = 0.5f;
+    patch.locked_frequency_pot_option = 1;
+    patch.aux_output_option = 1;
+}
+
+void ctagSoundProcessorTBPalette::Process(const ProcessData &data) {
+    PERF_MEASURE("TBPalette");
+    patch.note = frequency / 4095.f * 96.f;
+
+    if (cv_lpg_decay != -1) {
+        patch.decay = HELPERS::fastfabs(data.cv[cv_lpg_decay]);
+    } else {
+        patch.decay = lpg_decay / 4095.f;
+    }
+
+    patch.harmonics = harmonics / 4095.f;
+
+    if (cv_lpg_color != -1) {
+        patch.lpg_colour = HELPERS::fastfabs(data.cv[cv_lpg_color]);
+    } else {
+        patch.lpg_colour = lpg_color / 4095.f;
+    }
+
+    if (cv_timbre != -1) {
+        patch.timbre = HELPERS::fastfabs(data.cv[cv_timbre]);
+    } else {
+        patch.timbre = timbre / 4095.f;
+    }
+    if (cv_morph != -1) {
+        patch.morph = HELPERS::fastfabs(data.cv[cv_morph]);
+    } else {
+        patch.morph = morph / 4095.f;
+    }
+
+    // 4th macro parameter (freqlock_param) + modulation
+    patch.locked_frequency_pot_option = 1;
+    float fMacro = (cv_macro != -1) ? HELPERS::fastfabs(data.cv[cv_macro]) : (macro / 4095.f);
+    if (cv_mod_macro != -1) {
+        fMacro += data.cv[cv_mod_macro] * (mod_macro / 4095.f);
+    }
+    if (fMacro < 0.0f) fMacro = 0.0f;
+    else if (fMacro > 1.0f) fMacro = 1.0f;
+    patch.freqlock_param = fMacro;
+
+    // Stereo option: 1 = true stereo on stereo-capable engines, 0 = regular aux
+    bool bStereo = (stereo != 0);
+    if (cv_stereo != -1) {
+        bStereo = (data.cv[cv_stereo] > 0.5f);
+    } else if (trig_stereo != -1) {
+        bStereo = (data.trig[trig_stereo] != 1);
+    }
+    patch.aux_output_option = bStereo ? 1 : 0;
+
+    patch.morph_modulation_amount = mod_morph / 4095.f;
+    patch.frequency_modulation_amount = mod_freq / 4095.f;
+    patch.timbre_modulation_amount = mod_timbre / 4095.f;
+
+    int sm = smodel.load(std::memory_order_relaxed);
+    if (sm < 0) sm = 0;
+    else if (sm > 97) sm = 97;
+    patch.engine = sm;
+
+    rplaits::Modulations modulations;
+
+    if (cv_smodel != -1) {
+        modulations.engine = HELPERS::fastfabs(data.cv[cv_smodel]);
+    } else {
+        modulations.engine = 0.f;
+    }
+
+    if (cv_frequency != -1) {
+        modulations.note = data.cv[cv_frequency] * 5.f * 12.f;
+    } else {
+        modulations.note = 0.f;
+    }
+
+    if (cv_mod_freq != -1) {
+        modulations.frequency_patched = true;
+        modulations.frequency = data.cv[cv_mod_freq] * 30.f;
+    } else {
+        modulations.frequency_patched = false;
+        modulations.frequency = 0.f;
+    }
+
+    if (cv_harmonics != -1) {
+        modulations.harmonics = data.cv[cv_harmonics];
+    } else {
+        modulations.harmonics = 0.f;
+    }
+
+    if (cv_mod_timbre != -1) {
+        modulations.timbre = data.cv[cv_mod_timbre];
+        modulations.timbre_patched = true;
+    } else {
+        modulations.timbre = 0.f;
+        modulations.timbre_patched = false;
+    }
+
+    if (cv_mod_morph != -1) {
+        modulations.morph = data.cv[cv_mod_morph];
+        modulations.morph_patched = true;
+    } else {
+        modulations.morph = 0.f;
+        modulations.morph_patched = false;
+    }
+
+    if (trig_trigger != -1) {
+        modulations.trigger_patched = true;
+        modulations.trigger = (data.trig[trig_trigger] != 1);
+    } else {
+        modulations.trigger_patched = false;
+        modulations.trigger = false;
+    }
+
+    float fLevel = 1.f;
+    if (cv_level != -1) {
+        modulations.level = HELPERS::fastfabs(data.cv[cv_level]);
+        modulations.level_patched = true;
+    } else {
+        fLevel = level / 4095.f;
+        modulations.level_patched = false;
+    }
+
+    // Render frame
+    rplaits::Voice::Frame out[bufSz];
+    voice.Render(patch, modulations, out, bufSz);
+
+    // Convert to interleaved float buffer
+    for (int i = 0; i < bufSz; i++) {
+        data.buf[i * 2] = out[i].out / 32768.f * fLevel;
+        data.buf[i * 2 + 1] = out[i].aux / 32768.f * fLevel;
+    }
+}
+
+ctagSoundProcessorTBPalette::~ctagSoundProcessorTBPalette() {
+}
+
+void ctagSoundProcessorTBPalette::knowYourself() {
+// sectionCpp0
+    pMapPar.emplace("smodel", [&](const int val) { smodel = val < 0 ? 0 : (val > 97 ? 97 : val); });
+    pMapCv.emplace("smodel", [&](const int val) { cv_smodel = val; });
+    pMapPar.emplace("trigger", [&](const int val) { trigger = val; });
+    pMapTrig.emplace("trigger", [&](const int val) { trig_trigger = val; });
+    pMapPar.emplace("frequency", [&](const int val) { frequency = val; });
+    pMapCv.emplace("frequency", [&](const int val) { cv_frequency = val; });
+    pMapPar.emplace("level", [&](const int val) { level = val; });
+    pMapCv.emplace("level", [&](const int val) { cv_level = val; });
+    pMapPar.emplace("harmonics", [&](const int val) { harmonics = val; });
+    pMapCv.emplace("harmonics", [&](const int val) { cv_harmonics = val; });
+    pMapPar.emplace("timbre", [&](const int val) { timbre = val; });
+    pMapCv.emplace("timbre", [&](const int val) { cv_timbre = val; });
+    pMapPar.emplace("morph", [&](const int val) { morph = val; });
+    pMapCv.emplace("morph", [&](const int val) { cv_morph = val; });
+    pMapPar.emplace("macro", [&](const int val) { macro = val; });
+    pMapCv.emplace("macro", [&](const int val) { cv_macro = val; });
+    pMapPar.emplace("lpg_color", [&](const int val) { lpg_color = val; });
+    pMapCv.emplace("lpg_color", [&](const int val) { cv_lpg_color = val; });
+    pMapPar.emplace("lpg_decay", [&](const int val) { lpg_decay = val; });
+    pMapCv.emplace("lpg_decay", [&](const int val) { cv_lpg_decay = val; });
+    pMapPar.emplace("stereo", [&](const int val) { stereo = val; });
+    pMapCv.emplace("stereo", [&](const int val) { cv_stereo = val; });
+    pMapTrig.emplace("stereo", [&](const int val) { trig_stereo = val; });
+    pMapPar.emplace("mod_freq", [&](const int val) { mod_freq = val; });
+    pMapCv.emplace("mod_freq", [&](const int val) { cv_mod_freq = val; });
+    pMapPar.emplace("mod_timbre", [&](const int val) { mod_timbre = val; });
+    pMapCv.emplace("mod_timbre", [&](const int val) { cv_mod_timbre = val; });
+    pMapPar.emplace("mod_morph", [&](const int val) { mod_morph = val; });
+    pMapCv.emplace("mod_morph", [&](const int val) { cv_mod_morph = val; });
+    pMapPar.emplace("mod_macro", [&](const int val) { mod_macro = val; });
+    pMapCv.emplace("mod_macro", [&](const int val) { cv_mod_macro = val; });
+    isStereo = true;
+    id = "TBPalette";
+// sectionCpp0
+}

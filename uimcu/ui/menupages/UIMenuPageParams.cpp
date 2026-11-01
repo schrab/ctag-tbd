@@ -630,7 +630,7 @@ namespace CTAG {
                 if (idx >= endIdx) break;
                 const ParamInfo &pi = params[idx];
                 int y = ROW(i);
-                char valBuf[16];
+                char valBuf[24];
                 if (strcmp(pi.type, "bool") == 0) {
                     strcpy(valBuf, pi.current ? "ON" : "OFF");
                 } else {
