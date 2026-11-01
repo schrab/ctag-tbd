@@ -78,6 +78,11 @@ public:
     // consumed by the 25 Hz link stream for the MIX-page meter.
     static uint32_t GetLevelPeak();
 
+    // Monotonic bench counters (see the field comments above); the 25 Hz
+    // link stream embeds them so clicks can be attributed live.
+    static uint32_t GetUnderruns();
+    static uint32_t GetRecDrops();
+
     // Header parse only (no streaming): chunk walk tolerating LIST/bext
     // metadata and WAVE_FORMAT_EXTENSIBLE fmt; false if not a playable
     // 16-bit mono/stereo PCM WAV.
@@ -93,7 +98,15 @@ private:
     static std::atomic<uint32_t> readPos;   // audio reads here (mod RING_SZ)
     static std::atomic<bool> playing;
     static std::atomic<bool> recording;
-    static std::atomic<bool> underrun;
+    // Bench diagnostics, carried by the 25 Hz link stream ("u"/"d" in the
+    // sd object). underruns: MixPlayback calls that found an empty ring —
+    // a handful at playback start is normal, a GROWING count mid-playback
+    // means the worker fell behind (SD stalls) and the tape signal gaps.
+    // recDrops: audio-task blocks discarded while recording because the
+    // ring was full — clicks IN A RECORDED FILE come from here, not from
+    // the playback path.
+    static std::atomic<uint32_t> underruns;
+    static std::atomic<uint32_t> recDrops;
     static bool stopRequested; // worker reads this
     static std::atomic<uint32_t> route;     // Route as int
     static std::atomic<uint32_t> levelPeak; // 0..1000, read-and-clear

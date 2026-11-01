@@ -608,6 +608,11 @@ namespace CTAG {
                 s += ",\"r\":" + to_string(AUDIO::SDAudio::IsRecording() ? 1 : 0);
                 s += ",\"pos\":" + to_string(AUDIO::SDAudio::GetPositionFrames());
                 s += ",\"tot\":" + to_string(AUDIO::SDAudio::GetTotalFrames());
+                // Tape-health bench counters: playback ring underruns ("u")
+                // and recording dropouts ("d"). A few "u" at playback start
+                // are normal; growth mid-playback = tape gaps = clicks.
+                s += ",\"u\":" + to_string(AUDIO::SDAudio::GetUnderruns());
+                s += ",\"d\":" + to_string(AUDIO::SDAudio::GetRecDrops());
                 s += "}}";
                 sendStr(s);
             }

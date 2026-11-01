@@ -40,7 +40,8 @@ std::atomic<uint32_t> SDAudio::writePos{0};
 std::atomic<uint32_t> SDAudio::readPos{0};
 std::atomic<bool> SDAudio::playing{false};
 std::atomic<bool> SDAudio::recording{false};
-std::atomic<bool> SDAudio::underrun{false};
+std::atomic<uint32_t> SDAudio::underruns{0};
+std::atomic<uint32_t> SDAudio::recDrops{0};
 bool SDAudio::stopRequested = false;
 std::atomic<uint32_t> SDAudio::route{0};      // Route::MAIN_OUT
 std::atomic<uint32_t> SDAudio::levelPeak{0};
@@ -71,9 +72,11 @@ void SDAudio::StartPlayback(const char *path) {
         // Switch files while playing: ask the current worker to exit and
         // wait for it to release the shared file/ring state, then respawn.
         // The worker self-clears `playing` right before deleting itself.
+        // Wait in RAW ticks: CONFIG_FREERTOS_HZ is 100, so pdMS_TO_TICKS(1)
+        // is 0 and would be a bare yield (the wait below is then ~micro-
+        // seconds, not the 100 ms it claims). 10 ticks = 100 ms.
         stopRequested = true;
-        int waitMs = 100;
-        while (playing && waitMs-- > 0) vTaskDelay(pdMS_TO_TICKS(1));
+        for (int i = 0; playing && i < 10; ++i) vTaskDelay(1);
         if (playing) {
             ESP_LOGW(TAG, "Previous playback would not stop; keeping %s", filePath);
             return;
@@ -84,13 +87,13 @@ void SDAudio::StartPlayback(const char *path) {
     readPos = 0;
     bytePos = 0;
     totalFrames = 0;
-    underrun = false;
+    underruns = 0;
     playing = true;
     stopRequested = false;
     // Priority 1 = same as the link task (link_ep, core 0): FreeRTOS time
     // slicing keeps heartbeats flowing during continuous SD traffic. At the
     // old prio 5 the worker starved link_ep while recording and the panel
-    // dropped the link ("DSP link lost" after 1 s of silence). The ~3 s
+    // dropped the link ("DSP link lost" after 1 s of silence). The ~0.7 s
     // ring absorbs any SD stalls.
     xTaskCreatePinnedToCore(workerTask, "sd_audio", 6144, (void *)0, 1, nullptr, 0);
 }
@@ -102,6 +105,7 @@ void SDAudio::StartRecording(const char *path) {
     readPos = 0;
     recordedBytes = 0;
     bytePos = 0;
+    recDrops = 0;
     numChannels = 2; // recordings are always 2ch (GetPositionFrames divides by it)
     wavHeaderWritten = false;
     recording = true;
@@ -128,7 +132,10 @@ int SDAudio::MixPlayback(float *buf, int nFrames) {
     uint32_t wp = writePos.load(std::memory_order_acquire);
     uint32_t avail = (wp - rp) & (RING_SZ - 1);
     if (avail == 0) {
-        underrun = true;
+        // Bench counter, not just a flag: the 25 Hz stream reports it, so
+        // tape dropouts can be attributed live. A few hits at playback
+        // start (before the worker's first chunk lands) are normal.
+        underruns.fetch_add(1, std::memory_order_relaxed);
         return 0;
     }
     int toRead = avail < (uint32_t)nFrames ? (int)avail : nFrames;
@@ -157,6 +164,11 @@ int SDAudio::RecordSamples(float *buf, int nFrames) {
     uint32_t wp = writePos.load(std::memory_order_acquire);
     uint32_t free = (rp - wp - 1) & (RING_SZ - 1);
     if (free < (uint32_t)nFrames) {
+        // The block is discarded whole — the SD worker could not drain the
+        // ring in time. Count it: these drops end up as clicks IN the
+        // recorded file, which sound exactly like playback-path bugs when
+        // the file is played back later.
+        recDrops.fetch_add(1, std::memory_order_relaxed);
         return 0;
     }
     for (int i = 0; i < nFrames; i++) {
@@ -188,6 +200,9 @@ void SDAudio::SetGain(int percent) {
 int SDAudio::GetGain() { return (int)gain.load(std::memory_order_relaxed); }
 
 uint32_t SDAudio::GetLevelPeak() { return levelPeak.exchange(0); }
+
+uint32_t SDAudio::GetUnderruns() { return underruns.load(std::memory_order_relaxed); }
+uint32_t SDAudio::GetRecDrops() { return recDrops.load(std::memory_order_relaxed); }
 
 bool SDAudio::ProbeWav(const char *path, WavInfo *out) {
     if (!path || !out) return false;
@@ -297,7 +312,10 @@ void SDAudio::workerTask(void *param) {
             uint32_t rp = readPos.load(std::memory_order_acquire);
             uint32_t avail = (wp - rp) & (RING_SZ - 1);
             if (avail == 0) {
-                vTaskDelay(pdMS_TO_TICKS(5));
+                // RAW tick, not pdMS_TO_TICKS: CONFIG_FREERTOS_HZ is 100, so
+                // any pdMS_TO_TICKS(<10) is 0 = a bare yield and the worker
+                // would spin flat out instead of idling here.
+                vTaskDelay(1);
                 continue;
             }
             uint32_t toWrite = avail > CHUNK_MAX ? CHUNK_MAX : avail;
@@ -317,12 +335,15 @@ void SDAudio::workerTask(void *param) {
             // Recording timecode: GetPositionFrames() = bytePos / (2ch*2B).
             bytePos = recordedBytes;
             readPos.store((rp + toWrite) & (RING_SZ - 1), std::memory_order_release);
-            // One tick per chunk keeps the SD bus breathable: continuous
-            // fwrite at this priority starved FATFS ops from other tasks
-            // (the link task's directory scans timed out -> "No card or
-            // empty" while the tape ran). ~85 chunks/s still sustains
-            // ~2x the record bitrate; the ring absorbs the pauses.
-            vTaskDelay(pdMS_TO_TICKS(1));
+            // One RAW tick (10 ms at CONFIG_FREERTOS_HZ=100) per chunk keeps
+            // the SD bus breathable: continuous fwrite at this priority
+            // starved FATFS ops from other tasks (the link task's directory
+            // scans timed out -> "No card or empty" while the tape ran).
+            // This used to be pdMS_TO_TICKS(1) == 0 ticks — a bare yield,
+            // so the worker actually ran flat out with no pauses at all.
+            // ~100 chunks/s × 1024 frames = ~2.3x the record bitrate; the
+            // ring absorbs the pauses.
+            vTaskDelay(1);
         }
 
         // Finalize WAV header
@@ -387,7 +408,8 @@ void SDAudio::workerTask(void *param) {
             uint32_t rp = readPos.load(std::memory_order_acquire);
             uint32_t free = (rp - wp - 1) & (RING_SZ - 1);
             if (free == 0) {
-                vTaskDelay(pdMS_TO_TICKS(2));
+                // RAW tick (pdMS_TO_TICKS(2) == 0 at HZ=100 — was a spin).
+                vTaskDelay(1);
                 continue;
             }
             uint32_t toWrite = free > CHUNK_MAX ? CHUNK_MAX : free;
@@ -414,11 +436,15 @@ void SDAudio::workerTask(void *param) {
             }
             bytePos += framesRead * bytesPerFrame;
             writePos.store((wp + framesRead) & (RING_SZ - 1), std::memory_order_release);
-            // One tick per chunk keeps the SD bus breathable (same reason as
-            // the record loop): without the pause, continuous fread starved
-            // the link task's directory scans -> "No card or empty" while
-            // the tape played. ~85 chunks/s ≈ 2x the playback bitrate.
-            vTaskDelay(pdMS_TO_TICKS(1));
+            // One RAW tick (10 ms at CONFIG_FREERTOS_HZ=100) per chunk keeps
+            // the SD bus breathable (same reason as the record loop):
+            // without the pause, continuous fread starved the link task's
+            // directory scans -> "No card or empty" while the tape played.
+            // This used to be pdMS_TO_TICKS(1) == 0 ticks — a bare yield —
+            // so playback actually hammered the card with ~1378 tiny
+            // 64-byte transactions/s and spun core 0 flat out once the
+            // ring was full. ~100 chunks/s × 1024 frames ≈ 2.3x realtime.
+            vTaskDelay(1);
         }
 
         fclose(file);
