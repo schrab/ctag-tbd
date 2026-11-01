@@ -643,6 +643,10 @@ namespace CTAG {
                     else
                         snprintf(valBuf, sizeof(valBuf), "%d", pi.current);
                 }
+                // Values stop 3 px short of the screen edge: the scrollbar
+                // (track at x=126, 3 px thumb) would otherwise render on
+                // top of the value text.
+                const int valRight = 127 - 3;
                 // Clip the name to the pixels left of the value: long spec
                 // names ("(2) Pitch (100 cent per semitone) A") otherwise
                 // overdraw the right-aligned value and the user reads only
@@ -652,7 +656,7 @@ namespace CTAG {
                 int valW = 0;
                 for (const char *c = valBuf; *c; c++)
                     valW += Display::FontAdvance(rowFont, (unsigned char)*c);
-                int avail = 127 - valW - 2;
+                int avail = valRight - valW - 2;
                 int nameChars = 0;
                 for (int nameW = 0; pi.name[nameChars]; nameChars++) {
                     nameW += Display::FontAdvance(rowFont,
@@ -662,7 +666,7 @@ namespace CTAG {
                 char nameBuf[sizeof(pi.name)];
                 snprintf(nameBuf, sizeof(nameBuf), "%.*s", nameChars, pi.name);
                 Display::DrawString(0, y, nameBuf, rowFont);
-                Display::DrawStringRight(127, y, valBuf, rowFont);
+                Display::DrawStringRight(valRight, y, valBuf, rowFont);
             }
             int cursorY = ROW(paramIndexToScreen(cursor));
             Display::InvertRect(0, cursorY - 1, 128, 8);
