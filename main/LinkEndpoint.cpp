@@ -376,6 +376,7 @@ namespace CTAG {
                 s += ",\"tr\":" + to_string(MarblesEngine::GetTRange());
                 s += ",\"txy\":" + to_string(MarblesEngine::GetXYClockSource());
                 s += ",\"te\":" + to_string(MarblesEngine::GetTExternal() ? 1 : 0);
+                s += ",\"bpm\":" + to_string(MarblesEngine::GetBPM());
                 s += ",\"trate\":" + to_string(MarblesEngine::GetTRate());
                 s += ",\"tb\":" + to_string(MarblesEngine::GetTBias());
                 s += ",\"tj\":" + to_string(MarblesEngine::GetTJitter());
@@ -385,8 +386,6 @@ namespace CTAG {
                 s += ",\"xsc\":" + to_string(MarblesEngine::GetXScale());
                 s += ",\"xrg\":" + to_string(MarblesEngine::GetXRange());
                 s += ",\"xc\":" + to_string(MarblesEngine::GetXControl());
-                s += ",\"xr\":" + to_string(MarblesEngine::GetXRegister() ? 1 : 0);
-                s += ",\"xrv\":" + to_string(MarblesEngine::GetXRegisterValue());
                 s += ",\"xsp\":" + to_string(MarblesEngine::GetXSpread());
                 s += ",\"xb\":" + to_string(MarblesEngine::GetXBias());
                 s += ",\"xst\":" + to_string(MarblesEngine::GetXSteps());
@@ -395,7 +394,6 @@ namespace CTAG {
                 s += ",\"ysp\":" + to_string(MarblesEngine::GetYSpread());
                 s += ",\"yb\":" + to_string(MarblesEngine::GetYBias());
                 s += ",\"yst\":" + to_string(MarblesEngine::GetYSteps());
-                s += ",\"yd\":" + to_string(MarblesEngine::GetYDejaVu());
                 s += ",\"ydiv\":" + to_string(MarblesEngine::GetYDivider());
                 s += ",\"dva\":" + to_string(MarblesEngine::GetDejaVuAmount());
                 s += ",\"dvl\":" + to_string(MarblesEngine::GetDejaVuLength());
@@ -454,14 +452,13 @@ namespace CTAG {
                 union { float f; uint32_t u; } bit;
                 mix(MarblesEngine::GetTModel()); mix(MarblesEngine::GetTRange());
                 mix(MarblesEngine::GetXYClockSource()); mix(MarblesEngine::GetTExternal());
+                bit.f = MarblesEngine::GetBPM(); mix(bit.u);
                 bit.f = MarblesEngine::GetTRate(); mix(bit.u);
                 bit.f = MarblesEngine::GetTBias(); mix(bit.u);
                 bit.f = MarblesEngine::GetTJitter(); mix(bit.u);
                 mix(MarblesEngine::GetTPwMean()); mix(MarblesEngine::GetTPwStd());
                 mix(MarblesEngine::GetTDejaVu()); mix(MarblesEngine::GetXScale());
                 mix(MarblesEngine::GetXRange()); mix(MarblesEngine::GetXControl());
-                mix(MarblesEngine::GetXRegister());
-                bit.f = MarblesEngine::GetXRegisterValue(); mix(bit.u);
                 bit.f = MarblesEngine::GetXSpread(); mix(bit.u);
                 bit.f = MarblesEngine::GetXBias(); mix(bit.u);
                 bit.f = MarblesEngine::GetXSteps(); mix(bit.u);
@@ -469,7 +466,7 @@ namespace CTAG {
                 bit.f = MarblesEngine::GetYSpread(); mix(bit.u);
                 bit.f = MarblesEngine::GetYBias(); mix(bit.u);
                 bit.f = MarblesEngine::GetYSteps(); mix(bit.u);
-                mix(MarblesEngine::GetYDejaVu()); mix(MarblesEngine::GetYDivider());
+                mix(MarblesEngine::GetYDivider());
                 bit.f = MarblesEngine::GetDejaVuAmount(); mix(bit.u);
                 mix(MarblesEngine::GetDejaVuLength());
                 for (int i = 0; i < 3; i++) {
@@ -544,10 +541,14 @@ namespace CTAG {
                 // coalesce into the latest value.
                 if (SoundProcessorManager::GetLastEditSeq() != lastPushed.editSeq) {
                     lastPushed.editSeq = SoundProcessorManager::GetLastEditSeq();
+                    static const char *kEditKeys[3] = {"current", "cv", "trig"};
+                    int ek = SoundProcessorManager::GetLastEditKey();
+                    if (ek < 0 || ek > 2) ek = 0;
                     string s = "{\"cmd\":\"";
                     s += kMsgPushParamValue;
                     s += "\",\"ch\":" + to_string(SoundProcessorManager::GetLastEditCh());
                     s += ",\"id\":\"" + string(SoundProcessorManager::GetLastEditId()) + "\"";
+                    s += ",\"k\":\"" + string(kEditKeys[ek]) + "\"";
                     s += ",\"current\":" + to_string(SoundProcessorManager::GetLastEditVal());
                     s += "}";
                     sendStr(s);
@@ -639,6 +640,7 @@ namespace CTAG {
                 else if (k == "tr") MarblesEngine::SetTRange(iv);
                 else if (k == "txy") MarblesEngine::SetXYClockSource(iv);
                 else if (k == "te") MarblesEngine::SetTExternal(bv);
+                else if (k == "bpm") MarblesEngine::SetBPM((float)v);
                 else if (k == "trate") MarblesEngine::SetTRate((float)v);
                 else if (k == "tb") MarblesEngine::SetTBias((float)v);
                 else if (k == "tj") MarblesEngine::SetTJitter((float)v);
@@ -648,8 +650,6 @@ namespace CTAG {
                 else if (k == "xsc") MarblesEngine::SetXScale(iv);
                 else if (k == "xrg") MarblesEngine::SetXRange(iv);
                 else if (k == "xc") MarblesEngine::SetXControl(iv);
-                else if (k == "xr") MarblesEngine::SetXRegister(bv);
-                else if (k == "xrv") MarblesEngine::SetXRegisterValue((float)v);
                 else if (k == "xsp") MarblesEngine::SetXSpread((float)v);
                 else if (k == "xb") MarblesEngine::SetXBias((float)v);
                 else if (k == "xst") MarblesEngine::SetXSteps((float)v);
@@ -658,7 +658,6 @@ namespace CTAG {
                 else if (k == "ysp") MarblesEngine::SetYSpread((float)v);
                 else if (k == "yb") MarblesEngine::SetYBias((float)v);
                 else if (k == "yst") MarblesEngine::SetYSteps((float)v);
-                else if (k == "yd") MarblesEngine::SetYDejaVu(iv);
                 else if (k == "ydiv") MarblesEngine::SetYDivider(iv);
                 else if (k == "dva") MarblesEngine::SetDejaVuAmount((float)v);
                 else if (k == "dvl") MarblesEngine::SetDejaVuLength(iv);

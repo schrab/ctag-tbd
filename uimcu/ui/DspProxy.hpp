@@ -208,12 +208,11 @@ namespace CTAG {
             static int GetTPwStd();    static void SetTPwStd(int v);
             static int GetTDejaVu();   static void SetTDejaVu(int v);
             static bool GetTExternal(); static void SetTExternal(bool v);
+            static float GetBPM();     static void SetBPM(float v);
             static int GetXYClockSource(); static void SetXYClockSource(int v);
             static int GetXScale();    static void SetXScale(int v);
             static int GetXRange();    static void SetXRange(int v);
             static int GetXControl();  static void SetXControl(int v);
-            static bool GetXRegister(); static void SetXRegister(bool v);
-            static float GetXRegisterValue(); static void SetXRegisterValue(float v);
             static float GetXSpread(); static void SetXSpread(float v);
             static float GetXBias();   static void SetXBias(float v);
             static float GetXSteps();  static void SetXSteps(float v);
@@ -223,7 +222,6 @@ namespace CTAG {
             static float GetYBias();   static void SetYBias(float v);
             static float GetYSteps();  static void SetYSteps(float v);
             static int GetYDivider();  static void SetYDivider(int v);
-            static int GetYDejaVu();   static void SetYDejaVu(int v);
             static float GetDejaVuAmount(); static void SetDejaVuAmount(float v);
             static int GetDejaVuLength();   static void SetDejaVuLength(int v);
             static int GetTSlot(int i);     static void SetTSlot(int i, int slot);

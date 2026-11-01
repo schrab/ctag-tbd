@@ -126,14 +126,15 @@ namespace CTAG {
             struct MarblesState {
                 int tModel = 0, tRange = 1, xyClockSource = 0;
                 int xScale = 0, xRange = 1, xControl = 0, xDejaVu = 0;
-                int yRange = 1, yDivider = 8, yDejaVu = 0;
+                int yRange = 1, yDivider = 8;
                 int tDejaVu = 0, tpwMean = 128, tpwStd = 64;
                 int dejaVuLength = 4;
+                float bpm = 120.0f;
                 float tRate = 0, tBias = 0.5f, tJitter = 0.1f;
-                float xRegisterValue = 0.5f, xSpread = 0.5f, xBias = 0.5f, xSteps = 0.5f;
+                float xSpread = 0.5f, xBias = 0.5f, xSteps = 0.5f;
                 float ySpread = 0.5f, yBias = 0.5f, ySteps = 0.5f;
                 float dejaVuAmount = 0.5f;
-                bool tExternal = false, xRegister = false;
+                bool tExternal = false;
                 int tSlot[3] = {40, 41, 42};
                 int xSlot[3] = {98, 99, 100};
                 int ySlot = 101;
@@ -358,18 +359,16 @@ namespace CTAG {
         void DspProxy::SetTDejaVu(int v) { mb.tDejaVu = clampI(v, 0, 2); }
         bool DspProxy::GetTExternal() { return mb.tExternal; }
         void DspProxy::SetTExternal(bool v) { mb.tExternal = v; }
+        float DspProxy::GetBPM() { return mb.bpm; }
+        void DspProxy::SetBPM(float v) { mb.bpm = clampF(v, 20.0f, 480.0f); }
         int DspProxy::GetXYClockSource() { return mb.xyClockSource; }
         void DspProxy::SetXYClockSource(int v) { mb.xyClockSource = clampI(v, 0, 4); }
         int DspProxy::GetXScale() { return mb.xScale; }
-        void DspProxy::SetXScale(int v) { mb.xScale = clampI(v, 0, 5); }
+        void DspProxy::SetXScale(int v) { mb.xScale = clampI(v, 0, 7); }
         int DspProxy::GetXRange() { return mb.xRange; }
         void DspProxy::SetXRange(int v) { mb.xRange = clampI(v, 0, 2); }
         int DspProxy::GetXControl() { return mb.xControl; }
         void DspProxy::SetXControl(int v) { mb.xControl = clampI(v, 0, 2); }
-        bool DspProxy::GetXRegister() { return mb.xRegister; }
-        void DspProxy::SetXRegister(bool v) { mb.xRegister = v; }
-        float DspProxy::GetXRegisterValue() { return mb.xRegisterValue; }
-        void DspProxy::SetXRegisterValue(float v) { mb.xRegisterValue = clampF(v, 0.0f, 1.0f); }
         float DspProxy::GetXSpread() { return mb.xSpread; }
         void DspProxy::SetXSpread(float v) { mb.xSpread = clampF(v, 0.0f, 1.0f); }
         float DspProxy::GetXBias() { return mb.xBias; }
@@ -388,8 +387,6 @@ namespace CTAG {
         void DspProxy::SetYSteps(float v) { mb.ySteps = clampF(v, 0.0f, 1.0f); }
         int DspProxy::GetYDivider() { return mb.yDivider; }
         void DspProxy::SetYDivider(int v) { mb.yDivider = clampI(v, 0, 11); }
-        int DspProxy::GetYDejaVu() { return mb.yDejaVu; }
-        void DspProxy::SetYDejaVu(int v) { mb.yDejaVu = clampI(v, 0, 2); }
         float DspProxy::GetDejaVuAmount() { return mb.dejaVuAmount; }
         void DspProxy::SetDejaVuAmount(float v) { mb.dejaVuAmount = clampF(v, 0.0f, 1.0f); }
         int DspProxy::GetDejaVuLength() { return mb.dejaVuLength; }

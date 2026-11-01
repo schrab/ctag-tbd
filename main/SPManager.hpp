@@ -178,6 +178,11 @@ namespace CTAG {
             static const char *GetLastEditId() { return lastEditId; }
             static int GetLastEditCh() { return lastEditCh.load(std::memory_order_relaxed); }
             static int GetLastEditVal() { return lastEditVal.load(std::memory_order_relaxed); }
+            // Which key the last edit touched: 0="current", 1="cv", 2="trig".
+            // The incremental pushParamValue frame must carry the real key —
+            // a cv/trig mapping sent as "current" clobbers the panel's cached
+            // param VALUE instead of its mapping slot.
+            static int GetLastEditKey() { return lastEditKey.load(std::memory_order_relaxed); }
             static uint32_t GetLastEditSeq() { return lastEditSeq.load(std::memory_order_relaxed); }
             // Set by SetSoundProcessorChannel: the panel's param table is
             // stale after a plugin load and needs a FULL params re-push
@@ -229,6 +234,7 @@ namespace CTAG {
             static char lastEditId[64];
             static atomic<int32_t> lastEditCh;
             static atomic<int32_t> lastEditVal;
+            static atomic<int32_t> lastEditKey;  // 0=current 1=cv 2=trig
             static atomic<uint32_t> lastEditSeq;
             static atomic<bool> paramsResyncPending;
 

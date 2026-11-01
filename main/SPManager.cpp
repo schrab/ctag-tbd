@@ -489,6 +489,7 @@ atomic<uint32_t> SoundProcessorManager::lastParamEditMs = 0;
 char SoundProcessorManager::lastEditId[64];
 atomic<int32_t> SoundProcessorManager::lastEditCh = 0;
 atomic<int32_t> SoundProcessorManager::lastEditVal = 0;
+atomic<int32_t> SoundProcessorManager::lastEditKey = 0;
 atomic<uint32_t> SoundProcessorManager::lastEditSeq = 0;
 atomic<bool> SoundProcessorManager::paramsResyncPending = false;
 atomic<bool> SoundProcessorManager::ringFrozen = false;
@@ -584,11 +585,13 @@ void SoundProcessorManager::SetChannelParamValue(const int chan, const string &i
                           std::memory_order_relaxed);
     // Record for the incremental pushParamValue sync (only "current"
     // edits change the value the panel displays; cv/trig mappings ride
-    // along in the frame too).
+    // along in the frame too — with their real key, see GetLastEditKey).
     if (key == "current" || key == "cv" || key == "trig") {
         snprintf(lastEditId, sizeof(lastEditId), "%s", id.c_str());
         lastEditCh.store(chan, std::memory_order_relaxed);
         lastEditVal.store(val, std::memory_order_relaxed);
+        lastEditKey.store(key == "cv" ? 1 : (key == "trig" ? 2 : 0),
+                          std::memory_order_relaxed);
         lastEditSeq.fetch_add(1, std::memory_order_relaxed);
     }
 }

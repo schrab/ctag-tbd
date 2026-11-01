@@ -30,6 +30,7 @@ with parameter state, MIDI-clock input and CV/trig-buffer outputs.
 #include <atomic>
 #include "esp_log.h"
 #include "esp_random.h"
+#include "esp_timer.h"
 #include "rapidjson/document.h"
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/filereadstream.h"
@@ -61,38 +62,54 @@ static const Ratio y_divider_ratios[12] = {
     {1, 8},  {1, 6},  {1, 4},  {1, 3},  {1, 2},  {1, 1},
 };
 
-// preset_scales copied from marbles/settings.cc (Émilie Gillet, MIT) —
-// settings.cc itself is STM32-bound (ChunkStorage/flash drivers).
-static const Scale preset_scales[6] = {
-    // C major
+// preset_scales — the pentatonic entry is copied from marbles/settings.cc
+// (Émilie Gillet, MIT; settings.cc itself is STM32-bound). The seven
+// diatonic modes follow the upstream presets' format: all 12 chromatic
+// degrees with per-note weights, in-scale notes weighted by tonal role
+// (tonic 255, fifth 192, third/seventh 128, second/sixth 96, fourth 64 —
+// the hierarchy visible in the upstream major/minor presets), out-of-scale
+// notes 8. All rooted in C (0 V).
+static const Scale preset_scales[8] = {
+    // Ionian
     {1.0f, 12,
-     {{0.0000f, 255}, {0.0833f, 16}, {0.1667f, 96}, {0.2500f, 24},
+     {{0.0000f, 255}, {0.0833f, 8},  {0.1667f, 96}, {0.2500f, 8},
       {0.3333f, 128}, {0.4167f, 64}, {0.5000f, 8},  {0.5833f, 192},
-      {0.6667f, 16},  {0.7500f, 96}, {0.8333f, 24}, {0.9167f, 128}}},
-    // C minor
+      {0.6667f, 8},   {0.7500f, 96}, {0.8333f, 8},  {0.9167f, 128}}},
+    // Dorian
     {1.0f, 12,
-     {{0.0000f, 255}, {0.0833f, 16}, {0.1667f, 96}, {0.2500f, 128},
-      {0.3333f, 8},   {0.4167f, 64}, {0.5000f, 4},  {0.5833f, 192},
-      {0.6667f, 96},  {0.7500f, 16}, {0.8333f, 128}, {0.9167f, 16}}},
-    // Pentatonic
+     {{0.0000f, 255}, {0.0833f, 8},  {0.1667f, 96}, {0.2500f, 128},
+      {0.3333f, 8},   {0.4167f, 64}, {0.5000f, 8},  {0.5833f, 192},
+      {0.6667f, 8},   {0.7500f, 96}, {0.8333f, 128}, {0.9167f, 8}}},
+    // Phrygian
+    {1.0f, 12,
+     {{0.0000f, 255}, {0.0833f, 96}, {0.1667f, 8},  {0.2500f, 128},
+      {0.3333f, 8},   {0.4167f, 64}, {0.5000f, 8},  {0.5833f, 192},
+      {0.6667f, 96},  {0.7500f, 8},  {0.8333f, 128}, {0.9167f, 8}}},
+    // Lydian
+    {1.0f, 12,
+     {{0.0000f, 255}, {0.0833f, 8},  {0.1667f, 96}, {0.2500f, 8},
+      {0.3333f, 128}, {0.4167f, 8},  {0.5000f, 64}, {0.5833f, 192},
+      {0.6667f, 8},   {0.7500f, 96}, {0.8333f, 8},  {0.9167f, 128}}},
+    // Mixolydian
+    {1.0f, 12,
+     {{0.0000f, 255}, {0.0833f, 8},  {0.1667f, 96}, {0.2500f, 8},
+      {0.3333f, 128}, {0.4167f, 64}, {0.5000f, 8},  {0.5833f, 192},
+      {0.6667f, 8},   {0.7500f, 96}, {0.8333f, 128}, {0.9167f, 8}}},
+    // Aeolian
+    {1.0f, 12,
+     {{0.0000f, 255}, {0.0833f, 8},  {0.1667f, 96}, {0.2500f, 128},
+      {0.3333f, 8},   {0.4167f, 64}, {0.5000f, 8},  {0.5833f, 192},
+      {0.6667f, 96},  {0.7500f, 8},  {0.8333f, 128}, {0.9167f, 8}}},
+    // Locrian
+    {1.0f, 12,
+     {{0.0000f, 255}, {0.0833f, 96}, {0.1667f, 8},  {0.2500f, 128},
+      {0.3333f, 8},   {0.4167f, 64}, {0.5000f, 192}, {0.5833f, 8},
+      {0.6667f, 96},  {0.7500f, 8},  {0.8333f, 128}, {0.9167f, 8}}},
+    // Pentatonic (upstream preset)
     {1.0f, 12,
      {{0.0000f, 255}, {0.0833f, 4},  {0.1667f, 96}, {0.2500f, 4},
       {0.3333f, 4},   {0.4167f, 140}, {0.5000f, 4}, {0.5833f, 192},
       {0.6667f, 4},   {0.7500f, 96}, {0.8333f, 4},  {0.9167f, 4}}},
-    // Pelog
-    {1.0f, 7,
-     {{0.0000f, 255}, {0.1275f, 128}, {0.2625f, 32}, {0.4600f, 8},
-      {0.5883f, 192}, {0.7067f, 64},  {0.8817f, 16}}},
-    // Raag Bhairav That
-    {1.0f, 12,
-     {{0.0000f, 255}, {0.0752f, 128}, {0.1699f, 4},  {0.2630f, 4},
-      {0.3219f, 128}, {0.4150f, 64},  {0.4918f, 4},  {0.5850f, 192},
-      {0.6601f, 64},  {0.7549f, 4},   {0.8479f, 4},  {0.9069f, 64}}},
-    // Raag Shri
-    {1.0f, 12,
-     {{0.0000f, 255}, {0.0752f, 4},   {0.1699f, 128}, {0.2630f, 64},
-      {0.3219f, 4},   {0.4150f, 128}, {0.4918f, 4},   {0.5850f, 192},
-      {0.6601f, 4},   {0.7549f, 64},  {0.8479f, 128}, {0.9069f, 4}}},
 };
 
 // ---- marbles core objects (static DRAM, ~9 KB) ----
@@ -102,9 +119,22 @@ static TGenerator t_generator;
 static XYGenerator xy_generator;
 
 // ---- parameter state (defaults mirror marbles.cc power-on settings) ----
+// Tempo model: BPM is the GLOBAL transport tempo (set manually or measured
+// from the MIDI clock; other plugins may read GetBPM). The Marbles t-clock
+// is its own thing, derived from BPM:
+//
+//   marbles_clock = BPM * range_multiplier(0.25/1/4) * 2^(tFine/12)
+//
+// The engine's t_generator expresses its clock as semitones around the 1x
+// base (2 Hz = 120 BPM), so tRate is the DERIVED quantity
+// tRate = 12*log2(BPM/120) + tFine and tRange keeps multiplying on top.
+// The Clock Range switch therefore re-pitches Marbles without ever
+// touching the BPM number.
 static int tModel = T_GENERATOR_MODEL_COMPLEMENTARY_BERNOULLI;
 static int tRange = T_GENERATOR_RANGE_1X;
-static float tRate = 0.0f;      // semitones around the range base rate
+static float bpm = 120.0f;      // global transport tempo, 20..480
+static float tFine = 0.0f;      // Marbles fine trim around BPM, +-60 st
+static float tRate = 0.0f;      // derived: 12*log2(bpm/120) + tFine
 static float tBias = 0.5f;
 static float tJitter = 0.0f;
 static int tPwMean = 90;        // ~35% pulse width
@@ -112,13 +142,19 @@ static int tPwStd = 0;
 static int tDejaVu = 0;         // 0=off 1=on 2=locked
 static bool tExternal = false;  // t clock = MIDI clock
 
+// MIDI-clock tempo measurement (OnMidiClock runs on the link task).
+static int64_t lastMidiTickUs = 0;
+static float midiBpmEma = -1.0f;  // -1 = no measurement yet
+
+// Defined with the parameter setters below.
+static float ClampFloat(float v, float lo, float hi);
+static void ApplyClock();
+
 static int xyClockSource = 0;   // 0=T1+T2+T3 1=T1 2=T2 3=T3 4=MIDI
 
 static int xScale = 0;          // C major
 static int xRange = 2;          // ±5 V full
 static int xControl = 0;        // identical
-static bool xRegister = false;
-static float xRegisterValue = 0.5f;
 static float xSpread = 0.5f;
 static float xBias = 0.5f;
 static float xSteps = 0.5f;
@@ -129,7 +165,6 @@ static float ySpread = 0.5f;
 static float yBias = 0.5f;
 static float ySteps = 0.5f;
 static int yDivider = 11;       // 1/1
-static int yDejaVu = 0;         // 0=off (upstream default), 1=on, 2=locked
 
 static float dvAmount = 0.0f;
 static int dvLength = 8;
@@ -152,11 +187,12 @@ static stmlib::GateFlags extClockFlags = stmlib::GATE_FLAG_LOW;
 static bool extGateLevel = false;
 static std::atomic<uint32_t> outSnapshot{0};
 
-// Normalize volts to -1..1 across the active output range
-// (narrow 0..2 V, positive 0..5 V, full ±5 V) and quantize to 7 bits.
-static uint32_t PackNormalized(float volts, int range) {
-    const float span = (range == 0) ? 2.0f : 5.0f;
-    float n = volts / span;
+// Normalize volts to -1..1 against an ABSOLUTE ±5 V ruler — independent of
+// the selected output range, so switching the octave range never moves the
+// UI bar (a 1 V note always sits at the same position) — and quantize to
+// 7 bits. Narrow ranges therefore use only the inner part of the travel.
+static uint32_t PackNormalized(float volts) {
+    float n = volts / 5.0f;
     if (n < -1.0f) n = -1.0f;
     if (n > 1.0f) n = 1.0f;
     return (uint32_t)((n + 1.0f) * 63.5f) & 0x7Fu;
@@ -174,7 +210,7 @@ void MarblesEngine::Init() {
     random_stream.Init(&random_generator);
     t_generator.Init(&random_stream, MARBLES_SR);
     xy_generator.Init(&random_stream, MARBLES_SR);
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 8; ++i) {
         xy_generator.LoadScale(i, preset_scales[i]);
     }
     pendingClockEdges.store(0, std::memory_order_relaxed);
@@ -189,6 +225,20 @@ void MarblesEngine::Init() {
 
 void MarblesEngine::OnMidiClock() {
     pendingClockEdges.fetch_add(1, std::memory_order_relaxed);
+    // Measure the transport tempo from the MIDI clock (24 ticks/beat) and
+    // adopt it as the global BPM — the value then also sticks when the
+    // internal clock takes over again. EMA keeps the display steady.
+    int64_t now = esp_timer_get_time();
+    if (lastMidiTickUs != 0) {
+        float ms = (float)(now - lastMidiTickUs) / 1000.0f;
+        if (ms >= 2.5f && ms <= 1000.0f) {  // 2.5..1000 ms/tick = 15..6000 BPM
+            float inst = 60000.0f / (ms * 24.0f);
+            midiBpmEma = (midiBpmEma < 0.0f) ? inst : (0.9f * midiBpmEma + 0.1f * inst);
+            bpm = ClampFloat(midiBpmEma, 20.0f, 480.0f);
+            ApplyClock();
+        }
+    }
+    lastMidiTickUs = now;
 }
 
 void MarblesEngine::OnMidiStart() {
@@ -244,8 +294,10 @@ void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
     GroupSettings x, y;
     x.control_mode = ControlMode(xControl);
     x.voltage_range = VoltageRange(xRange % 3);
-    x.register_mode = xRegister;
-    x.register_value = xRegisterValue;
+    // Register mode samples an external CV (the [O] jack on the module);
+    // the BBA has no CV inputs, so it stays off like upstream's Y section.
+    x.register_mode = false;
+    x.register_value = 0.0f;
     x.spread = xSpread;
     x.bias = xBias;
     x.steps = xSteps;
@@ -262,10 +314,8 @@ void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
     y.spread = ySpread;
     y.bias = yBias;
     y.steps = ySteps;
-    // Upstream marbles.cc hardcodes y.deja_vu = 0 / y.length = 1; the
-    // switch lets Y join the shared deja-vu amount/length like t and X.
-    y.deja_vu = yDejaVu == 2 ? 0.5f : (yDejaVu == 1 ? dvAmount : 0.0f);
-    y.length = yDejaVu == 0 ? 1 : dvLength;
+    y.deja_vu = 0.0f;  // upstream marbles.cc: Y is never affected by deja vu
+    y.length = 1;
     y.ratio = y_divider_ratios[yDivider];
     y.scale_index = xScale;
 
@@ -307,10 +357,10 @@ void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
     uint32_t snap = (gates[0] ? 1u : 0u)
                   | ((ramp_master < 0.5f ? 1u : 0u) << 1)
                   | ((gates[1] ? 1u : 0u) << 2);
-    snap |= PackNormalized(voltages[0], xRange) << 3;
-    snap |= PackNormalized(voltages[1], xRange) << 10;
-    snap |= PackNormalized(voltages[2], xRange) << 17;
-    snap |= PackNormalized(voltages[3], yRange) << 24;
+    snap |= PackNormalized(voltages[0]) << 3;
+    snap |= PackNormalized(voltages[1]) << 10;
+    snap |= PackNormalized(voltages[2]) << 17;
+    snap |= PackNormalized(voltages[3]) << 24;
     outSnapshot.store(snap, std::memory_order_relaxed);
 }
 
@@ -322,12 +372,28 @@ uint32_t MarblesEngine::GetOutputSnapshot() {
 static int ClampInt(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 static float ClampFloat(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
+// Re-derive the engine rate from the global BPM and the fine trim.
+static void ApplyClock() {
+    float st = 12.0f * log2f(bpm / 120.0f) + tFine;
+    tRate = ClampFloat(st, -60.0f, 60.0f);
+}
+
 int MarblesEngine::GetTModel() { return tModel; }
 void MarblesEngine::SetTModel(int v) { tModel = ClampInt(v, 0, 6); }
 int MarblesEngine::GetTRange() { return tRange; }
 void MarblesEngine::SetTRange(int v) { tRange = ClampInt(v, 0, 2); }
-float MarblesEngine::GetTRate() { return tRate; }
-void MarblesEngine::SetTRate(float v) { tRate = ClampFloat(v, -60.0f, 60.0f); }
+// Global transport tempo (manual entry, tap tempo, or MIDI-measured).
+float MarblesEngine::GetBPM() { return bpm; }
+void MarblesEngine::SetBPM(float v) {
+    bpm = ClampFloat(v, 20.0f, 480.0f);
+    ApplyClock();
+}
+// Marbles fine trim around BPM (the engine rate is derived from BPM+tFine).
+float MarblesEngine::GetTRate() { return tFine; }
+void MarblesEngine::SetTRate(float v) {
+    tFine = ClampFloat(v, -60.0f, 60.0f);
+    ApplyClock();
+}
 float MarblesEngine::GetTBias() { return tBias; }
 void MarblesEngine::SetTBias(float v) { tBias = ClampFloat(v, 0.0f, 1.0f); }
 float MarblesEngine::GetTJitter() { return tJitter; }
@@ -345,15 +411,11 @@ int MarblesEngine::GetXYClockSource() { return xyClockSource; }
 void MarblesEngine::SetXYClockSource(int v) { xyClockSource = ClampInt(v, 0, 4); }
 
 int MarblesEngine::GetXScale() { return xScale; }
-void MarblesEngine::SetXScale(int v) { xScale = ClampInt(v, 0, 5); }
+void MarblesEngine::SetXScale(int v) { xScale = ClampInt(v, 0, 7); }
 int MarblesEngine::GetXRange() { return xRange; }
 void MarblesEngine::SetXRange(int v) { xRange = ClampInt(v, 0, 2); }
 int MarblesEngine::GetXControl() { return xControl; }
 void MarblesEngine::SetXControl(int v) { xControl = ClampInt(v, 0, 2); }
-bool MarblesEngine::GetXRegister() { return xRegister; }
-void MarblesEngine::SetXRegister(bool v) { xRegister = v; }
-float MarblesEngine::GetXRegisterValue() { return xRegisterValue; }
-void MarblesEngine::SetXRegisterValue(float v) { xRegisterValue = ClampFloat(v, 0.0f, 1.0f); }
 float MarblesEngine::GetXSpread() { return xSpread; }
 void MarblesEngine::SetXSpread(float v) { xSpread = ClampFloat(v, 0.0f, 1.0f); }
 float MarblesEngine::GetXBias() { return xBias; }
@@ -373,8 +435,6 @@ float MarblesEngine::GetYSteps() { return ySteps; }
 void MarblesEngine::SetYSteps(float v) { ySteps = ClampFloat(v, 0.0f, 1.0f); }
 int MarblesEngine::GetYDivider() { return yDivider; }
 void MarblesEngine::SetYDivider(int v) { yDivider = ClampInt(v, 0, 11); }
-int MarblesEngine::GetYDejaVu() { return yDejaVu; }
-void MarblesEngine::SetYDejaVu(int v) { yDejaVu = ClampInt(v, 0, 2); }
 
 float MarblesEngine::GetDejaVuAmount() { return dvAmount; }
 void MarblesEngine::SetDejaVuAmount(float v) { dvAmount = ClampFloat(v, 0.0f, 1.0f); }
@@ -483,7 +543,9 @@ void MarblesEngine::SaveConfig() {
     m.AddMember("tExternal", tExternal, alloc);
     m.AddMember("tModel", tModel, alloc);
     m.AddMember("tRange", tRange, alloc);
-    m.AddMember("tRate", tRate, alloc);
+    m.AddMember("bpm", bpm, alloc);
+    m.AddMember("tFine", tFine, alloc);
+    m.AddMember("tRate", tRate, alloc);  // derived, kept for diagnostics
     m.AddMember("tBias", tBias, alloc);
     m.AddMember("tJitter", tJitter, alloc);
     m.AddMember("tPwMean", tPwMean, alloc);
@@ -493,8 +555,6 @@ void MarblesEngine::SaveConfig() {
     m.AddMember("xScale", xScale, alloc);
     m.AddMember("xRange", xRange, alloc);
     m.AddMember("xControl", xControl, alloc);
-    m.AddMember("xRegister", xRegister, alloc);
-    m.AddMember("xRegisterValue", xRegisterValue, alloc);
     m.AddMember("xSpread", xSpread, alloc);
     m.AddMember("xBias", xBias, alloc);
     m.AddMember("xSteps", xSteps, alloc);
@@ -504,7 +564,6 @@ void MarblesEngine::SaveConfig() {
     m.AddMember("yBias", yBias, alloc);
     m.AddMember("ySteps", ySteps, alloc);
     m.AddMember("yDivider", yDivider, alloc);
-    m.AddMember("yDejaVu", yDejaVu, alloc);
     m.AddMember("dvAmount", dvAmount, alloc);
     m.AddMember("dvLength", dvLength, alloc);
     Value tArr(kArrayType);
@@ -588,7 +647,9 @@ void MarblesEngine::LoadConfig() {
         if (GetBoolMember(m, "tExternal", b)) SetTExternal(b);
         if (GetIntMember(m, "tModel", n)) SetTModel(n);
         if (GetIntMember(m, "tRange", n)) SetTRange(n);
-        if (GetFloatMember(m, "tRate", f)) SetTRate(f);
+        // NOTE: tRate/bpm/tFine are handled by the migration block below —
+        // tRate is a derived quantity and must not feed SetTRate (the fine
+        // trim) directly.
         if (GetFloatMember(m, "tBias", f)) SetTBias(f);
         if (GetFloatMember(m, "tJitter", f)) SetTJitter(f);
         if (GetIntMember(m, "tPwMean", n)) SetTPwMean(n);
@@ -598,8 +659,6 @@ void MarblesEngine::LoadConfig() {
         if (GetIntMember(m, "xScale", n)) SetXScale(n);
         if (GetIntMember(m, "xRange", n)) SetXRange(n);
         if (GetIntMember(m, "xControl", n)) SetXControl(n);
-        if (GetBoolMember(m, "xRegister", b)) SetXRegister(b);
-        if (GetFloatMember(m, "xRegisterValue", f)) SetXRegisterValue(f);
         if (GetFloatMember(m, "xSpread", f)) SetXSpread(f);
         if (GetFloatMember(m, "xBias", f)) SetXBias(f);
         if (GetFloatMember(m, "xSteps", f)) SetXSteps(f);
@@ -609,7 +668,6 @@ void MarblesEngine::LoadConfig() {
         if (GetFloatMember(m, "yBias", f)) SetYBias(f);
         if (GetFloatMember(m, "ySteps", f)) SetYSteps(f);
         if (GetIntMember(m, "yDivider", n)) SetYDivider(n);
-        if (GetIntMember(m, "yDejaVu", n)) SetYDejaVu(n);
         if (GetFloatMember(m, "dvAmount", f)) SetDejaVuAmount(f);
         if (GetIntMember(m, "dvLength", n)) SetDejaVuLength(n);
         if (m.HasMember("tSlot") && m["tSlot"].IsArray()) {
@@ -625,6 +683,20 @@ void MarblesEngine::LoadConfig() {
             }
         }
         if (GetIntMember(m, "ySlot", n)) SetYSlot(n);
+
+        // Tempo-model migration: configs from before the global-BPM split
+        // stored only tRate (semitones around the range base). The old
+        // effective clock at 1x was 2 Hz * 2^(tRate/12) = 120 BPM *
+        // 2^(tRate/12), so that becomes the global BPM with no fine trim —
+        // the new model reproduces the same clock for any persisted range.
+        if (GetFloatMember(m, "bpm", f)) {
+            SetBPM(f);
+            if (GetFloatMember(m, "tFine", f)) SetTRate(f);
+        } else if (GetFloatMember(m, "tRate", f)) {
+            SetBPM(120.0f * powf(2.0f, f / 12.0f));
+            tFine = 0.0f;
+        }
+        ApplyClock();
     }
 
     // ccSlots keep the ModEngine schema so an old config file carries over.
@@ -639,15 +711,11 @@ void MarblesEngine::LoadConfig() {
     }
 
     ESP_LOGI(TAG, "LoadConfig: loaded from %s", MOD_CFG_PATH);
-    // Surface the clock state so a stale tRate/tRange (e.g. 4x range ->
-    // 480 BPM at rate 0) is distinguishable from the 120 BPM factory default.
+    // Surface the clock state so a migrated vs. fresh config is visible:
+    // the engine rate is derived from the global BPM and the fine trim.
     const char *tclksrc = tExternal ? "MIDI" : "internal";
-    float bpm = 60.0f;
-    if (tRange == 0) bpm = 0.5f;
-    else if (tRange == 2) bpm = 8.0f;
-    bpm *= powf(2.0f, tRate / 12.0f) * 60.0f;
-    ESP_LOGI(TAG, "LoadConfig: clock src=%s range=%d rate=%.2fst -> %.1f BPM",
-             tclksrc, tRange, tRate, bpm);
+    ESP_LOGI(TAG, "LoadConfig: clock src=%s bpm=%.1f fine=%.2fst range=%d -> rate=%.2fst",
+             tclksrc, bpm, tFine, tRange, tRate);
 }
 
 } // namespace CTAG::DRIVERS

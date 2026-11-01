@@ -101,28 +101,33 @@ Engine parameters are plain clamped setters on `MarblesEngine` (see the
 header for the full list). The PANEL_MOD UI mirrors the hardware module:
 
 - **Knobs page** — exactly the module's 8 knobs + the DEJA VU length button,
-  in panel order: DV amount, DV length, T.Rate (BPM), T.Bias, T.Jit,
-  X.Sprd, X.Bias, X.Step, Y.Rate (divider).
-- **Clock page**: t clock source (Int/MIDI), **BPM entry** (20–480, one
-  clock cycle = one beat; converted to the engine's semitone rate), fine
-  Rate (±60 st shown in Hz, full Marbles span), range (0.25×/1×/4×),
+  in panel order: Deja Vu amount, Loop Length, Clock Rate (BPM), T Bias,
+  T Jitter, X Spread, X Bias, X Steps, Y Rate (divider). Labels follow the
+  manual's terminology.
+- **Clock page**: t clock source (Int/MIDI), **BPM** — the GLOBAL transport
+  tempo (20–480; set manually, via [Tap], or measured from the MIDI clock
+  at 24 ticks/beat and adopted while the external clock runs; readable by
+  other plugins via `MarblesEngine::GetBPM()`), fine Rate (±60 st shown in
+  Hz — the Marbles clock = BPM × range × 2^(fine/12)), Clock Range
+  (0.25×/1×/4× — multiplies the Marbles clock only, never the BPM),
   X clock source (T123/T1/T2/T3/MIDI), **[Tap]** (average of last 4 taps
   sets the BPM, 3 s gap restarts the sequence), [Reset] (pattern reset).
 - **T Setup page** (the module's button/switch equivalents): model (incl.
-  Markov), range, pulse-width mean/deviation, t déjà-vu, T1–T3 trig slot
-  assignment.
-- **X Setup page**: scale, range in octaves (2/5/10 — the module's ±V
-  ranges expressed for 1 V/oct, since TBD slots are note-scaled), control
-  mode, register mode + value, X déjà-vu, X1–X3 slot assignment.
-- **Y Setup page**: range in octaves, spread/bias/steps (hidden settings
-  on the hardware module), **déjà-vu switch** (Off/On/Lock — upstream
-  `marbles.cc` hardcodes Y out of déjà-vu; On makes Y follow the shared
-  DV amount/length from the Knobs page), Y slot assignment.
+  Markov), Clock Range, Gate Length (+ variance — the hold-[E] knob
+  remap on hardware), t déjà-vu, T1–T3 trig slot assignment.
+- **X Setup page**: scale, Voltage Range in octaves (2/5/10 — the module's ±V
+  ranges expressed for 1 V/oct, since TBD slots are note-scaled), Diversity
+  (the module's channel-diversity switch), X déjà-vu, X1–X3 slot assignment.
+- **Y Setup page**: Voltage Range in octaves, Y Spread/Bias/Steps (hidden
+  settings on the hardware module — hold-[N] knob remaps), Y slot
+  assignment. Y is never affected by déjà-vu, matching upstream
+  `marbles.cc` and the manual.
 
 Not ported (hardware-only features): CV recording of custom scales
 (`scale_recorder`), clock self-patching detection (X clock source is a menu
-parameter instead), the external "note" CV for X register/transposition
-(replaced by the register-value parameter).
+parameter instead), and the X external-processing/register mode ([O] — it
+samples the SPREAD CV input jack; the BBA has no CV inputs, so the engine
+hardcodes `x.register_mode = false` like upstream's Y section).
 
 ## Dynamic CC Routing (unchanged)
 
@@ -185,9 +190,8 @@ stream buffers — SaveConfig runs on the 4 KB UIMenu task stack):
     "tExternal": false, "tModel": 0, "tRange": 1, "tRate": 0.0,
     "tBias": 0.5, "tJitter": 0.0, "tPwMean": 90, "tPwStd": 0, "tDejaVu": 0,
     "xyClockSource": 0,
-    "xScale": 0, "xRange": 2, "xControl": 0, "xRegister": false,
-    "xRegisterValue": 0.5, "xSpread": 0.5, "xBias": 0.5, "xSteps": 0.5,
-    "xDejaVu": 0,
+    "xScale": 0, "xRange": 2, "xControl": 0, "xSpread": 0.5,
+    "xBias": 0.5, "xSteps": 0.5, "xDejaVu": 0,
     "yRange": 2, "ySpread": 0.5, "yBias": 0.5, "ySteps": 0.5, "yDivider": 11,
     "dvAmount": 0.0, "dvLength": 8,
     "tSlot": [40, 41, 42], "xSlot": [98, 99, 100], "ySlot": 101
@@ -198,7 +202,8 @@ stream buffers — SaveConfig runs on the 4 KB UIMenu task stack):
 
 `MarblesEngine::SaveConfig()` runs from the page's `deinit()` when dirty;
 `LoadConfig()` runs from `Init()` (called from `Midi::Init()`). Old config
-files with `lfo1/2`, `seq*`, `gate*`, `tempo` keys simply ignore them.
+files with `lfo1/2`, `seq*`, `gate*`, `tempo` keys — or the removed
+`xRegister`/`xRegisterValue`/`yDejaVu` keys — simply ignore them.
 
 ## DRAM / flash
 

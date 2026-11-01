@@ -108,14 +108,15 @@ namespace CTAG {
             struct MarblesState {
                 int tModel = 0, tRange = 1, xyClockSource = 0;
                 int xScale = 0, xRange = 1, xControl = 0, xDejaVu = 0;
-                int yRange = 1, yDivider = 8, yDejaVu = 0;
+                int yRange = 1, yDivider = 8;
                 int tDejaVu = 0, tpwMean = 128, tpwStd = 64;
                 int dejaVuLength = 4;
+                float bpm = 120.0f;
                 float tRate = 0, tBias = 0.5f, tJitter = 0.1f;
-                float xRegisterValue = 0.5f, xSpread = 0.5f, xBias = 0.5f, xSteps = 0.5f;
+                float xSpread = 0.5f, xBias = 0.5f, xSteps = 0.5f;
                 float ySpread = 0.5f, yBias = 0.5f, ySteps = 0.5f;
                 float dejaVuAmount = 0.5f;
-                bool tExternal = false, xRegister = false;
+                bool tExternal = false;
                 int tSlot[3] = {40, 41, 42};
                 int xSlot[3] = {98, 99, 100};
                 int ySlot = 101;
@@ -148,17 +149,16 @@ namespace CTAG {
                 else if (!strcmp(key, "tr")) mb.tRange = clampI(iv, 0, 2);
                 else if (!strcmp(key, "txy")) mb.xyClockSource = clampI(iv, 0, 4);
                 else if (!strcmp(key, "te")) mb.tExternal = bv;
+                else if (!strcmp(key, "bpm")) mb.bpm = clampF((float)v, 20.0f, 480.0f);
                 else if (!strcmp(key, "trate")) mb.tRate = clampF((float)v, -60.0f, 60.0f);
                 else if (!strcmp(key, "tb")) mb.tBias = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "tj")) mb.tJitter = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "tpwm")) mb.tpwMean = clampI(iv, 0, 255);
                 else if (!strcmp(key, "tpws")) mb.tpwStd = clampI(iv, 0, 255);
                 else if (!strcmp(key, "tdv")) mb.tDejaVu = clampI(iv, 0, 2);
-                else if (!strcmp(key, "xsc")) mb.xScale = clampI(iv, 0, 5);
+                else if (!strcmp(key, "xsc")) mb.xScale = clampI(iv, 0, 7);
                 else if (!strcmp(key, "xrg")) mb.xRange = clampI(iv, 0, 2);
                 else if (!strcmp(key, "xc")) mb.xControl = clampI(iv, 0, 2);
-                else if (!strcmp(key, "xr")) mb.xRegister = bv;
-                else if (!strcmp(key, "xrv")) mb.xRegisterValue = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "xsp")) mb.xSpread = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "xb")) mb.xBias = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "xst")) mb.xSteps = clampF((float)v, 0.0f, 1.0f);
@@ -167,7 +167,6 @@ namespace CTAG {
                 else if (!strcmp(key, "ysp")) mb.ySpread = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "yb")) mb.yBias = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "yst")) mb.ySteps = clampF((float)v, 0.0f, 1.0f);
-                else if (!strcmp(key, "yd")) mb.yDejaVu = clampI(iv, 0, 2);
                 else if (!strcmp(key, "ydiv")) mb.yDivider = clampI(iv, 0, 11);
                 else if (!strcmp(key, "dva")) mb.dejaVuAmount = clampF((float)v, 0.0f, 1.0f);
                 else if (!strcmp(key, "dvl")) mb.dejaVuLength = clampI(iv, 1, 16);
@@ -198,6 +197,7 @@ namespace CTAG {
                 mb.tRange = gi("tr", mb.tRange);
                 mb.xyClockSource = gi("txy", mb.xyClockSource);
                 mb.tExternal = gb("te", mb.tExternal);
+                mb.bpm = gf("bpm", mb.bpm);
                 mb.tRate = gf("trate", mb.tRate);
                 mb.tBias = gf("tb", mb.tBias);
                 mb.tJitter = gf("tj", mb.tJitter);
@@ -207,8 +207,6 @@ namespace CTAG {
                 mb.xScale = gi("xsc", mb.xScale);
                 mb.xRange = gi("xrg", mb.xRange);
                 mb.xControl = gi("xc", mb.xControl);
-                mb.xRegister = gb("xr", mb.xRegister);
-                mb.xRegisterValue = gf("xrv", mb.xRegisterValue);
                 mb.xSpread = gf("xsp", mb.xSpread);
                 mb.xBias = gf("xb", mb.xBias);
                 mb.xSteps = gf("xst", mb.xSteps);
@@ -217,7 +215,6 @@ namespace CTAG {
                 mb.ySpread = gf("ysp", mb.ySpread);
                 mb.yBias = gf("yb", mb.yBias);
                 mb.ySteps = gf("yst", mb.ySteps);
-                mb.yDejaVu = gi("yd", mb.yDejaVu);
                 mb.yDivider = gi("ydiv", mb.yDivider);
                 mb.dejaVuAmount = gf("dva", mb.dejaVuAmount);
                 mb.dejaVuLength = gi("dvl", mb.dejaVuLength);
@@ -299,13 +296,23 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 // view at most ~5x/s (fast turns would otherwise re-parse
                 // the whole table per detent). Values for the row the user
                 // is editing are preserved by the page's edit-row guard.
-                int ch = -1, val = 0;
+                // "k" carries the edited key — "current" (default for frames
+                // from older DSP builds), "cv" or "trig" (mapping edits).
+                // Applying a cv/trig mapping to e.current would clobber a
+                // bool param's value with a slot number.
+                int ch = -1, val = 0, key = 0;  // key: 0=current 1=cv 2=trig
                 const char *id = nullptr;
                 {   // tiny manual extraction — the frame is machine-made
                     const char *p = strstr(payload, "\"ch\":");
                     if (p) ch = atoi(p + 5);
                     p = strstr(payload, "\"id\":\"");
                     if (p) id = p + 6;
+                    p = strstr(payload, "\"k\":\"");
+                    if (p) {
+                        p += 5;
+                        if (!strncmp(p, "cv", 2)) key = 1;
+                        else if (!strncmp(p, "trig", 4)) key = 2;
+                    }
                     p = strstr(payload, "\"current\":");
                     if (p) val = atoi(p + 10);
                 }
@@ -315,7 +322,9 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     for (int i = 0; i < paramTableCount[ch]; i++) {
                         DspProxy::DspParamEntry &e = paramTable[ch][i];
                         if (strncmp(e.id, id, idlen) == 0 && e.id[idlen] == '\0') {
-                            e.current = val;
+                            if (key == 1) e.cv = val;
+                            else if (key == 2) e.trig = val;
+                            else e.current = val;
                             uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
                             static uint32_t lastBumpMs = 0;
                             if (nowMs - lastBumpMs >= 200 || lastBumpMs == 0) {
@@ -856,18 +865,16 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         void DspProxy::SetTDejaVu(int v) { mb.tDejaVu = clampI(v, 0, 2); sendMarblesSet("tdv", v); }
         bool DspProxy::GetTExternal() { return mb.tExternal; }
         void DspProxy::SetTExternal(bool v) { mb.tExternal = v; sendMarblesSet("te", v ? 1 : 0); }
+        float DspProxy::GetBPM() { return mb.bpm; }
+        void DspProxy::SetBPM(float v) { mb.bpm = clampF(v, 20.0f, 480.0f); sendMarblesSet("bpm", v); }
         int DspProxy::GetXYClockSource() { return mb.xyClockSource; }
         void DspProxy::SetXYClockSource(int v) { mb.xyClockSource = clampI(v, 0, 4); sendMarblesSet("txy", v); }
         int DspProxy::GetXScale() { return mb.xScale; }
-        void DspProxy::SetXScale(int v) { mb.xScale = clampI(v, 0, 5); sendMarblesSet("xsc", v); }
+        void DspProxy::SetXScale(int v) { mb.xScale = clampI(v, 0, 7); sendMarblesSet("xsc", v); }
         int DspProxy::GetXRange() { return mb.xRange; }
         void DspProxy::SetXRange(int v) { mb.xRange = clampI(v, 0, 2); sendMarblesSet("xrg", v); }
         int DspProxy::GetXControl() { return mb.xControl; }
         void DspProxy::SetXControl(int v) { mb.xControl = clampI(v, 0, 2); sendMarblesSet("xc", v); }
-        bool DspProxy::GetXRegister() { return mb.xRegister; }
-        void DspProxy::SetXRegister(bool v) { mb.xRegister = v; sendMarblesSet("xr", v ? 1 : 0); }
-        float DspProxy::GetXRegisterValue() { return mb.xRegisterValue; }
-        void DspProxy::SetXRegisterValue(float v) { mb.xRegisterValue = clampF(v, 0, 1); sendMarblesSet("xrv", v); }
         float DspProxy::GetXSpread() { return mb.xSpread; }
         void DspProxy::SetXSpread(float v) { mb.xSpread = clampF(v, 0, 1); sendMarblesSet("xsp", v); }
         float DspProxy::GetXBias() { return mb.xBias; }
@@ -886,8 +893,6 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         void DspProxy::SetYSteps(float v) { mb.ySteps = clampF(v, 0, 1); sendMarblesSet("yst", v); }
         int DspProxy::GetYDivider() { return mb.yDivider; }
         void DspProxy::SetYDivider(int v) { mb.yDivider = clampI(v, 0, 11); sendMarblesSet("ydiv", v); }
-        int DspProxy::GetYDejaVu() { return mb.yDejaVu; }
-        void DspProxy::SetYDejaVu(int v) { mb.yDejaVu = clampI(v, 0, 2); sendMarblesSet("yd", v); }
         float DspProxy::GetDejaVuAmount() { return mb.dejaVuAmount; }
         void DspProxy::SetDejaVuAmount(float v) { mb.dejaVuAmount = clampF(v, 0, 1); sendMarblesSet("dva", v); }
         int DspProxy::GetDejaVuLength() { return mb.dejaVuLength; }

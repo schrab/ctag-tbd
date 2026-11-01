@@ -66,6 +66,7 @@ respective component folders / files if different from this license.
 #include <memory>
 #include <map>
 #include <functional>
+#include "esp_log.h"
 #include "ctagSPDataModel.hpp"
 #include "ctagSPAllocator.hpp"
 
@@ -138,6 +139,12 @@ namespace CTAG {
 
             virtual void setParamValueInternal(const string &id, const string &key, const int val) {
                 //printf("%s, %s, %d\n", id.c_str(), key.c_str(), val);
+                // Bench tracer for mapping edits (cv/trig): DEBUG level so it
+                // stays quiet in production; flip to LOGI when hunting
+                // routing bugs over the bench console.
+                if (key != "current") {
+                    ESP_LOGD("SetParam", "%s %s = %d", id.c_str(), key.c_str(), val);
+                }
                 if (key.compare("current") == 0) {
                     auto it = pMapPar.find(id);
                     if (it != pMapPar.end()) {

@@ -70,10 +70,17 @@ public:
     // bit 10-16 X2, bit 17-23 X3, bit 24-30 Y (same encoding)
     static uint32_t GetOutputSnapshot();
 
-    // --- t section ---
+    // --- global transport tempo ---
+    // BPM is the global tempo: set manually (panel/tap) or measured from the
+    // MIDI clock (24 ticks/beat, adopted while the external clock runs). It
+    // is deliberately independent of the Marbles clock range so other
+    // plugins can consume it later.
+    static float GetBPM();   static void SetBPM(float v);     // 20..480
+
+    // --- t section (Marbles' own clock = BPM * range * 2^(fine/12)) ---
     static int GetTModel();  static void SetTModel(int v);    // 0..6, 6 = Markov
     static int GetTRange();  static void SetTRange(int v);    // 0=0.25x 1=1x 2=4x
-    static float GetTRate(); static void SetTRate(float v);   // semitones -60..+60
+    static float GetTRate(); static void SetTRate(float v);   // fine trim st -60..+60
     static float GetTBias(); static void SetTBias(float v);   // 0..1
     static float GetTJitter(); static void SetTJitter(float v); // 0..1
     static int GetTPwMean(); static void SetTPwMean(int v);   // 0..255
@@ -86,11 +93,9 @@ public:
     static int GetXYClockSource(); static void SetXYClockSource(int v);
 
     // --- X section ---
-    static int GetXScale();  static void SetXScale(int v);    // 0..5 preset scales
+    static int GetXScale();  static void SetXScale(int v);    // 0..7 preset scales
     static int GetXRange();  static void SetXRange(int v);    // 0=2oct 1=5oct 2=10oct
     static int GetXControl(); static void SetXControl(int v); // 0=ident 1=bump 2=tilt
-    static bool GetXRegister(); static void SetXRegister(bool v);
-    static float GetXRegisterValue(); static void SetXRegisterValue(float v); // 0..1
     static float GetXSpread(); static void SetXSpread(float v);
     static float GetXBias(); static void SetXBias(float v);
     static float GetXSteps(); static void SetXSteps(float v);
@@ -102,8 +107,6 @@ public:
     static float GetYBias(); static void SetYBias(float v);
     static float GetYSteps(); static void SetYSteps(float v);
     static int GetYDivider(); static void SetYDivider(int v); // 0=1/64 .. 11=1/1
-    // 0=off (upstream hardcodes this), 1=follow DV amount/length, 2=locked
-    static int GetYDejaVu(); static void SetYDejaVu(int v);
 
     // --- shared deja-vu ---
     static float GetDejaVuAmount(); static void SetDejaVuAmount(float v); // 0..1

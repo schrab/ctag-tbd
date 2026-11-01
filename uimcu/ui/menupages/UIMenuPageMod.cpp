@@ -26,26 +26,30 @@ namespace CTAG {
             "1/64", "1/48", "1/32", "1/24", "1/16", "1/12",
             "1/8", "1/6", "1/4", "1/3", "1/2", "1/1"
         };
-        static const char* scaleNames[6] = {
-            "Major", "Minor", "Penta", "Pelog", "Bhairav", "Shri"
+        static const char* scaleNames[8] = {
+            "Ionian", "Dorian", "Phrygian", "Lydian",
+            "Mixolydian", "Aeolian", "Locrian", "Penta"
         };
 
-        // Live output indication: T1/T2/T3 dots (filled = gate high) and
-        // X1/X2/X3/Y center-fill bars (frameless, normalized to the active
-        // octave range). Seven equal 18px cells across the line.
+        // Live output indication: T1/T2/T3 dots (filled = gate high) bunched
+        // at the left (8 px pitch, 2 px gaps), then X1/X2/X3/Y center-fill
+        // bars (frameless, ABSOLUTE ±5 V ruler — bar position does not move
+        // when the octave range changes) across four 26 px cells — the wider
+        // cells give the CV bars ~44% more travel than the old
+        // seven-equal-18px layout.
         void UIMenuPageMod::drawOutputLine() {
             uint32_t s = DspProxy::GetOutputSnapshot();
             for (int i = 0; i < 3; i++) {
-                Display::DrawRect(1 + i * 18 + 6, 57, 6, 6, (s >> i) & 1);
+                Display::DrawRect(1 + i * 8, 57, 6, 6, (s >> i) & 1);
             }
             const int shifts[4] = {3, 10, 17, 24};
             for (int i = 0; i < 4; i++) {
-                int x = 1 + (i + 3) * 18;
-                int cx = x + 9;              // zero boundary of the cell
+                int x = 24 + i * 26;         // cells at 24/50/76/102, to 128
+                int cx = x + 13;             // zero boundary of the cell
                 int q = (s >> shifts[i]) & 0x7f;
                 float n = (q - 64) / 63.5f;
-                int w = (int)(fabsf(n) * 9.0f + 0.5f);
-                if (w > 9) w = 9;
+                int w = (int)(fabsf(n) * 13.0f + 0.5f);
+                if (w > 13) w = 13;
                 Display::DrawVLine(cx, 57, 6);   // zero tick
                 if (w > 0) {
                     Display::DrawRect(n >= 0 ? cx : cx - w, 57, w, 6, true);
@@ -85,8 +89,8 @@ namespace CTAG {
                 case SP_PANEL: return 9;  // the module's 8 knobs + DV length button
                 case SP_CLOCK: return 7;  // Clock, BPM, [Tap], Fine, Range, XClock, [Reset]
                 case SP_T: return 8;      // Model, Range, PW, PWv, DV, T1..T3 slots
-                case SP_X: return 9;      // Scale, Rng, Ctl, Reg, RVal, DV, X1..X3 slots
-                case SP_Y: return 6;      // Rng, Sprd, Bias, Step, DV, Y slot
+                case SP_X: return 7;      // Scale, Rng, Ctl, DV, X1..X3 slots
+                case SP_Y: return 5;      // Rng, Sprd, Bias, Step, Y slot
                 case SP_CC_SLOTS: return 8;
                 case SP_CC_EDIT: return 3;
                 default: return 1;
@@ -113,30 +117,32 @@ namespace CTAG {
             }
         }
 
-        // ---- internal clock helpers (BPM <-> marbles semitone rate) ----
-        // One t-clock cycle = one beat, so BPM = Hz * 60. BPM entry is
-        // clamped to 20..480 (musical range, reachable in all three ranges);
-        // the fine Rate row keeps the full +-60 semitone span.
-        static float MasterBaseHz() {
-            float base = 2.0f;
-            if (DspProxy::GetTRange() == 0) base = 0.5f;
-            else if (DspProxy::GetTRange() == 2) base = 8.0f;
-            return base;
+        // ---- tempo helpers ----
+        // BPM is the GLOBAL transport tempo (manual entry, tap tempo, or
+        // measured from the MIDI clock) — it never changes when the Marbles
+        // Clock Range switch turns. The Marbles t-clock is its own thing,
+        // derived from BPM:
+        //
+        //   marbles_clock = BPM * range(0.25/1/4) * 2^(fine/12)
+        //
+        // so the Clock Range switch re-pitches Marbles only. The Fine Rate
+        // row shows the resulting Marbles clock in Hz.
+        static float MasterBPM() {
+            return DspProxy::GetBPM();
         }
 
         static float MasterHz() {
-            return MasterBaseHz() * powf(2.0f, DspProxy::GetTRate() / 12.0f);
-        }
-
-        static float MasterBPM() {
-            return MasterHz() * 60.0f;
+            float factor = 1.0f;
+            if (DspProxy::GetTRange() == 0) factor = 0.25f;
+            else if (DspProxy::GetTRange() == 2) factor = 4.0f;
+            return (DspProxy::GetBPM() / 60.0f) * factor
+                   * powf(2.0f, DspProxy::GetTRate() / 12.0f);
         }
 
         static void SetMasterBPM(float bpm) {
             if (bpm < 20.0f) bpm = 20.0f;
             if (bpm > 480.0f) bpm = 480.0f;
-            float st = 12.0f * log2f((bpm / 60.0f) / MasterBaseHz());
-            DspProxy::SetTRate(st);  // engine clamps to +-60 st
+            DspProxy::SetBPM(bpm);
         }
 
         // ---- tap tempo: rolling average (max 4) of stored tap intervals ----
@@ -182,6 +188,8 @@ namespace CTAG {
                         case 0: DspProxy::SetTExternal(!DspProxy::GetTExternal()); break;
                         case 1: SetMasterBPM(MasterBPM() + delta); break;
                         case 3: DspProxy::SetTRate(DspProxy::GetTRate() + delta); break;
+                        // Clock Range multiplies the Marbles clock only —
+                        // the global BPM never moves (see tempo helpers).
                         case 4: DspProxy::SetTRange(DspProxy::GetTRange() + delta); break;
                         case 5: DspProxy::SetXYClockSource(DspProxy::GetXYClockSource() + delta); break;
                     }
@@ -189,6 +197,7 @@ namespace CTAG {
                 case SP_T:
                     switch (row) {
                         case 0: DspProxy::SetTModel(DspProxy::GetTModel() + delta); break;
+                        // Clock Range multiplies the Marbles clock only.
                         case 1: DspProxy::SetTRange(DspProxy::GetTRange() + delta); break;
                         case 2: DspProxy::SetTPwMean(DspProxy::GetTPwMean() + delta * 5); break;
                         case 3: DspProxy::SetTPwStd(DspProxy::GetTPwStd() + delta * 5); break;
@@ -203,12 +212,10 @@ namespace CTAG {
                         case 0: DspProxy::SetXScale(DspProxy::GetXScale() + delta); break;
                         case 1: DspProxy::SetXRange(DspProxy::GetXRange() + delta); break;
                         case 2: DspProxy::SetXControl(DspProxy::GetXControl() + delta); break;
-                        case 3: DspProxy::SetXRegister(!DspProxy::GetXRegister()); break;
-                        case 4: DspProxy::SetXRegisterValue(DspProxy::GetXRegisterValue() + delta * 0.01f); break;
-                        case 5: DspProxy::SetXDejaVu(DspProxy::GetXDejaVu() + delta); break;
-                        case 6: DspProxy::SetXSlot(0, DspProxy::GetXSlot(0) + delta); break;
-                        case 7: DspProxy::SetXSlot(1, DspProxy::GetXSlot(1) + delta); break;
-                        case 8: DspProxy::SetXSlot(2, DspProxy::GetXSlot(2) + delta); break;
+                        case 3: DspProxy::SetXDejaVu(!DspProxy::GetXDejaVu()); break;
+                        case 4: DspProxy::SetXSlot(0, DspProxy::GetXSlot(0) + delta); break;
+                        case 5: DspProxy::SetXSlot(1, DspProxy::GetXSlot(1) + delta); break;
+                        case 6: DspProxy::SetXSlot(2, DspProxy::GetXSlot(2) + delta); break;
                     }
                     break;
                 case SP_Y:
@@ -217,8 +224,7 @@ namespace CTAG {
                         case 1: DspProxy::SetYSpread(DspProxy::GetYSpread() + delta * 0.01f); break;
                         case 2: DspProxy::SetYBias(DspProxy::GetYBias() + delta * 0.01f); break;
                         case 3: DspProxy::SetYSteps(DspProxy::GetYSteps() + delta * 0.01f); break;
-                        case 4: DspProxy::SetYDejaVu(DspProxy::GetYDejaVu() + delta); break;
-                        case 5: DspProxy::SetYSlot(DspProxy::GetYSlot() + delta); break;
+                        case 4: DspProxy::SetYSlot(DspProxy::GetYSlot() + delta); break;
                     }
                     break;
                 case SP_CC_EDIT:
@@ -240,50 +246,51 @@ namespace CTAG {
                     // the hardware module's 8 knobs + DV length button, in panel order
                     switch (row) {
                         case 0:
-                            snprintf(buf, buflen, " DejaVu:%.2f", DspProxy::GetDejaVuAmount());
+                            snprintf(buf, buflen, " Deja Vu:%.2f", DspProxy::GetDejaVuAmount());
                             break;
                         case 1:
-                            snprintf(buf, buflen, " DejaVuLn:%d", DspProxy::GetDejaVuLength());
+                            snprintf(buf, buflen, " Loop Length:%d", DspProxy::GetDejaVuLength());
                             break;
                         case 2:
-                            snprintf(buf, buflen, " T.Rate:%.0fbpm", MasterBPM());
+                            snprintf(buf, buflen, " Clock Rate:%.0fbpm", MasterBPM());
                             break;
                         case 3:
-                            snprintf(buf, buflen, " T.Bias:%.2f", DspProxy::GetTBias());
+                            snprintf(buf, buflen, " T Bias:%.2f", DspProxy::GetTBias());
                             break;
                         case 4:
-                            snprintf(buf, buflen, " T.Jitter:%.2f", DspProxy::GetTJitter());
+                            snprintf(buf, buflen, " T Jitter:%.2f", DspProxy::GetTJitter());
                             break;
                         case 5:
-                            snprintf(buf, buflen, " X.Spread:%.2f", DspProxy::GetXSpread());
+                            snprintf(buf, buflen, " X Spread:%.2f", DspProxy::GetXSpread());
                             break;
                         case 6:
-                            snprintf(buf, buflen, " X.Bias:%.2f", DspProxy::GetXBias());
+                            snprintf(buf, buflen, " X Bias:%.2f", DspProxy::GetXBias());
                             break;
                         case 7:
-                            snprintf(buf, buflen, " X.Steps:%.2f", DspProxy::GetXSteps());
+                            snprintf(buf, buflen, " X Steps:%.2f", DspProxy::GetXSteps());
                             break;
                         case 8:
-                            snprintf(buf, buflen, " Y.Rate:%s", yDivNames[DspProxy::GetYDivider()]);
+                            snprintf(buf, buflen, " Y Rate:%s", yDivNames[DspProxy::GetYDivider()]);
                             break;
                     }
                     break;
                 case SP_CLOCK:
                     switch (row) {
                         case 0:
-                            snprintf(buf, buflen, " Clock:%s", DspProxy::GetTExternal() ? "MIDI" : "Int");
+                            snprintf(buf, buflen, " Clock Source:%s", DspProxy::GetTExternal() ? "MIDI" : "Int");
                             break;
                         case 1:
-                            snprintf(buf, buflen, " BPM:%.1f", MasterBPM());
+                            snprintf(buf, buflen, " BPM:%.1f%s", MasterBPM(),
+                                     DspProxy::GetTExternal() ? " MIDI" : "");
                             break;
                         case 3:
-                            snprintf(buf, buflen, " Fine:%.2fHz", MasterHz());
+                            snprintf(buf, buflen, " Fine Rate:%.2fHz", MasterHz());
                             break;
                         case 4:
-                            snprintf(buf, buflen, " Range:%s", rangeNames[DspProxy::GetTRange()]);
+                            snprintf(buf, buflen, " Clock Range:%s", rangeNames[DspProxy::GetTRange()]);
                             break;
                         case 5:
-                            snprintf(buf, buflen, " XClock:%s", xyClkNames[DspProxy::GetXYClockSource()]);
+                            snprintf(buf, buflen, " X Clock:%s", xyClkNames[DspProxy::GetXYClockSource()]);
                             break;
                         case 2:
                             snprintf(buf, buflen, tapHistoryCount > 0 ? " [Tap] %.0fbpm" : " [Tap]", MasterBPM());
@@ -299,16 +306,16 @@ namespace CTAG {
                             snprintf(buf, buflen, " Model:%s", tModelNames[DspProxy::GetTModel()]);
                             break;
                         case 1:
-                            snprintf(buf, buflen, " Range:%s", rangeNames[DspProxy::GetTRange()]);
+                            snprintf(buf, buflen, " Clock Range:%s", rangeNames[DspProxy::GetTRange()]);
                             break;
                         case 2:
-                            snprintf(buf, buflen, " Width:%d%%", DspProxy::GetTPwMean() * 100 / 255);
+                            snprintf(buf, buflen, " Gate Length:%d%%", DspProxy::GetTPwMean() * 100 / 255);
                             break;
                         case 3:
-                            snprintf(buf, buflen, " WidthVar:%d%%", DspProxy::GetTPwStd() * 100 / 255);
+                            snprintf(buf, buflen, " Gate Len Var:%d%%", DspProxy::GetTPwStd() * 100 / 255);
                             break;
                         case 4:
-                            snprintf(buf, buflen, " DejaVu:%s", dvNames[DspProxy::GetTDejaVu()]);
+                            snprintf(buf, buflen, " Deja Vu:%s", dvNames[DspProxy::GetTDejaVu()]);
                             break;
                         case 5:
                         case 6:
@@ -325,24 +332,18 @@ namespace CTAG {
                             snprintf(buf, buflen, " Scale:%s", scaleNames[DspProxy::GetXScale()]);
                             break;
                         case 1:
-                            snprintf(buf, buflen, " Range:%s", cvRangeNames[DspProxy::GetXRange()]);
+                            snprintf(buf, buflen, " Voltage Range:%s", cvRangeNames[DspProxy::GetXRange()]);
                             break;
                         case 2:
-                            snprintf(buf, buflen, " CtlMode:%s", ctlNames[DspProxy::GetXControl()]);
+                            snprintf(buf, buflen, " Diversity:%s", ctlNames[DspProxy::GetXControl()]);
                             break;
                         case 3:
-                            snprintf(buf, buflen, " Register:%s", DspProxy::GetXRegister() ? "On" : "Off");
+                            snprintf(buf, buflen, " Deja Vu:%s", dvNames[DspProxy::GetXDejaVu()]);
                             break;
                         case 4:
-                            snprintf(buf, buflen, " RegValue:%.2f", DspProxy::GetXRegisterValue());
-                            break;
                         case 5:
-                            snprintf(buf, buflen, " DejaVu:%s", dvNames[DspProxy::GetXDejaVu()]);
-                            break;
-                        case 6:
-                        case 7:
-                        case 8: {
-                            int s = DspProxy::GetXSlot(row - 6);
+                        case 6: {
+                            int s = DspProxy::GetXSlot(row - 4);
                             if (s < 0) snprintf(buf, buflen, " X%d out: none", row - 5);
                             else snprintf(buf, buflen, " X%d out:%s", row - 5, cvSlotDisplayNames[s]);
                             break;
@@ -352,21 +353,18 @@ namespace CTAG {
                 case SP_Y:
                     switch (row) {
                         case 0:
-                            snprintf(buf, buflen, " Range:%s", cvRangeNames[DspProxy::GetYRange()]);
+                            snprintf(buf, buflen, " Voltage Range:%s", cvRangeNames[DspProxy::GetYRange()]);
                             break;
                         case 1:
-                            snprintf(buf, buflen, " Spread:%.2f", DspProxy::GetYSpread());
+                            snprintf(buf, buflen, " Y Spread:%.2f", DspProxy::GetYSpread());
                             break;
                         case 2:
-                            snprintf(buf, buflen, " Bias:%.2f", DspProxy::GetYBias());
+                            snprintf(buf, buflen, " Y Bias:%.2f", DspProxy::GetYBias());
                             break;
                         case 3:
-                            snprintf(buf, buflen, " Steps:%.2f", DspProxy::GetYSteps());
+                            snprintf(buf, buflen, " Y Steps:%.2f", DspProxy::GetYSteps());
                             break;
-                        case 4:
-                            snprintf(buf, buflen, " DejaVu:%s", dvNames[DspProxy::GetYDejaVu()]);
-                            break;
-                        case 5: {
+                        case 4: {
                             int s = DspProxy::GetYSlot();
                             if (s < 0) snprintf(buf, buflen, " Y out: none");
                             else snprintf(buf, buflen, " Y out:%s", cvSlotDisplayNames[s]);
@@ -380,7 +378,7 @@ namespace CTAG {
                         if (cc < 0) snprintf(buf, buflen, " CC: --");
                         else snprintf(buf, buflen, " CC: %d", cc);
                     } else if (row == 1) {
-                        snprintf(buf, buflen, " Chan: %d", DspProxy::GetDynamicSlotChan(ccEditSlot));
+                        snprintf(buf, buflen, " Channel: %d", DspProxy::GetDynamicSlotChan(ccEditSlot));
                     } else {
                         snprintf(buf, buflen, " [%s]", DspProxy::IsLearning() ? "StopLearn" : "Learn");
                     }

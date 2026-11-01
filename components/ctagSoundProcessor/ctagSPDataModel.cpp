@@ -88,8 +88,19 @@ void ctagSPDataModel::SetParamValue(const string &id, const string &key, const i
         if (!v["id"].IsString()) return;
         if (v["id"] == id) {
             ESP_LOGD("Model", "I found the value");
-            if (!v.HasMember(key)) return;
-            v[key] = val;
+            if (!v.HasMember(key)) {
+                // Params whose factory-patch entry lacks the cv/trig member
+                // would silently drop EVERY mapping made from the panel:
+                // the engine applies it live, the model never records it,
+                // and the mapping orphans on reboot (unmaps can't persist
+                // either). Add the member — same as recursiveFindAndInsert
+                // does for the UI copy.
+                Value newKey(key, mui.GetAllocator());
+                Value newVal(val);
+                v.AddMember(newKey, newVal, mui.GetAllocator());
+            } else {
+                v[key] = val;
+            }
             paramsDirty = true;
             BumpGeneration();
         }
