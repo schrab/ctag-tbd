@@ -46,6 +46,12 @@ namespace CTAG {
         volatile bool UIMenu::fbShotPending = false;
         volatile bool UIMenu::fbShotReady = false;
         uint8_t UIMenu::fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
+        volatile int UIMenu::glyphTestPage = -1;
+
+        void UIMenu::SetGlyphTestScreen(int page) {
+            glyphTestPage = page;
+            if (page < 0) redrawNeeded = true;
+        }
         UIMenu::DisplayState UIMenu::displayState = UIMenu::AWAKE;
         bool UIMenu::screensaverEnabled = true; // 30 s idle -> panel off;
                                                 // any input wakes (TaskFunction)
@@ -121,6 +127,47 @@ namespace CTAG {
             Display::Flush();
         }
 
+        void UIMenu::drawGlyphTestScreen(int page) {
+            // Bench glyph chart of the single UI font (norns 6x7): 14
+            // columns x 8 rows at fixed 9x8 cells. Page 0 = ASCII
+            // 0x20..0x7F; pages 1..3 = the extended range (138 glyphs,
+            // 56 per page), drawn through DrawString's UTF-8 path so the
+            // chart exercises exactly what the UI uses.
+            Display::Clear();
+            char buf[8];
+            int total = Display::GetExtGlyphCount();
+            for (int cell = 0; cell < 112; ++cell) {
+                int col = cell % 14, row = cell / 14;
+                if (page == 0) {
+                    int c = 0x20 + cell;
+                    if (c > 0x7F) break;
+                    buf[0] = (char)c;
+                    buf[1] = '\0';
+                } else {
+                    int idx = (page - 1) * 112 + cell;
+                    if (idx >= total) break;
+                    uint16_t cp = Display::GetExtGlyphCodepoint(idx);
+                    // UTF-8 encode (ext range spans 1..3 byte forms up to
+                    // the private-use 0xED64)
+                    int n = 0;
+                    if (cp < 0x80) {
+                        buf[n++] = (char)cp;
+                    } else if (cp < 0x800) {
+                        buf[n++] = (char)(0xC0 | (cp >> 6));
+                        buf[n++] = (char)(0x80 | (cp & 0x3F));
+                    } else {
+                        buf[n++] = (char)(0xE0 | (cp >> 12));
+                        buf[n++] = (char)(0x80 | ((cp >> 6) & 0x3F));
+                        buf[n++] = (char)(0x80 | (cp & 0x3F));
+                    }
+                    buf[n] = '\0';
+                }
+                Display::DrawString(col * 9, row * 8, buf,
+                                    Display::FONT_NORNS_6X7);
+            }
+            Display::Flush();
+        }
+
         void UIMenu::TaskFunction(void *) {
             ESP_LOGI(TAG, "TaskFunction: starting main loop");
             UserInput::Init();
@@ -154,6 +201,15 @@ namespace CTAG {
                     Display::CopyFramebuffer(fbShotBuf);
                     fbShotPending = false;
                     fbShotReady = true;
+                }
+
+                // Glyph-chart hold (bench /debug/drawGlyphs): draw and stay
+                // here until released (page < 0). Sits before every other
+                // path so the chart is never overwritten by a redraw.
+                if (glyphTestPage >= 0) {
+                    drawGlyphTestScreen(glyphTestPage);
+                    vTaskDelay(pdMS_TO_TICKS(20));
+                    continue;
                 }
 
                 // DSP link watch: modal popup over the current screen

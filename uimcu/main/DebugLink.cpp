@@ -245,6 +245,17 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/drawGlyphs") {
+                // Bench glyph chart of the UI font (norns 6x7).
+                // {"page":0} = ASCII, {"page":1..3} = extended range,
+                // {"page":-1} = release the panel back to the menu.
+                int page = d.HasMember("page") && d["page"].IsInt()
+                               ? d["page"].GetInt() : 0;
+                UIMenu::SetGlyphTestScreen(page);
+                response = "{\"ok\":1,\"page\":" + std::to_string(page) + "}";
+                return true;
+            }
+
             if (s == "/debug/getBtnAdc") {
                 // Button-ladder calibration aid: averaged raw ADC1_CH0
                 // (GPIO0). Press BTN_A / BTN_B / both in turn and read this.

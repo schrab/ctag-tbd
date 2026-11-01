@@ -121,6 +121,11 @@ namespace CTAG {
             static void DrawVUMeter(int x, int y, int w, int h, float level, bool frame = true);
             static void DrawVUMeterV(int x, int y, int w, int h, float level, bool frame = true);
             static void DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos);
+            // Debug glyph chart: extended-range glyph inventory (norns).
+            // Count + codepoint of entry idx in the sorted ext table.
+            static int GetExtGlyphCount();
+            static uint16_t GetExtGlyphCodepoint(int idx);
+
             static int FontAdvance(Font f);
             static int FontAdvance(Font f, unsigned char c);
 

@@ -489,6 +489,15 @@ void Display::DrawString(int x, int y, const char *str, Font font) {
     }
 }
 
+int Display::GetExtGlyphCount() {
+    return FONT_NORNS_EXT_N_CHARS;
+}
+
+uint16_t Display::GetExtGlyphCodepoint(int idx) {
+    if (idx < 0 || idx >= FONT_NORNS_EXT_N_CHARS) return 0;
+    return font_norns_ext_codepoints[idx];
+}
+
 int Display::FontAdvance(Font f) {
     switch (f) {
     case FONT_8X8: return 8;

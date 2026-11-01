@@ -42,6 +42,12 @@ namespace CTAG {
             static void RequestFramebufferShot();
             static bool CopyFramebufferShot(uint8_t *dst, uint32_t timeoutMs = 500);
 
+            // Debug glyph chart: hold the panel on a grid of the norns
+            // font's glyphs (page 0 = ASCII 0x20..0x7F, pages 1..3 = the
+            // extended range, 56 per page). Drawn ON the menu task while
+            // held (page >= 0); pass -1 to release back to the menu.
+            static void SetGlyphTestScreen(int page);
+
             // Debug introspection so host-side test scripts can assert on real
             // state instead of inferring it from pixels.
             // navState: 0=ROOT 1=PANEL_IN. panel: Panel enum value.
@@ -99,12 +105,15 @@ namespace CTAG {
             static volatile bool fbShotPending;
             static volatile bool fbShotReady;
             static uint8_t fbShotBuf[CTAG::DRIVERS::Display::FRAMEBUFFER_SIZE];
+            // glyph-chart hold: -1 = off, else the page index to draw
+            static volatile int glyphTestPage;
             enum DisplayState { AWAKE, ASLEEP };
             static DisplayState displayState;
             static bool screensaverEnabled; // bring-up: off (bench can enable)
             static constexpr int SCREENSAVER_TIMEOUT = 1500;
 
             static void drawPanelBar();
+            static void drawGlyphTestScreen(int page);
         };
     }
 }
