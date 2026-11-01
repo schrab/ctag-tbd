@@ -97,7 +97,13 @@ namespace CTAG {
         }
 
         void UIMenuPageMix::parseConfig() {
-            for (int i = 0; i < STRIPS; i++) value[i] = STRIP_TABLE[i].min;
+            for (int i = 0; i < STRIPS; i++) {
+                // The TAPE strip is not config-backed — its value was seeded
+                // from the DSP's playback gain in init(); resetting it here
+                // wiped the seed and the fader showed 0 on every entry.
+                if (i == TAP_STRIP) continue;
+                value[i] = STRIP_TABLE[i].min;
+            }
             source = 0;
 
             const char *json = DspProxy::GetCStrJSONConfiguration();
