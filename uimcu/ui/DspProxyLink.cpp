@@ -74,6 +74,15 @@ namespace CTAG {
             // Bumped when a chunked push completes a channel's table; the
             // Params page watches it to refresh in place.
             uint32_t paramTableVersion = 0;
+            // Per-value text labels ("texts" arrays in the plugin spec,
+            // e.g. the 24 TBDaits engine names). Kept out of DspParamEntry
+            // (the 80 B stride x 320-entry table stays untouched): a shared
+            // NUL-terminated pool per channel plus per-entry offset/count
+            // parallel arrays; count 0 = numeric display fallback.
+            char labelPool[2][1024];
+            uint16_t labelUsed[2] = {0, 0};
+            uint16_t labelOff[2][DspProxy::DSP_MAX_PARAMS];
+            uint8_t labelCount[2][DspProxy::DSP_MAX_PARAMS];
             // Bumped on every presets push; the PRESETS list watches it so
             // a store/overwrite done from the panel shows up without
             // leaving the list (the DSP re-pushes on its presets hash).
@@ -407,6 +416,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
 
                 if (part == 0) {
                     paramTableCount[ch] = 0;
+                    labelUsed[ch] = 0;
                 }
                 Document sd;
                 if (sd.ParseInsitu(sliceBuf).HasParseError() || !sd.IsArray()) return;
@@ -431,6 +441,28 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     if (v.HasMember("current") && v["current"].IsInt()) e.current = v["current"].GetInt();
                     if (v.HasMember("cv") && v["cv"].IsInt()) { e.cv = v["cv"].GetInt(); e.hasCv = true; }
                     if (v.HasMember("trig") && v["trig"].IsInt()) { e.trig = v["trig"].GetInt(); e.hasTrig = true; }
+                    // Per-value labels: value val shows texts[val - min]
+                    // when the spec carries the array. Count 0 = numeric.
+                    labelCount[ch][paramTableCount[ch]] = 0;
+                    if (v.HasMember("texts") && v["texts"].IsArray()) {
+                        uint16_t off = labelUsed[ch];
+                        uint8_t n = 0;
+                        for (auto &t : v["texts"].GetArray()) {
+                            if (n >= 32) break;
+                            if (!t.IsString()) continue;
+                            size_t room = sizeof(labelPool[ch]) - labelUsed[ch];
+                            if (room < 16) break;
+                            size_t len = strnlen(t.GetString(), 15);
+                            memcpy(&labelPool[ch][labelUsed[ch]], t.GetString(), len);
+                            labelPool[ch][labelUsed[ch] + len] = '\0';
+                            labelUsed[ch] += len + 1;
+                            n++;
+                        }
+                        if (n > 0) {
+                            labelOff[ch][paramTableCount[ch]] = off;
+                            labelCount[ch][paramTableCount[ch]] = n;
+                        }
+                    }
                     e.isGroup = (v.HasMember("type") && strcmp(v["type"].GetString(), "group") == 0);
                     paramTableCount[ch]++;
                 }
@@ -573,6 +605,19 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])
                 return nullptr;
             return &paramTable[chan][idx];
+        }
+
+        const char *DspProxy::GetParamEntryLabel(int chan, int idx, int value) {
+            if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])
+                return nullptr;
+            uint8_t n = labelCount[chan][idx];
+            if (n == 0) return nullptr;
+            int rel = value - paramTable[chan][idx].min;
+            if (rel < 0 || rel >= n) return nullptr;
+            uint16_t off = labelOff[chan][idx];
+            for (int i = 0; i < rel; i++)
+                off += strlen(&labelPool[chan][off]) + 1;
+            return &labelPool[chan][off];
         }
 
         // NetRest convenience: serialize the table as the classic

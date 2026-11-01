@@ -52,6 +52,7 @@ namespace CTAG {
                 int current;
                 int cv;
                 int trig;
+                int tblIdx;    // index into the DspProxy table (label lookup)
                 bool canCv;    // param accepts a CV source (numeric params)
                 bool canTrig;  // param accepts a gate source (bool params)
             };

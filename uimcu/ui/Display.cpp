@@ -536,8 +536,13 @@ int Display::FontAdvance(Font f, unsigned char c) {
 
 void Display::DrawStringRight(int x, int y, const char *str, Font font) {
     if (!str) return;
-    int len = strlen(str);
-    int strWidth = len * FontAdvance(font);
+    // Per-glyph advances — DrawString renders proportionally, so a
+    // fixed-max-advance estimate left every right-aligned string with a
+    // ragged, string-dependent offset (visible once the value column
+    // carried text like the TBDaits engine names).
+    int strWidth = 0;
+    for (const char *c = str; *c; c++)
+        strWidth += FontAdvance(font, (unsigned char)*c);
     DrawString(x - strWidth, y, str, font);
 }
 

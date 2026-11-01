@@ -167,6 +167,7 @@ namespace CTAG {
                 pi.trig = e.trig;
                 pi.canCv = e.hasCv;
                 pi.canTrig = e.hasTrig;
+                pi.tblIdx = i;
                 paramCount++;
             }
             int standaloneCount = paramCount - standaloneStart;
@@ -203,6 +204,7 @@ namespace CTAG {
                     pi.trig = l.trig;
                     pi.canCv = l.hasCv;
                     pi.canTrig = l.hasTrig;
+                    pi.tblIdx = j;
                     paramCount++;
                     count++;
                 }
@@ -632,7 +634,14 @@ namespace CTAG {
                 if (strcmp(pi.type, "bool") == 0) {
                     strcpy(valBuf, pi.current ? "ON" : "OFF");
                 } else {
-                    snprintf(valBuf, sizeof(valBuf), "%d", pi.current);
+                    // Enum specs carry a "texts" label array (e.g. the 24
+                    // TBDaits engine names) — show the label when present.
+                    const char *lbl =
+                        DspProxy::GetParamEntryLabel(chan, pi.tblIdx, pi.current);
+                    if (lbl)
+                        snprintf(valBuf, sizeof(valBuf), "%s", lbl);
+                    else
+                        snprintf(valBuf, sizeof(valBuf), "%d", pi.current);
                 }
                 // Clip the name to the pixels left of the value: long spec
                 // names ("(2) Pitch (100 cent per semitone) A") otherwise

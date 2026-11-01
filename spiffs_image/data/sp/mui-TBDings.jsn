@@ -6,10 +6,11 @@
  "params": [
   {
    "id": "reson_model",
-   "name": "Resonator Model",
+   "name": "Model",
    "type": "int",
    "min": 0,
-   "max": 5
+   "max": 5,
+   "texts": ["Modal", "Sympathetic", "Inharmonic", "2-Op FM", "Quantized", "String+Verb"]
   },
   {
    "id": "frequency",

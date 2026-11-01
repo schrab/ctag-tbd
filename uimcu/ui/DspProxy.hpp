@@ -90,6 +90,10 @@ namespace CTAG {
             static constexpr int DSP_MAX_PARAMS = 160;
             static int GetParamEntryCount(int chan);
             static const DspParamEntry *GetParamEntry(int chan, int idx);
+            // Display label for entry idx at value (from the spec's
+            // "texts" array), or nullptr when the param has no labels or
+            // value is out of range — caller falls back to the number.
+            static const char *GetParamEntryLabel(int chan, int idx, int value);
             // Increments each time a chunked /push/params sequence completes
             // a channel's table. Pushes land asynchronously after plugin and
             // preset loads, so the Params page watches it to refresh in place

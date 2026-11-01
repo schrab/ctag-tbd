@@ -177,6 +177,8 @@ namespace CTAG {
 
         const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int, int) { return nullptr; }
 
+        const char *DspProxy::GetParamEntryLabel(int, int, int) { return nullptr; }
+
         // The stub's table never changes under the page, so the version
         // stays constant and the Params page never live-refreshes. Loads
         // apply instantly — no loading overlay.
