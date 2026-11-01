@@ -592,7 +592,13 @@ void Display::DrawScrollbar(int x, int y, int h, int totalItems, int cursorPos) 
     if (visibleItems >= totalItems) return;
     int thumbH = h * visibleItems / totalItems;
     if (thumbH < 4) thumbH = 4;
-    int thumbY = y + (h - thumbH) * cursorPos / (totalItems - visibleItems);
+    // The thumb must stop at the bottom of the track: cursor positions
+    // beyond the scrollable range (list bottom reached, scrollOffset
+    // clamped) still arrive here and would otherwise push the thumb off
+    // the screen — clamp to the scrollable range.
+    int maxPos = totalItems - visibleItems;
+    int pos = cursorPos < 0 ? 0 : (cursorPos > maxPos ? maxPos : cursorPos);
+    int thumbY = y + (h - thumbH) * pos / maxPos;
     DrawVLine(x, y, h);                           // 1px track
     DrawRect(x - 1, thumbY, 3, thumbH, true, true); // 3px thumb overlaps right edge
 }

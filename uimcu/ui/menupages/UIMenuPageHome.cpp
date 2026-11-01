@@ -609,7 +609,9 @@ namespace CTAG {
                 const PluginEntry &e = plugins[idx];
                 int y = ROW(i);
                 Display::DrawString(0, y, e.name, FONT_UI);
-                Display::DrawString(120, y, e.isStereo ? "S" : "M", FONT_UI);
+                // Right-align at the same 3px-short-of-edge boundary the
+                // param list uses — fixed x=120 ran into the scrollbar.
+                Display::DrawStringRight(124, y, e.isStereo ? "S" : "M", FONT_UI);
             }
             int cy = ROW(cursor - scrollOffset);
             Display::InvertRect(0, cy - 1, 128, 8);
