@@ -166,12 +166,12 @@ def main():
     else:
         print("PASS: 0 cpuOverloads across all 98 models!")
 
-    print("\n==> Testing macro parameter...")
+    print("\n==> Testing twist parameter...")
     for val in [500, 2048, 4000]:
-        request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "macro", "value": val})
+        request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "twist", "value": val})
         time.sleep(0.05)
-        p = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "macro"})
-        print(f"  Set macro={val}, read back={p.get('param', {}).get('current')}")
+        p = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "twist"})
+        print(f"  Set twist={val}, read back={p.get('param', {}).get('current')}")
 
     print("\n==> Testing stereo toggle...")
     for val in [0, 1]:

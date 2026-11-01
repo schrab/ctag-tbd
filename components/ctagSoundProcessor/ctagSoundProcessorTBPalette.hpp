@@ -50,14 +50,14 @@ namespace CTAG {
             atomic<int32_t> harmonics{2048}, cv_harmonics{-1};
             atomic<int32_t> timbre{2048}, cv_timbre{-1};
             atomic<int32_t> morph{2048}, cv_morph{-1};
-            atomic<int32_t> macro{2048}, cv_macro{-1};
+            atomic<int32_t> twist{2048}, cv_twist{-1};
             atomic<int32_t> lpg_color{2048}, cv_lpg_color{-1};
             atomic<int32_t> lpg_decay{2048}, cv_lpg_decay{-1};
             atomic<int32_t> stereo{1}, cv_stereo{-1}, trig_stereo{-1};
             atomic<int32_t> mod_freq{0}, cv_mod_freq{-1};
             atomic<int32_t> mod_timbre{0}, cv_mod_timbre{-1};
             atomic<int32_t> mod_morph{0}, cv_mod_morph{-1};
-            atomic<int32_t> mod_macro{0}, cv_mod_macro{-1};
+            atomic<int32_t> mod_twist{0}, cv_mod_twist{-1};
             // sectionHpp
         };
     }

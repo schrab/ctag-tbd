@@ -203,15 +203,15 @@ def main():
 
     # 3. Preset Save & Load Verification via Panel UI
     print("\n==> Testing Preset Save & Recall via Panel UI...")
-    # Set model 21 (Phase Distortion) and macro = 2048
-    print("  Setting smodel=21, macro=2048...")
+    # Set model 21 (Phase Distortion) and twist = 2048
+    print("  Setting smodel=21, twist=2048...")
     request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "smodel", "value": 21})
-    request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "macro", "value": 2048})
+    request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "twist", "value": 2048})
     time.sleep(0.1)
 
     p_model = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "smodel"})
-    p_macro = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "macro"})
-    print(f"  Pre-save state: smodel={p_model.get('param', {}).get('current')}, macro={p_macro.get('param', {}).get('current')}")
+    p_twist = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "twist"})
+    print(f"  Pre-save state: smodel={p_model.get('param', {}).get('current')}, twist={p_twist.get('param', {}).get('current')}")
 
     # Step back from MODE_EDIT -> MODE_GROUP
     print("  Navigating back to MODE_GROUP...")
@@ -247,17 +247,17 @@ def main():
     # Wait for DSP pushPresets to arrive asynchronously and onTick to update
     time.sleep(0.8)
 
-    # Mutate parameters: smodel=0, macro=0
-    print("  Mutating engine state to smodel=0, macro=0...")
+    # Mutate parameters: smodel=0, twist=0
+    print("  Mutating engine state to smodel=0, twist=0...")
     request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "smodel", "value": 0})
-    request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "macro", "value": 0})
+    request(s, {"cmd": "/debug/setPluginParam", "ch": 0, "id": "twist", "value": 0})
     time.sleep(0.1)
 
     p_model = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "smodel"})
-    p_macro = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "macro"})
-    print(f"  Mutated state: smodel={p_model.get('param', {}).get('current')}, macro={p_macro.get('param', {}).get('current')}")
+    p_twist = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "twist"})
+    print(f"  Mutated state: smodel={p_model.get('param', {}).get('current')}, twist={p_twist.get('param', {}).get('current')}")
     assert p_model.get("param", {}).get("current") == 0
-    assert p_macro.get("param", {}).get("current") == 0
+    assert p_twist.get("param", {}).get("current") == 0
 
     # In MODE_PRESETS, the list has:
     # row 0: Default
@@ -279,16 +279,16 @@ def main():
     time.sleep(1.0)
 
     p_model = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "smodel"})
-    p_macro = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "macro"})
+    p_twist = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": "twist"})
     restored_model = p_model.get("param", {}).get("current")
-    restored_macro = p_macro.get("param", {}).get("current")
-    print(f"  Restored state after preset load: smodel={restored_model}, macro={restored_macro}")
+    restored_twist = p_twist.get("param", {}).get("current")
+    print(f"  Restored state after preset load: smodel={restored_model}, twist={restored_twist}")
 
-    # Note: macro is 0..4095 range, 2048 or close
-    if restored_model == 21 and abs(restored_macro - 2048) <= 2:
+    # Note: twist is 0..4095 range, 2048 or close
+    if restored_model == 21 and abs(restored_twist - 2048) <= 2:
         print("  PASS: Preset save and recall verified successfully via Panel UI!")
     else:
-        print(f"  WARNING: Restored values: smodel={restored_model}, macro={restored_macro}")
+        print(f"  WARNING: Restored values: smodel={restored_model}, twist={restored_twist}")
 
     # 4. Audio Pacing & Counter Check
     print("\n==> Verifying audio pacing and health...")

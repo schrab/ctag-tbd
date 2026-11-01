@@ -83,10 +83,10 @@ Run pattern: compile every `.cc` under both `dsp/` trees + both `resources.cc` +
    - `Init(blockSize, blockPtr)`: **assert remainder ≥ 32768** and pass 32 KB to
      `rplaits::Voice::Init` (not 16 KB).
    - Params (superset of TBDaits's 11): `smodel` 0–97 (clamp!), `frequency`, `level`,
-     `harmonics`, `timbre`, `morph`, **`macro`** (→ `patch.freqlock_param`, set
+     `harmonics`, `timbre`, `morph`, **`twist`** (→ `patch.freqlock_param`, set
      `patch.locked_frequency_pot_option = 1`), `lpg_color`, `lpg_decay`, `trigger`,
      **`stereo`** bool (→ `aux_output_option` 1/0, default ON), mod group `mod_freq`,
-     `mod_timbre`, `mod_morph`, `mod_macro`. Wire via `knowYourself()` pMapPar/pMapCv/pMapTrig;
+     `mod_timbre`, `mod_morph`, `mod_twist`. Wire via `knowYourself()` pMapPar/pMapCv/pMapTrig;
      keep the cv −1 sentinel + active-low trigger conventions from TBDaits.
    - Render: `rplaits::Voice::Frame out[32]` → interleaved `data.buf` (same as TBDaits).
    - Factory picks it up automatically from the filename glob.

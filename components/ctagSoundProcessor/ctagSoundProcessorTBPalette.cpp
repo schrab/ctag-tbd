@@ -74,15 +74,15 @@ void ctagSoundProcessorTBPalette::Process(const ProcessData &data) {
         patch.morph = morph / 4095.f;
     }
 
-    // 4th macro parameter (freqlock_param) + modulation
+    // 4th macro parameter (Twist / freqlock_param) + modulation
     patch.locked_frequency_pot_option = 1;
-    float fMacro = (cv_macro != -1) ? HELPERS::fastfabs(data.cv[cv_macro]) : (macro / 4095.f);
-    if (cv_mod_macro != -1) {
-        fMacro += data.cv[cv_mod_macro] * (mod_macro / 4095.f);
+    float fTwist = (cv_twist != -1) ? HELPERS::fastfabs(data.cv[cv_twist]) : (twist / 4095.f);
+    if (cv_mod_twist != -1) {
+        fTwist += data.cv[cv_mod_twist] * (mod_twist / 4095.f);
     }
-    if (fMacro < 0.0f) fMacro = 0.0f;
-    else if (fMacro > 1.0f) fMacro = 1.0f;
-    patch.freqlock_param = fMacro;
+    if (fTwist < 0.0f) fTwist = 0.0f;
+    else if (fTwist > 1.0f) fTwist = 1.0f;
+    patch.freqlock_param = fTwist;
 
     // Stereo option: 1 = true stereo on stereo-capable engines, 0 = regular aux
     bool bStereo = (stereo != 0);
@@ -193,8 +193,8 @@ void ctagSoundProcessorTBPalette::knowYourself() {
     pMapCv.emplace("timbre", [&](const int val) { cv_timbre = val; });
     pMapPar.emplace("morph", [&](const int val) { morph = val; });
     pMapCv.emplace("morph", [&](const int val) { cv_morph = val; });
-    pMapPar.emplace("macro", [&](const int val) { macro = val; });
-    pMapCv.emplace("macro", [&](const int val) { cv_macro = val; });
+    pMapPar.emplace("twist", [&](const int val) { twist = val; });
+    pMapCv.emplace("twist", [&](const int val) { cv_twist = val; });
     pMapPar.emplace("lpg_color", [&](const int val) { lpg_color = val; });
     pMapCv.emplace("lpg_color", [&](const int val) { cv_lpg_color = val; });
     pMapPar.emplace("lpg_decay", [&](const int val) { lpg_decay = val; });
@@ -208,8 +208,8 @@ void ctagSoundProcessorTBPalette::knowYourself() {
     pMapCv.emplace("mod_timbre", [&](const int val) { cv_mod_timbre = val; });
     pMapPar.emplace("mod_morph", [&](const int val) { mod_morph = val; });
     pMapCv.emplace("mod_morph", [&](const int val) { cv_mod_morph = val; });
-    pMapPar.emplace("mod_macro", [&](const int val) { mod_macro = val; });
-    pMapCv.emplace("mod_macro", [&](const int val) { cv_mod_macro = val; });
+    pMapPar.emplace("mod_twist", [&](const int val) { mod_twist = val; });
+    pMapCv.emplace("mod_twist", [&](const int val) { cv_mod_twist = val; });
     isStereo = true;
     id = "TBPalette";
 // sectionCpp0

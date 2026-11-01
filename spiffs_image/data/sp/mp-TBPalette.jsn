@@ -40,7 +40,7 @@
           "cv": -1
         },
         {
-          "id": "macro",
+          "id": "twist",
           "current": 2047,
           "cv": -1
         },
@@ -75,7 +75,7 @@
           "cv": -1
         },
         {
-          "id": "mod_macro",
+          "id": "mod_twist",
           "current": 0,
           "cv": -1
         }

@@ -158,10 +158,10 @@
       "max": 4095
     },
     {
-      "id": "macro",
+      "id": "twist",
       "type": "int",
-      "name": "Macro",
-      "hint": "4th macro parameter (Twist)",
+      "name": "Twist",
+      "hint": "Twist (4th macro parameter)",
       "min": 0,
       "max": 4095
     },
@@ -213,9 +213,9 @@
           "max": 4095
         },
         {
-          "id": "mod_macro",
+          "id": "mod_twist",
           "type": "int",
-          "name": "Mod Macro",
+          "name": "Mod Twist",
           "min": -4095,
           "max": 4095
         }

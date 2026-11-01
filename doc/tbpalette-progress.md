@@ -47,10 +47,10 @@ Append-only log; newest entries at the bottom. One entry per milestone/commit.
   - Created `components/ctagSoundProcessor/ctagSoundProcessorTBPalette.{hpp,cpp}`:
     wrapped `rplaits::Voice` with 32 KB scratch buffer (`stmlib::BufferAllocator`), stereo interleaved
     output, active-low trigger, `fastfabs` CV unipolar handling, clamped `smodel` [0..97].
-  - Parameters: `smodel` (0..97), `frequency`, `level`, `harmonics`, `timbre`, `morph`, `macro`
+  - Parameters: `smodel` (0..97), `frequency`, `level`, `harmonics`, `timbre`, `morph`, `twist`
     (mapped to `patch.freqlock_param` with `patch.locked_frequency_pot_option = 1`), `lpg_color`,
     `lpg_decay`, `trigger`, `stereo` bool (`patch.aux_output_option` 1/0, default 1 ON), and
-    modulation group (`mod_freq`, `mod_timbre`, `mod_morph`, `mod_macro`).
+    modulation group (`mod_freq`, `mod_timbre`, `mod_morph`, `mod_twist`).
   - Added `spiffs_image/data/sp/mui-TBPalette.jsn` (98 engine texts) and `mp-TBPalette.jsn` (default preset).
   - Fixed format specifiers in `rplaits/user_data.h` mock flash stubs for Xtensa toolchain format checking.
 - **Phase 3 (Panel label pool)**:
@@ -75,7 +75,7 @@ Append-only log; newest entries at the bottom. One entry per milestone/commit.
     - **0 cpuOverloads** across all 98 models.
     - Max audio task cycles: **91,584 cycles** per 32 samples (Model 21, Phase Distortion), utilizing **52.6%** of the 174,150-cycle budget.
     - Loop pacing histogram rock solid: `[7, 7, 7, 7, 7, 7, 7, 7]` (~2.9 ms pacing).
-    - Verified `macro` parameter (4th pot) and `stereo` toggle live readback.
+    - Verified `twist` parameter (4th pot) and `stereo` toggle live readback.
     - Arena allocator test: swapped channel 0 to `TBDings` and back to `TBPalette` cleanly.
 - **UI & Preset Hardware Bench Drive (`tools/tbpalette/bench_ui_drive.py`)**:
   - Navigated panel UI via `/debug/injectEvent`: ROOT -> PANEL_PARAMS (PANEL_IN) -> MODE_GROUP -> MODE_EDIT.
@@ -86,11 +86,11 @@ Append-only log; newest entries at the bottom. One entry per milestone/commit.
     - Model 82: `Wavetable Diatonic Chord`
     - Model 97: `Supersaw Chords`
   - Preset save/recall verified end-to-end via the panel's PRESETS menu:
-    - Stored preset with `smodel=21`, `macro=2048` via `[STORE PRESET]` action row with generated name.
+    - Stored preset with `smodel=21`, `twist=2048` via `[STORE PRESET]` action row with generated name.
     - Toast notification `Stored <name>` verified.
-    - Mutated engine state to `smodel=0`, `macro=0`.
+    - Mutated engine state to `smodel=0`, `twist=0`.
     - Loaded the stored preset from the PRESETS menu.
-    - Verified engine parameters restored accurately: `smodel=21`, `macro=2048`.
+    - Verified engine parameters restored accurately: `smodel=21`, `twist=2048`.
 
 
 
