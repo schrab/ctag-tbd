@@ -140,9 +140,13 @@ void ctagSoundProcessorMbeads::Init(std::size_t blockSize, void *blockPtr) {
     gMbeadsDebugActiveGrains.store(0);
 
 #ifndef TBD_SIM
+#if !defined(CONFIG_TBD_PLATFORM_BBA2)
+    // S3 single-core: no helper task — helper_task_ stays null, so Process
+    // takes the core-only grain cap (2–4 grains, SDD §6.1).
     if (!StartHelper()) {
         ESP_LOGE("Mbeads", "helper task creation failed; using single-core cap");
     }
+#endif
 
     static bool perf_enabled = false;
     if (!perf_enabled) {
