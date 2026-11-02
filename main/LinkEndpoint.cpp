@@ -303,31 +303,40 @@ namespace CTAG {
             }
 
             void pushPresets(int ch) {
-                string s = "{\"cmd\":\"";
-                s += kMsgPushPresets;
-                s += "\",\"ch\":" + to_string(ch) + ",";
-                appendEscapedField(s, "presets", scratchCopy(SoundProcessorManager::GetCStrJSONGetPresets(ch)));
-                s += "}";
-                sendStr(s);
+                const char *raw = SoundProcessorManager::GetCStrJSONGetPresets(ch);
+                if (!raw) raw = "";
+                sendPayloadBegin("{\"cmd\":\"", 8);
+                sendPayloadChunk(kMsgPushPresets, strlen(kMsgPushPresets));
+                sendPayloadChunk("\",\"ch\":", 7);
+                char chBuf[4];
+                snprintf(chBuf, sizeof(chBuf), "%d,", ch);
+                sendPayloadChunk(chBuf, strlen(chBuf));
+                sendPayloadChunk("\"presets\":", 10);
+                sendEscapedStringStreamed(raw, strlen(raw));
+                sendPayloadChunk("}", 1);
+                sendPayloadEnd();
             }
 
             void pushConfig() {
-                string s = "{\"cmd\":\"";
-                s += kMsgPushConfig;
-                s += "\",";
-                appendEscapedField(s, "config", scratchCopy(SoundProcessorManager::GetCStrJSONConfiguration()));
-                s += "}";
-                sendStr(s);
+                const char *raw = SoundProcessorManager::GetCStrJSONConfiguration();
+                if (!raw) raw = "";
+                sendPayloadBegin("{\"cmd\":\"", 8);
+                sendPayloadChunk(kMsgPushConfig, strlen(kMsgPushConfig));
+                sendPayloadChunk("\",\"config\":", 11);
+                sendEscapedStringStreamed(raw, strlen(raw));
+                sendPayloadChunk("}", 1);
+                sendPayloadEnd();
             }
 
             void pushPluginList() {
-                string s = "{\"cmd\":\"";
-                s += kMsgPushPluginList;
-                s += "\",\"list\":";
-                // Embedded raw: the model emits a valid JSON array.
-                s += scratchCopy(SoundProcessorManager::GetCStrJSONSoundProcessors());
-                s += "}";
-                sendStr(s);
+                const char *raw = SoundProcessorManager::GetCStrJSONSoundProcessors();
+                if (!raw) raw = "[]";
+                sendPayloadBegin("{\"cmd\":\"", 8);
+                sendPayloadChunk(kMsgPushPluginList, strlen(kMsgPushPluginList));
+                sendPayloadChunk("\",\"list\":", 9);
+                sendPayloadChunk(raw, strlen(raw));
+                sendPayloadChunk("}", 1);
+                sendPayloadEnd();
             }
 
             void pushActivePlugin() {
@@ -346,15 +355,14 @@ namespace CTAG {
             }
 
             void pushFavorites() {
-                // GetAllFavorites() builds a fresh string; copy to scratch
-                // before escaping.
+                // GetAllFavorites() builds a fresh string.
                 string favs = Favorites::GetAllFavorites();
-                string s = "{\"cmd\":\"";
-                s += kMsgPushFavorites;
-                s += "\",";
-                appendEscapedField(s, "favs", scratchCopy(favs.c_str()));
-                s += "}";
-                sendStr(s);
+                sendPayloadBegin("{\"cmd\":\"", 8);
+                sendPayloadChunk(kMsgPushFavorites, strlen(kMsgPushFavorites));
+                sendPayloadChunk("\",\"favs\":", 9);
+                sendEscapedStringStreamed(favs.data(), favs.size());
+                sendPayloadChunk("}", 1);
+                sendPayloadEnd();
             }
 
             void pushIoCaps() {
