@@ -317,7 +317,14 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     bool playPulsed = (pulse_blocks_ > 0);
     if (pulse_blocks_ > 0) pulse_blocks_--;
 
-    perfState.gate = gateVal || playLatched || playTrig || playPulsed;
+    bool currentGate = gateVal || playLatched || playTrig || playPulsed;
+    static bool prevGateLogged = false;
+    if (currentGate != prevGateLogged) {
+        ESP_LOGI("Elements", "Gate transition: %d -> %d (gate=%d play=%d playTrig=%d playPulsed=%d)",
+                 prevGateLogged, currentGate, (int)gateVal, (int)playLatched, (int)playTrig, (int)playPulsed);
+        prevGateLogged = currentGate;
+    }
+    perfState.gate = currentGate;
 
     float freqCv = frequency / 4032.f * 96.f;
     if (cv_frequency != -1)
@@ -448,12 +455,15 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
                     hs.streak_ = 0;
                     if (hs.resolution_step_ + 1 < kNumResolutionSteps) {
                         ++hs.resolution_step_;
+                        ESP_LOGW("Elements", "Helper struggling: step down to %u modes (misses=%d)",
+                                 (unsigned)kResolutionSteps[hs.resolution_step_],
+                                 (int)hs.misses_.load(std::memory_order_relaxed));
                         hs.requested_resolution_.store(
                             kResolutionSteps[hs.resolution_step_],
                             std::memory_order_release);
                     } else {
-                        // No logging here: this is the 32-sample audio
-                        // callback. The destructor emits the warning.
+                        ESP_LOGW("Elements", "Helper struggling at floor: stopping helper (misses=%d)",
+                                 (int)hs.misses_.load(std::memory_order_relaxed));
                         hs.deadline_fallback_ = true;
                         hs.stop_.store(true, std::memory_order_release);
                         xTaskNotifyGive(helper_task_);

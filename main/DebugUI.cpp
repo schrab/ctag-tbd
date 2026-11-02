@@ -70,6 +70,8 @@ extern "C" int elements_debug_get_helper_resolution();
 extern "C" int elements_debug_get_helper_misses();
 extern "C" int elements_debug_get_mode_override();
 extern "C" int elements_debug_set_mode_override(int modes);
+extern "C" uint32_t elements_debug_get_panic_count();
+extern "C" float elements_debug_get_max_resonator_level();
 
 namespace {
     const char *TAG = "DebugUI";
@@ -143,6 +145,10 @@ namespace CTAG {
                            to_string(elements_debug_get_helper_misses()) +
                            ",\"elementsHelperModeOverride\":" +
                            to_string(elements_debug_get_mode_override()) +
+                           ",\"elementsPanicCount\":" +
+                           to_string(elements_debug_get_panic_count()) +
+                           ",\"elementsMaxResonatorLevel\":" +
+                           to_string(elements_debug_get_max_resonator_level()) +
                            "}";
                 return true;
             }
