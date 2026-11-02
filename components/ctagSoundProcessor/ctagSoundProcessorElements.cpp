@@ -317,14 +317,7 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     bool playPulsed = (pulse_blocks_ > 0);
     if (pulse_blocks_ > 0) pulse_blocks_--;
 
-    bool currentGate = gateVal || playLatched || playTrig || playPulsed;
-    static bool prevGateLogged = false;
-    if (currentGate != prevGateLogged) {
-        ESP_LOGI("Elements", "Gate transition: %d -> %d (gate=%d play=%d playTrig=%d playPulsed=%d)",
-                 prevGateLogged, currentGate, (int)gateVal, (int)playLatched, (int)playTrig, (int)playPulsed);
-        prevGateLogged = currentGate;
-    }
-    perfState.gate = currentGate;
+    perfState.gate = gateVal || playLatched || playTrig || playPulsed;
 
     float freqCv = frequency / 4032.f * 96.f;
     if (cv_frequency != -1)
