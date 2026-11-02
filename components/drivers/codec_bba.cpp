@@ -68,6 +68,8 @@ void Codec::SetSampleRate(uint32_t sample_rate) {
 #else
         .mclk_multiple = I2S_MCLK_MULTIPLE_256,
 #endif
+        // bclk_div=0 = auto-compute; pre-IDF-6 builds zero-initialized it.
+        .bclk_div = 0,
     };
 
     esp_err_t err_tx = i2s_channel_reconfig_std_clock(tx_handle, &clk_cfg);
@@ -122,7 +124,8 @@ void Codec::InitCodec() {
                     .sample_rate_hz = 44100,
                     .clk_src = I2S_CLK_SRC_DEFAULT,
                     //.ext_clk_freq_hz = 0,
-                    .mclk_multiple = I2S_MCLK_MULTIPLE_256
+                    .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+                    .bclk_div = 0 // auto; pre-IDF-6 builds zero-initialized it
             },
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
             .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),

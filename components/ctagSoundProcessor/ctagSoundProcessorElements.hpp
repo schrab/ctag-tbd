@@ -57,9 +57,18 @@ namespace CTAG {
             void PublishDebugStats();
 
             static constexpr std::size_t kBlockSize = 32;
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+            // S3 single-core: 52 modes fit the 44.1 kHz budget alone
+            // (117.6k/174.15k cycles, zero overruns — doc/esp32s3-porting-guide.md
+            // §3.2). The load-time chain-budget cap (chain_budget.hpp) can
+            // lower this to 32/24/16 before the plugin is created.
+            static constexpr std::size_t kResolutionFull = 52;
+            static constexpr std::size_t kResolutionFallback = 32;
+#else
             // Modal resonator bands: 24 = dual-core target @ 32kHz, 16 = floor.
             static constexpr std::size_t kResolutionFull = 24;
             static constexpr std::size_t kResolutionFallback = 16;
+#endif
 
             // One block handed from the audio task (core 1) to the helper
             // (core 0). The patch snapshot travels with the block so core 1

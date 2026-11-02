@@ -47,3 +47,9 @@ CONFIG_SPI_FLASH_SUPPORT_GD_CHIP=n
 CONFIG_WS_TRANSPORT=n
 CONFIG_ULP_COPROC_ENABLED=y
 CONFIG_ULP_COPROC_RESERVE_MEM=2048
+
+# stmlib's IN_RAM (.ramtext sections) is not placed by the IDF 6.x linker
+# fragments; the pre-IDF-6 builds auto-placed it into flash text, and
+# CONFIG_COMPILER_ORPHAN_SECTIONS_ERROR (new default) turns the orphan into
+# a hard link error. PLACE replicates the old auto-placement.
+CONFIG_COMPILER_ORPHAN_SECTIONS_PLACE=y

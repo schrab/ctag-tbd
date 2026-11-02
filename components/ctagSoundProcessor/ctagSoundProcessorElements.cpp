@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include <cmath>
 #include <new>
 #include "stmlib/stmlib.h"
+#include "chain_budget.hpp"
 
 #ifndef TBD_SIM
 #include "perf_monitor.hpp"
@@ -133,6 +134,20 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     new (helper_shared_) HelperShared{};
     HelperShared &hs = *helper_shared_;
 
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // S3: no helper task, no ping-pong, no ladder — direct render on the
+    // audio core at the cap-adjusted resolution (SDD §6.1). helper_shared_
+    // is still allocated: StopHelper()/destructor/PublishDebugStats read it.
+    direct_fallback_prepared_ = true;
+    {
+        const std::size_t cap = static_cast<std::size_t>(
+            CTAG::SP::gElementsCapResolution.load(std::memory_order_relaxed));
+        const std::size_t res = cap < kResolutionFull ? cap : kResolutionFull;
+        part.set_resolution(res);
+        hs.applied_resolution_.store(res, std::memory_order_relaxed);
+        ESP_LOGI("Elements", "single-core S3: %zu modes (cap %zu)", res, cap);
+    }
+#else
     if (StartHelper()) {
         direct_fallback_prepared_ = false;
         part.set_resolution(kResolutionFull);
@@ -144,6 +159,7 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
         direct_fallback_prepared_ = true;
         ESP_LOGI("Elements", "helper task unavailable; single-core (32 modes @ 32kHz)");
     }
+#endif
 
     static bool perf_enabled = false;
     if (!perf_enabled) {
