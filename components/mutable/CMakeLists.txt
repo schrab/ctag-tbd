@@ -175,3 +175,22 @@ else()
             eurorack/elements/dsp/ominous_voice.cc
             PROPERTIES COMPILE_OPTIONS "-O2")
 endif()
+
+if(CONFIG_TBD_PLATFORM_BBA2)
+    # BBA2 (ESP32-S3) compute headroom: single-cycle madd.s, software
+    # pipelining, inlined helpers (doc/esp32s3-porting-guide.md §4).
+    # -ffast-math is already on above; add -O3/-funroll-loops and keep the
+    # legacy per-file -O2 override (below) from capping the hot files back
+    # down. BBA2-only; legacy targets keep their existing flags.
+    target_compile_options(${COMPONENT_LIB} PRIVATE -O3 -funroll-loops)
+    set_source_files_properties(
+            eurorack/elements/dsp/part.cc
+            eurorack/elements/dsp/voice.cc
+            eurorack/elements/dsp/resonator.cc
+            eurorack/elements/dsp/string.cc
+            eurorack/elements/dsp/exciter.cc
+            eurorack/elements/dsp/tube.cc
+            eurorack/elements/dsp/multistage_envelope.cc
+            eurorack/elements/dsp/ominous_voice.cc
+            PROPERTIES COMPILE_OPTIONS "-O3")
+endif()

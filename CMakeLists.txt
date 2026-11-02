@@ -48,6 +48,19 @@ elseif(CONFIG_TBD_PLATFORM_BBA)
     idf_build_set_property(COMPILE_DEFINITIONS -DN_CVS=102 APPEND)
     idf_build_set_property(COMPILE_DEFINITIONS -DN_TRIGS=43 APPEND)
     set(TBD_HW "BBA")
+elseif(CONFIG_TBD_PLATFORM_BBA2)
+    message("Configuring for BBA2 (ESP32-S3 + WM8978)!")
+    idf_build_set_property(COMPILE_DEFINITIONS -DN_CVS=102 APPEND)
+    idf_build_set_property(COMPILE_DEFINITIONS -DN_TRIGS=43 APPEND)
+    set(TBD_HW "BBA2")
+    # BBA2 shares the BBA firmware topology (C3 panel owns the UI, radio-free,
+    # same slot space). The `#ifdef CONFIG_TBD_PLATFORM_BBA` source guards
+    # in main/ must take the BBA arm, so alias the Kconfig symbol as a compile
+    # definition. IMPORTANT: this alias exists ONLY in compile definitions —
+    # sdkconfig.h and CMake if() still see the real (undefined) symbol. Any
+    # code that must behave differently on BBA2 checks CONFIG_TBD_PLATFORM_BBA2
+    # (real symbol) and does so BEFORE any BBA check could match.
+    idf_build_set_property(COMPILE_DEFINITIONS -DCONFIG_TBD_PLATFORM_BBA=1 APPEND)
 endif()
 
 # generate include definitions for hw + fw version

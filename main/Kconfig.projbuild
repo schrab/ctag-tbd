@@ -17,6 +17,8 @@ menu "CTAG TBD Configuration"
                 bool "MK2 (WM8978 + STM32 CVs + Trigs)"
             config TBD_PLATFORM_BBA
                 bool "BBA (Midi)"
+            config TBD_PLATFORM_BBA2
+                bool "BBA2 (ESP32-S3 + WM8978, C3 panel link)"
             choice TBD_BBA_CODEC
                 prompt "Codec selection"
                 default TBD_BBA_CODEC_ES8388

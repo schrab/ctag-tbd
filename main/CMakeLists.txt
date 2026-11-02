@@ -1,7 +1,7 @@
 file(GLOB SRC_FILES *.cpp *.hpp menupages/*.cpp menupages/*.hpp)
 
 # if not CONFIG_TBD_PLATFORM_BBA remove Midi.* files from SRC_FILES
-if(NOT CONFIG_TBD_PLATFORM_BBA)
+if(NOT CONFIG_TBD_PLATFORM_BBA AND NOT CONFIG_TBD_PLATFORM_BBA2)
     list(REMOVE_ITEM SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/Midi.cpp)
     list(REMOVE_ITEM SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/Midi.hpp)
 endif()
@@ -9,7 +9,7 @@ endif()
 # P6 UI-split cutover: the BBA DSP has no local UI — the ESP32-C3 panel
 # owns UIMenu/menupages/UserInput/Display (uimcu/ui is the single live
 # copy). The A1S copies stay in the tree and build only for MK2/AEM.
-if(CONFIG_TBD_PLATFORM_BBA)
+if(CONFIG_TBD_PLATFORM_BBA OR CONFIG_TBD_PLATFORM_BBA2)
     list(REMOVE_ITEM SRC_FILES
             ${CMAKE_CURRENT_SOURCE_DIR}/UIMenu.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/UIMenu.hpp
@@ -33,7 +33,7 @@ if(NOT CONFIG_BT_ENABLED)
 endif()
 
 set(MAIN_PRIV_REQUIRES "")
-if(CONFIG_BT_ENABLED AND NOT CONFIG_TBD_PLATFORM_BBA)
+if(CONFIG_BT_ENABLED AND NOT CONFIG_TBD_PLATFORM_BBA AND NOT CONFIG_TBD_PLATFORM_BBA2)
     set(MAIN_PRIV_REQUIRES "bt")
 endif()
 
