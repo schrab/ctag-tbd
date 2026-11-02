@@ -144,6 +144,7 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
             CTAG::SP::gElementsCapResolution.load(std::memory_order_relaxed));
         const std::size_t res = cap < kResolutionFull ? cap : kResolutionFull;
         part.set_resolution(res);
+        cap_resolution_ = res;
         hs.applied_resolution_.store(res, std::memory_order_relaxed);
         ESP_LOGI("Elements", "single-core S3: %zu modes (cap %zu)", res, cap);
     }
@@ -507,6 +508,26 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     *part.mutable_patch() = patch;
     part.set_resonator_model((elements::ResonatorModel) rModel);
     part.set_easter_egg(ee);
+
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // BBA2: the helper branch (which normally consumes the debug override)
+    // never runs, so honor /debug/setElementsMode here. 52 is the hard
+    // ceiling; clearing the override (-1) restores the cap-adjusted default.
+    {
+        const int mode_override =
+            gElementsDebugModeOverride.load(std::memory_order_relaxed);
+        if (mode_override >= 0) {
+            const std::size_t res = mode_override > (int)kResolutionFull
+                                        ? kResolutionFull
+                                        : (std::size_t)mode_override;
+            part.set_resolution(res);
+            hs.applied_resolution_.store(res, std::memory_order_relaxed);
+        } else if (cap_resolution_ > 0) {
+            part.set_resolution(cap_resolution_);
+            hs.applied_resolution_.store(cap_resolution_, std::memory_order_relaxed);
+        }
+    }
+#endif
 
     float out[kBlockSize], aux[kBlockSize];
     part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);

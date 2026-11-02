@@ -64,8 +64,15 @@ void Codec::HighPassDisable() { codec.highPass(false); }
 void Codec::RecalibDCOffset() {}
 
 void Codec::SetOutputLevels(const uint32_t left, const uint32_t right) {
-    codec.setOutputVolume(left > wm8978::OUTPUT_VOLUME_MAX ? wm8978::OUTPUT_VOLUME_MAX : left,
-                          right > wm8978::OUTPUT_VOLUME_MAX ? wm8978::OUTPUT_VOLUME_MAX : right);
+    // The panel/CONFIG scale is the A1S convention 0..33 (ES8388: 33 = 0 dB);
+    // WM8978's 0 dB sits at code 57 of 0..63. Rescale so 100% fader = 0 dB
+    // (full-scale), matching MIX-page parity; 0 stays 0 = mute.
+    constexpr uint32_t kEscarMax = 33;
+    const auto to_wm = [](uint32_t v) {
+        if (v > kEscarMax) v = kEscarMax;
+        return (uint8_t)(v * wm8978::OUTPUT_VOLUME_0DB / kEscarMax);
+    };
+    codec.setOutputVolume(to_wm(left), to_wm(right));
 }
 
 void Codec::ReadBuffer(float *buf, uint32_t sz) {
@@ -142,9 +149,11 @@ void Codec::SetAnalogBypass(bool on) {
 }
 
 void Codec::SetInputGain(int gain) {
+    // A1S convention 0..8, 3 dB/step (0..+24 dB) — the MIX-page IN fader
+    // scale. WM8978 PGA: 0.75 dB/step, 0 dB at code 16 → code = 16 + 4×gain.
     if (gain < 0) gain = 0;
-    if (gain > 63) gain = 63;
-    codec.setInputGain((uint8_t)gain);
+    if (gain > 8) gain = 8;
+    codec.setInputGain((uint8_t)(16 + 4 * gain));
 }
 
 const uint8_t *Codec::DebugReadAllRegs() {

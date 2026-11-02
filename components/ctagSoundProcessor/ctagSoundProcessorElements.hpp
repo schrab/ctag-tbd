@@ -152,6 +152,10 @@ namespace CTAG {
             bool prevGate = false;
             // True once this core has taken `part` back (no helper).
             bool direct_fallback_prepared_ = false;
+            // BBA2 only: the cap-adjusted default resolution set at Init; 0
+            // on other targets. The direct render path re-applies it whenever
+            // the /debug/setElementsMode override is cleared back to -1.
+            std::size_t cap_resolution_ = 0;
 
             atomic<int32_t> frequency{800}, cv_frequency{-1};
             atomic<int32_t> resonator_model{0}, cv_resonator_model{-1};

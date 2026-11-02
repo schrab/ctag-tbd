@@ -117,8 +117,11 @@ bool wm8978::inputSelect(Input sel) {
     //         bits[2:0] = AUXL/AUXR (unused on BBA2).
     // R44:    bits 0/4 = LIP/LIN -> PGA (mic path).
     // R2:     bits 3:2 = INPPGAENR/L.
-    uint16_t r47 = _regs[47] & 0x0F3; // clear line-in nibble + boost bit
-    uint16_t r48 = _regs[48] & 0x0F3;
+    // Mask 0x170 clears the boost bit AND the line-in nibble — leaving the
+    // nibble set (0x0F3 bug) would keep L2/R2 connected at 0 dB into the
+    // boost mixer and bleed line-in into mic captures.
+    uint16_t r47 = _regs[47] & (uint16_t)~0x170;
+    uint16_t r48 = _regs[48] & (uint16_t)~0x170;
     uint16_t r44 = _regs[44] & ~0x33;
     uint16_t r2 = _regs[2] & ~0x00C;
     if (sel == Input::LINE) {

@@ -126,9 +126,13 @@ void FileSystem::InitCD() {
 
 bool FileSystem::IsSDPresent() {
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-    // No card-detect pin on BBA2 (SDD §7): report mount state. Boot mounts
-    // once; the C3 MOUNT command re-attempts and surfaces the result.
-    return sdcard != nullptr;
+    // No card-detect pin on BBA2 (SDD §7). Report "present" so the panel's
+    // MOUNT flow (gated on present) always reaches the mount attempt, which
+    // is the only presence probe this hardware has. Review finding: with
+    // present == mount state, UNMOUNT made the MOUNT item show NO CARD
+    // forever — dead hot-swap. The "UNMOUNTED"/"NO CARD" labels on the panel
+    // become cosmetic; the "sd" stream field still reflects the real state.
+    return true;
 #else
     int lvl = gpio_get_level(GPIO_NUM_34);
     return SD_CD_ACTIVE_LOW ? lvl == 0 : lvl != 0;

@@ -105,14 +105,16 @@ retries since control calls can originate off the audio task):
 - 58-register shadow file mirroring the legacy `codec.cpp` WM8978 table; all writes
   update shadow + bus; no reads (write-only interface).
 - `init()`: R0 reset → power up (R1: buffer/VMID/BIAS, R2/3: ADC/DAC/OUT mixers) →
-  R4 audio interface (I2S, 16-bit, slave) → R5 (mute off, comp off) → R6/R7 clocking
-  (MCLK÷1, 44.1 kHz family) → DAC/ADC path enables, input mixer (LIP/LIN mic w/ boost
-  vs L2/R2 line) → output mixers: OUT1 line out (stereo), OUT4 mono speaker sourced
-  from the same mix so the speaker follows line out.
+  R4 audio interface (I2S, 16-bit, slave) → R5 (mute off, comp off) → R6 clocking
+  (MCLK direct from the S3, no PLL/divide; the legacy driver never wrote R7's
+  sample-rate hints either — parity) → DAC/ADC path enables, input mixer (LIP/LIN
+  mic w/ boost vs L2/R2 line) → output mixers: OUT1 line out (stereo), and the mono
+  speaker driven from the OUT2 pair bridged BTL via R43 bit4 (INVROUT2) so the
+  speaker follows line out.
 - API mirrors `es8388`: `init()`, `identify()` (ACK on reset write), `inputSelect(mic|line)`,
   `setInputGain()`, `setOutputVolume(0..N)` (OUT1 digital/analog per register semantics),
-  speaker enable/volume via OUT4 mixer gain, `softMute(bool)` (R5), `readAllReg()`
-  (shadow dump for `/debug`).
+  speaker volume via the OUT2/SPK volume registers (R54/55), `softMute(bool)` (R5),
+  `readAllReg()` (shadow dump for `/debug`).
 - I2S pins and formats are NOT the driver's business (facade owns I2S).
 
 ### 5.2 Facade (`components/drivers/codec_bba2.{hpp,cpp}`)
@@ -164,13 +166,20 @@ keep dynamic switching.
 ### 6.3 Load-time CPU budget cap
 
 - Static per-plugin cost table (cycles @ 44.1 kHz, from bench §6.1): Plaits 45k,
-  Rings 55k, Clouds 62k, Elements-52M 120k, Elements-32M 93k; Mbeads provisional **100,000** (unmeasured, conservative — refine on hardware
-  during bring-up).
+  Rings 55k, Clouds 62k, Elements-52M 120k, Elements-32M 93k; Mbeads provisional
+  **100,000** (unmeasured, conservative — refine on hardware during bring-up).
 - In `SPManager::SetSoundProcessorChannel` (BBA2 only): sum the estimated cost of
   the requested load plus what's already loaded on the other channel; if the total
   exceeds **90% of 174,150 cycles** and the request is Elements, load it at
   32 modes instead of 52 (worst known chain Elements-32M → Clouds = 86.7%).
   The cap is deterministic and logged; no other de-rating.
+- **Structural scope note (post-review)**: every plugin with a non-zero cost
+  estimate is stereo and can only load on ch0; the stereo-kill wipes ch1 to
+  `Void`, and even pre-wipe ch1 can only hold mono plugins. With the current
+  bundle the cap therefore cannot engage at runtime — the worst real load is
+  Elements-52M alone at 67.6% of budget. The mechanism is kept (host-tested,
+  future-proofing for any future mono/expensive plugin) but §6.3 must be
+  re-validated if the channel model or plugin stereo-ness changes.
 
 ## 7. SD card
 
