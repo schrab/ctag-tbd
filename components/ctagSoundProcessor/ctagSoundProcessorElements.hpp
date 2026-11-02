@@ -57,8 +57,8 @@ namespace CTAG {
             void PublishDebugStats();
 
             static constexpr std::size_t kBlockSize = 32;
-            // Modal resonator bands: 24 = dual-core target @ 32kHz (leaves headroom for BLE), 16 = floor.
-            static constexpr std::size_t kResolutionFull = 24;
+            // Modal resonator bands: 32 = dual-core target @ 32kHz, 16 = floor.
+            static constexpr std::size_t kResolutionFull = 32;
             static constexpr std::size_t kResolutionFallback = 16;
 
             // One block handed from the audio task (core 1) to the helper
@@ -89,7 +89,7 @@ namespace CTAG {
             // Task 3 must not read the settled count as a hardware limit.
             static constexpr int kFallbackStreak = 16;
             static constexpr std::size_t kResolutionSteps[] = {
-                kResolutionFull, 20, kResolutionFallback};
+                kResolutionFull, 24, kResolutionFallback};
             static constexpr std::size_t kNumResolutionSteps =
                 sizeof(kResolutionSteps) / sizeof(kResolutionSteps[0]);
 

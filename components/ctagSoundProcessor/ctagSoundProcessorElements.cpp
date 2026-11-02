@@ -406,17 +406,23 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
             }
         } else {
             // Nothing renderable this block (first block, or the helper missed
-            // its deadline).
+            // its deadline). If we already have rendered audio, hold the previous
+            // block's audio to prevent digital zero impulses.
             if (hs.block_counter_ > 0) {
                 hs.misses_.fetch_add(1, std::memory_order_relaxed);
             }
-            // Smoothly ramp down from the previous block's tail to 0 to prevent a digital step pop
-            const float tail_l = (hs.block_counter_ > 1) ? data.buf[(kBlockSize - 1) * 2] : 0.f;
-            const float tail_r = (hs.block_counter_ > 1) ? data.buf[(kBlockSize - 1) * 2 + 1] : 0.f;
-            for (std::size_t i = 0; i < kBlockSize; i++) {
-                float fade = 1.0f - (float)(i + 1) / (float)kBlockSize;
-                data.buf[i * 2] = tail_l * fade;
-                data.buf[i * 2 + 1] = tail_r * fade;
+            if (hs.block_counter_ > 1) {
+                const HelperBlock& prev_block = hs.blocks_[write_slot];
+                const float prev_gain = (prev_block.resonator_model == 0) ? 0.15f :
+                                        (prev_block.resonator_model == 2 ? 0.4f : 0.75f);
+                for (std::size_t i = 0; i < kBlockSize; i++) {
+                    data.buf[i * 2] = prev_block.main[i] * prev_gain;
+                    data.buf[i * 2 + 1] = prev_block.aux[i] * prev_gain;
+                }
+            } else {
+                for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
+                    data.buf[i] = 0.f;
+                }
             }
         }
 
