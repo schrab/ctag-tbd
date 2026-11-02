@@ -71,11 +71,15 @@ else()
         list(APPEND GZIP_COMMANDS
                 COMMAND gzip -9 ${CMAKE_BINARY_DIR}/spiffs_image/${WWW_FILE} )
     endforeach()
-    list(APPEND DEL_COMMANDS
-            COMMAND rm -f ${CMAKE_BINARY_DIR}/spiffs_image/data/sp/*DrumRack.jsn)
-    list(APPEND DEL_COMMANDS
-            COMMAND rm -f ${CMAKE_BINARY_DIR}/spiffs_image/dbup/sp/*DrumRack.jsn)
 endif()
+list(APPEND DEL_COMMANDS
+        COMMAND rm -f ${CMAKE_BINARY_DIR}/spiffs_image/data/sp/*DrumRack.jsn)
+list(APPEND DEL_COMMANDS
+        COMMAND rm -f ${CMAKE_BINARY_DIR}/spiffs_image/dbup/sp/*DrumRack.jsn)
+list(APPEND DEL_COMMANDS
+        COMMAND rm -f ${CMAKE_BINARY_DIR}/spiffs_image/data/sp/*Mbeads.jsn)
+list(APPEND DEL_COMMANDS
+        COMMAND rm -f ${CMAKE_BINARY_DIR}/spiffs_image/dbup/sp/*Mbeads.jsn)
 add_custom_target(copy-files ALL DEPENDS ${CMAKE_SOURCE_DIR}/spiffs_image
         # clean up
         COMMAND rm -rf ${CMAKE_BINARY_DIR}/spiffs_image

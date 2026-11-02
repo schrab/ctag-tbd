@@ -4,6 +4,8 @@ file(GLOB SOUND_PROCESSORS ctagSoundProcessor*.cpp)
 # list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessor\\.cpp$")
 # DrumRack removed from the bundle (app partition space); sources kept
 list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessorDrumRack")
+# Mbeads removed from the bundle; sources kept
+list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessorMbeads")
 # clean generated directory
 file(REMOVE_RECURSE ${CMAKE_BINARY_DIR}/gen_include)
 # convert JSON descriptors to c headers and extract processor IDs
@@ -62,6 +64,8 @@ file(GLOB SRCS_FILES
         )
 # DrumRack removed from the bundle — keep it out of the compiled library too
 list(FILTER SRCS_FILES EXCLUDE REGEX "ctagSoundProcessorDrumRack")
+# Mbeads removed from the bundle — keep it out of the compiled library too
+list(FILTER SRCS_FILES EXCLUDE REGEX "ctagSoundProcessorMbeads")
 
 if (TBD_SIM)
     add_library(ctagsp STATIC ${SRCS_FILES})

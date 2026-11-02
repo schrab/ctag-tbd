@@ -49,17 +49,17 @@ respective component folders / files if different from this license.
 using namespace std;
 using namespace rapidjson;
 
-// Mbeads debug hooks: grain-cap override/getters.
-extern "C" int mbeads_debug_set_total_cap(int cap);
-extern "C" int mbeads_debug_get_total_cap();
-extern "C" int mbeads_debug_set_helper_cap(int cap);
-extern "C" int mbeads_debug_get_helper_cap();
-extern "C" int mbeads_debug_get_active_grains();
-extern "C" int mbeads_debug_get_helper_active_grains();
-extern "C" int mbeads_debug_get_helper_cycles();
-extern "C" int mbeads_debug_get_helper_overload();
-extern "C" int mbeads_debug_get_helper_stack_high_water();
-extern "C" int mbeads_debug_get_core_cap();
+// Mbeads debug hooks: static stubs (Mbeads removed from build).
+static inline int mbeads_debug_set_total_cap(int) { return -1; }
+static inline int mbeads_debug_get_total_cap() { return -1; }
+static inline int mbeads_debug_set_helper_cap(int) { return -1; }
+static inline int mbeads_debug_get_helper_cap() { return -1; }
+static inline int mbeads_debug_get_active_grains() { return -1; }
+static inline int mbeads_debug_get_helper_active_grains() { return -1; }
+static inline int mbeads_debug_get_helper_cycles() { return 0; }
+static inline int mbeads_debug_get_helper_overload() { return 0; }
+static inline int mbeads_debug_get_helper_stack_high_water() { return -1; }
+static inline int mbeads_debug_get_core_cap() { return 0; }
 
 // Elements second-core helper stats (distinct keys from Mbeads).
 extern "C" int elements_debug_get_helper_cycles();

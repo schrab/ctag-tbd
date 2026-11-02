@@ -451,7 +451,7 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
         // plugin was removed from the bundle but its descriptor may still
         // linger in the SPIFFS model — refuse instead of crashing.
         ESP_LOGE("SPManager", "Plugin %s not in factory, ignoring", id.c_str());
-        model->SetActivePluginID(model->HasPluginID("Mbeads") ? "Mbeads" : id, chan);
+        model->SetActivePluginID(model->HasPluginID("Void") ? "Void" : id, chan);
         xSemaphoreGive(processMutex);
         return;
     }

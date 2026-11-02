@@ -121,19 +121,6 @@ file(GLOB SRCS_FILES
         eurorack/elements/dsp/tube.cc
         eurorack/elements/dsp/multistage_envelope.cc
         eurorack/elements/dsp/ominous_voice.cc
-        eurorack/beads/dsp/processor.cc
-        eurorack/beads/dsp/processor.h
-        eurorack/beads/dsp/granular_processor.h
-        eurorack/beads/dsp/trigger_generator.cc
-        eurorack/beads/dsp/trigger_generator.h
-        eurorack/beads/dsp/delay_controller.cc
-        eurorack/beads/dsp/delay_controller.h
-        eurorack/beads/dsp/delay_clock.cc
-        eurorack/beads/dsp/delay_clock.h
-        eurorack/beads/dsp/mu_law.cc
-        eurorack/beads/dsp/mu_law.h
-        eurorack/beads/resources_min.cc
-        eurorack/beads/resources.h
         eurorack/marbles/resources.cc
         eurorack/marbles/resources.h
         eurorack/marbles/random/t_generator.cc
@@ -178,7 +165,6 @@ else()
     # The grain renderer is inlined into processor.cc; -O2 is required to
     # stay inside the 174,150-cycle audio budget. Keep this after -Os.
     set_source_files_properties(
-            eurorack/beads/dsp/processor.cc
             eurorack/elements/dsp/part.cc
             eurorack/elements/dsp/voice.cc
             eurorack/elements/dsp/resonator.cc
