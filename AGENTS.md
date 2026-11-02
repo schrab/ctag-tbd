@@ -79,10 +79,47 @@ See @README.md for project overview and @package.json for available npm/pnpm com
 - **UI Split (P0–P3 done, branch `feat/ui-split`)**: panel UI moved to an ESP32-C3 ("uimcu") linked to the A1S over UART. `protocol/` = shared IDF-free link component (host-tested); `uimcu/` = C3 panel firmware (ported UIMenu + pages over a `DspProxy` abstraction, SPI SSD1309 display, USB-console bench channel); A1S `main/LinkEndpoint.*` owns UART1 @921600, RX on **GPIO23** (ex-MIDI pins; the dormant midiuart driver still installs UART1@31250 first and LinkEndpoint::Start deletes/reinstalls it; GPIO19's board trace corrupts RX ≥250 kBd — do NOT move RX back) and serves `/debug/*` (shared dispatcher) + `/link/*`, pushing boot metadata + 25 Hz live stream (vu/mb/sd) + on-change JSON blobs via 10 Hz hash-diff (no SPManager hooks; `/link/metering` arms the A1S peak pass while the MIX page is visible). **C3 heap ceiling (2026-10-30, hardware-proven): the no-PSRAM C3 next to NimBLE cannot malloc contiguous blocks ≥~10-15 KB — a big-enough rapidjson DOM pool chunk returns null and the assert-less memcpy store-faults (Guru Meditation, bootloop when the plugin is persisted). Params pushes are therefore CHUNKED, FLAT and HINT-FREE (≤~1.8 KB slices, group markers + leaves, `part`/`last` framing) and the C3 holds them in a STATIC `DspParamEntry` table (`DspProxy::GetParamEntry*`), handled with no DOM at all; the Params page reads the table directly (no JSON parsing on the UI task), NetRest serializes `{"params":[...]}` from it on demand. Any new link push or C3-side JSON must respect the same ceiling. **P3 handshake VERIFIED live at 921600 (2026-10-28)**: clean boot → automatic handshake → boot metadata populates the C3 DspProxy cache. Root cause of the original failure = the A1S board's GPIO19 input trace corrupts RX above ~250 kBd (self-loopback-proven; see `doc/ui-split-handoff.md`) — link RX moved to GPIO23. Debug helper: `/debug/setLinkBaud {"value":N}` retunes both ends at runtime. Status: **P6 cutover committed (0c032a88) and hardware-validated** (internal DRAM 209 KB free / 110.6 KB largest block, clean-boot handshake + boot metadata, MIDI end-to-end); the A1S UART0 bench task is REMOVED (DebugUI::handleCommand is the pure /debug dispatcher routed from the panel link); leftovers (CC-slot edit fix, probe trim, compile-level UI exclusion, DebugUI::Start break, SPManager dup block) closed 2026-10-29. The `main/` copies of the menu sources are dead code; `uimcu/ui/` is the single live copy. Docs: `doc/ui-split-sdd.md` (design), `doc/uimcu-bringup.md` — **read the bench wiring/measurement rules there before touching the bench**: C3 GPIO18/19 are USB pins, no GND wire between USB-powered boards, never tie 3V3 while a board is unpowered (two boards + one OLED died to these), A1S port-open resets the chip (wait ≥9 s). Hardware: C3 #1 (soldered on carrier) USB-dead (backfeed casualty); C3 #2 flashed OK; OLED panel **working** (an early "dead panel" call was wrong — DC-pin connection). RapidJSON allocator got an internal-RAM fallback (PSRAM-less targets asserted); shared component, A1S behavior unchanged.
 - **C3 (Super Mini) pin map — CONSULT BEFORE ANY PIN PROPOSAL** (full table in `doc/uimcu-bringup.md`): 0=enc1 A, 1=BTN ADC ladder (ADC1_CH1), 2=OLED CS (strap-safe: display input + ROM pull-up), 3=enc1 B, 4/5=encoder E2, 6/7=OLED SPI, 8=OLED DC, 9=TRS MIDI OUT, 10=TRS MIDI IN, 18/19=USB (never wire), 20/21=link; 11–17 = embedded flash, not bonded. **2026-10-28 strap remap**: encoder E1 was on strap pins 8/9 — a detent shorted both low → invalid boot strap → no boot (blue LED on GPIO8, active-low, lit in the failing positions; pull-ups CANNOT fix a closed contact to GND). E1 moved to 0/3; OLED DC 3→8, TRS OUT 1→9 (both strap-safe: C3 outputs, high-Z + ROM pull-up at reset reads 1); BTN ADC 0→1. **Zero spare GPIOs** — any new signal means moving one. Encoder channels (C→GND, actively pull low) must never land on strap pins 2/8/9.
 
+## Development Environments
+Development occurs across two primary host environments:
+
+### 1. Windows WSL (Ubuntu)
+- **User / Home**: `ubuntu` (`/home/ubuntu`)
+- **ESP-IDF Environment**: `source /home/ubuntu/esp-idf/export.sh` (ESP-IDF v5.5)
+- **Serial Ports (over `usbipd` from Windows)**:
+  - DSP (ESP32-A1S): `/dev/ttyUSB0`
+  - Panel UI (ESP32-C3): `/dev/ttyACM0`
+  - *Note*: If USB attach drops after flashing, run `usbipd detach` + `attach` on Windows to re-attach.
+
+### 2. Omarchy Linux
+- **User / Home**: `schrab` (`/home/schrab`)
+- **ESP-IDF Environment**: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh`
+- **Serial Ports**:
+  - DSP (ESP32-A1S): `/dev/ttyUSB0`
+  - Panel UI (ESP32-C3): `/dev/ttyACM0`
+
+*Tip*: In automated scripts or commands, detect the environment via:
+```bash
+[ -f /home/ubuntu/esp-idf/export.sh ] && source /home/ubuntu/esp-idf/export.sh || source /home/schrab/esp/esp-idf-v5.5.4/export.sh
+```
+
 ## Common Workflows
 - **Host unit tests (no ESP-IDF, no hardware)**: `tests/host/run_tests.sh` — compiles the **real Marbles submodule sources** (`marbles/random/*`, `ramp/ramp_extractor`, `resources.cc`) with plain g++ and runs 7 marbles tests (determinism, internal clock rate, external-clock extraction, scale quantization, Markov reachability, déjà-vu looping, slot bounds) plus 4 input-source tests. Run after any change to the modulation engine or the eurorack submodule.
-- **Build**: `source ~/esp/esp-idf-v5.5.4/export.sh && idf.py build` or `source ~/esp/export.sh && idf.py build` (WSL)
+- **Build DSP**:
+  - WSL: `source /home/ubuntu/esp-idf/export.sh && idf.py build`
+  - Omarchy: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh && idf.py build`
+- **Build Panel UI (C3)**:
+  - WSL: `source /home/ubuntu/esp-idf/export.sh && cd uimcu && idf.py build`
+  - Omarchy: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh && cd uimcu && idf.py build`
 - **DrumRack removed from the bundle** (2026-10-26): excluded from the generated factory and the compiled library via `list(FILTER ... EXCLUDE REGEX "ctagSoundProcessorDrumRack")` in `components/ctagSoundProcessor/CMakeLists.txt` (freed ~114 KB for the Marbles port's LUTs; app partition 0x380000 now has ~68 KB headroom). Sources kept in the repo; presets on SPIFFS are harmless leftovers. To re-add, remove the two FILTER lines.
-- **Full flash (all partitions + storage)**: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/ctag-tbd.bin 0x710000 build/storage.bin`
-- **Flash main app only** (no storage update): `source /home/schrab/esp/esp-idf-v5.5.4/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x10000 build/ctag-tbd.bin`
-- **UART log capture**: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh 2>/dev/null && stty -F /dev/ttyUSB0 115200 raw -echo && timeout 15 cat /dev/ttyUSB0 2>/dev/null | tee /tmp/uart.log`
+- **Beads/Mbeads removed from the bundle** (2026-11-02): excluded from factory generation, mutable component sources, and storage partition image (sources kept in repo). Default/fallback sound processor set to `Void`.
+- **Full flash DSP (all partitions + storage)**:
+  - WSL: `source /home/ubuntu/esp-idf/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/ctag-tbd.bin 0x710000 build/storage.bin`
+  - Omarchy: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/ctag-tbd.bin 0x710000 build/storage.bin`
+- **Flash main app only (DSP - ESP32-A1S, port `/dev/ttyUSB0`)**:
+  - WSL: `source /home/ubuntu/esp-idf/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x10000 build/ctag-tbd.bin`
+  - Omarchy: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh && python -m esptool --chip esp32 -b 460800 --port /dev/ttyUSB0 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m 0x10000 build/ctag-tbd.bin`
+- **Flash Panel UI (ESP32-C3, port `/dev/ttyACM0`)**:
+  - `cd uimcu && idf.py -p /dev/ttyACM0 flash`
+- **UART log capture**:
+  - WSL: `source /home/ubuntu/esp-idf/export.sh 2>/dev/null && stty -F /dev/ttyUSB0 115200 raw -echo && timeout 15 cat /dev/ttyUSB0 2>/dev/null | tee /tmp/uart.log`
+  - Omarchy: `source /home/schrab/esp/esp-idf-v5.5.4/export.sh 2>/dev/null && stty -F /dev/ttyUSB0 115200 raw -echo && timeout 15 cat /dev/ttyUSB0 2>/dev/null | tee /tmp/uart.log`
