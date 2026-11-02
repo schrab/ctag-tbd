@@ -57,9 +57,9 @@ namespace CTAG {
             void PublishDebugStats();
 
             static constexpr std::size_t kBlockSize = 32;
-            // Modal resonator bands: 52 = original, 12 = single-core baseline.
-            static constexpr std::size_t kResolutionFull = 52;
-            static constexpr std::size_t kResolutionFallback = 12;
+            // Modal resonator bands: 32 = dual-core target @ 32kHz, 16 = floor.
+            static constexpr std::size_t kResolutionFull = 32;
+            static constexpr std::size_t kResolutionFallback = 16;
 
             // One block handed from the audio task (core 1) to the helper
             // (core 0). The patch snapshot travels with the block so core 1
@@ -81,15 +81,15 @@ namespace CTAG {
             static constexpr UBaseType_t kHelperTaskPriority = configMAX_PRIORITIES - 2;
             static constexpr BaseType_t kHelperTaskCore = 0;
             static constexpr std::size_t kHelperSlots = 2;
-            static constexpr std::uint32_t kAudioBudgetCycles = 174150;
+            static constexpr std::uint32_t kAudioBudgetCycles = 240000;
             // V9 deadline fallback: step the modal count down after a run of
             // consecutive misses/overloads (hysteresis, never per block).
             // The ladder is one-way per plugin instance: a transient core-0
             // burst can pin a lower count until the plugin is reloaded, so
             // Task 3 must not read the settled count as a hardware limit.
-            static constexpr int kFallbackStreak = 8;
+            static constexpr int kFallbackStreak = 16;
             static constexpr std::size_t kResolutionSteps[] = {
-                kResolutionFull, 32, 24, 16, kResolutionFallback};
+                kResolutionFull, 24, kResolutionFallback};
             static constexpr std::size_t kNumResolutionSteps =
                 sizeof(kResolutionSteps) / sizeof(kResolutionSteps[0]);
 

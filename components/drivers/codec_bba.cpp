@@ -35,12 +35,55 @@ using namespace CTAG::DRIVERS;
 
 static i2s_chan_handle_t tx_handle = NULL;
 static i2s_chan_handle_t rx_handle = NULL;
+static uint32_t current_sample_rate = 44100;
 
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
 es8388 Codec::codec;
 #else
 aic3254 Codec::codec;
 #endif
+
+uint32_t Codec::GetSampleRate() {
+    return current_sample_rate;
+}
+
+void Codec::SetSampleRate(uint32_t sample_rate) {
+    if (sample_rate == current_sample_rate) return;
+    if (tx_handle == NULL || rx_handle == NULL) return;
+
+    ESP_LOGI("BBA Codec", "Reconfiguring I2S sample rate from %lu to %lu Hz",
+             (unsigned long)current_sample_rate, (unsigned long)sample_rate);
+
+    esp_err_t dis_tx = i2s_channel_disable(tx_handle);
+    esp_err_t dis_rx = i2s_channel_disable(rx_handle);
+    if (dis_tx != ESP_OK || dis_rx != ESP_OK) {
+        ESP_LOGE("BBA Codec", "i2s_channel_disable failed: tx=%d rx=%d", dis_tx, dis_rx);
+    }
+
+    i2s_std_clk_config_t clk_cfg = {
+        .sample_rate_hz = sample_rate,
+        .clk_src = I2S_CLK_SRC_DEFAULT,
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+        .mclk_multiple = I2S_MCLK_MULTIPLE_384,
+#else
+        .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+#endif
+    };
+
+    esp_err_t err_tx = i2s_channel_reconfig_std_clock(tx_handle, &clk_cfg);
+    esp_err_t err_rx = i2s_channel_reconfig_std_clock(rx_handle, &clk_cfg);
+
+    esp_err_t en_tx = i2s_channel_enable(tx_handle);
+    esp_err_t en_rx = i2s_channel_enable(rx_handle);
+
+    if (err_tx == ESP_OK && err_rx == ESP_OK && en_tx == ESP_OK && en_rx == ESP_OK) {
+        current_sample_rate = sample_rate;
+        ESP_LOGI("BBA Codec", "I2S clock reconfigured to %lu Hz successfully", (unsigned long)sample_rate);
+    } else {
+        ESP_LOGE("BBA Codec", "Failed to reconfigure I2S clock: tx=%d rx=%d en_tx=%d en_rx=%d",
+                 err_tx, err_rx, en_tx, en_rx);
+    }
+}
 
 void Codec::InitCodec() {
     ESP_LOGI("BBA Codec", "Starting i2s setup...");
@@ -212,10 +255,14 @@ void IRAM_ATTR Codec::ReadBuffer(float *buf, uint32_t sz) {
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
     int16_t tmp[sz * 2];
     int16_t *ptrTmp = tmp;
-    size_t nb;
+    size_t nb = 0;
     const float div = 3.0518509476E-5f;
     // 16 bit word config stereo
-    i2s_channel_read(rx_handle, tmp, sz*2*2, &nb, portMAX_DELAY);
+    esp_err_t err = i2s_channel_read(rx_handle, tmp, sz*2*2, &nb, pdMS_TO_TICKS(100));
+    if (err != ESP_OK || nb == 0) {
+        memset(buf, 0, sz * 2 * sizeof(float));
+        return;
+    }
     while (sz > 0) {
         *buf++ = div * (float) *ptrTmp++;
         *buf++ = div * (float) *ptrTmp++;
@@ -224,10 +271,14 @@ void IRAM_ATTR Codec::ReadBuffer(float *buf, uint32_t sz) {
 #else
     int32_t tmp[sz * 2];
     int32_t *ptrTmp = tmp;
-    size_t nb;
+    size_t nb = 0;
     const float div = 1.0f / 2147483648.0f;
     // 32 bit word config stereo
-    i2s_channel_read(rx_handle, tmp, sz*2*4, &nb, portMAX_DELAY);
+    esp_err_t err = i2s_channel_read(rx_handle, tmp, sz*2*4, &nb, pdMS_TO_TICKS(100));
+    if (err != ESP_OK || nb == 0) {
+        memset(buf, 0, sz * 2 * sizeof(float));
+        return;
+    }
     while (sz > 0) {
         *buf++ = div * (float) *ptrTmp++;
         *buf++ = div * (float) *ptrTmp++;
@@ -253,7 +304,7 @@ void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
         tmp2 = MIN(tmp2, 32767);
         tmp[i * 2 + 1] = tmp2;
     }
-    i2s_channel_write(tx_handle, tmp, sz*2*2, &nb, portMAX_DELAY);
+    i2s_channel_write(tx_handle, tmp, sz*2*2, &nb, pdMS_TO_TICKS(100));
 #else
     int32_t tmp[sz * 2];
     int32_t tmp2;
@@ -270,6 +321,6 @@ void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
         tmp2 = MIN(tmp2, 2147483647);
         tmp[i * 2 + 1] = tmp2;
     }
-    i2s_channel_write(tx_handle, tmp, sz*2*4, &nb, portMAX_DELAY);
+    i2s_channel_write(tx_handle, tmp, sz*2*4, &nb, pdMS_TO_TICKS(100));
 #endif
 }

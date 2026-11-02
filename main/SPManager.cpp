@@ -147,6 +147,12 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             loopHistSeq.fetch_add(1, std::memory_order_relaxed);
         }
 
+        // Reconfigure I2S sample rate if requested by plugin load
+        const uint32_t req_rate = requestedSampleRate.load(std::memory_order_relaxed);
+        if (req_rate != DRIVERS::Codec::GetSampleRate()) {
+            DRIVERS::Codec::SetSampleRate(req_rate);
+        }
+
         // Marbles random modulation → CV/trig slots
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
@@ -326,7 +332,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 
         // get cpu cycles for audio task
         diff = esp_cpu_get_cycle_count() - start;
-        cpuOverload = (diff > CPU_MAX_ALLOWED_CYCLES) ? 1 : 0;
+        const uint32_t maxAllowed = (DRIVERS::Codec::GetSampleRate() == 32000) ? 240000 : CPU_MAX_ALLOWED_CYCLES;
+        cpuOverload = (diff > maxAllowed) ? 1 : 0;
         lastAudioTaskCycles.store(static_cast<uint32_t>(diff),
                                   std::memory_order_relaxed);
 
@@ -442,6 +449,14 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
         paramsResyncPending.store(true, std::memory_order_relaxed);
     }
 
+    // Dynamic sample rate: Elements runs at 32 kHz native rate (+37.8% CPU time
+    // budget, authentic pitch & reverb tails); all other plugins run at 44.1 kHz.
+    const uint32_t target_rate = (chan == 0 && id == "Elements") ? 32000 : 44100;
+    requestedSampleRate.store(target_rate, std::memory_order_relaxed);
+    if (!runAudioTask) {
+        DRIVERS::Codec::SetSampleRate(target_rate);
+    }
+
     // create new plugin
     ctagSPAllocator::AllocationType aType = ctagSPAllocator::AllocationType::CH0;
     if(chan == 1) aType = ctagSPAllocator::AllocationType::CH1;
@@ -500,6 +515,7 @@ atomic<uint32_t> SoundProcessorManager::ch01Daisy;
 atomic<uint32_t> SoundProcessorManager::toStereoCH0;
 atomic<uint32_t> SoundProcessorManager::toStereoCH1;
 atomic<uint32_t> SoundProcessorManager::runAudioTask;
+atomic<uint32_t> SoundProcessorManager::requestedSampleRate{44100};
 atomic<uint32_t> SoundProcessorManager::ch0_outputSoftClip;
 atomic<uint32_t> SoundProcessorManager::ch1_outputSoftClip;
 atomic<bool> SoundProcessorManager::meteringEnabled{false};
@@ -557,6 +573,10 @@ void SoundProcessorManager::StartSoundProcessor() {
     if (processMutex == NULL) {
         ESP_LOGE("SPM", "Fatal couldn't create mutex!");
     }
+
+    SetSoundProcessorChannel(0, model->GetActiveProcessorID(0));
+    SetSoundProcessorChannel(1, model->GetActiveProcessorID(1));
+
     // create audio thread
     runAudioTask = 1;
     xTaskCreatePinnedToCore(&SoundProcessorManager::audio_task, "audio_task", 4096, nullptr, 23, &audioTaskH, 1);
@@ -566,9 +586,6 @@ void SoundProcessorManager::StartSoundProcessor() {
     // Keeps the data model for REST/MIDI/Serial API access
     // FAV::Favorites::StartUI();
 #endif
-
-    SetSoundProcessorChannel(0, model->GetActiveProcessorID(0));
-    SetSoundProcessorChannel(1, model->GetActiveProcessorID(1));
     ESP_LOGI("SPManager", "Init: Mem freesize internal %d, largest block %d, free SPIRAM %d, largest block SPIRAM %d!",
              heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL),
              heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL),

@@ -138,11 +138,11 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
         part.set_resolution(kResolutionFull);
         hs.applied_resolution_.store(kResolutionFull, std::memory_order_relaxed);
     } else {
-        // Fallback: run on the audio core at the proven 12-mode resolution.
+        // Fallback: run on the audio core at the 32-mode resolution @ 32kHz.
         part.set_resolution(kResolutionFallback);
         hs.applied_resolution_.store(kResolutionFallback, std::memory_order_relaxed);
         direct_fallback_prepared_ = true;
-        ESP_LOGE("Elements", "helper task unavailable; single-core fallback (12 modes)");
+        ESP_LOGI("Elements", "helper task unavailable; single-core (32 modes @ 32kHz)");
     }
 
     static bool perf_enabled = false;
@@ -271,10 +271,10 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         p->resonator_position = fabsf(data.cv[cv_resonator_position]);
     CONSTRAIN(p->resonator_position, 0.f, 1.f);
 
-    p->resonator_modulation_frequency = (resonator_mod_freq / 4095.f * 0.5f + 0.4f) / 44100.f;
+    p->resonator_modulation_frequency = (resonator_mod_freq / 4095.f * 0.5f + 0.4f) / 32000.f;
     if (cv_resonator_mod_freq != -1)
-        p->resonator_modulation_frequency = (fabsf(data.cv[cv_resonator_mod_freq]) * 0.5f + 0.4f) / 44100.f;
-    CONSTRAIN(p->resonator_modulation_frequency, 0.4f / 44100.f, 1.2f / 44100.f);
+        p->resonator_modulation_frequency = (fabsf(data.cv[cv_resonator_mod_freq]) * 0.5f + 0.4f) / 32000.f;
+    CONSTRAIN(p->resonator_modulation_frequency, 0.4f / 32000.f, 1.2f / 32000.f);
 
     p->resonator_modulation_offset = resonator_mod_offset / 4095.f * 0.15f + 0.05f;
     if (cv_resonator_mod_offset != -1)
@@ -342,7 +342,7 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     bool ee = (easter_egg != 0);
 
 #ifndef TBD_SIM
-    PERF_MEASURE("Elements");
+    PERF_MEASURE("Elements_Core1");
 #endif
     float blow_in[kBlockSize], strike_in[kBlockSize];
     for (std::size_t i = 0; i < kBlockSize; i++) {
@@ -399,17 +399,26 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         if (helper_ready) {
             const HelperBlock& block = hs.blocks_[read_slot];
             for (std::size_t i = 0; i < kBlockSize; i++) {
-                data.buf[i * 2] = block.main[i] * 0.125f;
-                data.buf[i * 2 + 1] = block.aux[i] * 0.125f;
+                data.buf[i * 2] = block.main[i] * 0.75f;
+                data.buf[i * 2 + 1] = block.aux[i] * 0.75f;
             }
         } else {
             // Nothing renderable this block (first block, or the helper missed
-            // its deadline). Silence, never the live input.
+            // its deadline). If we already have rendered audio, hold the previous
+            // block's audio to prevent digital zero impulses.
             if (hs.block_counter_ > 0) {
                 hs.misses_.fetch_add(1, std::memory_order_relaxed);
             }
-            for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
-                data.buf[i] = 0.f;
+            if (hs.block_counter_ > 1) {
+                const HelperBlock& prev_block = hs.blocks_[write_slot];
+                for (std::size_t i = 0; i < kBlockSize; i++) {
+                    data.buf[i * 2] = prev_block.main[i] * 0.75f;
+                    data.buf[i * 2 + 1] = prev_block.aux[i] * 0.75f;
+                }
+            } else {
+                for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
+                    data.buf[i] = 0.f;
+                }
             }
         }
 
@@ -428,9 +437,9 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
                                                    std::memory_order_release);
             }
             hs.streak_ = 0;
-        } else if (hs.block_counter_ > 0) {
-            // Production auto ladder: 52 -> 32 -> 24 -> 16 -> 12 after a run of
-            // consecutive struggling blocks, then the V9 single-core handoff.
+        } else if (hs.block_counter_ > 2000) {
+            // Production auto ladder: step down after a run of
+            // consecutive struggling blocks in steady state (boot burst ignored).
             const bool struggling =
                 !helper_ready ||
                 hs.overload_.load(std::memory_order_relaxed);
@@ -453,6 +462,8 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
             } else {
                 hs.streak_ = 0;
             }
+        } else {
+            hs.streak_ = 0;
         }
         PublishDebugStats();
         ++hs.block_counter_;
@@ -483,8 +494,8 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);
 
     for (std::size_t i = 0; i < kBlockSize; i++) {
-        data.buf[i * 2] = out[i] * 0.125f;
-        data.buf[i * 2 + 1] = aux[i] * 0.125f;
+        data.buf[i * 2] = out[i] * 0.75f;
+        data.buf[i * 2 + 1] = aux[i] * 0.75f;
     }
     PublishDebugStats();
 }

@@ -67,6 +67,8 @@ namespace CTAG {
             static void WriteBuffer(float *buf, uint32_t sz);
 
 #ifdef CONFIG_TBD_PLATFORM_BBA
+            static void SetSampleRate(uint32_t sample_rate);
+            static uint32_t GetSampleRate();
             static void SetInputSource(int sel);
             static void SetOutputSource(int sel);
             static void SetMixerMode(int mode);
@@ -75,6 +77,8 @@ namespace CTAG {
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
 #else
+            static void SetSampleRate(uint32_t sample_rate) {}
+            static uint32_t GetSampleRate() { return 44100; }
             static void SetInputSource(int sel) {}
             static void SetOutputSource(int sel) {}
             static void SetMixerMode(int mode) {}
