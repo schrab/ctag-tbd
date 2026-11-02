@@ -227,7 +227,6 @@ void Midi::allNotesOff()                // Typically to be triggered by all note
 // --- Handle Noteoffs via MIDI (Either by noteoff-event or noteon-event with velocity 0), set Triggers accordinly and reset playing note ---
 void Midi::handleNoteOff(uint8_t*  msg)
 {
-    ESP_LOGI("MIDI", "NoteOff: ch=%d note=%d", (int)(msg[0] & 0x0F), (int)msg[1]);
     // === Retrieve MIDI-channel (internally 0-15) by masking the MIDI status-byte, We cast the enum retrieved in order to use it as a regular array-index ===
     channel = msg[0]&0x0F;   // Please note: channel 0 is global, 2-5 are voices, 6-16 are mapped to 2-5, (16 may be global for MPE or unused, so that we don't get any data here anyhow)
     if(IGNORE_CHAN_6_TO_9(channel))     // Check if processing of channels 6-9 is turned off, to give room for processing via MIDI Thru
@@ -434,10 +433,6 @@ void Midi::controlChange(uint8_t* msg)
 // --- Process incoming Pressure events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
 void Midi::channelPressure(uint8_t* msg)
 {
-    static uint32_t s_at_cnt = 0;
-    if ((++s_at_cnt % 20) == 1) {
-        ESP_LOGI("MIDI", "Aftertouch active: ch=%d val=%d (count=%lu)", (int)(msg[0] & 0x0F), (int)msg[1], (unsigned long)s_at_cnt);
-    }
     // === Retrieve MIDI-channel (internally 0-15) by masking the MIDI status-byte, We cast the enum retrieved in order to use it as a regular array-index ===
     channel = msg[0]&0x0F;   // Please note: channel 0 is global, 2-5 are voices, 6-16 are mapped to 2-5, (16 may be global for MPE or unused, so that we don't get any data here anyhow)
 
@@ -537,7 +532,6 @@ void Midi::noteOn(uint8_t* msg)
         handleNoteOff(msg); // Processing is dependant on channel, because we have different voicemodes for channels, 1, 15 and 16
         return; // We dont't process velocity now anymore, because this would be note-off-velocity which in this case is 0 anyhow.
     }
-    ESP_LOGI("MIDI", "NoteOn: ch=%d note=%d vel=%d", (int)(msg[0] & 0x0F), (int)msg[1], (int)msg[2]);
     // --- Retrieve MIDI-channel (internally 0-15) by masking the MIDI status-byte, We cast the enum retrieved in order to use it as a regular array-index ---
     channel = msg[0]&0x0F;   // Please note: channel 0 is global, 2-5 are voices, 6-16 are mapped to 2-5, (16 may be global for MPE or unused, so that we don't get any data here anyhow)
 
@@ -1187,12 +1181,8 @@ uint8_t *Midi::Update() {
                         was_realtime_message = true;
                         break;
                 }               
-                if(!was_realtime_message && (*ptr & 0x80)) {  // Did we encounter a statusbyte, that was not a realtime event? Could be PolyPressure or System Common / SysEx
-                    ESP_LOGW("MIDI", "Unknown/unsupported status byte: 0x%02X", *ptr);
+                if(!was_realtime_message && (*ptr & 0x80))   // Did we encounter a statusbyte, that was not a realtime event? Could be PolyPressure or System Common / SysEx
                     current_status = 0;         // This is a to us unknown statusbyte! We set it to zero, to also pass on that running-status can not be handled in next round!
-                } else if (!was_realtime_message && !(*ptr & 0x80) && current_status == 0) {
-                    ESP_LOGW("MIDI", "Orphan data byte (current_status=0): 0x%02X", *ptr);
-                }
                 len--;                          // Shorten read-lenght for next round of parsing
                 ptr++;                          // Skip invalid byte, may be simply a MIDI-clock message for instance
         }
