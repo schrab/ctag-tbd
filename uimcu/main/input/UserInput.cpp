@@ -34,7 +34,7 @@ respective component folders / files if different from this license.
 
 #include "UserInput.hpp"
 #include "driver/gpio.h"
-#include "driver/adc.h"
+#include "esp_adc/adc_oneshot.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -51,6 +51,15 @@ namespace CTAG {
 
         namespace {
             QueueHandle_t evQueue = nullptr;
+            adc_oneshot_unit_handle_t adc1_handle = nullptr;
+
+            int readAdcRaw() {
+                int val = 0;
+                if (adc1_handle) {
+                    adc_oneshot_read(adc1_handle, ADC_CHANNEL_1, &val);
+                }
+                return val;
+            }
 
             // ---- encoder hardware map (E1 remapped off strap pins 8/9:
             // a detent shorted both low → invalid boot strap; E1 now owns
@@ -197,7 +206,7 @@ namespace CTAG {
                     // read ADC buttons with 4-sample averaging
                     int sum = 0;
                     for (int i = 0; i < 4; i++) {
-                        sum += adc1_get_raw(ADC1_CHANNEL_1);
+                        sum += readAdcRaw();
                     }
                     int adc = sum / 4;
                     BtnADCState newState = readADCState(currentADCState, adc);
@@ -280,7 +289,7 @@ namespace CTAG {
         int UserInputDebugBtnAdc() {
             int sum = 0;
             for (int i = 0; i < 8; i++)
-                sum += adc1_get_raw(ADC1_CHANNEL_1);
+                sum += readAdcRaw();
             return sum / 8;
         }
 
@@ -297,8 +306,17 @@ namespace CTAG {
             // internal pull-up idles the pin at BTN_NONE when nothing is
             // wired (a bare board floats otherwise and the ADC state machine
             // emits garbage button events); the wired ladder overdrives it.
-            adc1_config_width(ADC_WIDTH_BIT_12);
-            adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_11);
+            adc_oneshot_unit_init_cfg_t init_config = {
+                .unit_id = ADC_UNIT_1,
+                .ulp_mode = ADC_ULP_MODE_DISABLE,
+            };
+            ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc1_handle));
+
+            adc_oneshot_chan_cfg_t chan_config = {
+                .atten = ADC_ATTEN_DB_12,
+                .bitwidth = ADC_BITWIDTH_12,
+            };
+            ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_1, &chan_config));
             gpio_pullup_en(GPIO_NUM_1);
 
             if (xTaskCreate(inputTask, "input_task", 2048, nullptr, tskIDLE_PRIORITY + 3, nullptr) != pdPASS) {
