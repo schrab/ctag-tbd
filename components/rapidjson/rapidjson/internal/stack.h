@@ -201,8 +201,13 @@ private:
     void Resize(size_t newCapacity) {
         const size_t size = GetSize();  // Backup the current size
         stack_ = static_cast<char*>(allocator_->Realloc(stack_, GetCapacity(), newCapacity));
-        stackTop_ = stack_ + size;
-        stackEnd_ = stack_ + newCapacity;
+        if (stack_ != 0) {
+            stackTop_ = stack_ + size;
+            stackEnd_ = stack_ + newCapacity;
+        } else {
+            stackTop_ = 0;
+            stackEnd_ = 0;
+        }
     }
 
     void Destroy() {

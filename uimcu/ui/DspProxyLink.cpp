@@ -294,11 +294,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 }
             }
             Document d;
-            // The params frame is handled without any DOM (its handler
-            // never touches d) — skip the parse entirely for it. Same for
-            // the tiny single-parameter value push.
+            // The params frame and plugin list frame are handled without any
+            // DOM (their handlers never touch d) — skip the parse entirely.
+            // Same for the tiny single-parameter value push.
             if (strcmp(cmd, kMsgPushParams) != 0 &&
-                strcmp(cmd, kMsgPushParamValue) != 0) {
+                strcmp(cmd, kMsgPushParamValue) != 0 &&
+                strcmp(cmd, kMsgPushPluginList) != 0) {
                 d.Parse(payload, len);
                 if (d.HasParseError() || !d.IsObject()) return;
             }
@@ -353,12 +354,16 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             }
 
             if (strcmp(cmd, kMsgPushPluginList) == 0) {
-                if (d.HasMember("list") && d["list"].IsArray()) {
-                    StringBuffer sb;
-                    Writer<StringBuffer> w(sb);
-                    d["list"].Accept(w);
-                    cachePluginList = sb.GetString();
+                const char *lp = strstr(payload, "\"list\":");
+                if (lp) {
+                    lp += 7;
+                    const char *end = payload + len - 1;
+                    while (end > lp && *end != ']') end--;
+                    if (end > lp && *lp == '[' && *end == ']') {
+                        cachePluginList.assign(lp, (size_t)(end - lp + 1));
+                    }
                 }
+                return;
             } else if (strcmp(cmd, kMsgPushParams) == 0) {
                 // NO DOM for the frame: whole-plugin params once faulted
                 // the DOM pool (malloc returned null next to NimBLE) and
