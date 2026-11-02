@@ -183,7 +183,11 @@ void ctagSPDataModel::recursiveFindAndInsert(const Value &paramF, Value &paramI)
         //printf("Matching for %s in with %s", paramF["id"].GetString(), v["id"].GetString());
         if (!paramF.HasMember("id")) return;
         if (!v.HasMember("id")) return;
-        if (paramF["id"] == v["id"]) {
+        if (v.HasMember("type") && v["type"] == "group") {
+            // Recurse into the group's params array
+            if (v.HasMember("params"))
+                recursiveFindAndInsert(paramF, v["params"]);
+        } else if (paramF["id"] == v["id"]) {
             //printf("Found, inserting data...");
             Value::MemberIterator iter = v.FindMember("current");
             if (iter == v.MemberEnd())
@@ -204,9 +208,6 @@ void ctagSPDataModel::recursiveFindAndInsert(const Value &paramF, Value &paramI)
                     iter->value = paramF["cv"].GetInt();
             }
             break;
-        } else if (v["type"] == "group") {
-            //printf("Going for a group recursion");
-            recursiveFindAndInsert(paramF, v["params"]);
         }
     }
 }

@@ -82,7 +82,7 @@
    "max": 4095
   },
   {
-   "id": "resonator",
+   "id": "gr_resonator",
    "type": "group",
    "name": "Resonator",
    "params": [
@@ -143,7 +143,7 @@
    ]
   },
   {
-   "id": "space",
+   "id": "gr_space",
    "type": "group",
    "name": "Space",
    "params": [

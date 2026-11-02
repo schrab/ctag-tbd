@@ -334,6 +334,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     size_t idlen = qe ? (size_t)(qe - id) : strlen(id);
                     for (int i = 0; i < paramTableCount[ch]; i++) {
                         DspProxy::DspParamEntry &e = paramTable[ch][i];
+                        if (e.isGroup) continue;
                         if (strncmp(e.id, id, idlen) == 0 && e.id[idlen] == '\0') {
                             if (key == 1) e.cv = val;
                             else if (key == 2) e.trig = val;
