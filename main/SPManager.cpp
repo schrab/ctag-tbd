@@ -30,6 +30,7 @@ respective component folders / files if different from this license.
 #include "codec.hpp"
 #include "InputSource.hpp"
 #include "esp_heap_caps.h"
+#include "chain_budget.hpp"
 #ifndef TBD_RADIO_FREE
 #include "network.hpp"
 #include "RestServer.hpp"
@@ -449,9 +450,33 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
         paramsResyncPending.store(true, std::memory_order_relaxed);
     }
 
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // Single-core budget cap (SDD §6.3): Elements loads de-rate based on the
+    // other channel's current plugin. Non-Elements over-cap loads are allowed
+    // but logged — operators choose, loopHist shows the result.
+    {
+        const std::string otherId = model->GetActiveProcessorID(chan == 0 ? 1 : 0);
+        const uint32_t total = CTAG::SP::ChainBudget::EstimateCycles(id.c_str()) +
+                               CTAG::SP::ChainBudget::EstimateCycles(otherId.c_str());
+        const int cap = CTAG::SP::ChainBudget::ElementsResolution(id.c_str(), otherId.c_str());
+        if (total > CTAG::SP::ChainBudget::kCapCycles) {
+            ESP_LOGW("SPManager", "chain %s + %s = %lu cycles > cap %lu%s",
+                     id.c_str(), otherId.c_str(), (unsigned long)total,
+                     (unsigned long)CTAG::SP::ChainBudget::kCapCycles,
+                     cap != 52 ? " — Elements capped" : " — allowed, watch loopHist");
+        }
+    }
+#endif
+
     // Dynamic sample rate: Elements runs at 32 kHz native rate (+37.8% CPU time
     // budget, authentic pitch & reverb tails); all other plugins run at 44.1 kHz.
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // S3: locked 44.1 kHz — the 32 kHz Elements rate was a classic-ESP32 CPU
+    // crutch; no I2S reconfig glitch on plugin load (SDD §6.2).
+    constexpr uint32_t target_rate = 44100;
+#else
     const uint32_t target_rate = (chan == 0 && id == "Elements") ? 32000 : 44100;
+#endif
     requestedSampleRate.store(target_rate, std::memory_order_relaxed);
     if (!runAudioTask) {
         DRIVERS::Codec::SetSampleRate(target_rate);
