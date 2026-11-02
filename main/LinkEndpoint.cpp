@@ -1179,7 +1179,13 @@ namespace CTAG {
             uc.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
             uc.rx_flow_ctrl_thresh = 0;
             uc.source_clk = UART_SCLK_DEFAULT;
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+            // BBA2: link UART on GPIO17 (TX) / GPIO18 (RX) (SDD §3). GPIO19/20
+            // are the native USB D± lines — never assigned here.
+            ESP_ERROR_CHECK(uart_set_pin(kUart, 17, 18, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+#else
             ESP_ERROR_CHECK(uart_set_pin(kUart, 18, 23, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+#endif
             ESP_ERROR_CHECK(uart_param_config(kUart, &uc));
             ESP_ERROR_CHECK(uart_driver_install(kUart, kRxRing, kTxRing, 0, nullptr, 0));
 
