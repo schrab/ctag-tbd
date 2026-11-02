@@ -396,11 +396,13 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
             hs.block_counter_ > 0 &&
             hs.done_seq_[read_slot].load(std::memory_order_acquire) ==
                 hs.block_counter_ - 1;
+        const HelperBlock& block = hs.blocks_[read_slot];
+        const float model_gain = (block.resonator_model == 0) ? 0.15f :
+                                 (block.resonator_model == 2 ? 0.4f : 0.75f);
         if (helper_ready) {
-            const HelperBlock& block = hs.blocks_[read_slot];
             for (std::size_t i = 0; i < kBlockSize; i++) {
-                data.buf[i * 2] = block.main[i] * 0.75f;
-                data.buf[i * 2 + 1] = block.aux[i] * 0.75f;
+                data.buf[i * 2] = block.main[i] * model_gain;
+                data.buf[i * 2 + 1] = block.aux[i] * model_gain;
             }
         } else {
             // Nothing renderable this block (first block, or the helper missed
@@ -411,9 +413,11 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
             }
             if (hs.block_counter_ > 1) {
                 const HelperBlock& prev_block = hs.blocks_[write_slot];
+                const float prev_gain = (prev_block.resonator_model == 0) ? 0.15f :
+                                        (prev_block.resonator_model == 2 ? 0.4f : 0.75f);
                 for (std::size_t i = 0; i < kBlockSize; i++) {
-                    data.buf[i * 2] = prev_block.main[i] * 0.75f;
-                    data.buf[i * 2 + 1] = prev_block.aux[i] * 0.75f;
+                    data.buf[i * 2] = prev_block.main[i] * prev_gain;
+                    data.buf[i * 2 + 1] = prev_block.aux[i] * prev_gain;
                 }
             } else {
                 for (std::size_t i = 0; i < 2 * kBlockSize; i++) {
@@ -448,15 +452,10 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
                     hs.streak_ = 0;
                     if (hs.resolution_step_ + 1 < kNumResolutionSteps) {
                         ++hs.resolution_step_;
-                        ESP_LOGW("Elements", "Helper struggling: step down to %u modes (misses=%d)",
-                                 (unsigned)kResolutionSteps[hs.resolution_step_],
-                                 (int)hs.misses_.load(std::memory_order_relaxed));
                         hs.requested_resolution_.store(
                             kResolutionSteps[hs.resolution_step_],
                             std::memory_order_release);
                     } else {
-                        ESP_LOGW("Elements", "Helper struggling at floor: stopping helper (misses=%d)",
-                                 (int)hs.misses_.load(std::memory_order_relaxed));
                         hs.deadline_fallback_ = true;
                         hs.stop_.store(true, std::memory_order_release);
                         xTaskNotifyGive(helper_task_);
@@ -496,9 +495,10 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     float out[kBlockSize], aux[kBlockSize];
     part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);
 
+    const float fallback_gain = (rModel == 0) ? 0.15f : (rModel == 2 ? 0.4f : 0.75f);
     for (std::size_t i = 0; i < kBlockSize; i++) {
-        data.buf[i * 2] = out[i] * 0.75f;
-        data.buf[i * 2 + 1] = aux[i] * 0.75f;
+        data.buf[i * 2] = out[i] * fallback_gain;
+        data.buf[i * 2 + 1] = aux[i] * fallback_gain;
     }
     PublishDebugStats();
 }
@@ -619,6 +619,14 @@ void ctagSoundProcessorElements::HelperTaskEntry(void *arg) {
 }
 
 void ctagSoundProcessorElements::HelperTask() {
+    // Flush FPU denormals (Xtensa FPU "non-standard mode": FTZ + DAZ).
+    // Decaying SVF filter states in Model 0 fall into denormals without FTZ,
+    // causing FPU microcode traps on Core 0 that blow the block budget.
+    uint32_t fcrIn = 0, fcrOut = 0;
+    asm volatile("RUR.FCR %0" : "=r"(fcrIn));
+    fcrOut = fcrIn | (1u << 5);
+    asm volatile("WUR.FCR %0" :: "r"(fcrOut));
+
     HelperShared &hs = *helper_shared_;
     hs.running_.store(true, std::memory_order_release);
     for (;;) {
