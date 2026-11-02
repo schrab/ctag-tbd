@@ -7,10 +7,12 @@ list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessorDrumRack")
 # Mbeads removed from the bundle; sources kept
 list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessorMbeads")
 # clean generated directory
-file(REMOVE_RECURSE ${CMAKE_BINARY_DIR}/gen_include)
+set(SP_GEN_INCLUDE_DIR "${CMAKE_BINARY_DIR}/gen_include")
+file(REMOVE_RECURSE "${SP_GEN_INCLUDE_DIR}")
+file(MAKE_DIRECTORY "${SP_GEN_INCLUDE_DIR}")
 # convert JSON descriptors to c headers and extract processor IDs
-set(SP_INCLUDES "" PARENT_SCOPE)
-set(BIG_IF "" PARENT_SCOPE)
+set(SP_INCLUDES "")
+set(BIG_IF "")
 foreach (VAR ${SOUND_PROCESSORS})
     get_filename_component(MYFILE_WITHOUT_EXT ${VAR} NAME_WE)
     message(STATUS "Processing ${MYFILE_WITHOUT_EXT}")
@@ -22,10 +24,10 @@ foreach (VAR ${SOUND_PROCESSORS})
 endforeach ()
 
 # write sound processor descriptor json and convert it to header file
-file(WRITE ${CMAKE_BINARY_DIR}/gen_include/ctagSoundProcessors.hpp ${SP_INCLUDES})
+file(WRITE "${SP_GEN_INCLUDE_DIR}/ctagSoundProcessors.hpp" "${SP_INCLUDES}")
 
 # create big if structure for factory
-configure_file(${COMPONENT_DIR}/ctagSoundProcessorFactory.hpp.in ${CMAKE_BINARY_DIR}/gen_include/ctagSoundProcessorFactory.hpp @ONLY)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/ctagSoundProcessorFactory.hpp.in" "${SP_GEN_INCLUDE_DIR}/ctagSoundProcessorFactory.hpp" @ONLY)
 
 # add sources to config, headers added for intellij
 file(GLOB SRCS_FILES
@@ -60,7 +62,7 @@ file(GLOB SRCS_FILES
         memory/*.c
         SimpleComp/*.h
         SimpleComp/*.cpp
-        ${CMAKE_BINARY_DIR}/gen_include/*.hpp
+        "${SP_GEN_INCLUDE_DIR}/*.hpp"
         )
 # DrumRack removed from the bundle — keep it out of the compiled library too
 list(FILTER SRCS_FILES EXCLUDE REGEX "ctagSoundProcessorDrumRack")
@@ -69,10 +71,10 @@ list(FILTER SRCS_FILES EXCLUDE REGEX "ctagSoundProcessorMbeads")
 
 if (TBD_SIM)
     add_library(ctagsp STATIC ${SRCS_FILES})
-    target_include_directories(ctagsp PRIVATE . ${CMAKE_BINARY_DIR}/gen_include)
+    target_include_directories(ctagsp PRIVATE . "${SP_GEN_INCLUDE_DIR}")
 else ()
     idf_component_register(SRCS ${SRCS_FILES}
-            INCLUDE_DIRS . helpers ${CMAKE_BINARY_DIR}/gen_include
+            INCLUDE_DIRS . helpers "${SP_GEN_INCLUDE_DIR}"
             PRIV_REQUIRES rapidjson esp-dsp mutable moog spi_flash instrumentation)
     target_compile_options(${COMPONENT_LIB} PRIVATE
             -Wno-unused-local-typedefs

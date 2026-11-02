@@ -14,7 +14,7 @@ elseif (CONFIG_TBD_PLATFORM_BBA)
     # GPIO23 is the panel-link UART RX.
     idf_component_register(SRCS fs.cpp led_rgb_bba.cpp codec_bba.cpp ${codec_src} midiuart.cpp
             INCLUDE_DIRS "."
-            REQUIRES driver esp-dsp esp_driver_i2c
+            REQUIRES driver esp-dsp esp_driver_i2c esp_driver_i2s esp_timer
             PRIV_REQUIRES fatfs)
 else()
     idf_component_register(SRCS gpio.cpp adc.cpp fs.cpp led_rgb.cpp codec.cpp ssd1306.c ssd1306_i2c.c
