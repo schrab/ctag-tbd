@@ -29,6 +29,7 @@ echo "==> Building host tests"
     -I "$SHIM" \
     -I "$HERE" \
     -I "$HELPERS" \
+    -I "$ROOT/components/ctagSoundProcessor" \
     -I "$ROOT/main" \
     -I "$PROTOCOL/include" \
     -I "$EURORACK" \
@@ -36,6 +37,7 @@ echo "==> Building host tests"
     "$HERE/test_marbles_core.cpp" \
     "$HERE/test_input_source.cpp" \
     "$HERE/test_link_protocol.cpp" \
+    "$HERE/test_chain_budget.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
     "$EURORACK/marbles/resources.cc" \
     "$EURORACK/marbles/random/t_generator.cc" \
