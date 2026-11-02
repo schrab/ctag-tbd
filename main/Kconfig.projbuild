@@ -32,15 +32,21 @@ menu "CTAG TBD Configuration"
                     bool "TI TLV320AIC3254"
             endchoice
 
-            config TBD_TOUCH_BUTTON_THRESHOLD
-                int "Touch Button Threshold"
-                default 36000
-                depends on TBD_PLATFORM_BBA
-                range 0 50000
-                help
-                    Threshold for touch buttons.
-
         endchoice
+
+        # NOTE: an int symbol defined INSIDE a choice block is treated as a
+        # (bogus) choice symbol by kconfiglib, and its `depends on
+        # TBD_PLATFORM_BBA` then forms a dependency loop through the choice
+        # — kconfgen aborts with "Dependency loop" whenever the sdkconfig is
+        # regenerated from defaults. It lives OUTSIDE the choice for that
+        # reason; the dependency keeps it BBA/BBA2-relevant.
+        config TBD_TOUCH_BUTTON_THRESHOLD
+            int "Touch Button Threshold"
+            default 36000
+            depends on TBD_PLATFORM_BBA
+            range 0 50000
+            help
+                Threshold for touch buttons.
 
 
         choice TBD_UI_TYPE

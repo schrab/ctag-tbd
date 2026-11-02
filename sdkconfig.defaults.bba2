@@ -1,0 +1,49 @@
+# BBA v2 — custom ESP32-S3-WROOM-1 (N16R8: 16 MB flash, 8 MB Octal PSRAM),
+# WM8978 codec, no card-detect, C3 panel link on UART1 (doc/bba2-esp32s3-sdd.md §4).
+# Applied as: -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.bba2"
+# (later files win for conflicting keys; this file must come last).
+
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_IDF_TARGET_ESP32S3=y
+
+# 240 MHz CPU
+CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240=y
+CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ=240
+
+# 16 MB flash QIO 80M (partition table from the common defaults:
+# dual 3.5 MB OTA + 3 MB storage + sample ROM at 0xB00000)
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+
+# 8 MB Octal PSRAM @ 80 MHz (bench configuration)
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_TYPE_AUTO=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_BOOT_INIT=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+# Native USB console (GPIO19/20), log capture = USB Serial/JTAG port
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# 1000 Hz tick (SDD decision d) — retires the pdMS_TO_TICKS(n<10) no-op class
+CONFIG_FREERTOS_HZ=1000
+
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# SD long filenames on the SDMMC FAT mount (same as a1s full config)
+CONFIG_FATFS_LFN_HEAP=y
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_ESP_INT_WDT_TIMEOUT_MS=5000
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n
+
+# Select the platform (so a plain `idf.py build` with this defaults file
+# needs no menuconfig)
+CONFIG_TBD_PLATFORM_BBA2=y
+
+# stmlib's IN_RAM macro puts tides2 render fns into a `.ramtext` section the
+# IDF 6.x S3 linker fragments don't place. The proven esp32 builds auto-placed
+# it into flash text anyway (map: .ramtext @ 0x402af4b8) — replicate that.
+CONFIG_COMPILER_ORPHAN_SECTIONS_PLACE=y

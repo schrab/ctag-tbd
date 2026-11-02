@@ -154,12 +154,18 @@ else()
             INCLUDE_DIRS eurorack rubato
             PRIV_REQUIRES ctagSoundProcessor)
 
+    # -DTEST= (empty): eurorack/plaits/user_data.h unconditionally
+    # `#define TEST`s the same empty body, and GCC 15 rejects the differing
+    # (-DTEST == 1) redefinition under -Werror. An empty -D matches the
+    # header exactly; every consumer uses #ifdef/#ifndef.
     target_compile_options(${COMPONENT_LIB} PRIVATE
             -Wno-unused-variable
             -Wno-shift-negative-value
             -Wno-unused-local-typedefs
+            $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-float-conversion>
+            $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>
             -ffast-math
-            -DTEST
+            -DTEST=
             )
 
     # The grain renderer is inlined into processor.cc; -O2 is required to

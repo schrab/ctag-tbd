@@ -34,7 +34,11 @@ midiuart::midiuart() {
             .stop_bits = UART_STOP_BITS_1,
             .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
             .rx_flow_ctrl_thresh = 0,
+            // rx_glitch_filt_thresh is new in IDF 6.x uart_config_t; GCC 15
+            // treats a partially designated-initialized struct as an error.
+            .rx_glitch_filt_thresh = 0,
             .source_clk = UART_SCLK_DEFAULT,
+            .flags = {},
     };
 // Configure UART parameters
     ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));

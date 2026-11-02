@@ -21,9 +21,10 @@ bool wm8978::ensure_bus() {
     cfg.i2c_port = -1; // auto-select, same strategy as es8388.cpp
     cfg.sda_io_num = (gpio_num_t)WM8978_SDA_PIN;
     cfg.scl_io_num = (gpio_num_t)WM8978_SCL_PIN;
-    cfg.sda_pullup_en = GPIO_PULLUP_ENABLE;
-    cfg.scl_pullup_en = GPIO_PULLUP_ENABLE;
-    cfg.clk_flags = 0; // default clock source
+    cfg.clk_source = I2C_CLK_SRC_DEFAULT;
+    cfg.glitch_ignore_cnt = 7;
+    cfg.intr_priority = 1;
+    cfg.flags.enable_internal_pullup = 1;
     if (i2c_new_master_bus(&cfg, &s_bus) != ESP_OK) {
         ESP_LOGE(TAG, "i2c bus init failed");
         return false;

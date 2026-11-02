@@ -32,7 +32,14 @@ void LedRGB::InitLedRGB() {
     ESP_LOGI("RGBLed", "RGB LED strip initialization");
     /* LED strip initialization with the GPIO and pixels number*/
     led_strip_config_t strip_config = {
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+            // BBA2 has no WS2812 at all; InitLedRGB is dead code (P6 cutover).
+            // GPIO_NUM_23 does not exist on ESP32-S3, so pick any valid pin to
+            // keep the A1S-shared file compiling.
+            .strip_gpio_num = GPIO_NUM_21,
+#else
             .strip_gpio_num = GPIO_NUM_23,
+#endif
             .max_leds = 1, // at least one LED on board
             .led_model = LED_MODEL_WS2812,
 #ifdef LED_STRIP_COLOR_COMPONENT_FMT_GRB
@@ -40,6 +47,10 @@ void LedRGB::InitLedRGB() {
 #else
             .led_pixel_format = LED_PIXEL_FORMAT_GRB,
 #endif
+            // `timings` is new in the IDF 6.x led_strip_config_t; GCC 15
+            // treats a partially designated-initialized struct as an error.
+            // Zero timings are ignored for non-CUSTOM led models.
+            .timings = {},
             .flags = {
                     .invert_out = 0,
             },

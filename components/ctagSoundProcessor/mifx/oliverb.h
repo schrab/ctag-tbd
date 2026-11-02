@@ -33,8 +33,23 @@
 #include "stmlib/stmlib.h"
 
 #include "fx_engine.h"
+// Self-sufficiency: this header uses clouds::lut_window and LUT_WINDOW_SIZE
+// but relied on another TU member (e.g. the Claude plugin hpp) having
+// included clouds/resources.h first. The generated aggregator #undefs the
+// shared LUT_* macros before every plugin include, so the dependency must
+// be explicit now.
+#include "clouds/resources.h"
 #include "clouds/dsp/frame.h"
 #include "random_oscillator.h"
+
+// LUT_WINDOW_SIZE (clouds: 4097) is one of the macro names the generated
+// plugin aggregator #undefs before every include (shared across Mutable
+// modules with different values). clouds/resources.h may already have been
+// consumed via #pragma once earlier in the TU, so pin the value here —
+// this header only ever consumes clouds' lut_window table.
+#ifndef LUT_WINDOW_SIZE
+#define LUT_WINDOW_SIZE 4097
+#endif
 
 namespace mifx {
 

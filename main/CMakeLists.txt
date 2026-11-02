@@ -51,11 +51,15 @@ if(TBD_RADIO_FREE)
     target_compile_definitions(${COMPONENT_LIB} PRIVATE TBD_RADIO_FREE=1)
 endif()
 
+# The main component compiles every plugin hpp (via the generated
+# ctagSoundProcessors.hpp), pulling in vendored Mutable/rubato headers that
+# GCC 15 flags under -Werror (deprecated-enum-float-conversion in rplaits,
+# volatile assignments in stmlib). Suppressed here and in the mutable /
+# ctagSoundProcessor components; the LUT macro collisions are handled by the
+# #undef sandwich in the generated aggregator.
 target_compile_options(${COMPONENT_LIB} PRIVATE
         -Wno-unused-local-typedefs
-        )
-
-target_compile_options(${COMPONENT_LIB} PRIVATE
-        -Wno-unused-local-typedefs
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-float-conversion>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>
         )
 
