@@ -17,6 +17,7 @@
 #include "dsp_platform.h"
 #include "esp_log.h"
 
+#include "dsp_tests.h"
 #include "dsps_sub.h"
 #include "esp_attr.h"
 
@@ -29,8 +30,8 @@ TEST_CASE("dsps_sub_f32_ansi functionality", "[dsps]")
     float y[n];
     float z[n];
     for (int i = 0 ; i < n ; i++) {
-        x[i] = i*3;
-        y[i] = i*2;
+        x[i] = i * 3;
+        y[i] = i * 2;
         z[i] = i;
     }
     dsps_sub_f32_ansi(x, y, x, n, 1, 1, 1);
@@ -41,18 +42,18 @@ TEST_CASE("dsps_sub_f32_ansi functionality", "[dsps]")
     }
 }
 
-TEST_CASE("dsps_sub_f32_ae32 functionality", "[dsps]")
+TEST_CASE("dsps_sub_f32 functionality", "[dsps]")
 {
     int n = 32;
     float x[n];
     float y[n];
     float z[n];
     for (int i = 0 ; i < n ; i++) {
-        x[i] = i*3;
-        y[i] = i*2;
+        x[i] = i * 3;
+        y[i] = i * 2;
         z[i] = i;
     }
-    dsps_sub_f32_ae32(x, y, x, n, 1, 1, 1);
+    dsps_sub_f32(x, y, x, n, 1, 1, 1);
     for (int i = 0 ; i < n ; i++) {
         if (x[i] != z[i]) {
             TEST_ASSERT_EQUAL(x[i], z[i]);
@@ -60,13 +61,13 @@ TEST_CASE("dsps_sub_f32_ae32 functionality", "[dsps]")
     }
 
     int repeat_count = 1;
-    dsps_sub_f32_ae32(x, x, x, n, 1, 1, 1);
+    dsps_sub_f32(x, x, x, n, 1, 1, 1);
 
-    unsigned int start_b = xthal_get_ccount();    
-    dsps_sub_f32_ae32(x, x, x, n, 1, 1, 1);
-    unsigned int end_b = xthal_get_ccount();
+    unsigned int start_b = dsp_get_cpu_cycle_count();
+    dsps_sub_f32(x, x, x, n, 1, 1, 1);
+    unsigned int end_b = dsp_get_cpu_cycle_count();
 
     float total_b = end_b - start_b;
     float cycles = total_b / (n * repeat_count);
-    ESP_LOGI(TAG, "dsps_sub_f32_ae32 - %f cycles per sample \n", cycles);
+    ESP_LOGI(TAG, "dsps_sub_f32 - %f cycles per sample \n", cycles);
 }

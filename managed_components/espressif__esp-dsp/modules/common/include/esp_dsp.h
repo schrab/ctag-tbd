@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Espressif Systems (Shanghai) PTE LTD
+// Copyright 2018-2023 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ extern "C"
 #include "dsps_dotprod.h"
 #include "dsps_math.h"
 #include "dsps_fir.h"
+#include "dsps_resampler.h"
 #include "dsps_biquad.h"
 #include "dsps_biquad_gen.h"
 #include "dsps_wind.h"
@@ -45,14 +46,14 @@ extern "C"
 #include "dsps_dct.h"
 
 // Matrix operations
-#include "dspm_mult.h"
+#include "dspm_matrix.h"
 
 // Support functions
 #include "dsps_view.h"
 
 // Image processing functions:
 #include "dspi_dotprod.h"
-
+#include "dspi_conv.h"
 
 #ifdef __cplusplus
 }

@@ -39,13 +39,13 @@ void app_main()
     float pi = std::atan(1) * 4;
 
     // gyroscope bias error
-    float gyro_err_data[] = {0.1, 0.2, 0.3}; // static constatnt error
+    float gyro_err_data[] = {0.1, 0.2, 0.3}; // static constant error
     dspm::Mat gyro_err(gyro_err_data, 3, 1);
 
 
     // Measurement noise covariance values for diagonal covariance matrix.
     // For the real system these values could be adjusted!
-    // These calues depends on how noisy the measurement.
+    // These values depends on how noisy the measurement.
     //
     float R[10];
     for (size_t i = 0; i < 10; i++) {
@@ -132,10 +132,10 @@ void app_main()
 
     count = 0;
     // Set initial state
-    ekf13->X(0,0) = 1;
-    ekf13->X(0,1) = 0;
-    ekf13->X(0,2) = 0;
-    ekf13->X(0,3) = 0;
+    ekf13->X(0, 0) = 1;
+    ekf13->X(0, 1) = 0;
+    ekf13->X(0, 2) = 0;
+    ekf13->X(0, 3) = 0;
 
     for (size_t n = 1; n < total_N * 16; n++) {
         if ((n % 1000) == 0) {
@@ -191,6 +191,6 @@ void app_main()
     std::cout << "Estimated error : " << estimated_error.t();
     std::cout << "Difference between real and estimated errors : " << (gyro_err - estimated_error).t() << std::endl;
 
-    std::cout << "Expected Euler angels (degree) : " << (180/pi*ekf::quat2eul(ekf::rotm2quat(Rm).data)).t();
-    std::cout << "Calculated Euler angels (degree) : " << (180/pi*ekf::quat2eul(ekf13->X.data)).t() << std::endl;
+    std::cout << "Expected Euler angels (degree) : " << (180 / pi * ekf::quat2eul(ekf::rotm2quat(Rm).data)).t();
+    std::cout << "Calculated Euler angels (degree) : " << (180 / pi * ekf::quat2eul(ekf13->X.data)).t() << std::endl;
 }

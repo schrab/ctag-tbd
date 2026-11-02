@@ -2,9 +2,7 @@ LittleFS for ESP-IDF.
 
 # What is LittleFS?
 
-[LittleFS](https://github.com/ARMmbed/littlefs) is a small fail-safe filesystem 
-for microcontrollers. We ported LittleFS to esp-idf (specifically, the ESP32) 
-because SPIFFS was too slow, and FAT was too fragile.
+[LittleFS](https://github.com/ARMmbed/littlefs) is a small fail-safe filesystem for microcontrollers. We ported LittleFS to esp-idf (specifically, the ESP32) because SPIFFS was too slow, and FAT was too fragile.
 
 # How to Use
 
@@ -15,7 +13,7 @@ There are two ways to add this component to your project
 1. As a ESP-IDF managed component: In your project directory run
 
 ```
-idf.py add-dependency joltwallet/littlefs==1.14.8
+idf.py add-dependency joltwallet/littlefs==1.23.1
 ```
 
 2. As a submodule: In your project, add this as a submodule to your `components/` directory.
@@ -28,9 +26,11 @@ git submodule update --init --recursive
 The library can be configured via `idf.py menuconfig` under `Component config->LittleFS`.
 
 #### Example
+
 User @wreyford has kindly provided a [demo repo](https://github.com/wreyford/demo_esp_littlefs) showing the use of `esp_littlefs`. A modified copy exists in the `example/` directory.
 
 ## PlatformIO
+
 Add to the following line to your project's `platformio.ini` file:
 
 ```
@@ -62,7 +62,7 @@ nvs,      data, nvs,      0x9000,  0x5000,
 otadata,  data, ota,      0xe000,  0x2000,
 app0,     app,  ota_0,    0x10000, 0x1E0000,
 app1,     app,  ota_1,    0x1F0000,0x1E0000,
-littlefs, data, spiffs,   0x3D0000,0x20000,
+littlefs, data, littlefs,   0x3D0000,0x20000,
 coredump, data, coredump, 0x3F0000,0x10000,
 ```
 
@@ -95,26 +95,41 @@ An entry `Component config->LittleFS` should be available for configuration. If 
 
 # Documentation
 
-See the official [ESP-IDF SPIFFS documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/spiffs.html), basically all the functionality is the 
-same; just replace `spiffs` with `littlefs` in all function calls.
+See the official [ESP-IDF SPIFFS documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/spiffs.html), basically all the functionality is the same; just replace `spiffs` with `littlefs` in all function calls.
 
 Also see the comments in `include/esp_littlefs.h`
 
 Slight differences between this configuration and SPIFFS's configuration is in the `esp_vfs_littlefs_conf_t`:
 
 1. `max_files` field doesn't exist since we removed the file limit, thanks to @X-Ryl669
-2. `partition_label` is not allowed to be `NULL`. You must specify the partition name from your partition table. This is because there isn't a define `littlefs` partition subtype in `esp-idf`. The subtype doesn't matter.
-    * Alternatively, you can specify an `esp_partition_t*` to a `partition` and set `partition_label=NULL`.
-3. `grow_on_mount` will expand an existing filesystem to fill the partition. Defaults to `false`.
+2. `grow_on_mount` will expand an existing filesystem to fill the partition. Defaults to `false`.
     * LittleFS filesystems can only grow, they cannot shrink.
+
+### Using the raw LittleFS API
+
+The POSIX/VFS layer described above is the intended way to use this component, but the raw LittleFS API (`lfs_t`, `struct lfs_config`, `lfs_*`) can be published as well. It is gated behind an explicit opt-in, so that including the headers is always a deliberate choice. Either enable `Component config -> LittleFS -> Expose the raw upstream LittleFS API` in menuconfig:
+
+```
+CONFIG_LITTLEFS_EXPOSE_RAW_API=y
+```
+
+or add `-DESP_LITTLEFS_RAW_API` to the consuming component's compile flags. Without the opt-in, including the headers stops the build with an error pointing here.
+
+```c
+#include "lfs.h"
+```
+
+The raw API needs its own block-device callbacks (`read` / `prog` / `erase` / `sync`). Do not mount the same partition through VFS and the raw API at the same time: the VFS layer serializes access with an internal lock that the raw API does not share. Driving a *different* partition with the raw API while VFS serves another one is safe.
 
 ### Filesystem Image Creation
 
 At compile time, a filesystem image can be created and flashed to the device by adding the following to your project's `CMakeLists.txt` file:
 
 ```
-littlefs_create_partition_image(partition_name path_to_folder_containing_files)
+littlefs_create_partition_image(partition_name path_to_folder_containing_files FLASH_IN_PROJECT)
 ```
+
+If `FLASH_IN_PROJECT` is not specified, the image will still be generated, but you will have to flash it manually using `esptool.py`, `parttool.py`, or a custom build system target.
 
 For example, if your partition table looks like:
 
@@ -123,15 +138,25 @@ For example, if your partition table looks like:
 nvs,      data, nvs,      0x9000,  0x6000,
 phy_init, data, phy,      0xf000,  0x1000,
 factory,  app,  factory,  0x10000, 1M,
-graphics,  data, spiffs,         ,  0xF0000, 
+graphics,  data, spiffs,         ,  0xF0000,
 ```
 
-and your project has a folder called `device_graphics`, your call should be:
+change it to:
 
 ```
-littlefs_create_partition_image(graphics device_graphics)
+# Name,   Type, SubType,  Offset,  Size, Flags
+nvs,      data, nvs,      0x9000,  0x6000,
+phy_init, data, phy,      0xf000,  0x1000,
+factory,  app,  factory,  0x10000, 1M,
+graphics,  data, littlefs,         ,  0xF0000,
 ```
 
+
+and your project has a folder called `device_graphics/`, your call should be:
+
+```
+littlefs_create_partition_image(graphics device_graphics FLASH_IN_PROJECT)
+```
 
 
 # Performance
@@ -167,7 +192,7 @@ LittleFS (cache=4096):          6,026,592 us
 ```
 
 In the above test, SPIFFS drastically slows down as the filesystem fills up. Below
-is the specific breakdown of file write times for SPIFFS. Not sure what happens 
+is the specific breakdown of file write times for SPIFFS. Not sure what happens
 on the last file write.
 
 
@@ -216,6 +241,8 @@ LittleFS (cache=4096):             27,709 us
 
 # Running Unit Tests
 
+## ESP-IDF v5.x
+
 To flash the unit-tester app and the unit-tests, clone or symbolicly link this
 component to `$IDF_PATH/tools/unit-test-app/components/littlefs`. Make sure the
 folder name is `littlefs`, not `esp_littlefs`. Then, run the following:
@@ -246,6 +273,19 @@ The unit tester can then be flashed via the command:
 ```
 idf.py -T littlefs -p YOUR_PORT_HERE encrypted-flash monitor
 ```
+
+## ESP-IDF v6.0+
+
+ESP-IDF v6.0 removed the legacy `unit-test-app`. Instead, use the standalone test app in `test_apps/`:
+
+```
+cd test_apps
+idf.py set-target esp32  # Or your target
+idf.py build
+idf.py -p YOUR_PORT_HERE flash monitor
+```
+
+Once running, press Enter to see the test menu. You can run all tests by typing `*` or run specific tests by name or number.
 
 # Breaking Changes
 

@@ -51,7 +51,7 @@ esp_err_t dsps_cplx_gen_init(cplx_sig_t *cplx_gen, out_d_type d_type, void *lut,
     // LUT table coefficients generation
     if (lut == NULL) {                      // lut has not been provided by an user. Allocate and initialize it
         cplx_gen->free_status |= 0x0001;    // lut has been allocated, free_status indicates that the space must be freed afterwards
-        
+
         if (cplx_gen->d_type == S16_FIXED) {                    // Q15 fixed point
             int16_t *local_lut = (int16_t *)malloc(cplx_gen->lut_len * sizeof(int16_t));
 
@@ -93,7 +93,7 @@ float dsps_cplx_gen_freq_get(cplx_sig_t *cplx_gen)
 {
     // Check if the structure was initialized
     if (!dsp_is_power_of_two(cplx_gen->lut_len)) {
-        ESP_LOGE(TAG, "cplx_gen strucure was not initialized");
+        ESP_LOGE(TAG, "cplx_gen structure was not initialized");
         return -2;
     }
 
@@ -115,7 +115,7 @@ float dsps_cplx_gen_phase_get(cplx_sig_t *cplx_gen)
 {
     // Check if the structure was initialized
     if (!dsp_is_power_of_two(cplx_gen->lut_len)) {
-        ESP_LOGE(TAG, "cplx_gen strucure was not initialized");
+        ESP_LOGE(TAG, "cplx_gen structure was not initialized");
         return -2;
     }
 

@@ -23,7 +23,7 @@
 // The function implements the following C code:
 //esp_err_t dsps_fir_f32_aes3(fir_f32_t* fir, const float* input, float* output, int len);
 
-dsps_fir_f32_aes3: 
+dsps_fir_f32_aes3:
 // fir      - a2
 // input    - a3
 // output   - a4

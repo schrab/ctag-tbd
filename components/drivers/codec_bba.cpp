@@ -104,7 +104,7 @@ void Codec::InitCodec() {
     // that must run outside the I2S DMA spinlock to avoid IWDG timeout
     uint8_t mac[6];
     esp_efuse_mac_get_default(mac);
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(i2s_port_t(0), I2S_ROLE_MASTER);
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     chan_cfg.auto_clear = false;
     // TODO is 4 dma descriptors enough? -> any effect on latency, started with 4 but sometime there was noise
     // TODO can be estimated from this https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/i2s.html

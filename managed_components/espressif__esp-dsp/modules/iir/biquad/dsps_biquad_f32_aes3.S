@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Espressif Systems (Shanghai) PTE LTD
+// Copyright 2025 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License. 
 
 #include "dsps_biquad_platform.h"
-//#if (dsps_biquad_f32_aes3_enabled == 1)
+#if (dsps_biquad_f32_aes3_enabled == 1)
 
 // This is bi quad filter form II for ESP32 processor.
 	.text
@@ -86,4 +86,4 @@ dsps_biquad_f32_aes3:
 	movi.n	a2, 0 // return status ESP_OK
 	retw.n
 
-//#endif // dsps_biquad_f32_aes3_enabled
+#endif // dsps_biquad_f32_aes3_enabled

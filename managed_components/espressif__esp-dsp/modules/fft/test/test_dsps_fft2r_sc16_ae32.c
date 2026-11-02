@@ -17,6 +17,7 @@
 #include "esp_dsp.h"
 #include "dsp_platform.h"
 #include "esp_log.h"
+#include <malloc.h>
 
 #include "dsps_view.h"
 #include "dsps_fft2r.h"
@@ -25,46 +26,47 @@
 static const char *TAG = "dsps_fft2r_ae32_s16";
 
 
-__attribute__((aligned(16)))
-static int16_t data[1024*2];
-__attribute__((aligned(16)))
-static float result_data[1024*2];
-
 TEST_CASE("dsps_fft2r_sc16_aexx functionality", "[dsps]")
 {
-    int N = sizeof(data) / sizeof(int16_t) / 2;
-    N = 1024;
+    int N = 1024;
+
+    int16_t *data = (int16_t *)memalign(N, sizeof(int16_t) * N * 2 + 16);
+    TEST_ASSERT_NOT_NULL(data);
+
+    float *result_data = (float *)memalign(N, sizeof(float) * N * 2 + 16);
+    TEST_ASSERT_NOT_NULL(result_data);
+
+
     int check_bin = 64;
     for (int i = 0 ; i < N ; i++) {
-        data[i * 2 + 0] = (INT16_MAX)*sin(M_PI / N * check_bin *2* i)*0.5 * (1 - cosf(i * 2 * M_PI / (float)(N-1)));
+        data[i * 2 + 0] = (INT16_MAX) * sin(M_PI / N * check_bin * 2 * i) * 0.5 * (1 - cosf(i * 2 * M_PI / (float)(N - 1)));
         data[i * 2 + 1] = 0;
     }
-
+    data[N * 2 + 0] = 0xdead;
+    data[N * 2 + 1] = 0xbeef;
     esp_err_t ret = dsps_fft2r_init_sc16(NULL, CONFIG_DSP_MAX_FFT_SIZE);
     TEST_ESP_OK(ret);
 
     ESP_LOGI(TAG, "data address=%8.8"PRIx32"\n", (uint32_t)data);
 
     dsps_fft2r_sc16(data, N);
-    unsigned int start_b = xthal_get_ccount();
+    unsigned int start_b = dsp_get_cpu_cycle_count();
     dsps_bit_rev_sc16_ansi(data, N);
-    unsigned int end_b = xthal_get_ccount();
+    unsigned int end_b = dsp_get_cpu_cycle_count();
 
 
-    for (int i=0 ; i< N ; i++)
-    {
-        ESP_LOGD(TAG, "Data[%i] %04x\n", i/2, data[i]);
+    for (int i = 0 ; i < N ; i++) {
+        ESP_LOGD(TAG, "Data[%i] %04x\n", i / 2, data[i]);
     }
 
     float min = 10000;
     float max = -10000;
     int max_pos = 0;
-    for (int i = 0 ; i < (N*2) ; i++)
-    {
+    for (int i = 0 ; i < (N * 2) ; i++) {
         result_data[i] = data[i];
-        result_data[i] = result_data[i]/INT16_MAX;
+        result_data[i] = result_data[i] / INT16_MAX;
     }
-    
+
     for (int i = 0 ; i < N ; i++) {
         result_data[i] = 10 * log10f(0.0000000000001 + result_data[i * 2 + 0] * result_data[i * 2 + 0] + result_data[i * 2 + 1] * result_data[i * 2 + 1]);
         if (result_data[i] < min) {
@@ -77,62 +79,72 @@ TEST_CASE("dsps_fft2r_sc16_aexx functionality", "[dsps]")
         ESP_LOGD(TAG, "FFT Data[%i] =%8.4f dB", i, result_data[i]);
     }
     dsps_view_spectrum(result_data, N, -100, 0);
-    float round_pow = round(max*5);
+    float round_pow = round(max * 5);
 
     ESP_LOGI(TAG, "max_bin=%i, check_bin=%i, round_pow=%f\n", max_pos, check_bin, round_pow);
 
 
-    if (max_pos < N/2) TEST_ASSERT_EQUAL( check_bin, max_pos);
-    else TEST_ASSERT_EQUAL( N - check_bin, max_pos);
+    if (max_pos < N / 2) {
+        TEST_ASSERT_EQUAL( check_bin, max_pos);
+    } else {
+        TEST_ASSERT_EQUAL( N - check_bin, max_pos);
+    }
 
-    TEST_ASSERT_EQUAL( -12*5, round_pow);
+    TEST_ASSERT_EQUAL( -12 * 5, round_pow);
 
     ESP_LOGI(TAG, "Calculation error is less then 0.2 dB");
     ESP_LOGI(TAG, "cycles - %i", end_b - start_b);
     dsps_fft2r_deinit_sc16();
+    free(data);
+    free(result_data);
 }
 
 
 TEST_CASE("dsps_fft2r_sc16_aexx overflow check", "[dsps]")
 {
-    int N = sizeof(data) / sizeof(int16_t) / 2;
-    N = 1024;
+    int N = 1024;
+
+    int16_t *data = (int16_t *)memalign(N, sizeof(int16_t) * N * 2 + 16);
+    TEST_ASSERT_NOT_NULL(data);
+
+    float *result_data = (float *)memalign(N, sizeof(float) * N * 2 + 16);
+    TEST_ASSERT_NOT_NULL(result_data);
+
     int check_bin = 32;
     int bins_count = 4;
     for (int i = 0 ; i < N ; i++) {
-            data[i * 2 + 0] = 0;
-            data[i * 2 + 1] = 0;
-        for (int n=1; n<=bins_count ; n++ )
-        {
-            data[i * 2 + 0] += (INT16_MAX)*cos(M_PI / N * check_bin *2* i*n)/bins_count;
-            data[i * 2 + 1] += (INT16_MAX)*sin(M_PI / N * check_bin *2* i*n)/bins_count;
+        data[i * 2 + 0] = 0;
+        data[i * 2 + 1] = 0;
+        for (int n = 1; n <= bins_count ; n++ ) {
+            data[i * 2 + 0] += (INT16_MAX) * cos(M_PI / N * check_bin * 2 * i * n) / bins_count;
+            data[i * 2 + 1] += (INT16_MAX) * sin(M_PI / N * check_bin * 2 * i * n) / bins_count;
         }
     }
 
     esp_err_t ret = dsps_fft2r_init_sc16(NULL, CONFIG_DSP_MAX_FFT_SIZE);
     TEST_ESP_OK(ret);
 
+    data[N * 2 + 0] = 0xdead;
+    data[N * 2 + 1] = 0xbeef;
 
     dsps_fft2r_sc16(data, N);
-    unsigned int start_b = xthal_get_ccount();
+    unsigned int start_b = dsp_get_cpu_cycle_count();
     dsps_bit_rev_sc16_ansi(data, N);
-    unsigned int end_b = xthal_get_ccount();
+    unsigned int end_b = dsp_get_cpu_cycle_count();
 
 
-    for (int i=0 ; i< N ; i++)
-    {
-        ESP_LOGD(TAG, "Data[%i] %04x\n", i/2, data[i]);
+    for (int i = 0 ; i < N ; i++) {
+        ESP_LOGD(TAG, "Data[%i] %04x\n", i / 2, data[i]);
     }
 
     float min = 10000;
     float max = -10000;
     int max_pos = 0;
-    for (int i = 0 ; i < (N*2) ; i++)
-    {
+    for (int i = 0 ; i < (N * 2) ; i++) {
         result_data[i] = data[i];
-        result_data[i] = result_data[i]/INT16_MAX;
+        result_data[i] = result_data[i] / INT16_MAX;
     }
-    
+
     for (int i = 0 ; i < N ; i++) {
         result_data[i] = 10 * log10f(0.0000000000001 + result_data[i * 2 + 0] * result_data[i * 2 + 0] + result_data[i * 2 + 1] * result_data[i * 2 + 1]);
         if (result_data[i] < min) {
@@ -145,45 +157,53 @@ TEST_CASE("dsps_fft2r_sc16_aexx overflow check", "[dsps]")
         ESP_LOGD(TAG, "FFT Data[%i] =%8.4f dB", i, result_data[i]);
     }
     dsps_view_spectrum(result_data, N, -100, 0);
-    float round_pow = round(max*5);
+    float round_pow = round(max * 5);
 
     float noise_pow = -100;
-    for (int i=(bins_count*check_bin + 10) ; i< N ; i++)
-    {
-        if (result_data[i] > noise_pow)
-        {
+    for (int i = (bins_count * check_bin + 10) ; i < N ; i++) {
+        if (result_data[i] > noise_pow) {
             noise_pow = result_data[i];
         }
     }
     ESP_LOGI(TAG, "max_bin=%i, check_bin=%i, round_pow=%f, noise power=%f\n", max_pos, check_bin, round_pow, noise_pow);
 
-    if (noise_pow > (-65)) 
-    {
+    if (noise_pow > (-65)) {
         TEST_ASSERT_MESSAGE (false, "Noise power is more than expected!");
+    }
+    if (((uint16_t *)data)[N * 2 + 0] != 0xdead) {
+        TEST_ASSERT_MESSAGE (false, "Buffer overrun!");
+    }
+    if (((uint16_t *)data)[N * 2 + 1] != 0xbeef) {
+        TEST_ASSERT_MESSAGE (false, "Buffer overrun!");
     }
 
     ESP_LOGI(TAG, "cycles - %i", end_b - start_b);
     dsps_fft2r_deinit_sc16();
+    free(data);
+    free(result_data);
 }
 
 TEST_CASE("dsps_fft2r_sc16_ae32 benchmark", "[dsps]")
-{    
+{
+    int16_t *data = (int16_t *)memalign(1024, sizeof(int16_t) * 1024 * 2);
+    TEST_ASSERT_NOT_NULL(data);
+
     esp_err_t ret = dsps_fft2r_init_sc16(NULL, CONFIG_DSP_MAX_FFT_SIZE);
     TEST_ESP_OK(ret);
 
-    for (int i= 5 ; i< 10 ; i++)
-    {
-        int N_check = 2<<i;
-        unsigned int start_b = xthal_get_ccount();
+    for (int i = 5 ; i < 10 ; i++) {
+        int N_check = 2 << i;
+        unsigned int start_b = dsp_get_cpu_cycle_count();
         dsps_fft2r_sc16(data, N_check);
 
-        unsigned int end_b = xthal_get_ccount();
+        unsigned int end_b = dsp_get_cpu_cycle_count();
         float total_b = end_b - start_b;
         float cycles = total_b;
         ESP_LOGI(TAG, "Benchmark dsps_fft2r_sc16_aexx - %6i cycles for %6i points FFT.", (int)cycles, N_check);
         float min_exec = 3;
-        float max_exec = 330000*3;
+        float max_exec = 330000 * 3;
         TEST_ASSERT_EXEC_IN_RANGE(min_exec, max_exec, cycles);
     }
     dsps_fft2r_deinit_sc16();
+    free(data);
 }

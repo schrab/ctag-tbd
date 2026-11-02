@@ -1,5 +1,295 @@
 # Changelog
 
+## [1.14.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.14.1)
+
+### Bug Fixes
+
+- Fix OOB access in mdns debug logs ([397820ad](https://github.com/espressif/esp-protocols/commit/397820ad))
+
+## [1.14.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.14.0)
+
+### Features
+
+- mdns cache natrual TTL expiration ([be666607](https://github.com/espressif/esp-protocols/commit/be666607))
+- Add subtype-aware local service lookup APIs ([65a3a57b](https://github.com/espressif/esp-protocols/commit/65a3a57b))
+
+### Bug Fixes
+
+- Enable IPv6 on the right interface for GOT_IP6 ([eb5d2f36](https://github.com/espressif/esp-protocols/commit/eb5d2f36))
+- Don't advertise A record with 0.0.0.0 address ([76760948](https://github.com/espressif/esp-protocols/commit/76760948))
+- Distinguish TXT item with no value and empty value in responder ([47f8ab48](https://github.com/espressif/esp-protocols/commit/47f8ab48))
+- Distinguish TXT item with no value and empty value in cache ([95a1f604](https://github.com/espressif/esp-protocols/commit/95a1f604))
+
+### Updated
+
+- test(mdns): update host unit tests for cache expiry ([d9fb726f](https://github.com/espressif/esp-protocols/commit/d9fb726f))
+- test(mdns): Add host unit tests for mdns_browse ([ee59cf7b](https://github.com/espressif/esp-protocols/commit/ee59cf7b))
+- test(mdns): Added host unit tests for mdns_cache ([63be8715](https://github.com/espressif/esp-protocols/commit/63be8715))
+
+## [1.13.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.13.1)
+
+### Bug Fixes
+
+- Completely remove test_apps ([19cc175e](https://github.com/espressif/esp-protocols/commit/19cc175e))
+- Migrate test_apps to host tests ([9cdec857](https://github.com/espressif/esp-protocols/commit/9cdec857))
+- Ensure buffer is always NUL-terminated in rx_staged_ip_add() ([b370a9ab](https://github.com/espressif/esp-protocols/commit/b370a9ab))
+
+## [1.13.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.13.0)
+
+### Features
+
+- Use mdns_cache for browse notifications ([ff5bf666](https://github.com/espressif/esp-protocols/commit/ff5bf666))
+
+### Bug Fixes
+
+- Fix mdns parser to expand per one service question ([c56c725d](https://github.com/espressif/esp-protocols/commit/c56c725d))
+- Fix mdns_mem_strndup() in host unit test stub ([18d5421d](https://github.com/espressif/esp-protocols/commit/18d5421d))
+
+## [1.12.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.12.0)
+
+### Features
+
+- add hostname change callback ([c2cd90b0](https://github.com/espressif/esp-protocols/commit/c2cd90b0))
+- Make mDNS browse feature optional ([2e0c2540](https://github.com/espressif/esp-protocols/commit/2e0c2540))
+
+### Bug Fixes
+
+- Update supported/tested IDF version matrix ([e8427217](https://github.com/espressif/esp-protocols/commit/e8427217))
+- Fix mdns browse SYNC vs. END race ([1b83e978](https://github.com/espressif/esp-protocols/commit/1b83e978))
+- Only depend on esp_wifi when Wi-Fi is enabled ([47724b7d](https://github.com/espressif/esp-protocols/commit/47724b7d), [#835](https://github.com/espressif/esp-protocols/issues/835))
+- Update host test to check goodbye and browse dupl ([ab03980d](https://github.com/espressif/esp-protocols/commit/ab03980d))
+- Fix mdns_browse_new() return dangling pointer on duplicated browsers ([e063449c](https://github.com/espressif/esp-protocols/commit/e063449c))
+- Create static task only when SPIRAM-task-alloc is ON ([6f31f27f](https://github.com/espressif/esp-protocols/commit/6f31f27f))
+- validate subtype label position ([a09b24fe](https://github.com/espressif/esp-protocols/commit/a09b24fe))
+- ignore subtype SRV and TXT questions ([7910501d](https://github.com/espressif/esp-protocols/commit/7910501d))
+- distinguish subtype queries from instances ([b9103169](https://github.com/espressif/esp-protocols/commit/b9103169))
+- Don't free a browse result already freed by an earlier sync batch ([9057f2d9](https://github.com/espressif/esp-protocols/commit/9057f2d9))
+
+### Updated
+
+- test(mdns): add hostname callback target test ([4c8b76dd](https://github.com/espressif/esp-protocols/commit/4c8b76dd))
+- test(mdns): add hostname callback host test ([1f35d5f3](https://github.com/espressif/esp-protocols/commit/1f35d5f3))
+- test(mdns): cover subtype query handling ([c14ed4fc](https://github.com/espressif/esp-protocols/commit/c14ed4fc))
+- refactor(mdns): share debug name formatting ([8c7bc865](https://github.com/espressif/esp-protocols/commit/8c7bc865))
+
+## [1.11.3](https://github.com/espressif/esp-protocols/commits/mdns-v1.11.3)
+
+### Features
+
+- Add a structure and APIs for allocating TXT items with given value length ([234f9f00](https://github.com/espressif/esp-protocols/commit/234f9f00))
+
+### Bug Fixes
+
+- Fix potential browse null instance crash caught by fuzzer ([953c3a78](https://github.com/espressif/esp-protocols/commit/953c3a78))
+- fix deadlock caused by re-acquiring the service lock ([88c68330](https://github.com/espressif/esp-protocols/commit/88c68330))
+- free dropped TXT query results when max results reached ([f81720b7](https://github.com/espressif/esp-protocols/commit/f81720b7))
+
+## [1.11.2](https://github.com/espressif/esp-protocols/commits/mdns-v1.11.2)
+
+### Bug Fixes
+
+- Fix Unbounded recursion in mDNS name decompression ([95c882c7](https://github.com/espressif/esp-protocols/commit/95c882c7))
+- Fix wrong "truncated AAAA" error ([fc5e6787](https://github.com/espressif/esp-protocols/commit/fc5e6787))
+- Add unit tests for fa84ee6e4 ([8d7b9432](https://github.com/espressif/esp-protocols/commit/8d7b9432))
+- guard null TXT values in browse TXT comparison ([1b4fcb0c](https://github.com/espressif/esp-protocols/commit/1b4fcb0c))
+- plug fuzz harness and browse sync memory leaks ([a8c1dad3](https://github.com/espressif/esp-protocols/commit/a8c1dad3))
+- bounds-copy browse service/proto when parsing packets ([429d7b91](https://github.com/espressif/esp-protocols/commit/429d7b91))
+- reject packets shorter than the DNS header ([b556327e](https://github.com/espressif/esp-protocols/commit/b556327e))
+- Add support for fuzzing browses ([7ec95d04](https://github.com/espressif/esp-protocols/commit/7ec95d04))
+- Fix browse to stage A/AAAA to match PTRs records ([26bfcd14](https://github.com/espressif/esp-protocols/commit/26bfcd14), [#1064](https://github.com/espressif/esp-protocols/issues/1064))
+- queue browse send and trigger per-family browse on GOT_IP events ([26e8dd1e](https://github.com/espressif/esp-protocols/commit/26e8dd1e))
+
+## [1.11.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.11.1)
+
+### Bug Fixes
+
+- Remove IDF tracker from sources/comments ([4870186b](https://github.com/espressif/esp-protocols/commit/4870186b))
+- Bounds check RR header and NSEC length in debug parser ([c10eb9ac](https://github.com/espressif/esp-protocols/commit/c10eb9ac))
+- Validate RDATA length for A/AAAA records ([df9644aa](https://github.com/espressif/esp-protocols/commit/df9644aa))
+- Validate second byte of DNS compression pointer ([6dd051a1](https://github.com/espressif/esp-protocols/commit/6dd051a1))
+- Minor cleanup in mdns socket layer ([37b8a7ca](https://github.com/espressif/esp-protocols/commit/37b8a7ca))
+- Fix parsing of mdns.txt records containing booleans ([a6e09518](https://github.com/espressif/esp-protocols/commit/a6e09518))
+- race conditions in async query lifecycle (IDFGH-17246) ([ab5aeaf8](https://github.com/espressif/esp-protocols/commit/ab5aeaf8), [#1010](https://github.com/espressif/esp-protocols/issues/1010))
+
+## [1.11.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.11.0)
+
+### Features
+
+- Add support for mdns service discovery ([a0af8449](https://github.com/espressif/esp-protocols/commit/a0af8449))
+
+### Bug Fixes
+
+- Use python implementation of dig utility ([0104a14a](https://github.com/espressif/esp-protocols/commit/0104a14a))
+- Fix null pointer exception in mdns_parse_packet ([56812092](https://github.com/espressif/esp-protocols/commit/56812092))
+
+### Updated
+
+- Add null check for netif in mDNS networking ([d5a393f6](https://github.com/espressif/esp-protocols/commit/d5a393f6))
+
+## [1.10.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.10.1)
+
+### Bug Fixes
+
+- correct server initialization condition in mdns_browse_new ([dcc33d69](https://github.com/espressif/esp-protocols/commit/dcc33d69))
+
+## [1.10.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.10.0)
+
+### Features
+
+- support null value for boolean txt records ([63082b99](https://github.com/espressif/esp-protocols/commit/63082b99))
+- Refactor mdns library (stage #1) ([bed116d9](https://github.com/espressif/esp-protocols/commit/bed116d9))
+
+### Bug Fixes
+
+- Fix the bug where closing the socket did not update to -1. ([6b9c5128](https://github.com/espressif/esp-protocols/commit/6b9c5128))
+- Fix to keep TXT/SRV in answers to queries ([0f6235f1](https://github.com/espressif/esp-protocols/commit/0f6235f1))
+- Create a test to check answer section for PTR/ANY ([6c2c2cd2](https://github.com/espressif/esp-protocols/commit/6c2c2cd2))
+- Fix unused variable `dcst` warning for wifi-remote chips ([f20a234f](https://github.com/espressif/esp-protocols/commit/f20a234f))
+- put srv/txt records in additional section for ptr queries ([27d43277](https://github.com/espressif/esp-protocols/commit/27d43277))
+- Host test to use hw_support include dir ([4d8d25a3](https://github.com/espressif/esp-protocols/commit/4d8d25a3))
+
+## [1.9.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.9.1)
+
+### Bug Fixes
+
+- Fix to use tagged AFL image + minor format fix ([2b2f009a](https://github.com/espressif/esp-protocols/commit/2b2f009a))
+- Fix unused variable `dcst` warning for wifi-remote chips ([081eef88](https://github.com/espressif/esp-protocols/commit/081eef88))
+
+## [1.9.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.9.0)
+
+### Features
+
+- support null value for boolean txt records ([fa96de3b](https://github.com/espressif/esp-protocols/commit/fa96de3b))
+
+### Bug Fixes
+
+- Add test case for bool/NULL txt handling ([5068f221](https://github.com/espressif/esp-protocols/commit/5068f221))
+- Temporary fix for build issues on IDF master ([0197c994](https://github.com/espressif/esp-protocols/commit/0197c994))
+- Add tests for delegated answers ([487a746d](https://github.com/espressif/esp-protocols/commit/487a746d))
+- Add fuzzing into mdns CI ([af6bb1b5](https://github.com/espressif/esp-protocols/commit/af6bb1b5))
+- Host test to use hw_support include dir ([8bba3a97](https://github.com/espressif/esp-protocols/commit/8bba3a97))
+- Fixes case where we create our own malloc/free allocators, therefore we need to call mdns_mem_free and not free ([63bf7091](https://github.com/espressif/esp-protocols/commit/63bf7091))
+- put srv/txt records in additional section for ptr queries ([b7b8c5db](https://github.com/espressif/esp-protocols/commit/b7b8c5db))
+
+### Updated
+
+- ci(common): Update test component dir for IDFv6.0 ([18418c83](https://github.com/espressif/esp-protocols/commit/18418c83))
+
+## [1.8.2](https://github.com/espressif/esp-protocols/commits/mdns-v1.8.2)
+
+### Bug Fixes
+
+- Fix parsing incorrect txt records ([8fd2c99f](https://github.com/espressif/esp-protocols/commit/8fd2c99f))
+
+## [1.8.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.8.1)
+
+### Bug Fixes
+
+- Fix potential task delete race ([8ca45f34](https://github.com/espressif/esp-protocols/commit/8ca45f34))
+
+## [1.8.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.8.0)
+
+### Features
+
+- Add version keys ([e01e67e7](https://github.com/espressif/esp-protocols/commit/e01e67e7))
+
+### Bug Fixes
+
+- Reformat mdns sources per indent-cont=120 ([c7663cde](https://github.com/espressif/esp-protocols/commit/c7663cde))
+
+## [1.7.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.7.0)
+
+### Features
+
+- Support user defined allocators ([88162d1f](https://github.com/espressif/esp-protocols/commit/88162d1f))
+- Allow allocate memory with configured caps ([7d29b476](https://github.com/espressif/esp-protocols/commit/7d29b476))
+
+### Bug Fixes
+
+- Adjust some formatting per indent-cont=120 ([5b2077e3](https://github.com/espressif/esp-protocols/commit/5b2077e3))
+
+## [1.6.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.6.0)
+
+### Features
+
+- support allocating mDNS task from SPIRAM ([8fcad10c](https://github.com/espressif/esp-protocols/commit/8fcad10c))
+
+### Bug Fixes
+
+- Use correct task delete function ([eb4ab524](https://github.com/espressif/esp-protocols/commit/eb4ab524))
+
+### Updated
+
+- ci(mdns): Fix mdns host test layers with static task creation ([0690eba3](https://github.com/espressif/esp-protocols/commit/0690eba3))
+
+## [1.5.3](https://github.com/espressif/esp-protocols/commits/mdns-v1.5.3)
+
+### Bug Fixes
+
+- Fix responder to ignore only invalid queries ([cd07228f](https://github.com/espressif/esp-protocols/commit/cd07228f), [#754](https://github.com/espressif/esp-protocols/issues/754))
+
+## [1.5.2](https://github.com/espressif/esp-protocols/commits/mdns-v1.5.2)
+
+### Bug Fixes
+
+- Fix potential NULL deref when sending sub-buy ([e7273c46](https://github.com/espressif/esp-protocols/commit/e7273c46))
+- Fix _mdns_append_fqdn excessive stack usage ([bd23c233](https://github.com/espressif/esp-protocols/commit/bd23c233))
+
+## [1.5.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.5.1)
+
+### Bug Fixes
+
+- Fix incorrect memory free for mdns browse ([4451a8c5](https://github.com/espressif/esp-protocols/commit/4451a8c5))
+
+## [1.5.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.5.0)
+
+### Features
+
+- supported removal of subtype when updating service ([4ad88e29](https://github.com/espressif/esp-protocols/commit/4ad88e29))
+
+### Bug Fixes
+
+- Fix zero-sized VLA clang-tidy warnings ([196198ec](https://github.com/espressif/esp-protocols/commit/196198ec))
+- Remove dead store to arg variable shared ([e838bf03](https://github.com/espressif/esp-protocols/commit/e838bf03))
+- Fix name mangling not to use strcpy() ([99b54ac3](https://github.com/espressif/esp-protocols/commit/99b54ac3))
+- Fix potential null derefernce in _mdns_execute_action() ([f5be2f41](https://github.com/espressif/esp-protocols/commit/f5be2f41))
+- Fix AFL test mock per espressif/esp-idf@a5bc08fb55c ([3d8835cf](https://github.com/espressif/esp-protocols/commit/3d8835cf))
+- Fixed potential out-of-bound interface error ([24f55ce9](https://github.com/espressif/esp-protocols/commit/24f55ce9))
+- Fixed incorrect error conversion ([8f8516cc](https://github.com/espressif/esp-protocols/commit/8f8516cc))
+- Fixed potential overflow when allocating txt data ([75a8e864](https://github.com/espressif/esp-protocols/commit/75a8e864))
+- Move MDNS_NAME_BUF_LEN to public headers ([907087c0](https://github.com/espressif/esp-protocols/commit/907087c0), [#724](https://github.com/espressif/esp-protocols/issues/724))
+- Cleanup includes in mdns.c ([68a9e148](https://github.com/espressif/esp-protocols/commit/68a9e148), [#725](https://github.com/espressif/esp-protocols/issues/725))
+- Allow advertizing service with port==0 ([827ea65f](https://github.com/espressif/esp-protocols/commit/827ea65f))
+- Fixed complier warning if MDNS_MAX_SERVICES==0 ([95377216](https://github.com/espressif/esp-protocols/commit/95377216), [#611](https://github.com/espressif/esp-protocols/issues/611))
+
+## [1.4.3](https://github.com/espressif/esp-protocols/commits/mdns-v1.4.3)
+
+### Features
+
+- support zero item when update subtype ([5bd82c01](https://github.com/espressif/esp-protocols/commit/5bd82c01))
+
+## [1.4.2](https://github.com/espressif/esp-protocols/commits/mdns-v1.4.2)
+
+### Features
+
+- support update subtype ([062b8dca](https://github.com/espressif/esp-protocols/commit/062b8dca))
+
+### Updated
+
+- chore(mdns): Add more info to idf_component.yml ([4a1cb65c](https://github.com/espressif/esp-protocols/commit/4a1cb65c))
+
+## [1.4.1](https://github.com/espressif/esp-protocols/commits/mdns-v1.4.1)
+
+### Features
+
+- Send PTR query for mdns browse when interface is ready ([010a404a](https://github.com/espressif/esp-protocols/commit/010a404a))
+
+### Bug Fixes
+
+- Prevent deadlock when deleting a browse request ([3f48f9ea](https://github.com/espressif/esp-protocols/commit/3f48f9ea))
+- Fix use after free reported by coverity ([25b3d5fd](https://github.com/espressif/esp-protocols/commit/25b3d5fd))
+- Fixed dead-code reported by coverity ([11846c7d](https://github.com/espressif/esp-protocols/commit/11846c7d))
+
 ## [1.4.0](https://github.com/espressif/esp-protocols/commits/mdns-v1.4.0)
 
 ### Major changes

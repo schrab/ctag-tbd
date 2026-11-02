@@ -308,6 +308,7 @@ namespace CTAG {
             // emits garbage button events); the wired ladder overdrives it.
             adc_oneshot_unit_init_cfg_t init_config = {
                 .unit_id = ADC_UNIT_1,
+                .clk_src = {},
                 .ulp_mode = ADC_ULP_MODE_DISABLE,
             };
             ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc1_handle));
