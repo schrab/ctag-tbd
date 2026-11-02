@@ -161,47 +161,142 @@ static int ring_read(uint8_t *buf, int max) {
     return n;
 }
 
-// Parse Apple BLE-MIDI notification data.
-// Packet: [ts-hi|0x80][ts-lo] then MIDI messages, each optionally preceded
-// by its own 2-byte timestamp. Status bytes ALSO have bit7 set, so the
-// decoder tracks message position: at a message boundary a bit7-set byte
-// is a timestamp (skipped with its low byte); mid-message it is a status
-// (running-status override). System real-time bytes (>= 0xF8) are single
-// bytes valid anywhere. Data bytes pass through — the Midi parser on the
-// DSP handles running status across packets.
+// Returns the expected number of data bytes for a given MIDI status byte.
+// Returns -1 for SysEx start (0xF0), 0 for statuses with no data (0xF6, 0xF7, 0xF8..0xFF).
+static inline int midi_status_data_len(uint8_t status) {
+    if (status < 0x80) return 0;
+    switch (status & 0xF0) {
+        case 0x80: // Note Off
+        case 0x90: // Note On
+        case 0xA0: // Polyphonic Key Pressure
+        case 0xB0: // Control Change
+        case 0xE0: // Pitch Bend Change
+            return 2;
+        case 0xC0: // Program Change
+        case 0xD0: // Channel Pressure
+            return 1;
+        case 0xF0:
+            switch (status) {
+                case 0xF1: // MTC Quarter Frame
+                case 0xF3: // Song Select
+                    return 1;
+                case 0xF2: // Song Position Pointer
+                    return 2;
+                case 0xF0: // SysEx Start
+                    return -1;
+                default:   // 0xF4..0xF7, 0xF8..0xFF
+                    return 0;
+            }
+        default:
+            return 0;
+    }
+}
+
+// Parse Apple / MMA BLE-MIDI notification data.
+// Packet layout:
+//   [Header: 0b1xxxxxxx]
+// Followed by one or more events, each preceded by:
+//   [Timestamp Low: 0b1xxxxxxx] (1 byte!)
+// followed by either:
+//   - Explicit status [Status: 0b1xxxxxxx] + [Data...]
+//   - Running status [Data 1] + [Data 2] ...
+// System Real-Time bytes (0xF8..0xFF) can be interleaved anywhere.
 static void parse_ble_midi_notify(const uint8_t *data, int len) {
-    int i = 0;
-    if (len >= 2 && (data[0] & 0x80)) i = 2;   // leading packet timestamp
-    int expected = 0;                          // data bytes left in current msg
-    bool expectStatus = true;                  // next bit7-set byte is a status
+    if (len < 3) return;
+    if ((data[0] & 0x80) == 0) return; // Header must have bit 7 set
+
+    int i = 1; // data[0] is Header; data[1] is the first Timestamp Low
+    uint8_t running_status = 0;
+
     while (i < len) {
         uint8_t b = data[i];
-        if ((b & 0x80) == 0) {                 // data byte
-            ring_write(&b, 1);
-            if (expected > 0) expected--;
-            i++;
-            continue;
-        }
-        if (b >= 0xF8) {                       // system real-time: 1 byte anywhere
+
+        // System Real-Time bytes (0xF8..0xFF) can appear anywhere (1 byte)
+        if (b >= 0xF8) {
             ring_write(&b, 1);
             i++;
             continue;
         }
-        if (expectStatus) {                    // message status byte
-            ring_write(&b, 1);
-            expected = (b == 0xC0 || b == 0xD0) ? 1 : 2;
-            expectStatus = false;
+
+        // At a message boundary, data[i] is a Timestamp Low byte (bit 7 set)
+        if (b & 0x80) {
+            // Skip the 1-byte Timestamp Low
             i++;
-            continue;
-        }
-        if (expected > 0) {                    // status override mid-message
-            ring_write(&b, 1);
-            expected = (b == 0xC0 || b == 0xD0) ? 1 : 2;
+            if (i >= len) break;
+
+            // Handle any Real-Time bytes immediately following timestamp
+            while (i < len && data[i] >= 0xF8) {
+                uint8_t rt = data[i++];
+                ring_write(&rt, 1);
+            }
+            if (i >= len) break;
+
+            b = data[i];
+            if (b & 0x80) {
+                // Explicit MIDI Status byte
+                running_status = (b < 0xF0) ? b : 0;
+                ring_write(&b, 1);
+                i++;
+
+                // SysEx
+                if (b == 0xF0) {
+                    while (i < len) {
+                        uint8_t sb = data[i++];
+                        if (sb >= 0xF8) {
+                            ring_write(&sb, 1);
+                            continue;
+                        }
+                        if (sb & 0x80) {
+                            if (sb == 0xF7) ring_write(&sb, 1);
+                            else i--; // Next timestamp; put back
+                            break;
+                        }
+                        ring_write(&sb, 1);
+                    }
+                    continue;
+                }
+
+                int expected = midi_status_data_len(b);
+                while (expected > 0 && i < len) {
+                    uint8_t db = data[i++];
+                    if (db >= 0xF8) {
+                        ring_write(&db, 1);
+                        continue;
+                    }
+                    if (db & 0x80) {
+                        // Unexpected status or timestamp; put back to recover
+                        i--;
+                        break;
+                    }
+                    ring_write(&db, 1);
+                    expected--;
+                }
+            } else {
+                // Running status applies to data byte following timestamp
+                if (running_status != 0) {
+                    ring_write(&running_status, 1);
+                    int expected = midi_status_data_len(running_status);
+                    while (expected > 0 && i < len) {
+                        uint8_t db = data[i++];
+                        if (db >= 0xF8) {
+                            ring_write(&db, 1);
+                            continue;
+                        }
+                        if (db & 0x80) {
+                            i--;
+                            break;
+                        }
+                        ring_write(&db, 1);
+                        expected--;
+                    }
+                } else {
+                    i++; // Unknown status: skip orphan data byte
+                }
+            }
+        } else {
+            // Unexpected data byte outside message boundary
             i++;
-            continue;
         }
-        i += 2;                                // message complete: timestamp
-        expectStatus = true;
     }
 }
 
