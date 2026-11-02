@@ -45,6 +45,9 @@ void FileSystem::InitFS() {
 
     // Card-detect input: GPIO34 is input-only and resets as an input, but
     // configure it explicitly so gpio_get_level is well-defined.
+#if !defined(CONFIG_TBD_PLATFORM_BBA2)
+    // BBA2 has no card-detect pin (SDD §7): presence = mount state, and
+    // GPIO34 is a spare on that board — leave it unconfigured.
     gpio_config_t cd = {};
     cd.pin_bit_mask = 1ULL << GPIO_NUM_34;
     cd.mode = GPIO_MODE_INPUT;
@@ -52,6 +55,7 @@ void FileSystem::InitFS() {
     cd.pull_down_en = GPIO_PULLDOWN_DISABLE;
     cd.intr_type = GPIO_INTR_DISABLE;
     gpio_config(&cd);
+#endif
 
     esp_vfs_littlefs_conf_t conf = {};
     conf.base_path = "/spiffs";
@@ -121,8 +125,14 @@ void FileSystem::InitCD() {
 }
 
 bool FileSystem::IsSDPresent() {
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // No card-detect pin on BBA2 (SDD §7): report mount state. Boot mounts
+    // once; the C3 MOUNT command re-attempts and surfaces the result.
+    return sdcard != nullptr;
+#else
     int lvl = gpio_get_level(GPIO_NUM_34);
     return SD_CD_ACTIVE_LOW ? lvl == 0 : lvl != 0;
+#endif
 }
 
 bool FileSystem::UnmountSD() {
@@ -141,9 +151,14 @@ bool FileSystem::UnmountSD() {
 
 bool FileSystem::MountSD() {
     if (sdcard != nullptr) return true; // already mounted
+#if !defined(CONFIG_TBD_PLATFORM_BBA2)
+    // CD-pin boards: cheap pin pre-check before the slow mount attempt.
+    // BBA2 has no pin — IsSDPresent() is the mount state (false right after
+    // UNMOUNT), so the mount attempt itself must stay the presence probe.
     if (!IsSDPresent()) {
         ESP_LOGW("fs", "Mount requested but no card present (CD pin)");
         return false;
     }
+#endif
     return InitSD();
 }
