@@ -1,6 +1,6 @@
 # BBA v2 (ESP32-S3) Porting SDD
 
-**Status**: approved design, pre-implementation
+**Status**: implemented (hardware bring-up pending — see §10 checklist)
 **Branch**: `ctag-bba-v2-s3` (from `feat/migration-idf6`)
 **Benchmarks & compute analysis**: `doc/esp32s3-porting-guide.md` (hardware-measured on ESP32-S3 @ 240 MHz, IDF 6.1)
 
