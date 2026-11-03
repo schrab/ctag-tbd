@@ -57,6 +57,12 @@ namespace CTAG {
         namespace {
             constexpr uart_port_t kUart = UART_NUM_1;
             constexpr int kLinkBaud = 921600;
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+            // BBA2: link UART on GPIO17 (TX) / GPIO18 (RX) (SDD §3). GPIO19/20
+            // are the native USB D± lines — never assigned here.
+            constexpr int kTxPin = 17;
+            constexpr int kRxPin = 18;
+#else
             // RX is GPIO23, NOT the SDD's GPIO19: the A1S board's GPIO19
             // input trace (ex-MIDI-IN path) corrupts everything above
             // ~250 kBd — proven by a TX→RX jumper loopback (clean at
@@ -65,6 +71,9 @@ namespace CTAG {
             // GPIO23 the same loopback is clean to 1 Mbps. The encoder
             // PCNT uses GPIO23 only as its direction input (it counts
             // edges on GPIO5), so the link coexists with it.
+            constexpr int kTxPin = 18;
+            constexpr int kRxPin = 23;
+#endif
             constexpr size_t kRxRing = 16384;
             constexpr size_t kTxRing = 8192;
             // Panel commands (bench set + /link set); the framebuffer reply
@@ -1179,13 +1188,7 @@ namespace CTAG {
             uc.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
             uc.rx_flow_ctrl_thresh = 0;
             uc.source_clk = UART_SCLK_DEFAULT;
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // BBA2: link UART on GPIO17 (TX) / GPIO18 (RX) (SDD §3). GPIO19/20
-            // are the native USB D± lines — never assigned here.
-            ESP_ERROR_CHECK(uart_set_pin(kUart, 17, 18, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-#else
-            ESP_ERROR_CHECK(uart_set_pin(kUart, 18, 23, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-#endif
+            ESP_ERROR_CHECK(uart_set_pin(kUart, kTxPin, kRxPin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
             ESP_ERROR_CHECK(uart_param_config(kUart, &uc));
             ESP_ERROR_CHECK(uart_driver_install(kUart, kRxRing, kTxRing, 0, nullptr, 0));
 
@@ -1208,11 +1211,7 @@ namespace CTAG {
                 hLinkTask = nullptr;
                 return;
             }
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-            ESP_LOGI(TAG, "link endpoint on UART1 GPIO17/18 @%d", kLinkBaud);
-#else
-            ESP_LOGI(TAG, "link endpoint on UART1 GPIO18/23 @%d", kLinkBaud);
-#endif
+            ESP_LOGI(TAG, "link endpoint on UART%d GPIO%d/%d @%d", kUart, kTxPin, kRxPin, kLinkBaud);
         }
     }
 }
