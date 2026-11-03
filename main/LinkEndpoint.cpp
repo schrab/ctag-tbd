@@ -1208,7 +1208,11 @@ namespace CTAG {
                 hLinkTask = nullptr;
                 return;
             }
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+            ESP_LOGI(TAG, "link endpoint on UART1 GPIO17/18 @%d", kLinkBaud);
+#else
             ESP_LOGI(TAG, "link endpoint on UART1 GPIO18/23 @%d", kLinkBaud);
+#endif
         }
     }
 }
