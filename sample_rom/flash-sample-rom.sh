@@ -5,7 +5,12 @@
 PORT="${1:-/dev/ttyUSB0}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+ESPTOOL_BIN="${ESPTOOL_BIN:-esptool}"
+if ! command -v "$ESPTOOL_BIN" >/dev/null 2>&1; then
+    ESPTOOL_BIN="python $IDF_PATH/components/esptool_py/esptool/esptool.py"
+fi
+
 echo Erasing flash
-python $IDF_PATH/components/esptool_py/esptool/esptool.py -p "$PORT" -b 460800 erase_region 0xB00000 0x500000
+$ESPTOOL_BIN -p "$PORT" -b 460800 erase_region 0xB00000 0x500000
 echo Writing flash
-python $IDF_PATH/components/esptool_py/esptool/esptool.py -p "$PORT" -b 460800 --flash_size detect write_flash --flash_mode dio 0xB00000 "$SCRIPT_DIR/sample-rom.tbd"
+$ESPTOOL_BIN -p "$PORT" -b 460800 write_flash --flash_size detect --flash_mode dio 0xB00000 "$SCRIPT_DIR/sample-rom.tbd"
