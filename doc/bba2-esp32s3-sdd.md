@@ -62,8 +62,8 @@ only the DSP board, its codec driver, and the pin map change.
 
 Rev A changes vs the original proposal: the codec header is hardwired at a
 position that puts I2C on IO4/IO5; I2S moved to the left-edge cluster; the SD
-breakout is an SPI-mode module (SDSPI host); the C3 link UART took the freed
-right-edge pins.
+breakout is an SPI-mode module (SDSPI host); the C3 link UART landed on
+GPIO1/42 after the perfboard's TXD0/RXD0 pads proved dead.
 
 | Function | GPIO |
 |---|---|
@@ -74,9 +74,9 @@ right-edge pins.
 | WM8978 DACDAT (S3→codec, breakout "DAT") | 17 |
 | WM8978 ADCDAT (codec→S3, breakout "SDB") | 7 |
 | SD SPI SCK / MOSI / MISO / CS | 13 / 14 / 21 / 47 |
-| Link UART1 TX / RX (→ C3) | 40 / 41 |
-| Spare | 1, 2, 8, 9, 10, 11, 12, 18, 33, 34, 38, 39, 42, 48 |
-| Reserved / avoid | 0, 3, 45, 46 (strapping), 19/20 (USB D±), 26–32 (flash, not bonded), 35–37 (OPI PSRAM), 43/44 (UART0 escape) |
+| Link UART1 TX (→ C3 RX) / RX (← C3 TX) | 1 / 42 |
+| Spare | 2, 8, 9, 10, 11, 12, 18, 33, 34, 38, 40, 41, 48 |
+| Reserved / avoid | 0, 3, 45, 46 (strapping), 19/20 (USB D±), 26–32 (flash, not bonded), 35–37 (OPI PSRAM), 43/44 (TXD0/RXD0 pads dead on rev A perfboard) |
 
 Pins are compile-time constants in the BBA2 driver files (same pattern as
 `codec_bba.cpp` / `es8388.cpp`), not Kconfig knobs.

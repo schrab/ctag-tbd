@@ -58,13 +58,13 @@ namespace CTAG {
             constexpr uart_port_t kUart = UART_NUM_1;
             constexpr int kLinkBaud = 921600;
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // BBA2 rev A: link UART on GPIO40 (TX) / GPIO41 (RX). GPIO17 moved
-            // to the WM8978 DACDAT line when the codec was wired, and GPIO19/20
-            // are the native USB D± lines — never assigned here. These two are
-            // the only pins not yet committed to copper: confirm before
-            // soldering the C3 panel cable.
-            constexpr int kTxPin = 40;
-            constexpr int kRxPin = 41;
+            // BBA2 rev A: link UART on module pins 39/35 — GPIO1 (TX) /
+            // GPIO42 (RX). Bring-up found the TXD0 (43) and RXD0 (44) pads
+            // dead on the perfboard (failed in both directions); IO42/pad-35
+            // is the only proven-good pad. UART0 is unused (console = USB
+            // Serial/JTAG on 19/20).
+            constexpr int kTxPin = 1;
+            constexpr int kRxPin = 42;
 #else
             // RX is GPIO23, NOT the SDD's GPIO19: the A1S board's GPIO19
             // input trace (ex-MIDI-IN path) corrupts everything above
