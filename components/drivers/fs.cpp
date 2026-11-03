@@ -30,6 +30,10 @@ respective component folders / files if different from this license.
 #include "sdmmc_cmd.h"
 #include "driver/sdmmc_host.h"
 #include "driver/gpio.h"
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#include "driver/spi_common.h"
+#include "driver/sdspi_host.h"
+#endif
 
 using namespace CTAG::DRIVERS;
 
@@ -86,6 +90,52 @@ void FileSystem::InitFS() {
 }
 
 bool FileSystem::InitSD() {
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // BBA v2 rev A: the SD breakout is an SPI-mode module (MISO/MOSI/CS/CLK
+    // behind a unidirectional level shifter) — use the SDSPI host. Native
+    // SDMMC would need a bidirectional CMD line this module can't do.
+    // Hot-swap note: the SPI bus is initialized once and stays up across
+    // UNMOUNT/MOUNT cycles (esp_vfs_fat_sdcard_unmount deinits the sdspi
+    // slot but not the raw bus); MountSD re-runs this whole function.
+    ESP_LOGI("fs", "Initializing SD card via SDSPI");
+
+    static bool s_spi_bus_ready = false;
+    if (!s_spi_bus_ready) {
+        spi_bus_config_t bus_cfg = {};
+        bus_cfg.mosi_io_num = 14; // MOSI -> card CMD/DI
+        bus_cfg.miso_io_num = 21; // MISO <- card D0/DO
+        bus_cfg.sclk_io_num = 13; // SCK
+        bus_cfg.quadwp_io_num = -1;
+        esp_err_t bus_ret = spi_bus_initialize(SPI2_HOST, &bus_cfg, SDSPI_DEFAULT_DMA);
+        if (bus_ret != ESP_OK && bus_ret != ESP_ERR_INVALID_STATE) {
+            ESP_LOGE("fs", "SD SPI bus init failed: %s", esp_err_to_name(bus_ret));
+            return false;
+        }
+        s_spi_bus_ready = true;
+    }
+
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT(); // SPI2_HOST, 20 MHz default
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.host_id = SPI2_HOST;
+    slot_config.gpio_cs = GPIO_NUM_47;
+    slot_config.gpio_cd = SDSPI_SLOT_NO_CD; // no CD pin — presence = mount state
+    slot_config.gpio_wp = SDSPI_SLOT_NO_WP;
+
+    esp_vfs_fat_mount_config_t mount_config = {
+        .format_if_mount_failed = false,
+        .max_files = 5,
+        .allocation_unit_size = 0,
+        .disk_status_check_enable = false,
+        .use_one_fat = false,
+    };
+
+    esp_err_t ret = esp_vfs_fat_sdspi_mount("/sd", &host, &slot_config, &mount_config, &sdcard);
+    if (ret != ESP_OK) {
+        ESP_LOGE("fs", "SD card mount failed: %s", esp_err_to_name(ret));
+        sdcard = nullptr;
+        return false;
+    }
+#else
     ESP_LOGI("fs", "Initializing SD card via SDMMC");
 
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
@@ -108,6 +158,7 @@ bool FileSystem::InitSD() {
         sdcard = nullptr;
         return false;
     }
+#endif
 
     ESP_LOGI("fs", "SD card: %s, size %lluMB | FAT mounted at /sd",
              sdcard->cid.name,

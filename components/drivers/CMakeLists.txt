@@ -17,12 +17,13 @@ elseif (CONFIG_TBD_PLATFORM_BBA)
             REQUIRES driver esp-dsp esp_driver_i2c esp_driver_i2s esp_driver_gpio esp_driver_uart esp_driver_sdmmc esp_timer littlefs
             PRIV_REQUIRES fatfs sdmmc)
 elseif (CONFIG_TBD_PLATFORM_BBA2)
-    # BBA v2: ESP32-S3 + WM8978 (I2C control), SDMMC without card-detect,
-    # no amp-enable pin, panel link on UART1 GPIO17/18. No OLED/encoder
+    # BBA v2: ESP32-S3 + WM8978 (I2C control), SD breakout on SDSPI
+    # (SPI-mode module with unidirectional shifter), no card-detect,
+    # no amp-enable pin, panel link on UART1 GPIO40/41. No OLED/encoder
     # (panel owns them), same as BBA.
     idf_component_register(SRCS fs.cpp led_rgb_bba.cpp codec_bba2.cpp wm8978.cpp midiuart.cpp
             INCLUDE_DIRS "."
-            REQUIRES driver esp-dsp esp_driver_i2c esp_driver_i2s esp_driver_gpio esp_driver_uart esp_driver_sdmmc esp_timer littlefs
+            REQUIRES driver esp-dsp esp_driver_i2c esp_driver_i2s esp_driver_gpio esp_driver_uart esp_driver_sdmmc esp_driver_sdspi esp_driver_spi esp_timer littlefs
             PRIV_REQUIRES fatfs sdmmc)
 else()
     idf_component_register(SRCS gpio.cpp adc.cpp fs.cpp led_rgb.cpp codec.cpp ssd1306.c ssd1306_i2c.c
