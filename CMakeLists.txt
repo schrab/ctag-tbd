@@ -75,7 +75,7 @@ idf_build_set_property(INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/gen_include APPEN
 # that fits the partition named 'storage'. FLASH_IN_PROJECT indicates that
 # the generated image should be flashed when the entire project is flashed to
 # the target with 'idf.py -p PORT flash'.
-if(CONFIG_TBD_PLATFORM_BBA)
+if(CONFIG_TBD_PLATFORM_BBA OR CONFIG_TBD_PLATFORM_BBA2)
     list(APPEND DEL_COMMANDS
             COMMAND rm -rf ${CMAKE_BINARY_DIR}/spiffs_image/www)
 else()

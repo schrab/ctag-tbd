@@ -574,8 +574,7 @@ void SoundProcessorManager::StartSoundProcessor() {
     // generate internal data
     updateConfiguration();
 
-#ifdef CONFIG_WIFI_UI
-#ifndef TBD_RADIO_FREE
+#if defined(CONFIG_WIFI_UI) && !defined(TBD_RADIO_FREE)
     // boot network
     NET::Network::SetSSID(model->GetNetworkConfigurationData("ssid"));
     NET::Network::SetPWD(model->GetNetworkConfigurationData("pwd"));
@@ -584,10 +583,7 @@ void SoundProcessorManager::StartSoundProcessor() {
     NET::Network::SetMDNSName(model->GetNetworkConfigurationData("mdns_name"));
     NET::Network::Up();
     REST::RestServer::StartRestServer();
-#else
-    ESP_LOGW("SPM", "TBD_RADIO_FREE: WiFi/REST/BLE-MIDI never initialized");
-#endif
-#elif CONFIG_SERIAL_UI
+#elif defined(CONFIG_SERIAL_UI)
     SAPI::SerialAPI::StartSerialAPI();
 #endif
 
