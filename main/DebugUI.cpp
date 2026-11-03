@@ -74,7 +74,7 @@ extern "C" uint32_t elements_debug_get_panic_count();
 extern "C" float elements_debug_get_max_resonator_level();
 
 namespace {
-    const char *TAG = "DebugUI";
+    [[maybe_unused]] const char *TAG = "DebugUI";
 }
 
 namespace CTAG {
