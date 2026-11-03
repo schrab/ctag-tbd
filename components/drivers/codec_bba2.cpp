@@ -8,12 +8,13 @@ using namespace CTAG::DRIVERS;
 
 static const char *TAG = "CODEC_BBA2";
 
-// BBA2 pin map (SDD §3) — compile-time constants, same pattern as codec_bba.cpp.
-static constexpr gpio_num_t PIN_MCLK = GPIO_NUM_2;
-static constexpr gpio_num_t PIN_BCLK = GPIO_NUM_41;
-static constexpr gpio_num_t PIN_WS = GPIO_NUM_42;
-static constexpr gpio_num_t PIN_DOUT = GPIO_NUM_40; // S3 -> WM8978 DACDAT
-static constexpr gpio_num_t PIN_DIN = GPIO_NUM_39;  // WM8978 ADCDAT -> S3
+// BBA2 rev A pin map — as wired on the board (2026-11-04):
+// I2S on the left-edge cluster, I2C on the hardwired codec header.
+static constexpr gpio_num_t PIN_MCLK = GPIO_NUM_16;  // breakout MCK
+static constexpr gpio_num_t PIN_BCLK = GPIO_NUM_15;  // breakout SCK
+static constexpr gpio_num_t PIN_WS = GPIO_NUM_6;     // breakout FSA
+static constexpr gpio_num_t PIN_DOUT = GPIO_NUM_17;  // S3 -> WM8978 DACDAT (breakout DAT)
+static constexpr gpio_num_t PIN_DIN = GPIO_NUM_7;    // WM8978 ADCDAT -> S3 (breakout SDB)
 
 static constexpr uint32_t kSampleRate = 44100; // locked on BBA2 (SDD §6.2)
 

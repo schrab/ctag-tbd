@@ -44,10 +44,11 @@ midiuart::midiuart() {
     ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
 
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-    // BBA2: GPIO19 is the native USB D− line — the dormant MIDI UART must
-    // never route it. Park on the link pins (TX=17/RX=18); LinkEndpoint::Start
-    // deletes this driver and reinstalls UART1 for the panel link anyway.
-    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, 17, 18, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    // BBA2: GPIO19 is the native USB D− line and GPIO17 is the WM8978 DACDAT
+    // — the dormant MIDI UART must touch neither. Park on the link pins
+    // (TX=40/RX=41); LinkEndpoint::Start deletes this driver and reinstalls
+    // UART1 for the panel link anyway.
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, 40, 41, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 #else
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, 18, 19, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 #endif

@@ -5,9 +5,9 @@
 #include "esp_rom_sys.h"
 #include "driver/gpio.h"
 
-// BBA2 I2C pins (SDD §3). Same compile-time-constant pattern as es8388.cpp.
-static constexpr int WM8978_SDA_PIN = 8;
-static constexpr int WM8978_SCL_PIN = 9;
+// BBA2 rev A I2C pins: codec header hardwired to IO4/IO5.
+static constexpr int WM8978_SDA_PIN = 4;
+static constexpr int WM8978_SCL_PIN = 5;
 static constexpr uint8_t WM8978_I2C_ADDR = 0x1A; // 7-bit, 2-wire mode
 static constexpr uint32_t WM8978_I2C_SPEED_HZ = 400000;
 

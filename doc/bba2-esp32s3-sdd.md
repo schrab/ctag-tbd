@@ -44,7 +44,7 @@ only the DSP board, its codec driver, and the pin map change.
 | Codec lines | MCK, SCK (BCLK), FSA (WS), DAT (**DACDAT**, S3→codec playback), SDB (**ADCDAT**, codec→S3 capture) |
 | Codec control | SDA, SCL — I2C, 7-bit address **0x1A** |
 | Codec enable | **None wired** — power/mute handled via WM8978 registers (R1–R3 power, R5 mute) |
-| SD | SDMMC 4-bit slot, **no card-detect pin** |
+| SD | SPI-mode breakout (MISO/MOSI/CS/CLK behind a unidirectional shifter) — **SDSPI host**, no card-detect pin |
 | Panel link | UART1 → C3 @ 921600 8N1 |
 | Debug/console | USB Serial/JTAG (native USB, GPIO19/20) |
 
@@ -58,19 +58,25 @@ only the DSP board, its codec driver, and the pin map change.
 - Strapping pins **0, 3, 45, 46** unused; OPI-PSRAM-internal **35/36/37** unused;
   19/20 reserved for USB D±.
 
-## 3. Pin map (BBA v2)
+## 3. Pin map (BBA v2, **rev A — as wired 2026-11-04**)
+
+Rev A changes vs the original proposal: the codec header is hardwired at a
+position that puts I2C on IO4/IO5; I2S moved to the left-edge cluster; the SD
+breakout is an SPI-mode module (SDSPI host); the C3 link UART took the freed
+right-edge pins.
 
 | Function | GPIO |
 |---|---|
-| WM8978 MCLK | 2 |
-| WM8978 BCLK (SCK) | 41 |
-| WM8978 WS (FSA) | 42 |
-| WM8978 DACDAT (S3→codec) | 40 |
-| WM8978 ADCDAT (codec→S3) | 39 |
-| WM8978 I2C SDA / SCL | 8 / 9 |
-| SDMMC CLK / CMD / D0 / D1 / D2 / D3 | 6 / 7 / 10 / 11 / 12 / 13 |
-| Link UART1 TX / RX (→ C3) | 17 / 18 |
-| Spare | 1, 14, 15, 16, 21, 33, 34, 38, 47, 48 |
+| WM8978 I2C SDA / SCL | 4 / 5 |
+| WM8978 MCLK (MCK) | 16 |
+| WM8978 BCLK (SCK) | 15 |
+| WM8978 WS (FSA) | 6 |
+| WM8978 DACDAT (S3→codec, breakout "DAT") | 17 |
+| WM8978 ADCDAT (codec→S3, breakout "SDB") | 7 |
+| SD SPI SCK / MOSI / MISO / CS | 13 / 14 / 21 / 47 |
+| Link UART1 TX / RX (→ C3) | 40 / 41 |
+| Spare | 1, 2, 8, 9, 10, 11, 12, 18, 33, 34, 38, 39, 42, 48 |
+| Reserved / avoid | 0, 3, 45, 46 (strapping), 19/20 (USB D±), 26–32 (flash, not bonded), 35–37 (OPI PSRAM), 43/44 (UART0 escape) |
 
 Pins are compile-time constants in the BBA2 driver files (same pattern as
 `codec_bba.cpp` / `es8388.cpp`), not Kconfig knobs.

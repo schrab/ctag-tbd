@@ -58,10 +58,13 @@ namespace CTAG {
             constexpr uart_port_t kUart = UART_NUM_1;
             constexpr int kLinkBaud = 921600;
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // BBA2: link UART on GPIO17 (TX) / GPIO18 (RX) (SDD §3). GPIO19/20
-            // are the native USB D± lines — never assigned here.
-            constexpr int kTxPin = 17;
-            constexpr int kRxPin = 18;
+            // BBA2 rev A: link UART on GPIO40 (TX) / GPIO41 (RX). GPIO17 moved
+            // to the WM8978 DACDAT line when the codec was wired, and GPIO19/20
+            // are the native USB D± lines — never assigned here. These two are
+            // the only pins not yet committed to copper: confirm before
+            // soldering the C3 panel cable.
+            constexpr int kTxPin = 40;
+            constexpr int kRxPin = 41;
 #else
             // RX is GPIO23, NOT the SDD's GPIO19: the A1S board's GPIO19
             // input trace (ex-MIDI-IN path) corrupts everything above
