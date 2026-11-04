@@ -43,6 +43,10 @@ CONFIG_FREERTOS_HZ=100
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 
 # SD long filenames on the SDMMC FAT mount (same as a1s full config)
+# Arena sized for the S3 SRAM1 layout: A1S-parity channel slices (57.3 KB)
+# and enough STEREO blockMem for Freakwaves (105,984 B need, was short by
+# 3.7 KB at 114,688 — the assert-crash on load). Kconfig max 118,784.
+CONFIG_SP_FIXED_MEM_ALLOC_SZ=118784
 CONFIG_FATFS_LFN_HEAP=y
 
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192

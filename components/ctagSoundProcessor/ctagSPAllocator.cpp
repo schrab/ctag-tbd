@@ -41,12 +41,12 @@ void ctagSPAllocator::AllocateInternalBuffer(std::size_t const &size) {
     ESP_LOGI("ctagSPAllocator", "AllocateInternalBuffer: allocating %d bytes", (int)size);
     std::size_t allocSize = size;
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-    // S3 has 512 KB SRAM: we need ctagSPAllocator to leave at least 116 KB
-    // contiguous internal SRAM free for ctagSoundProcessorElements (115,844 B).
-    // The largest plugin allocated from ctagSPAllocator is TBDings (105,708 B).
-    // Capping allocSize to 106,496 B (104 KB) satisfies TBDings while freeing
-    // 8,192 B of internal SRAM, leaving ~120 KB contiguous for Elements.
-    if (allocSize > 106496) allocSize = 106496;
+    // Arena size is governed by CONFIG_SP_FIXED_MEM_ALLOC_SZ (118,784 on
+    // BBA2, the Kconfig max): A1S-parity channel slices (59,264 B) for all
+    // mono plugins, STEREO blockMem 114,560 B (Freakwaves needs 105,984),
+    // and ~116 KB contiguous left in SRAM1 for the Elements object
+    // (115,844 B). The earlier 106,496 clamp is superseded — it starved
+    // Freakwaves (assert at ctagSoundProcessorFreakwaves.cpp:850).
 #endif
     // On ESP32 (ESP-IDF v5.x), the largest contiguous internal DRAM region
     // (SRAM1, 0x3FFE4350..0x40000000) is 113,840 bytes — 848 bytes short of
