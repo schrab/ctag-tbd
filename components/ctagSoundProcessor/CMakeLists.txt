@@ -6,14 +6,7 @@ file(GLOB SOUND_PROCESSORS ctagSoundProcessor*.cpp)
 list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessorDrumRack")
 # Mbeads removed from the bundle; sources kept
 list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessorMbeads")
-# Freakwaves removed from the BBA2 bundle; sources kept. Its stereo block
-# need (110,208 B incl. object) exceeds the BBA2 allocator budget that keeps
-# the Elements object (115,844 B) in internal SRAM1 — loading it asserted
-# and crashed the core (ctagSoundProcessorFreakwaves.cpp:850). Revisit with
-# a dedicated allocation path if Freakwaves is wanted on BBA2.
-if(CONFIG_TBD_PLATFORM_BBA2)
-    list(FILTER SOUND_PROCESSORS EXCLUDE REGEX "ctagSoundProcessorFreakwaves")
-endif()
+
 # clean generated directory
 set(SP_GEN_INCLUDE_DIR "${CMAKE_BINARY_DIR}/gen_include")
 file(REMOVE_RECURSE "${SP_GEN_INCLUDE_DIR}")

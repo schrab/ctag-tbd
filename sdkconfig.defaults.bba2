@@ -45,6 +45,12 @@ CONFIG_COMPILER_OPTIMIZATION_PERF=y
 # SD long filenames on the SDMMC FAT mount (same as a1s full config)
 CONFIG_FATFS_LFN_HEAP=y
 
+# Arena size on BBA2: STEREO blockMem 107,392 B covers Freakwaves (105,984 B
+# need — the 106,496 clamp starved it by 3,712 B and asserted at load), CH
+# slices 55,488 B, and ~120 KB contiguous SRAM1 remains for the Elements
+# object (115,844 B). Kconfig range 104448..118784.
+CONFIG_SP_FIXED_MEM_ALLOC_SZ=111616
+
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 CONFIG_ESP_INT_WDT_TIMEOUT_MS=5000
 CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n
