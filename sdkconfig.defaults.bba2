@@ -32,9 +32,9 @@ CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=131072
 
 # Native USB console (GPIO19/20), log capture = USB Serial/JTAG port
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
-# INFO default: at DEBUG the per-parameter ESP_LOGD spam fills the USJ TX
-# FIFO and its vfs write busy-waits up to 50 ms/line — freezes the link
-# task while auditioning (handoff doc, Finding 1).
+# INFO default: DEBUG-level per-parameter logging floods the USJ TX FIFO
+# (50 ms busy-wait per line when the host is not draining it) and freezes
+# the link task on every knob turn (handoff doc, Finding 1).
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 
 # 100 Hz tick (matched to A1S and all other TBD targets)
@@ -43,10 +43,6 @@ CONFIG_FREERTOS_HZ=100
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 
 # SD long filenames on the SDMMC FAT mount (same as a1s full config)
-# Arena sized for the S3 SRAM1 layout: A1S-parity channel slices (57.3 KB)
-# and enough STEREO blockMem for Freakwaves (105,984 B need, was short by
-# 3.7 KB at 114,688 — the assert-crash on load). Kconfig max 118,784.
-CONFIG_SP_FIXED_MEM_ALLOC_SZ=118784
 CONFIG_FATFS_LFN_HEAP=y
 
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
