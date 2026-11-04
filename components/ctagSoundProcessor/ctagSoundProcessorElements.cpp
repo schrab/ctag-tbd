@@ -102,6 +102,13 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     // The helper handoff carries exactly one 32-sample block.
     assert(static_cast<std::size_t>(bufSz) == kBlockSize);
 
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // S3: Elements object sits in internal SRAM (115.8 KB). Keep the 64 KB
+    // reverb delay buffer in Octal PSRAM (bench-measured cost ~1.1%) so
+    // remaining internal DRAM is preserved for FreeRTOS, link UART, and system tasks.
+    reverb_buffer = (uint16_t *) heap_caps_malloc(
+        32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+#else
     // Radio-free builds free enough internal DRAM that the 64 KB reverb
     // buffer fits there; PSRAM access through the cache was a suspected
     // contributor to the ~140k-cycle fixed Part render cost. Prefer
@@ -112,6 +119,7 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
         reverb_buffer = (uint16_t *) heap_caps_malloc(
             32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
     }
+#endif
     assert(reverb_buffer != nullptr);
     ESP_LOGI("Elements", "reverb buffer in %s",
              reverb_buffer != nullptr &&

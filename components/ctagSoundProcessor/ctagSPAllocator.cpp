@@ -38,15 +38,23 @@ std::size_t ctagSPAllocator::size2 = 0;
 ctagSPAllocator::AllocationType ctagSPAllocator::allocationType = ctagSPAllocator::AllocationType::CH0;
 
 void ctagSPAllocator::AllocateInternalBuffer(std::size_t const &size) {
-    ESP_LOGI("ctagSPAllocator", "AllocateInternalBuffer: allocating %d bytes", size);
+    ESP_LOGI("ctagSPAllocator", "AllocateInternalBuffer: allocating %d bytes", (int)size);
     std::size_t allocSize = size;
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // S3 has 512 KB SRAM: we need ctagSPAllocator to leave at least 116 KB
+    // contiguous internal SRAM free for ctagSoundProcessorElements (115,844 B).
+    // The largest plugin allocated from ctagSPAllocator is TBDings (105,708 B).
+    // Capping allocSize to 106,496 B (104 KB) satisfies TBDings while freeing
+    // 8,192 B of internal SRAM, leaving ~120 KB contiguous for Elements.
+    if (allocSize > 106496) allocSize = 106496;
+#endif
     // On ESP32 (ESP-IDF v5.x), the largest contiguous internal DRAM region
     // (SRAM1, 0x3FFE4350..0x40000000) is 113,840 bytes — 848 bytes short of
     // CONFIG_SP_FIXED_MEM_ALLOC_SZ (114,688 B), and TLSF's
     // heap_caps_get_largest_free_block() rounds down to the 4 KB bin boundary
     // (110,592 B). Step down in 512-byte increments so we claim the full
     // ~113.6 KB internal SRAM1 block (>= TBDings's 111,516 B stereo need).
-    for (std::size_t trySize = size; trySize >= 98304 && nullptr == internalBuffer; trySize -= 512) {
+    for (std::size_t trySize = allocSize; trySize >= 98304 && nullptr == internalBuffer; trySize -= 512) {
         internalBuffer = heap_caps_malloc(trySize, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
         if (nullptr != internalBuffer) {
             allocSize = trySize;
