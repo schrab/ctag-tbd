@@ -115,15 +115,59 @@ When `ctagSPAllocator::AllocateInternalBuffer(114688)` ran at boot:
 1. **Host Unit Tests (`tests/host/run_tests.sh`)**:
    - All 36 host tests passing (marbles, link protocol, input source, chain budget).
 2. **Firmware Build (`idf.py -B build-bba2 build`)**:
-   - Clean compilation under ESP-IDF v6.1.
+   - Clean compilation under ESP-IDF v6.1 (`b31ee0a0`).
    - App binary size: `0x351480` bytes (5% headroom in 0x380000 partition).
-3. **Flashing / Hardware Verification Step**:
-   - Next command to run on target:
-     ```bash
-     idf.py -B build-bba2 -p /dev/ttyACM0 flash monitor
+3. **Hardware Verification (Confirmed on BBA2 hardware)**:
+   - Flashed to `/dev/ttyACM0` and verified in boot log:
      ```
-   - Expected boot log confirmation:
+     I (11281) Elements: object 115844 bytes -> INTERNAL (largest internal block was 31744)
+     I (11551) Elements: reverb buffer in PSRAM
+     I (11551) Elements: single-core S3: 32 modes (cap 52)
      ```
-     I (...) Elements: object 115844 bytes -> INTERNAL (largest internal block was ~120832)
-     I (...) Elements: reverb buffer in PSRAM
+   - Audio confirmed clean by user at nominal settings ("sounds clean").
+
+---
+
+## 6. Open Findings & Next Investigation Steps
+
+### Finding 1: Freeze on Random Parameter Change
+
+- **Symptom:**
+  Adjusting parameters randomly from the panel or link interface causes the DSP to freeze or disconnect ("DSP link lost").
+- **Root Cause Analysis:**
+  1. On ESP32-S3, stdout console is routed through the native USB-Serial-JTAG controller (`/dev/usbserjtag`).
+  2. `CONFIG_LOG_DEFAULT_LEVEL_DEBUG=y` is set in the debug build (`LOG_DEFAULT_LEVEL=4`).
+  3. In `components/ctagSoundProcessor/ctagSPDataModel.cpp` (lines 81, 90), `ESP_LOGD("Model", "Setting id %s, with %s to %d", ...)` and `ESP_LOGD("Model", "I found the value")` execute synchronously inside `ctagSPDataModel::SetParamValue` on every single parameter change received over the link.
+  4. In ESP-IDF's `components/esp_driver_usb_serial_jtag/src/usb_serial_jtag_vfs.c`:
+     ```c
+     do {
+         if (usb_serial_jtag_ll_txfifo_writable()) { ... break; }
+     } while ((esp_timer_get_time() - s_ctx.last_tx_ts) < TX_FLUSH_TIMEOUT_US);
      ```
+     When the 64-byte hardware TX FIFO is full (e.g. when the USB CDC host is not actively reading stdout or the endpoint buffer is saturated), each character write busy-waits up to `TX_FLUSH_TIMEOUT_US` (50,000 µs = 50 ms).
+  5. A single 60-character debug message takes up to 3 seconds of synchronous blocking in Core 0's link task. This blocks the link loop, starves link heartbeats, trips the Task Watchdog or C3 offline watchdog (10 s), and drops the USB link.
+  6. Additionally, `PerfMonitor::EnableLogging(true, 5000, 1, 5)` was active on Core 1 (audio core), periodically dumping multi-line log strings to stdout.
+- **Action Items to Resolve:**
+  1. Remove or comment out the `ESP_LOGD("Model", ...)` calls at lines 81 and 90 of `components/ctagSoundProcessor/ctagSPDataModel.cpp`. Parameter change paths must remain allocation-free and logging-free.
+  2. Disable `PerfMonitor::EnableLogging` periodic stdout tasks on the audio core in `components/ctagSoundProcessor/ctagSoundProcessorElements.cpp`.
+  3. Set `CONFIG_LOG_DEFAULT_LEVEL_INFO=y` in `sdkconfig.defaults.bba2` so verbose debug statements do not flood the USB-Serial-JTAG FIFO.
+
+### Finding 2: Crackles at Geometry > 900 (Modal Resonator Headroom)
+
+- **Symptom:**
+  Elements plays cleanly at default/low geometry, but introducing higher geometry values (> 900) introduces small crackles in the audio output.
+- **Root Cause Analysis:**
+  1. **Budget:** At 32 kHz with 32 samples per block on a 240 MHz ESP32-S3, the real-time block render budget is `32 / 32000 * 240,000,000` = **240,000 cycles (1,000 µs)**.
+  2. **Baseline Load:** PERF_MONITOR baseline on Core 1 at 32 modes:
+     `Elements_Core1: avg= 777.22 µs (186,532 cyc) min= 728.76 µs max=2602.47 µs n=12684`.
+     Average execution already occupies ~78% of the budget.
+  3. **Resonator Non-linearity with Geometry:** In `components/mutable/eurorack/elements/dsp/resonator.cc:67`:
+     `stiffness = Interpolate(lut_stiffness, geometry_, 256.0f);`
+     - When `geometry < 900` (`geometry_ < 0.22`), `stiffness` is zero or negative; `brightness_attenuation = (1 - geometry_)^8` heavily damps higher modes, keeping per-block SVF iterations low and stable.
+     - When `geometry > 900`, `stiffness` crosses into positive values (up to +0.708), and `q_loss_damping_rate` triples. This sustains high Q factors and active oscillations across all 32 modes simultaneously.
+  4. The cumulative compute of 32 simultaneous ringing modes under high geometry pushes block render cycles beyond 240,000 cycles, causing I2S TX DMA underruns (crackles).
+- **Action Items to Resolve:**
+  1. Lower `kResolutionFull` in `components/ctagSoundProcessor/ctagSoundProcessorElements.hpp:82` from 32 modes to **28 or 24 modes** on BBA2:
+     - At 28 modes, SVF cycle count drops by ~12.5% (~25,000 cycles/block).
+     - At 24 modes, SVF cycle count drops by 25% (~50,000 cycles/block), leaving > 100,000 cycles (~40%) headroom.
+  2. Test geometry sweep 0..4095 on hardware to verify that crackles are completely eliminated.
