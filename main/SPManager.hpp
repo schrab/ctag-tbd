@@ -75,9 +75,9 @@ namespace CTAG {
 
             // Deferred model persistence (see SPManagerDataModel) — called
             // from the link tick; self-gates on the 5 s quiet window.
-            static void FlushModelStoreIfDue() {
-                if (model) model->FlushStoreIfDue();
-            }
+            // Takes processMutex while writing flash so the audio task on
+            // Core 1 mutes and avoids flash/PSRAM cache access collisions.
+            static void FlushModelStoreIfDue();
 
             static const char *GetCStrJSONSoundProcessorPresets(const string &id) {
                 return model->GetCStrJSONSoundProcessorPresets(id);

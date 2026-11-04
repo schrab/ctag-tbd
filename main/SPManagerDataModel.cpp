@@ -125,6 +125,10 @@ void SPManagerDataModel::SetActivePluginID(const string &id, const int chan) {
     if (!m.HasMember("activeProcessors")) return;
     if (!m["activeProcessors"].IsArray()) return;
     if (m["activeProcessors"].Size() == 0) return;
+    if (m["activeProcessors"][chan].IsString() &&
+        m["activeProcessors"][chan].GetString() == id) {
+        return; // already active, don't trigger flash store
+    }
     m["activeProcessors"][chan].SetString(id, m.GetAllocator());
     MarkStorePending();
 }
@@ -139,6 +143,11 @@ void SPManagerDataModel::SetActivePatchNum(const int patchNum, const int chan) {
         if (!chanPatches.HasMember("id")) return;
         if (!chanPatches["id"].IsString()) return;
         if (chanPatches["id"].GetString() == id) {
+            if (chanPatches.HasMember("patchNumber") &&
+                chanPatches["patchNumber"].IsInt() &&
+                chanPatches["patchNumber"].GetInt() == patchNum) {
+                return; // already set to this patch, don't trigger flash store
+            }
             chanPatches["patchNumber"] = patchNum;
             break;
         }

@@ -84,6 +84,8 @@ namespace CTAG {
             // user left the menu. Boot-time stores stay immediate.
             void MarkStorePending();
             void FlushStoreIfDue();
+            bool IsStorePending() const { return storePending; }
+            uint32_t GetLastStoreRequestMs() const { return lastStoreRequestMs; }
 
         private:
             void getSoundProcessors();

@@ -788,3 +788,15 @@ void SoundProcessorManager::EnablePluginProcessing() {
 void SoundProcessorManager::RefreshSampleRom() {
     ctagSampleRom::RefreshDataStructure();
 }
+
+void SoundProcessorManager::FlushModelStoreIfDue() {
+    if (!model || !model->IsStorePending()) return;
+    uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000);
+    if (nowMs - model->GetLastStoreRequestMs() < 5000) return;
+    if (processMutex && xSemaphoreTake(processMutex, portMAX_DELAY) == pdTRUE) {
+        model->FlushStoreIfDue();
+        xSemaphoreGive(processMutex);
+    } else if (model) {
+        model->FlushStoreIfDue();
+    }
+}
