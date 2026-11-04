@@ -150,9 +150,14 @@ Static `DRIVERS::Codec` implementing the exact `codec_bba.hpp` interface
 On BBA2 (compile-time `#if !CONFIG_TBD_PLATFORM_BBA2` guards keep the legacy path):
 
 - `ctagSoundProcessorElements`: audio task calls `part.Process(patch, state, …)`
-  **directly on core 1**. `StartHelper`, the 2-slot ping-pong `HelperBlock` machinery,
-  `helper_shared_`, and the V9 step-down ladder are not compiled. Resolution is
-  fixed at 52 modes (user-settable via the existing `/debug/setElementsMode`).
+  **directly on core 1**. `StartHelper`, the 2-slot ping-pong `HelperBlock` machinery
+  and `helper_shared_` are not compiled. **REVISED at hardware bring-up
+  (2026-11-05): the V9-style ladder is back, in a lightweight form**
+  (`render_ladder.hpp`, host-tested): the render cost depends on the resonator's
+  excitation state (struck/high-geometry peaks ~220-230k cycles vs ~140k decayed;
+  the mode count barely matters), so the ladder watches the measured part.Process
+  cost per block and steps 24 → 20 → 16 after 8 consecutive over-85%-budget
+  blocks, one-way per instance. Full = 24 modes @ 32 kHz.
 - `ctagSoundProcessorMbeads`: same treatment (its helper task, core-0 wait loops —
   including the `vTaskDelay(pdMS_TO_TICKS(n<10))` no-op waits flagged in AGENTS.md —
   disappear on BBA2). Runs single-core throttled (guide §7: 4–8 grains).
@@ -162,12 +167,18 @@ On BBA2 (compile-time `#if !CONFIG_TBD_PLATFORM_BBA2` guards keep the legacy pat
   `processMutex` try-take mute-on-contention) + core 0 system tasks
   (`link_ep`, `sd_audio`, both prio 1 — the AGENTS.md starvation rule applies verbatim).
 
-### 6.2 44.1 kHz locked
+### 6.2 Dynamic sample rate — REVISED at bring-up (2026-11-05)
 
-The Elements→32 kHz `requestedSampleRate` path in `SetSoundProcessorChannel` /
-`audio_task` is `#if`-guarded off on BBA2. Sample rate is a build-time constant
-44100; no I2S clock reconfig on plugin load (no reconfig glitch). Legacy targets
-keep dynamic switching.
+The original "44.1 kHz locked" decision was built on the s3_bench's
+DECAYED-STATE average (117k cycles @ 52 modes). Hardware measurement showed the
+STRUCK-BLOCK worst case at ~300k (excitation state dominates; mode count barely
+matters) — beyond any 44.1 kHz budget. Elements therefore runs at its native
+**32 kHz** (240k block budget) with 24 modes: the same operating point as the
+A1S, with `codec_bba2` performing a live I2S clock reconfig on plugin load
+(mirrors `codec_bba.cpp`; the reconfig glitch is accepted — the A1S lived with
+it). All other plugins stay at 44.1 kHz. `CONFIG_FREERTOS_HZ` was also reverted
+1000 → 100: at a 1 kHz tick the link task's core-0 polling evicted the render's
+hot lines from the S3's SHARED L1 cache (~+150k cycles/block).
 
 ### 6.3 Load-time CPU budget cap
 
@@ -237,9 +248,10 @@ keep dynamic switching.
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Helper tasks | `#if`-guarded out on BBA2, kept for legacy | Bench: 52 modes fits single-core at 67.6%; user decision (b) |
-| Overflow case (Elements 52M → Clouds) | load-time budget cap, Elements→32 modes | Deterministic; worst chain 86.7% |
-| Sample rate | 44.1 kHz locked on BBA2 | 32 kHz was a classic-ESP32 CPU crutch |
+| Helper tasks | `#if`-guarded out on BBA2, kept for legacy | user decision (b); single-core render + ladder replaces it |
+| Overflow case (Elements → heavy chains) | load-time budget cap + runtime render ladder | **REVISED 2026-11-05**: the bench's 117k was a decayed-state average; struck-block worst case ~300k @ 44.1k/52M. Runtime: ladder 24→20→16; load time: chain-budget cap |
+| Sample rate | Elements @ 32 kHz (native), others 44.1 kHz — **REVISED 2026-11-05** | struck-block worst case exceeds any 44.1 kHz budget; 32 kHz is Elements' authentic native rate |
+| FreeRTOS tick | ~~1000 Hz~~ → **100 Hz** — **REVISED 2026-11-05** | at 1 kHz the link task's core-0 polling evicted the render's hot lines from the S3's shared L1 cache (+~150k cycles/block) |
 | Bench branch merge | skipped; copy guide + bump eurorack submodule | user decision (c) |
 | FreeRTOS tick | 1000 Hz | user decision (d); retires the `<10 ms` vTaskDelay bug class |
 | Mbeads | stays in bundle, single-core throttled on BBA2 | bench-branch removal not inherited; revisit after bring-up |
