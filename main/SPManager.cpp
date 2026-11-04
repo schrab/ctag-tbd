@@ -80,10 +80,10 @@ namespace CTAG {
 // audio real-time task
 void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     // Flush FPU denormals (Xtensa FPU "non-standard mode": FTZ + DAZ).
-    // Without it, decaying filter states (e.g. Plaits/TBDaits MORPH) fall
-    // into denormal microcode and single blocks blow out to ~950 µs against
-    // a 725 µs budget — audible crackle. FCR is per-core; this task is
-    // pinned to core 1 where every render runs.
+    // Without it, decaying filter states (e.g. Plaits/TBDaits MORPH, Vult filters)
+    // fall into denormal microcode and single blocks blow out against budget —
+    // audible crackle/distortion. FCR is per-core; this task is pinned to core 1
+    // where every render runs.
     uint32_t fcrIn = 0, fcrOut = 0;
     asm volatile("RUR.FCR %0" : "=r"(fcrIn));
     fcrOut = fcrIn | (1u << 5);
@@ -468,15 +468,14 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
     }
 #endif
 
-    // Dynamic sample rate: Elements runs at 32 kHz native rate (+37.8% CPU time
-    // budget, authentic pitch & reverb tails); all other plugins run at 44.1 kHz.
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-    // S3: locked 44.1 kHz — the 32 kHz Elements rate was a classic-ESP32 CPU
-    // crutch; no I2S reconfig glitch on plugin load (SDD §6.2).
-    constexpr uint32_t target_rate = 44100;
-#else
+    // Dynamic sample rate: Elements runs at 32 kHz native rate — on BBA2
+    // this is NOT the classic-ESP32 crutch it was: the struck-block render
+    // worst case (strike exciter active, 52 modes ringing) measures ~300k
+    // cycles at 44.1 kHz — far over the 174k budget; at 32 kHz the block
+    // budget is 240k and 32 modes fit at ~62% (SDD §6.2 revised by
+    // hardware measurement 2026-11-04).
+    // All other plugins run at 44.1 kHz.
     const uint32_t target_rate = (chan == 0 && id == "Elements") ? 32000 : 44100;
-#endif
     requestedSampleRate.store(target_rate, std::memory_order_relaxed);
     if (!runAudioTask) {
         DRIVERS::Codec::SetSampleRate(target_rate);

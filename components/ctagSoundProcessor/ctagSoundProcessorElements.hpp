@@ -39,8 +39,22 @@ namespace CTAG {
         public:
             // Allocate from PSRAM — class is too large for the 112KB DRAM arena
             static void* operator new(std::size_t sz) {
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+                // S3 has 512 KB SRAM: render from internal SRAM — from PSRAM
+                // the render cost roughly doubles (measured 246k vs 117k
+                // cycles per 32-sample block) and overruns the 44.1 kHz
+                // audio budget.
+                void* p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+                ESP_LOGI("Elements", "object %u bytes -> %s (largest internal block was %u)",
+                         (unsigned)sz,
+                         p ? "INTERNAL" : "PSRAM (internal block too small!)",
+                         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+                if (!p) p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
+#else
+                // Allocate from PSRAM — class is too large for the 112KB DRAM arena
                 void* p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
                 if (!p) p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+#endif
                 assert(p);
                 return p;
             }
@@ -58,12 +72,15 @@ namespace CTAG {
 
             static constexpr std::size_t kBlockSize = 32;
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // S3 single-core: 52 modes fit the 44.1 kHz budget alone
-            // (117.6k/174.15k cycles, zero overruns — doc/esp32s3-porting-guide.md
-            // §3.2). The load-time chain-budget cap (chain_budget.hpp) can
-            // lower this to 32/24/16 before the plugin is created.
-            static constexpr std::size_t kResolutionFull = 52;
-            static constexpr std::size_t kResolutionFallback = 32;
+            // S3 @ 32 kHz (native Elements rate): 32 modes keep the
+            // STRUCK-BLOCK worst case (~132k cycles + FTZ overhead) inside
+            // the 240k block budget with margin. The bench's 117k @ 52 modes
+            // / 44.1 kHz was a decayed-state average — hardware measurement
+            // showed the struck worst case at ~300k, over any 44.1 kHz
+            // budget (SDD §6.1 revised 2026-11-04). The load-time
+            // chain-budget cap (chain_budget.hpp) can lower this further.
+            static constexpr std::size_t kResolutionFull = 32;
+            static constexpr std::size_t kResolutionFallback = 24;
 #else
             // Modal resonator bands: 24 = dual-core target @ 32kHz, 16 = floor.
             static constexpr std::size_t kResolutionFull = 24;

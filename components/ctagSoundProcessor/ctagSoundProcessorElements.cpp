@@ -530,7 +530,16 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
 #endif
 
     float out[kBlockSize], aux[kBlockSize];
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // Bring-up scaffolding (REMOVE): exact part.Process cost, published via
+    // the elementsHelperCycles debug channel.
+    uint32_t t0 = esp_cpu_get_cycle_count();
     part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);
+    uint32_t dt = esp_cpu_get_cycle_count() - t0;
+    gElementsDebugHelperCycles.store(static_cast<int>(dt), std::memory_order_relaxed);
+#else
+    part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);
+#endif
 
     const float fallback_gain = (rModel == 0) ? 0.15f : (rModel == 2 ? 0.4f : 0.75f);
     for (std::size_t i = 0; i < kBlockSize; i++) {
@@ -538,6 +547,12 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         data.buf[i * 2 + 1] = aux[i] * fallback_gain;
     }
     PublishDebugStats();
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // Bring-up scaffolding (REMOVE): PublishDebugStats overwrites the helper
+    // cycles channel with the (zero) helper stats — republish the measured
+    // part.Process cost AFTER it so /debug/getAudioStats reports it.
+    gElementsDebugHelperCycles.store(static_cast<int>(dt), std::memory_order_relaxed);
+#endif
 }
 
 ctagSoundProcessorElements::~ctagSoundProcessorElements() {

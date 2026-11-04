@@ -23,12 +23,18 @@ CONFIG_SPIRAM_TYPE_AUTO=y
 CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_SPIRAM_BOOT_INIT=y
 CONFIG_SPIRAM_USE_MALLOC=y
+# malloc prefers internal SRAM for allocations up to 128 KB (Kconfig max):
+# plugin DSP objects (Elements' ~116 KB Part among them) MUST render from
+# internal SRAM — from PSRAM the render cost roughly doubles (246k vs 117k
+# cycles) and overruns the 44.1 kHz audio budget. The S3 has 512 KB SRAM;
+# PSRAM stays available as the fallback when internal is exhausted.
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=131072
 
 # Native USB console (GPIO19/20), log capture = USB Serial/JTAG port
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 
-# 1000 Hz tick (SDD decision d) — retires the pdMS_TO_TICKS(n<10) no-op class
-CONFIG_FREERTOS_HZ=1000
+# 100 Hz tick (matched to A1S and all other TBD targets)
+CONFIG_FREERTOS_HZ=100
 
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 

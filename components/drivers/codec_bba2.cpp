@@ -16,11 +16,12 @@ static constexpr gpio_num_t PIN_WS = GPIO_NUM_6;     // breakout FSA
 static constexpr gpio_num_t PIN_DOUT = GPIO_NUM_17;  // S3 -> WM8978 DACDAT (breakout DAT)
 static constexpr gpio_num_t PIN_DIN = GPIO_NUM_7;    // WM8978 ADCDAT -> S3 (breakout SDB)
 
-static constexpr uint32_t kSampleRate = 44100; // locked on BBA2 (SDD §6.2)
+static constexpr uint32_t kSampleRate = 44100; // default; Elements switches to 32 kHz
 
 static i2s_chan_handle_t s_tx = nullptr;
 static i2s_chan_handle_t s_rx = nullptr;
 static bool s_mic_mode = false; // mono mic: duplicate left into right
+static uint32_t s_sample_rate = kSampleRate;
 
 wm8978 Codec::codec;
 
@@ -116,14 +117,37 @@ void Codec::WriteBuffer(float *buf, uint32_t sz) {
 }
 
 void Codec::SetSampleRate(uint32_t sample_rate) {
-    // API kept for interface parity; BBA2 is locked at 44.1 kHz (SDD §6.2).
-    if (sample_rate != kSampleRate) {
-        ESP_LOGW(TAG, "sample rate %lu requested — BBA2 is locked at %lu, ignoring",
-                 (unsigned long)sample_rate, (unsigned long)kSampleRate);
+    // Elements runs at 32 kHz (native rate — the struck-block render worst
+    // case fits the 240k @ 32 kHz block budget; hardware-measured 2026-11-04,
+    // SDD §6.2 revised). Everything else stays at 44.1 kHz. Reconfigure the
+    // I2S clocks live, mirroring codec_bba.cpp's SetSampleRate.
+    if (sample_rate != 32000 && sample_rate != 44100) {
+        ESP_LOGW(TAG, "sample rate %lu unsupported — ignoring",
+                 (unsigned long)sample_rate);
+        return;
+    }
+    if (sample_rate == s_sample_rate || s_tx == nullptr) return;
+
+    esp_err_t dis_tx = i2s_channel_disable(s_tx);
+    esp_err_t dis_rx = i2s_channel_disable(s_rx);
+
+    i2s_std_clk_config_t clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(sample_rate);
+    clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256; // 11.2896 MHz @ 44.1k / 8.192 MHz @ 32k
+    ESP_ERROR_CHECK(i2s_channel_reconfig_std_clock(s_tx, &clk_cfg));
+    ESP_ERROR_CHECK(i2s_channel_reconfig_std_clock(s_rx, &clk_cfg));
+
+    esp_err_t en_tx = i2s_channel_enable(s_tx);
+    esp_err_t en_rx = i2s_channel_enable(s_rx);
+    if (dis_tx == ESP_OK && dis_rx == ESP_OK && en_tx == ESP_OK && en_rx == ESP_OK) {
+        s_sample_rate = sample_rate;
+        ESP_LOGI(TAG, "sample rate switched to %lu", (unsigned long)sample_rate);
+    } else {
+        ESP_LOGE(TAG, "sample rate switch failed: dis=%d/%d en=%d/%d",
+                 dis_tx, dis_rx, en_tx, en_rx);
     }
 }
 
-uint32_t Codec::GetSampleRate() { return kSampleRate; }
+uint32_t Codec::GetSampleRate() { return s_sample_rate; }
 
 void Codec::SetInputSource(int sel) {
     // A1S convention preserved: 0 = mic, 1 = line (InputSource vocabulary
