@@ -172,7 +172,9 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
 
     static bool perf_enabled = false;
     if (!perf_enabled) {
+#if !defined(CONFIG_TBD_PLATFORM_BBA2)
         CTAG::INSTRUMENTATION::PerfMonitor::EnableLogging(true, 5000, 1, 5);
+#endif
         perf_enabled = true;
     }
 #else

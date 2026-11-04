@@ -78,7 +78,12 @@ void ctagSPDataModel::mergeModels() {
 }
 
 void ctagSPDataModel::SetParamValue(const string &id, const string &key, const int val) {
-    ESP_LOGD("Model", "Setting id %s, with %s to %d", id.c_str(), key.c_str(), val);
+    // NO logging here: SetParamValue runs on the link task for EVERY
+    // parameter change from the panel. On the BBA2 the console is the
+    // USB-Serial-JTAG, whose vfs write busy-waits up to 50 ms when the
+    // host is not draining the TX FIFO — a single log line here can block
+    // the link loop for seconds and trip the watchdogs (handoff doc,
+    // Finding 1). Parameter paths must stay allocation- and logging-free.
     if (!activePreset.HasMember("params")) return;
     Value &patchParams = activePreset["params"];
     if (!patchParams.IsArray()) return;
@@ -87,7 +92,6 @@ void ctagSPDataModel::SetParamValue(const string &id, const string &key, const i
         if (!v.HasMember("id")) return;
         if (!v["id"].IsString()) return;
         if (v["id"] == id) {
-            ESP_LOGD("Model", "I found the value");
             if (!v.HasMember(key)) {
                 // Params whose factory-patch entry lacks the cv/trig member
                 // would silently drop EVERY mapping made from the panel:

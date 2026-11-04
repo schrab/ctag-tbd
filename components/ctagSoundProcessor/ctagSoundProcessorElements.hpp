@@ -72,15 +72,15 @@ namespace CTAG {
 
             static constexpr std::size_t kBlockSize = 32;
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // S3 @ 32 kHz (native Elements rate): 32 modes keep the
-            // STRUCK-BLOCK worst case (~132k cycles + FTZ overhead) inside
-            // the 240k block budget with margin. The bench's 117k @ 52 modes
-            // / 44.1 kHz was a decayed-state average — hardware measurement
-            // showed the struck worst case at ~300k, over any 44.1 kHz
-            // budget (SDD §6.1 revised 2026-11-04). The load-time
-            // chain-budget cap (chain_budget.hpp) can lower this further.
-            static constexpr std::size_t kResolutionFull = 32;
-            static constexpr std::size_t kResolutionFallback = 24;
+            // S3 @ 32 kHz (native Elements rate): 24 modes keep the
+            // high-geometry worst case (stiffness > 0 sustains all modes at
+            // high Q above geometry ~900) inside the 240k block budget with
+            // >40% headroom (handoff doc, Finding 2 — hardware-measured
+            // 32 modes at 78% baseline before the high-geometry push).
+            // The load-time chain-budget cap (chain_budget.hpp) can lower
+            // this further; /debug/setElementsMode overrides for tests.
+            static constexpr std::size_t kResolutionFull = 24;
+            static constexpr std::size_t kResolutionFallback = 16;
 #else
             // Modal resonator bands: 24 = dual-core target @ 32kHz, 16 = floor.
             static constexpr std::size_t kResolutionFull = 24;

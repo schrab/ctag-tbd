@@ -32,6 +32,10 @@ CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=131072
 
 # Native USB console (GPIO19/20), log capture = USB Serial/JTAG port
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+# INFO default: at DEBUG the per-parameter ESP_LOGD spam fills the USJ TX
+# FIFO and its vfs write busy-waits up to 50 ms/line — freezes the link
+# task while auditioning (handoff doc, Finding 1).
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 
 # 100 Hz tick (matched to A1S and all other TBD targets)
 CONFIG_FREERTOS_HZ=100
