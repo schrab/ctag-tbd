@@ -334,6 +334,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         // get cpu cycles for audio task
         diff = esp_cpu_get_cycle_count() - start;
         const uint32_t maxAllowed = (DRIVERS::Codec::GetSampleRate() == 32000) ? 240000 : CPU_MAX_ALLOWED_CYCLES;
+        // Publish for the BBA2 Elements render ladder (chain_budget.hpp).
+        CTAG::SP::gBlockBudgetCycles.store(maxAllowed, std::memory_order_relaxed);
         cpuOverload = (diff > maxAllowed) ? 1 : 0;
         lastAudioTaskCycles.store(static_cast<uint32_t>(diff),
                                   std::memory_order_relaxed);

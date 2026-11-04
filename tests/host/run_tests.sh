@@ -38,6 +38,7 @@ echo "==> Building host tests"
     "$HERE/test_input_source.cpp" \
     "$HERE/test_link_protocol.cpp" \
     "$HERE/test_chain_budget.cpp" \
+    "$HERE/test_render_ladder.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
     "$EURORACK/marbles/resources.cc" \
     "$EURORACK/marbles/random/t_generator.cc" \

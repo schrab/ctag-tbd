@@ -527,25 +527,37 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         const int mode_override =
             gElementsDebugModeOverride.load(std::memory_order_relaxed);
         if (mode_override >= 0) {
+            // Debug override pins the resolution: the render ladder is
+            // suspended while set (the override IS the operator's answer).
             const std::size_t res = mode_override > (int)kResolutionFull
                                         ? kResolutionFull
                                         : (std::size_t)mode_override;
             part.set_resolution(res);
             hs.applied_resolution_.store(res, std::memory_order_relaxed);
-        } else if (cap_resolution_ > 0) {
+        } else if (cap_resolution_ > 0 && cap_resolution_ < render_ladder_.current()) {
+            // Load-time chain-budget cap: applies while it is tighter than
+            // the ladder's current step.
             part.set_resolution(cap_resolution_);
             hs.applied_resolution_.store(cap_resolution_, std::memory_order_relaxed);
+        } else {
+            part.set_resolution(render_ladder_.current());
+            hs.applied_resolution_.store(render_ladder_.current(),
+                                         std::memory_order_relaxed);
         }
     }
 #endif
 
     float out[kBlockSize], aux[kBlockSize];
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-    // Bring-up scaffolding (REMOVE): exact part.Process cost, published via
-    // the elementsHelperCycles debug channel.
+    // BBA2: exact part.Process cost, measured per block and fed to the
+    // render ladder (render_ladder.hpp) — the excited-state peaks step the
+    // resolution down automatically (handoff doc, Finding 2). The measured
+    // cost is republished via the elementsHelperCycles debug channel.
     uint32_t t0 = esp_cpu_get_cycle_count();
     part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);
     uint32_t dt = esp_cpu_get_cycle_count() - t0;
+    render_ladder_.Update(dt, CTAG::SP::gBlockBudgetCycles.load(
+                                  std::memory_order_relaxed));
     gElementsDebugHelperCycles.store(static_cast<int>(dt), std::memory_order_relaxed);
 #else
     part.Process(perfState, blow_in, strike_in, out, aux, kBlockSize);

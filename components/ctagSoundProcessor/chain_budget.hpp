@@ -78,5 +78,10 @@ namespace CTAG {
             }
         };
 
+        // Per-block audio budget in cycles, published by the audio task
+        // (240k @ 32 kHz / 174.15k @ 44.1 kHz) and consumed by the BBA2
+        // Elements render ladder (render_ladder.hpp).
+        inline std::atomic<uint32_t> gBlockBudgetCycles{240000};
+
     } // namespace SP
 } // namespace CTAG

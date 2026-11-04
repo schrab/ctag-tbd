@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include <cstdint>
 #include <cassert>
 #include "esp_heap_caps.h"
+#include "render_ladder.hpp"
 #include "ctagSoundProcessor.hpp"
 #include "elements/dsp/part.h"
 
@@ -173,6 +174,10 @@ namespace CTAG {
             // on other targets. The direct render path re-applies it whenever
             // the /debug/setElementsMode override is cleared back to -1.
             std::size_t cap_resolution_ = 0;
+            // BBA2 only: auto step-down ladder driven by the measured
+            // part.Process cost (render_ladder.hpp; host-tested). Excited-
+            // state peaks step 24 -> 20 -> 16, one-way per instance.
+            RenderLadder render_ladder_;
 
             atomic<int32_t> frequency{800}, cv_frequency{-1};
             atomic<int32_t> resonator_model{0}, cv_resonator_model{-1};
