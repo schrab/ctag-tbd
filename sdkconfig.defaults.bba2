@@ -63,3 +63,10 @@ CONFIG_TBD_PLATFORM_BBA2=y
 # IDF 6.x S3 linker fragments don't place. The proven esp32 builds auto-placed
 # it into flash text anyway (map: .ramtext @ 0x402af4b8) — replicate that.
 CONFIG_COMPILER_ORPHAN_SECTIONS_PLACE=y
+
+# 32 KB I-cache (default 16 KB): on the S3 the L1 caches are SHARED between
+# both cores, and the render code footprint (Elements/Subbotnik hot paths)
+# exceeds 16 KB — core-0 traffic evicted the render's hot lines and measured
+# +60-100k cycles/block on Subbotnik (236k vs 174k budget). The extra 16 KB
+# comes out of the reclaimed-IRAM pool (0x40374000).
+CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
