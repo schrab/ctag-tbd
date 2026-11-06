@@ -1,8 +1,11 @@
 #include "codec_bba2.hpp"
 #include "driver/i2s_std.h"
 #include "esp_log.h"
+#include "hal/cache_hal.h"
+#include "esp_cpu.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <atomic>
 
 using namespace CTAG::DRIVERS;
 
@@ -22,21 +25,46 @@ static i2s_chan_handle_t s_tx = nullptr;
 static i2s_chan_handle_t s_rx = nullptr;
 static bool s_mic_mode = false; // mono mic: duplicate left into right
 static uint32_t s_sample_rate = kSampleRate;
+// Bring-up diagnostics (REMOVE): failed/short I2S transfers. The audio task
+// ignores WriteBuffer's return by design (it must never block forever); these
+// counters make a silent write failure visible — a wedged TX DMA repeats its
+// last buffer content = harsh noise while the render telemetry stays clean.
+static std::atomic<uint32_t> s_readErrors{0};
+static std::atomic<uint32_t> s_writeErrors{0};
 
 wm8978 Codec::codec;
 
-void Codec::InitCodec() {
-    ESP_LOGI(TAG, "Init WM8978 over I2C + I2S std master");
-
-    if (!codec.init()) {
-        ESP_LOGE(TAG, "WM8978 init failed — audio will be silent");
-        // I2S still comes up so the pipeline never blocks.
-    }
-
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
-    chan_cfg.dma_desc_num = 4;   // hard rule: NEVER grow dma_desc_num (AGENTS.md)
+namespace {
+// The GDMA ISR is allocated on the core that runs the I2S driver calls that
+// install it (channel creation AND init/enable). The audio task lives on
+// core 1 — installing the ISR from core 0 (the main task) made every
+// ISR→task unblock cross cores, and that cross-core wake path lags
+// intermittently by ~3-5 ms (bench-measured 2026-11-06): the TX DMA ring
+// (4 x 32 frames = 2.9 ms) runs dry, the codec repeats stale buffer content
+// = the "all plugins noisy" harsh crackle. Run the WHOLE I2S bring-up on
+// core 1 so the ISR serves the audio core directly.
+struct I2sBringup {
+    SemaphoreHandle_t done;
+    bool ok;
+};
+void i2sBringupTask(void *arg) {
+    auto *b = static_cast<I2sBringup *>(arg);
+    i2s_chan_config_t chan_cfg =
+        I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
+    // 12 descriptors x 32 frames = 7.9 ms of audio buffered. The I2S
+    // driver's msg-queue wake occasionally lags ~3-5.5 ms (bench-proved
+    // lost wakeup: the writer blocks on an empty queue while the same-core
+    // ISR fills the queue to overflow; the task wakes only ms later —
+    // exonerated: cross-core IPI, cache msync, tickless idle, console
+    // logging, link traffic). With the original A1S 4-descriptor ring
+    // (2.9 ms horizon) every one of those windows underran the DMA = the
+    // codec looped stale buffer content = the "all plugins noisy" harsh
+    // crackle. 12 descs give ~2.4 ms margin over the measured worst lag at
+    // ~7 ms added output latency. The old ">4 wedges the TX" rule was the
+    // A1S LEGACY I2S driver — different driver, different silicon.
+    chan_cfg.dma_desc_num = 12;
     chan_cfg.dma_frame_num = 32; // 32-sample block, matches BUF_SZ
-    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &s_tx, &s_rx));
+    b->ok = (i2s_new_channel(&chan_cfg, &s_tx, &s_rx) == ESP_OK);
 
     i2s_std_config_t std_cfg = {};
     std_cfg.clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(kSampleRate);
@@ -52,10 +80,38 @@ void Codec::InitCodec() {
     std_cfg.gpio_cfg.invert_flags.bclk_inv = false;
     std_cfg.gpio_cfg.invert_flags.ws_inv = false;
 
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(s_tx, &std_cfg));
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(s_rx, &std_cfg));
-    ESP_ERROR_CHECK(i2s_channel_enable(s_tx));
-    ESP_ERROR_CHECK(i2s_channel_enable(s_rx));
+    if (b->ok) {
+        b->ok = (i2s_channel_init_std_mode(s_tx, &std_cfg) == ESP_OK &&
+                 i2s_channel_init_std_mode(s_rx, &std_cfg) == ESP_OK &&
+                 i2s_channel_enable(s_tx) == ESP_OK &&
+                 i2s_channel_enable(s_rx) == ESP_OK);
+    }
+    xSemaphoreGive(b->done);
+    vTaskDelete(nullptr);
+}
+} // namespace
+
+void Codec::InitCodec() {
+    ESP_LOGI(TAG, "Init WM8978 over I2C + I2S std master");
+
+    if (!codec.init()) {
+        ESP_LOGE(TAG, "WM8978 init failed — audio will be silent");
+        // I2S still comes up so the pipeline never blocks.
+    }
+
+    // Run the I2S bring-up (and thus the GDMA ISR allocation) on core 1.
+    I2sBringup bringup{};
+    bringup.done = xSemaphoreCreateBinary();
+    if (bringup.done != nullptr &&
+        xTaskCreatePinnedToCore(i2sBringupTask, "i2s_init", 4096, &bringup,
+                                5, nullptr, 1) == pdPASS) {
+        xSemaphoreTake(bringup.done, portMAX_DELAY);
+        vSemaphoreDelete(bringup.done);
+    } else {
+        ESP_LOGE(TAG, "core-1 I2S bringup task failed — creating on core 0");
+        i2sBringupTask(&bringup); // fallback: run inline (should not happen)
+    }
+    ESP_ERROR_CHECK(bringup.ok ? ESP_OK : ESP_FAIL);
 }
 
 void Codec::HighPassEnable() { codec.highPass(true); }
@@ -86,6 +142,7 @@ void Codec::ReadBuffer(float *buf, uint32_t sz) {
         bytes_read != bytes) {
         // Zero-fill on error/timeout — the audio task must never block
         // forever on a dead bus (A1S semantics, SDD §5.2).
+        s_readErrors.fetch_add(1, std::memory_order_relaxed);
         for (uint32_t i = 0; i < 2 * sz; ++i) buf[i] = 0.0f;
         return;
     }
@@ -113,7 +170,12 @@ void Codec::WriteBuffer(float *buf, uint32_t sz) {
         if (v < -1.0f) v = -1.0f;
         raw[i] = (int16_t)(v * 32767.0f);
     }
-    i2s_channel_write(s_tx, raw, sz * 2 * sizeof(int16_t), nullptr, pdMS_TO_TICKS(100));
+    size_t bytes_written = 0;
+    const size_t want = sz * 2 * sizeof(int16_t);
+    if (i2s_channel_write(s_tx, raw, want, &bytes_written, pdMS_TO_TICKS(100)) != ESP_OK ||
+        bytes_written != want) {
+        s_writeErrors.fetch_add(1, std::memory_order_relaxed);
+    }
 }
 
 void Codec::SetSampleRate(uint32_t sample_rate) {
@@ -148,6 +210,29 @@ void Codec::SetSampleRate(uint32_t sample_rate) {
 }
 
 uint32_t Codec::GetSampleRate() { return s_sample_rate; }
+
+// Bring-up diagnostics (REMOVE).
+uint32_t Codec::DebugI2sReadErrors() { return s_readErrors.load(std::memory_order_relaxed); }
+uint32_t Codec::DebugI2sWriteErrors() { return s_writeErrors.load(std::memory_order_relaxed); }
+
+// Bring-up diagnostics (REMOVE): time a bare 128-byte cache writeback —
+// the same op the driver runs inside every i2s_channel_write. On the S3
+// internal SRAM is cached (SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE), so if this
+// op stalls behind flash/PSRAM cache traffic, the I2S write path stalls
+// with it.
+void Codec::DebugMsyncProbe(uint32_t *sumUs, uint32_t *maxUs, uint32_t *n) {
+    static uint32_t sSum = 0, sMax = 0, sN = 0;
+    static int16_t probe[64];
+    const uint32_t t0 = esp_cpu_get_cycle_count();
+    cache_hal_writeback_addr(reinterpret_cast<uint32_t>(probe), sizeof(probe));
+    const uint32_t d = (esp_cpu_get_cycle_count() - t0) / 240; // -> us
+    sSum += d;
+    if (d > sMax) sMax = d;
+    ++sN;
+    *sumUs = sSum;
+    *maxUs = sMax;
+    *n = sN;
+}
 
 void Codec::SetInputSource(int sel) {
     // A1S convention preserved: 0 = mic, 1 = line (InputSource vocabulary

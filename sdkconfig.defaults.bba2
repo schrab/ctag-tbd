@@ -40,6 +40,12 @@ CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 # 100 Hz tick (matched to A1S and all other TBD targets)
 CONFIG_FREERTOS_HZ=100
 
+# Tickless idle OFF: its suppress path delayed queue wakes by ~3-5 ms on the
+# audio core (the I2S msg-queue lost-wakeup signature, bench-proved
+# 2026-11-06); the audio task blocks ~0.7 ms per block so tickless saves
+# nothing anyway.
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=n
+
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 
 # SD long filenames on the SDMMC FAT mount (same as a1s full config)

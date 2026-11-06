@@ -149,7 +149,84 @@ namespace CTAG {
                            to_string(elements_debug_get_panic_count()) +
                            ",\"elementsMaxResonatorLevel\":" +
                            to_string(elements_debug_get_max_resonator_level()) +
-                           "}";
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+                           // Bring-up diagnostics (REMOVE): cumulative I2S
+                           // stall counters, valid after a hostless run.
+                           ",\"diagStallRd\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagStallRd()) +
+                           ",\"diagStallWr\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagStallWr()) +
+                           ",\"diagLoopOver\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagLoopOver()) +
+                           ",\"diagBlocks\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagBlocks()) +
+                           ",\"i2sErrR\":" +
+                           to_string(DRIVERS::Codec::DebugI2sReadErrors()) +
+                           ",\"i2sErrW\":" +
+                           to_string(DRIVERS::Codec::DebugI2sWriteErrors()) +
+                           ",\"msyncAvgUs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagMsyncN() != 0
+                                         ? AUDIO::SoundProcessorManager::GetDiagMsyncSum() /
+                                               AUDIO::SoundProcessorManager::GetDiagMsyncN()
+                                         : 0) +
+                           ",\"msyncMaxUs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagMsyncMax()) +
+                           ",\"txIsr\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagTxIsrCount()) +
+                           ",\"txIsrAgeMs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagTxIsrAgeMs()) +
+                           ",\"txQovf\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagTxQovf()) +
+                           ",\"rxIsr\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagRxIsrCount()) +
+                           ",\"rxIsrAgeMs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagRxIsrAgeMs()) +
+                           ",\"stallIsrZero\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagStallIsrZero()) +
+                           ",\"stallIsrNonzero\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagStallIsrNonzero()) +
+                           ",\"stallIsrMax\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagStallIsrMax()) +
+                           ",\"wrBinWaitAvgUs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagWrBinWaitAvgUs()) +
+                           ",\"wrBinWaitMaxUs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagWrBinWaitMaxUs()) +
+                           ",\"wrQWaitAvgUs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagWrQWaitAvgUs()) +
+                           ",\"wrQWaitMaxUs\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagWrQWaitMaxUs()) +
+                           ",\"txIsrCore\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagTxIsrCore()) +
+                           ",\"rxIsrCore\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagRxIsrCore()) +
+                           ",\"txQWaitMax\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagTxQWaitMax()) +
+                           ",\"txQNoWaiter\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagTxQNoWaiter()) +
+                           ",\"txQWithWaiter\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetDiagTxQWithWaiter()) +
+                           ",\"marOver\":[";
+                {
+                    uint32_t mar[4], rd[4], ren[4], wr[4], gap[4];
+                    AUDIO::SoundProcessorManager::GetDiagPhaseOver(mar, rd, ren, wr, gap);
+                    for (int i = 0; i < 4; ++i)
+                        response += to_string(mar[i]) + (i < 3 ? "," : "],\"rdOver\":[");
+                    for (int i = 0; i < 4; ++i)
+                        response += to_string(rd[i]) + (i < 3 ? "," : "],\"renOver\":[");
+                    for (int i = 0; i < 4; ++i)
+                        response += to_string(ren[i]) + (i < 3 ? "," : "],\"wrOver\":[");
+                    for (int i = 0; i < 4; ++i)
+                        response += to_string(wr[i]) + (i < 3 ? "," : "],\"gapOver\":[");
+                    for (int i = 0; i < 4; ++i)
+                        response += to_string(gap[i]) + (i < 3 ? "," : "");
+                    response += "],\"gdmaSnap\":[";
+                    uint32_t snap[26];
+                    AUDIO::SoundProcessorManager::GetDiagGdmaSnap(snap);
+                    for (int i = 0; i < 26; ++i)
+                        response += to_string(snap[i]) + (i < 25 ? "," : "");
+                }
+                response += "]}";
+#endif
                 return true;
             }
 

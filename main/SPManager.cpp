@@ -70,6 +70,115 @@ using namespace CTAG::DRIVERS;
 #define NG_RIGHT 3
 #define CPU_MAX_ALLOWED_CYCLES 174150 // is 32/44100kHz * 240MHz
 
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+// Bring-up diagnostic (REMOVE): core-1 scheduling probe. A prio-1 task on
+// core 1 ticking every 10 ms. If the audio task BLOCKS (waits on the I2S
+// driver semaphore), the probe keeps ticking; if the audio task SPINS at
+// prio 23, the probe starves to zero. Probes per 2 s window are dumped in
+// the loop diagnostic. The core-0 instance doubles as a core-0 liveness
+// probe and snapshots the I2S peripheral state while a stall is flagged.
+#include "soc/i2s_reg.h"
+#include "soc/gdma_reg.h"
+static std::atomic<uint32_t> s_probeTicks{0};
+static std::atomic<int64_t> s_stallUntilUs{0};
+// IDF i2s driver ISR counters (bench edit in esp_driver_i2s/i2s_common.c,
+// REMOVE with the bring-up diag).
+extern "C" volatile uint32_t gI2sTxBenchIsrCount;
+extern "C" volatile uint32_t gI2sTxBenchIsrLastCyc;
+extern "C" volatile uint32_t gI2sTxBenchQovfCount;
+extern "C" volatile uint32_t gI2sRxBenchIsrCount;
+extern "C" volatile uint32_t gI2sRxBenchIsrLastCyc;
+extern "C" volatile uint32_t gI2sWrBenchBinWaitMaxUs;
+extern "C" volatile uint32_t gI2sWrBenchQWaitMaxUs;
+extern "C" volatile uint32_t gI2sWrBenchBinWaitSumUs;
+extern "C" volatile uint32_t gI2sWrBenchQWaitSumUs;
+extern "C" volatile uint32_t gI2sWrBenchNCalls;
+extern "C" volatile uint32_t gI2sTxBenchIsrCore;
+extern "C" volatile uint32_t gI2sRxBenchIsrCore;
+extern "C" volatile uint32_t gI2sTxBenchQWaitMax;
+extern "C" volatile uint32_t gI2sTxBenchQNoWaiter;
+extern "C" volatile uint32_t gI2sTxBenchQWithWaiter;
+// Cumulative silent counters (REMOVE with the bring-up diag): readable via
+// /debug/getAudioStats after a hostless run — the runtime diag logging is
+// compiled out (BBA2_DIAG_VERBOSE 0) so the USJ console stays silent.
+#define BBA2_DIAG_VERBOSE 0
+// Per-phase wall-time exceedance counters (REMOVE): thresholds 0.5, 1.0,
+// 1.67, 2.9 ms — [0]..[3]. Reveals which phase carries the loop overruns.
+static std::atomic<uint32_t> s_marOver[4] = {{0}, {0}, {0}, {0}};
+static std::atomic<uint32_t> s_rdOver[4] = {{0}, {0}, {0}, {0}};
+static std::atomic<uint32_t> s_renOver[4] = {{0}, {0}, {0}, {0}};
+static std::atomic<uint32_t> s_wrOver[4] = {{0}, {0}, {0}, {0}};
+static std::atomic<uint32_t> s_gapOver[4] = {{0}, {0}, {0}, {0}};
+static inline void bba2AccOver(std::atomic<uint32_t> *a, uint32_t us) {
+    if (us > 500) a[0].fetch_add(1, std::memory_order_relaxed);
+    if (us > 1000) a[1].fetch_add(1, std::memory_order_relaxed);
+    if (us > 1667) a[2].fetch_add(1, std::memory_order_relaxed);
+    if (us > 2900) a[3].fetch_add(1, std::memory_order_relaxed);
+}
+// Silent GDMA/I2S snapshot taken by the core-0 watcher at stall detection
+// (REMOVE): read via /debug/getAudioStats. Per channel (stride 0xC0):
+// OUT_INT_RAW/OUT_STATE/OUT_EOF_DES_ADDR/IN_INT_RAW/IN_STATE/IN_LINK.
+struct Bba2GdmaSnap {
+    uint32_t i2sState;
+    uint32_t outRaw[4], outState[4], outEof[4];
+    uint32_t inRaw[4], inState[4], inLink[4];
+    uint32_t seq;
+};
+static Bba2GdmaSnap s_gdmaSnap;
+static void bba2GdmaSnapshot() {
+    s_gdmaSnap.i2sState = REG_READ(I2S_STATE_REG(0));
+    for (int c = 0; c < 4; ++c) {
+        const uint32_t base = 0x6003F000 + 0xC0 * c;
+        s_gdmaSnap.outRaw[c] = REG_READ(base + 0x68);
+        s_gdmaSnap.outState[c] = REG_READ(base + 0x84);
+        s_gdmaSnap.outEof[c] = REG_READ(base + 0x88);
+        s_gdmaSnap.inRaw[c] = REG_READ(base + 0x8);
+        s_gdmaSnap.inState[c] = REG_READ(base + 0x24);
+        s_gdmaSnap.inLink[c] = REG_READ(base + 0x20);
+    }
+    s_gdmaSnap.seq++;
+}
+static void stallProbeTask(void *arg) {
+    const intptr_t core = (intptr_t)arg;
+    if (core == 1) {
+        while (true) {
+            s_probeTicks.fetch_add(1, std::memory_order_relaxed);
+            vTaskDelay(1);
+        }
+    }
+    // core 0: stall watcher + I2S/GDMA snapshot. GDMA channel stride is
+    // 0xC0; TX = OUT channel, RX = IN channel (indexes 0/1 on this build).
+    // OUT_INT_RAW bit1 = descriptor EOF; OUT_STATE[22:20] = channel FSM.
+    uint32_t lastSnapUs = 0;
+    while (true) {
+        const int64_t nowUs = esp_timer_get_time();
+        if (nowUs < s_stallUntilUs.load(std::memory_order_relaxed)) {
+            if (nowUs - lastSnapUs > 20000) { // one snapshot per stall burst
+                lastSnapUs = nowUs;
+                bba2GdmaSnapshot();
+#if BBA2_DIAG_VERBOSE
+                ESP_LOGI("SPM",
+                         "I2S@stall tx_idle=%d | ch0: out_raw=%#lx out_st=%#lx in_raw=%#lx in_st=%#lx eof=%#lx | ch1: out_raw=%#lx out_st=%#lx in_raw=%#lx in_st=%#lx eof=%#lx",
+                         (int)(REG_READ(I2S_STATE_REG(0)) & 1),
+                         (unsigned long)REG_READ(GDMA_OUT_INT_RAW_CH0_REG),
+                         (unsigned long)REG_READ(GDMA_OUT_STATE_CH0_REG),
+                         (unsigned long)REG_READ(GDMA_IN_INT_RAW_CH0_REG),
+                         (unsigned long)REG_READ(GDMA_IN_STATE_CH0_REG),
+                         (unsigned long)REG_READ(GDMA_OUT_EOF_DES_ADDR_CH0_REG),
+                         (unsigned long)REG_READ(GDMA_OUT_INT_RAW_CH1_REG),
+                         (unsigned long)REG_READ(GDMA_OUT_STATE_CH1_REG),
+                         (unsigned long)REG_READ(GDMA_IN_INT_RAW_CH1_REG),
+                         (unsigned long)REG_READ(GDMA_IN_STATE_CH1_REG),
+                         (unsigned long)REG_READ(GDMA_OUT_EOF_DES_ADDR_CH1_REG));
+#endif
+            }
+        }
+        s_probeTicks.fetch_add(1, std::memory_order_relaxed);
+        vTaskDelay(1);
+    }
+}
+#endif
+
 // global variable, spiffs base directory
 namespace CTAG {
     namespace RESOURCES {
@@ -97,6 +206,30 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     float lramp[BUF_SZ];
     bool isStereoCH0 = false;
     esp_cpu_cycle_count_t start, diff;
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // Bring-up diagnostic accumulators (REMOVE with the 2 s dump below).
+    // The render diff alone is BLIND to pacing: a TX-DMA underrun shows up
+    // as a long gap BETWEEN iterations while the render diff stays tiny.
+    // DMA horizon: 4 descs x 32 frames = 2.9 ms @ 44.1 kHz (4 ms @ 32 kHz);
+    // a loop period over ~2.9 ms means the codec repeated stale content.
+    static uint32_t s_pMax = 0, s_pSum = 0, s_pN = 0, s_pOver = 0;
+    // Per-phase cost attribution: Marbles / Codec::ReadBuffer render /
+    // Codec::WriteBuffer — the loop period is their sum plus scheduling.
+    static uint32_t s_mMax = 0, s_mSum = 0;
+    static uint32_t s_rdMax = 0, s_rdSum = 0;
+    static uint32_t s_wrMax = 0, s_wrSum = 0;
+    // Wall time (esp_timer) for the blocking codec phases: if wall >> cycles
+    // the task was waiting (ISR/scheduler); if wall ~= cycles/240 the CPU was
+    // spinning (spinlock / cache-stall) inside the driver.
+    static uint32_t s_rdWMax = 0, s_rdWSum = 0;
+    static uint32_t s_wrWMax = 0, s_wrWSum = 0;
+    static uint32_t s_mWMax = 0, s_mWSum = 0;
+    static uint32_t s_renWMax = 0, s_renWSum = 0;
+    static uint32_t s_gapMax = 0, s_gapSum = 0;
+    static uint32_t s_stallRd = 0, s_stallWr = 0, s_stallLogged = 0;
+    static int64_t s_iterStartUs = 0;
+    static uint32_t s_probePrev = 0;
+#endif
 
 
     fv3::dccut_f in_dccutl, in_dccutr;
@@ -146,6 +279,15 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
                 loopHistSeq.load(std::memory_order_relaxed) & (kLoopHistLen - 1);
             loopHist[slot] = static_cast<uint16_t>(period10);
             loopHistSeq.fetch_add(1, std::memory_order_relaxed);
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+            if (period10 > s_pMax) s_pMax = period10;
+            if (period10 > 29) { // > 2.9 ms: TX DMA horizon exceeded
+                ++s_pOver;
+                diagI2sLoopOver.fetch_add(1, std::memory_order_relaxed);
+            }
+            s_pSum += period10; ++s_pN;
+            s_iterStartUs = nowUs;
+#endif
         }
 
         // Reconfigure I2S sample rate if requested by plugin load
@@ -155,10 +297,53 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         }
 
         // Marbles random modulation → CV/trig slots
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        const int64_t w0 = esp_timer_get_time();
+        const uint32_t ph0 = esp_cpu_get_cycle_count();
+#endif
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        const int64_t wm = esp_timer_get_time();
+        const uint32_t ph1 = esp_cpu_get_cycle_count();
+        { uint32_t d = ph1 - ph0;
+          if (d > s_mMax) s_mMax = d;
+          s_mSum += d; }
+        { uint32_t d = static_cast<uint32_t>(wm - w0);
+          if (d > s_mWMax) s_mWMax = d;
+          s_mWSum += d; }
+        int32_t uMar = static_cast<int32_t>(wm - w0);
+        bba2AccOver(s_marOver, uMar);
+#endif
 
         // get normalized raw data from CODEC
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        const int64_t w1 = esp_timer_get_time();
+#endif
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        const uint32_t ph2 = esp_cpu_get_cycle_count();
+        const int64_t w2 = esp_timer_get_time();
+        { uint32_t d = ph2 - ph1;
+          if (d > s_rdMax) s_rdMax = d;
+          s_rdSum += d; }
+        { uint32_t d = static_cast<uint32_t>(w2 - w1);
+          if (d > s_rdWMax) s_rdWMax = d;
+          s_rdWSum += d; }
+        int32_t uRd = static_cast<int32_t>(w2 - w1);
+        bba2AccOver(s_rdOver, uRd);
+        if (ph2 - ph1 > 400000) { // >1.67 ms stall
+            ++s_stallRd;
+            diagI2sStallRd.fetch_add(1, std::memory_order_relaxed);
+            s_stallUntilUs.store(w2 + 50000, std::memory_order_relaxed);
+#if BBA2_DIAG_VERBOSE
+            if (s_stallLogged < 4) {
+                ++s_stallLogged;
+                ESP_LOGI("SPM", "STALL rd %lu cyc / %lu us wall",
+                         (unsigned long)(ph2 - ph1), (unsigned long)(w2 - w1));
+            }
+#endif
+        }
+#endif
 
         // track the cpu cycles for audio task
         start = esp_cpu_get_cycle_count();
@@ -333,12 +518,79 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 
         // get cpu cycles for audio task
         diff = esp_cpu_get_cycle_count() - start;
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        const int64_t wRen = esp_timer_get_time();
+        { uint32_t d = static_cast<uint32_t>(wRen - w2);
+          if (d > s_renWMax) s_renWMax = d;
+          s_renWSum += d; }
+        int32_t uRen = static_cast<int32_t>(wRen - w2);
+        bba2AccOver(s_renOver, uRen);
+#endif
         const uint32_t maxAllowed = (DRIVERS::Codec::GetSampleRate() == 32000) ? 240000 : CPU_MAX_ALLOWED_CYCLES;
         // Publish for the BBA2 Elements render ladder (chain_budget.hpp).
         CTAG::SP::gBlockBudgetCycles.store(maxAllowed, std::memory_order_relaxed);
         cpuOverload = (diff > maxAllowed) ? 1 : 0;
         lastAudioTaskCycles.store(static_cast<uint32_t>(diff),
                                   std::memory_order_relaxed);
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        // Bring-up diagnostic (REMOVE): loop-period summary every 2 s —
+        // max/min/since-last-dump, plus the count of blocks over the DMA
+        // underrun horizon (2.9 ms = 700k cycles @ 240 MHz). Any block over
+        // ~700k cycles = the TX DMA ran dry = audible crackle.
+        {
+            static uint32_t s_max = 0, s_sum = 0, s_n = 0, s_over = 0;
+            static int64_t s_lastDumpUs = 0;
+            const int64_t nowUsDiag = esp_timer_get_time();
+            if (diff > s_max) s_max = diff;
+            if (diff > 700000) ++s_over;
+            s_sum += diff; ++s_n;
+            if (nowUsDiag - s_lastDumpUs > 2000000 && s_n > 0) {
+                diagI2sBlocks.fetch_add(s_n, std::memory_order_relaxed);
+#if BBA2_DIAG_VERBOSE
+                // Active plugin + rate in the line: the numbers are only
+                // meaningful per plugin (Void renders ~7.6k cycles; a real
+                // plugin's PSRAM-touching render is what the user hears).
+                // The model DOM is mutated under processMutex — snapshot the
+                // id under a try-take, skip the dump mid-load.
+                char spId[32] = "loading";
+                if (xSemaphoreTake(processMutex, 0) == pdTRUE) {
+                    strncpy(spId, model->GetActiveProcessorID(0).c_str(),
+                            sizeof(spId) - 1);
+                    xSemaphoreGive(processMutex);
+                }
+                const uint32_t probeNow =
+                    s_probeTicks.load(std::memory_order_relaxed);
+                const uint32_t probeDelta = probeNow - s_probePrev;
+                s_probePrev = probeNow;
+                ESP_LOGI("SPM",
+                         "loop: render avg %lu max %lu | period avg %lu max %lu over2.9ms=%lu n=%lu | mar w%lu/%lu | rd w%lu/%lu | ren w%lu/%lu | wr w%lu/%lu | gap %lu/%lu | probe %lu | stalls rd=%lu wr=%lu | i2sErr r=%lu w=%lu | %s @ %lu Hz",
+                         (unsigned long)(s_sum / s_n), (unsigned long)s_max,
+                         (unsigned long)(s_pSum / s_pN), (unsigned long)s_pMax,
+                         (unsigned long)s_pOver, (unsigned long)s_n,
+                         (unsigned long)(s_mWSum / s_n), (unsigned long)s_mWMax,
+                         (unsigned long)(s_rdWSum / s_n), (unsigned long)s_rdWMax,
+                         (unsigned long)(s_renWSum / s_n), (unsigned long)s_renWMax,
+                         (unsigned long)(s_wrWSum / s_n), (unsigned long)s_wrWMax,
+                         (unsigned long)(s_gapSum / s_n), (unsigned long)s_gapMax,
+                         (unsigned long)probeDelta,
+                         (unsigned long)s_stallRd, (unsigned long)s_stallWr,
+                         (unsigned long)DRIVERS::Codec::DebugI2sReadErrors(),
+                         (unsigned long)DRIVERS::Codec::DebugI2sWriteErrors(),
+                         spId, (unsigned long)DRIVERS::Codec::GetSampleRate());
+                s_max = 0; s_sum = 0; s_n = 0; s_over = 0;
+#endif
+                s_pMax = 0; s_pSum = 0; s_pN = 0; s_pOver = 0;
+                s_mMax = 0; s_mSum = 0; s_rdMax = 0; s_rdSum = 0;
+                s_wrMax = 0; s_wrSum = 0;
+                s_rdWMax = 0; s_rdWSum = 0; s_wrWMax = 0; s_wrWSum = 0;
+                s_mWMax = 0; s_mWSum = 0; s_renWMax = 0; s_renWSum = 0;
+                s_gapMax = 0; s_gapSum = 0;
+                s_stallRd = 0; s_stallWr = 0; s_stallLogged = 0;
+                s_lastDumpUs = nowUsDiag;
+                s_lastDumpUs = nowUsDiag;
+            }
+        }
+#endif
 
         // Rolling output ring for bench click forensics: always capture the
         // finished block (256 B memcpy per block, negligible) so
@@ -406,7 +658,61 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         }
 
         // write raw float data back to CODEC
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        const uint32_t ph3 = esp_cpu_get_cycle_count();
+        const int64_t w3 = esp_timer_get_time();
+        const uint32_t s_stallIsr0 = gI2sTxBenchIsrCount;
+#endif
         DRIVERS::Codec::WriteBuffer(fbuf, BUF_SZ);
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        { uint32_t d = esp_cpu_get_cycle_count() - ph3;
+          if (d > s_wrMax) s_wrMax = d;
+          s_wrSum += d; }
+        { // bare cache-writeback probe, same op the driver runs per write
+          uint32_t msSum, msMax, msN;
+          DRIVERS::Codec::DebugMsyncProbe(&msSum, &msMax, &msN);
+          diagMsyncSum.store(msSum, std::memory_order_relaxed);
+          diagMsyncMax.store(msMax, std::memory_order_relaxed);
+          diagMsyncN.store(msN, std::memory_order_relaxed);
+        }
+        { uint32_t d = static_cast<uint32_t>(esp_timer_get_time() - w3);
+          if (d > s_wrWMax) s_wrWMax = d;
+          s_wrWSum += d; }
+        const int64_t w4 = esp_timer_get_time();
+        int32_t uWr = static_cast<int32_t>(w4 - w3);
+        bba2AccOver(s_wrOver, uWr);
+        if (w4 - w3 > 1667) { // >1.67 ms stall (wall us)
+            ++s_stallWr;
+            diagI2sStallWr.fetch_add(1, std::memory_order_relaxed);
+            s_stallUntilUs.store(w4 + 50000, std::memory_order_relaxed);
+            { // did the TX ISR run during this stall? (0 = ISR absent)
+              uint32_t d = gI2sTxBenchIsrCount - s_stallIsr0;
+              if (d > diagStallIsrMax.load(std::memory_order_relaxed))
+                  diagStallIsrMax.store(d, std::memory_order_relaxed);
+              if (d == 0)
+                  diagStallIsrZero.fetch_add(1, std::memory_order_relaxed);
+              else
+                  diagStallIsrNonzero.fetch_add(1, std::memory_order_relaxed);
+            }
+#if BBA2_DIAG_VERBOSE
+            if (s_stallLogged < 4) {
+                ++s_stallLogged;
+                ESP_LOGI("SPM", "STALL wr %lu cyc / %lu us wall",
+                         (unsigned long)(esp_cpu_get_cycle_count() - ph3),
+                         (unsigned long)(w4 - w3));
+            }
+#endif
+        }
+        { // unaccounted gap: period minus all phase walls — time spent
+          // outside the instrumented sections (scheduler, other work)
+          int32_t gap = static_cast<int32_t>(esp_timer_get_time() - s_iterStartUs)
+                        - uMar - uRd - uRen - uWr;
+          if (gap < 0) gap = 0;
+          if (gap > 65000) gap = 65000;
+          bba2AccOver(s_gapOver, static_cast<uint32_t>(gap));
+          if (static_cast<uint32_t>(gap) > s_gapMax) s_gapMax = gap;
+          s_gapSum += gap; }
+#endif
     }
     memset(fbuf, 0, BUF_SZ * 2 * sizeof(float));
     DRIVERS::Codec::WriteBuffer(fbuf, BUF_SZ);
@@ -545,6 +851,88 @@ atomic<uint32_t> SoundProcessorManager::requestedSampleRate{44100};
 atomic<uint32_t> SoundProcessorManager::ch0_outputSoftClip;
 atomic<uint32_t> SoundProcessorManager::ch1_outputSoftClip;
 atomic<bool> SoundProcessorManager::meteringEnabled{false};
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+// Bring-up diagnostics (REMOVE), see GetDiag* accessors in the header.
+atomic<uint32_t> SoundProcessorManager::diagI2sStallRd{0};
+atomic<uint32_t> SoundProcessorManager::diagI2sStallWr{0};
+atomic<uint32_t> SoundProcessorManager::diagI2sLoopOver{0};
+atomic<uint32_t> SoundProcessorManager::diagI2sBlocks{0};
+atomic<uint32_t> SoundProcessorManager::diagMsyncSum{0};
+atomic<uint32_t> SoundProcessorManager::diagMsyncMax{0};
+atomic<uint32_t> SoundProcessorManager::diagMsyncN{0};
+atomic<uint32_t> SoundProcessorManager::diagStallIsrZero{0};
+atomic<uint32_t> SoundProcessorManager::diagStallIsrNonzero{0};
+atomic<uint32_t> SoundProcessorManager::diagStallIsrMax{0};
+uint32_t SoundProcessorManager::GetDiagTxIsrCount() {
+    return gI2sTxBenchIsrCount;
+}
+uint32_t SoundProcessorManager::GetDiagTxIsrAgeMs() {
+    const uint32_t now = static_cast<uint32_t>(esp_timer_get_time() / 1000)
+                         * 240; // -> cycles
+    return (now - gI2sTxBenchIsrLastCyc) / 240000; // -> ms
+}
+uint32_t SoundProcessorManager::GetDiagTxQovf() {
+    return gI2sTxBenchQovfCount;
+}
+uint32_t SoundProcessorManager::GetDiagRxIsrCount() {
+    return gI2sRxBenchIsrCount;
+}
+uint32_t SoundProcessorManager::GetDiagRxIsrAgeMs() {
+    const uint32_t now = static_cast<uint32_t>(esp_timer_get_time() / 1000)
+                         * 240;
+    return (now - gI2sRxBenchIsrLastCyc) / 240000;
+}
+uint32_t SoundProcessorManager::GetDiagWrBinWaitAvgUs() {
+    return gI2sWrBenchNCalls ? gI2sWrBenchBinWaitSumUs / gI2sWrBenchNCalls : 0;
+}
+uint32_t SoundProcessorManager::GetDiagWrBinWaitMaxUs() {
+    return gI2sWrBenchBinWaitMaxUs;
+}
+uint32_t SoundProcessorManager::GetDiagWrQWaitAvgUs() {
+    return gI2sWrBenchNCalls ? gI2sWrBenchQWaitSumUs / gI2sWrBenchNCalls : 0;
+}
+uint32_t SoundProcessorManager::GetDiagWrQWaitMaxUs() {
+    return gI2sWrBenchQWaitMaxUs;
+}
+uint32_t SoundProcessorManager::GetDiagTxIsrCore() {
+    return gI2sTxBenchIsrCore;
+}
+uint32_t SoundProcessorManager::GetDiagRxIsrCore() {
+    return gI2sRxBenchIsrCore;
+}
+uint32_t SoundProcessorManager::GetDiagTxQWaitMax() {
+    return gI2sTxBenchQWaitMax;
+}
+uint32_t SoundProcessorManager::GetDiagTxQNoWaiter() {
+    return gI2sTxBenchQNoWaiter;
+}
+uint32_t SoundProcessorManager::GetDiagTxQWithWaiter() {
+    return gI2sTxBenchQWithWaiter;
+}
+void SoundProcessorManager::GetDiagPhaseOver(uint32_t *mar, uint32_t *rd,
+                                             uint32_t *ren, uint32_t *wr,
+                                             uint32_t *gap) {
+    for (int i = 0; i < 4; ++i) {
+        mar[i] = s_marOver[i].load(std::memory_order_relaxed);
+        rd[i] = s_rdOver[i].load(std::memory_order_relaxed);
+        ren[i] = s_renOver[i].load(std::memory_order_relaxed);
+        wr[i] = s_wrOver[i].load(std::memory_order_relaxed);
+        gap[i] = s_gapOver[i].load(std::memory_order_relaxed);
+    }
+}
+void SoundProcessorManager::GetDiagGdmaSnap(uint32_t *out26) {
+    out26[0] = s_gdmaSnap.i2sState;
+    for (int c = 0; c < 4; ++c) {
+        out26[1 + c * 6 + 0] = s_gdmaSnap.outRaw[c];
+        out26[1 + c * 6 + 1] = s_gdmaSnap.outState[c];
+        out26[1 + c * 6 + 2] = s_gdmaSnap.outEof[c];
+        out26[1 + c * 6 + 3] = s_gdmaSnap.inRaw[c];
+        out26[1 + c * 6 + 4] = s_gdmaSnap.inState[c];
+        out26[1 + c * 6 + 5] = s_gdmaSnap.inLink[c];
+    }
+    out26[25] = s_gdmaSnap.seq;
+}
+#endif
 atomic<uint32_t> SoundProcessorManager::vuInL{0};
 atomic<uint32_t> SoundProcessorManager::vuInR{0};
 atomic<uint32_t> SoundProcessorManager::vuOutL{0};
@@ -602,6 +990,12 @@ void SoundProcessorManager::StartSoundProcessor() {
     // create audio thread
     runAudioTask = 1;
     xTaskCreatePinnedToCore(&SoundProcessorManager::audio_task, "audio_task", 4096, nullptr, 23, &audioTaskH, 1);
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // Bring-up diagnostic (REMOVE): core-1 scheduling probe + core-0 stall
+    // watcher with I2S snapshots, see top of file.
+    xTaskCreatePinnedToCore(stallProbeTask, "stall_probe1", 2048, (void *)1, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(stallProbeTask, "stall_probe0", 4096, (void *)0, 5, nullptr, 0);
+#endif
 
 #if defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_BBA)
     // Favorites UI task disabled — replaced by UIMenu system (see UIMenu.cpp)
