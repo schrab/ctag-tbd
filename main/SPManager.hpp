@@ -123,11 +123,6 @@ namespace CTAG {
                        * sizeof(StackType_t);
             }
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // Bring-up diagnostics (REMOVE): cumulative I2S stall counters,
-            // read via /debug/getAudioStats after a hostless run. stallRd/stallWr
-            // = Codec::Read/WriteBuffer calls that blocked > 1.67 ms (the TX DMA
-            // underruns above 2.9 ms); loopOver = loop periods over the 2.9 ms
-            // DMA horizon; blocks = total loop iterations.
             static uint32_t GetDiagStallRd() {
                 return diagI2sStallRd.load(std::memory_order_relaxed);
             }
@@ -137,54 +132,6 @@ namespace CTAG {
             static uint32_t GetDiagLoopOver() {
                 return diagI2sLoopOver.load(std::memory_order_relaxed);
             }
-            static uint32_t GetDiagBlocks() {
-                return diagI2sBlocks.load(std::memory_order_relaxed);
-            }
-            // Per-phase wall-time exceedance counters; each array holds 4
-            // entries for thresholds 0.5/1.0/1.67/2.9 ms.
-            static void GetDiagPhaseOver(uint32_t *mar, uint32_t *rd,
-                                         uint32_t *ren, uint32_t *wr,
-                                         uint32_t *gap);
-            // Latest stall-time GDMA/I2S register snapshot (26 words, see
-            // Bba2GdmaSnap in the .cpp): i2sState, then per channel 0..3
-            // outRaw/outState/outEof/inRaw/inState/inLink, then seq.
-            static void GetDiagGdmaSnap(uint32_t *out26);
-            // Bare 128-byte cache-writeback probe (cumulative us sum/max/n).
-            static uint32_t GetDiagMsyncSum() {
-                return diagMsyncSum.load(std::memory_order_relaxed);
-            }
-            static uint32_t GetDiagMsyncMax() {
-                return diagMsyncMax.load(std::memory_order_relaxed);
-            }
-            static uint32_t GetDiagMsyncN() {
-                return diagMsyncN.load(std::memory_order_relaxed);
-            }
-            // IDF i2s driver ISR activity (bench counters in the driver).
-            static uint32_t GetDiagTxIsrCount();
-            static uint32_t GetDiagTxIsrAgeMs();
-            static uint32_t GetDiagTxQovf();
-            static uint32_t GetDiagRxIsrCount();
-            static uint32_t GetDiagRxIsrAgeMs();
-            // During write stalls: did the TX ISR advance?
-            static uint32_t GetDiagStallIsrZero() {
-                return diagStallIsrZero.load(std::memory_order_relaxed);
-            }
-            static uint32_t GetDiagStallIsrNonzero() {
-                return diagStallIsrNonzero.load(std::memory_order_relaxed);
-            }
-            static uint32_t GetDiagStallIsrMax() {
-                return diagStallIsrMax.load(std::memory_order_relaxed);
-            }
-            // Write-path wait split (driver bench counters, cumulative).
-            static uint32_t GetDiagWrBinWaitAvgUs();
-            static uint32_t GetDiagWrBinWaitMaxUs();
-            static uint32_t GetDiagWrQWaitAvgUs();
-            static uint32_t GetDiagWrQWaitMaxUs();
-            static uint32_t GetDiagTxIsrCore();
-            static uint32_t GetDiagRxIsrCore();
-            static uint32_t GetDiagTxQWaitMax();
-            static uint32_t GetDiagTxQNoWaiter();
-            static uint32_t GetDiagTxQWithWaiter();
 #endif
 
             // Peak metering for the MIX page. While metering is enabled the
@@ -320,17 +267,9 @@ namespace CTAG {
             static atomic<uint32_t> ch1_outputSoftClip;
             static atomic<bool> meteringEnabled;
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // Bring-up diagnostics (REMOVE), see GetDiag* accessors above.
             static atomic<uint32_t> diagI2sStallRd;
             static atomic<uint32_t> diagI2sStallWr;
             static atomic<uint32_t> diagI2sLoopOver;
-            static atomic<uint32_t> diagI2sBlocks;
-            static atomic<uint32_t> diagMsyncSum;
-            static atomic<uint32_t> diagMsyncMax;
-            static atomic<uint32_t> diagMsyncN;
-            static atomic<uint32_t> diagStallIsrZero;
-            static atomic<uint32_t> diagStallIsrNonzero;
-            static atomic<uint32_t> diagStallIsrMax;
 #endif
             static atomic<uint32_t> vuInL;
             static atomic<uint32_t> vuInR;

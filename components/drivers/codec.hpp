@@ -77,14 +77,8 @@ namespace CTAG {
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // Bring-up diagnostics (REMOVE): I2S transfer error counters.
-            // Defined only in codec_bba2.cpp (the BBA2 facade); nothing may
-            // call them on other targets.
             static uint32_t DebugI2sReadErrors();
             static uint32_t DebugI2sWriteErrors();
-            // Bare 128-byte cache-writeback probe (cumulative us sum/max/n).
-            static void DebugMsyncProbe(uint32_t *sumUs, uint32_t *maxUs,
-                                        uint32_t *n);
 #endif
 #else
             static void SetSampleRate(uint32_t sample_rate) {}

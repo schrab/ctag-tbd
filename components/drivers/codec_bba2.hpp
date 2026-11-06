@@ -31,13 +31,8 @@ namespace CTAG {
             static void SetInputGain(int gain);
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
-            // Bring-up diagnostics (REMOVE): cumulative I2S transfer error
-            // counters (timeout / short transfer / write failure).
             static uint32_t DebugI2sReadErrors();
             static uint32_t DebugI2sWriteErrors();
-            // Bare 128-byte cache-writeback timing (cumulative sum/max/n).
-            static void DebugMsyncProbe(uint32_t *sumUs, uint32_t *maxUs,
-                                        uint32_t *n);
 
         private:
             static wm8978 codec;
