@@ -80,6 +80,20 @@ namespace CTAG {
             uint8_t *trig;
         };
 
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+        // Defined in ctagSoundProcessorElements.cpp. Reserves the ~115.8 KB
+        // Elements object from the top of internal SRAM; must run from
+        // app_main BEFORE ctagSPAllocator::AllocateInternalBuffer (the
+        // largest internal block at Elements load time was ~9.4 KB short of
+        // the object once the plugin arena sat in SRAM1, forcing a ~2x-cost
+        // PSRAM fallback).
+        void ElementsReserveObject();
+        // Frees the unclaimed reservation (SPManager calls this when a
+        // non-Elements plugin loads — Subbotnik/CStrip/TBDings objects
+        // exceed the largest block the held reservation leaves).
+        void ElementsReleaseReservation();
+#endif
+
         class ctagSoundProcessor {
         public:
             virtual void Process(const ProcessData &) = 0; // pure virtual --> must be implemented by derived
