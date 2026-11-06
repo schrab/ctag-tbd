@@ -116,14 +116,27 @@ int ctagSPDataModel::GetParamValue(const string &id, const string &key) {
     Value &patchParams = activePreset["params"];
     if (!patchParams.IsArray()) return 0;
     for (auto &v : patchParams.GetArray()) {
-        if (!v.HasMember("id")) return 0;
-        if (!v["id"].IsString()) return 0;
+        // Malformed entries must not abort the search early — skip them.
+        if (!v.HasMember("id")) continue;
+        if (!v["id"].IsString()) continue;
         if (v["id"] == id) {
             if (!v.HasMember(key)) return 0;
             return v[key].GetInt();
         }
     }
     return 0;
+}
+
+bool ctagSPDataModel::HasParam(const string &id) {
+    if (!activePreset.IsObject()) return false;
+    if (!activePreset.HasMember("params")) return false;
+    Value &patchParams = activePreset["params"];
+    if (!patchParams.IsArray()) return false;
+    for (auto &v : patchParams.GetArray()) {
+        if (!v.HasMember("id") || !v["id"].IsString()) continue;
+        if (v["id"] == id) return true;
+    }
+    return false;
 }
 
 

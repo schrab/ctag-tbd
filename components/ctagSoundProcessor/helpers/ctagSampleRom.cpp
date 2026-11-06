@@ -216,7 +216,13 @@ namespace CTAG::SP::HELPERS {
     void ctagSampleRom::BufferInSPIRAM() {
         if(ptrSPIRAM != nullptr) return; // already buffered
         size_t maxSizeBytes = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
-        maxSizeBytes -= 128*1024; // reserve 128k for other stuff
+        // Reserve 512k for RapidJSON (CrtAllocator) and the PSRAM-backed
+        // parameter maps: with only a 128k reserve, large preset/param
+        // serializations ran PSRAM dry after the ROM buffer grabbed
+        // largest_free_block - 128k and CrtAllocator's Malloc returned NULL
+        // (servando 3a55e994).
+        if (maxSizeBytes <= 512*1024) return;
+        maxSizeBytes -= 512*1024;
         if(maxSizeBytes < 1024*1024) return; // not enough memory for this to make sense
         ptrSPIRAM = (int16_t *)heap_caps_malloc(maxSizeBytes, MALLOC_CAP_SPIRAM);
         if(ptrSPIRAM == nullptr) return;

@@ -69,6 +69,7 @@ respective component folders / files if different from this license.
 #include "esp_log.h"
 #include "ctagSPDataModel.hpp"
 #include "ctagSPAllocator.hpp"
+#include "helpers/PsramAllocator.hpp"
 
 using namespace std;
 
@@ -189,6 +190,10 @@ namespace CTAG {
             virtual void loadPresetInternal() {
                 // iterate all parameters, take names from parameter map (first element)
                 for (const auto &kv: pMapPar) {
+                    // Presets saved before a parameter existed (or with an
+                    // aliased id) must not clobber the plugin's C++ default
+                    // with 0 — skip keys the preset does not carry.
+                    if (!model->HasParam(kv.first)) continue;
                     setParamValueInternal(kv.first, "current", model->GetParamValue(kv.first, "current"));
                     // check if cv and trig are set in preset, if so set in processor param
                     if (model->IsParamCV(kv.first)) {
@@ -207,9 +212,11 @@ namespace CTAG {
             int instance {0};
             std::unique_ptr<ctagSPDataModel> model = nullptr;
             string id = "";
-            map<string, function<void(const int)>> pMapPar;
-            map<string, function<void(const int)>> pMapCv;
-            map<string, function<void(const int)>> pMapTrig;
+            // PSRAM-backed (helpers/PsramAllocator.hpp): only touched on
+            // param edits / preset loads, never from Process().
+            HELPERS::PsramStringMap<function<void(const int)>> pMapPar;
+            HELPERS::PsramStringMap<function<void(const int)>> pMapCv;
+            HELPERS::PsramStringMap<function<void(const int)>> pMapTrig;
         };
     }
 }

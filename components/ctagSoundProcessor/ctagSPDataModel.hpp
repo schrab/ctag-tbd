@@ -48,6 +48,11 @@ namespace CTAG {
 
             int GetParamValue(const string &id, const string &key);
 
+            // True when the active preset carries an entry for this
+            // parameter id — loadPresetInternal skips absent keys so the
+            // plugin's C++ defaults survive (servando b69cb179).
+            bool HasParam(const string &id);
+
             void SavePreset(const string &name, const int number);
 
             const char *GetCStrJSONPresets(); // all presets

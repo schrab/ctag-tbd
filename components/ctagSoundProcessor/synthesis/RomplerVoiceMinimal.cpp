@@ -57,6 +57,7 @@ namespace CTAG::SYNTHESIS {
         //  set eg and lfo parameters
         ad.SetAttack(params.a);
         ad.SetDecay(params.d);
+        ad.SetLoop(params.loop); // envelope loops when the sample loops (servando b69cb179)
 
         // calculate playback speed = dt = phase increment
         phaseIncrement = params.playbackSpeed; // speed
@@ -118,9 +119,13 @@ namespace CTAG::SYNTHESIS {
         }
 
         // calculate required buffer length
-        // TODO: check if phase increment is within bounds for buffer max size --> partially done with asserts
-        //  phaseIncrementMax*size*sizeof(datatype)+4), 32(5octaves up)*32(standard buffer size) --> > 1k words, we use 2k words
+        // Clamp to the linear-interpolation margin: at extreme pitch shifts
+        // the product can exceed readBufferMaxSize and corrupt adjacent
+        // arena memory (servando b69cb179).
         readBufferLength = static_cast<uint32_t>(phaseIncrement * float(size) + readBufferPhase);
+        if (readBufferLength > static_cast<int32_t>(readBufferMaxSize - 2)) {
+            readBufferLength = readBufferMaxSize - 2;
+        }
 
 
         // calc marks and read assemble buffers depending on playback mode

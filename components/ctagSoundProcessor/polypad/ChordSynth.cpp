@@ -82,11 +82,18 @@ void CTAG::SP::ChordSynth::SetDetune(const uint32_t &detune) {
 
 void  CTAG::SP::ChordSynth::calcInversion(int8_t *ht_steps, const int16_t &chord, const int16_t &inversion,
                                                    const int16_t &nnotes) {
-    int8_t inv[4];
-    for (int i = 0; i < 4; i++) {
-        inv[i] = chords[chord][i + 2 + inversion];
+    // Respect nnotes and clamp the row index: i + 2 + inversion can run
+    // past the chords row (kChordNumNotes = 8) and corrupt the stack
+    // (servando b69cb179).
+    int8_t inv[8];
+    int n = nnotes < 0 ? 0 : (nnotes > kChordNumNotes ? kChordNumNotes : nnotes);
+    for (int i = 0; i < n; i++) {
+        int idx = i + 2 + inversion;
+        if (idx < 0) idx = 0;
+        if (idx >= kChordNumNotes) idx = kChordNumNotes - 1;
+        inv[i] = chords[chord][idx];
     }
-    memcpy(ht_steps, inv, 4);
+    memcpy(ht_steps, inv, n);
 }
 
 float CTAG::SP::ChordSynth::GetTTL() {

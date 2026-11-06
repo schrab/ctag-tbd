@@ -286,6 +286,10 @@ void SDAudio::workerTask(void *param) {
             vTaskDelete(nullptr);
             return;
         }
+        // Streaming in fixed 4 KB chunks — Newlib's internal BUFSIZ buffer
+        // would only add an extra copy on the worker core (servando
+        // 0782669d).
+        setvbuf(file, nullptr, _IONBF, 0);
         // Write WAV placeholder header
         uint8_t hdr[44];
         memset(hdr, 0, 44);
@@ -392,6 +396,7 @@ void SDAudio::workerTask(void *param) {
             vTaskDelete(nullptr);
             return;
         }
+        setvbuf(file, nullptr, _IONBF, 0); // 4 KB chunked reads, no Newlib copy
         if (fseek(file, dataStart, SEEK_SET) != 0) {
             fclose(file);
             file = nullptr;

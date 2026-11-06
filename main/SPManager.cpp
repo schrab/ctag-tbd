@@ -98,10 +98,15 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
     bool isStereoCH0 = false;
     esp_cpu_cycle_count_t start, diff;
 
+#if !defined(CONFIG_TBD_PLATFORM_BBA2)
+    // BBA2 does not run this software DC cut: the WM8978 ADC hardware HPF
+    // (R14 = 0x108, HPFEN + HPFCUT=000 = 3.7 Hz) already blocks DC, and a
+    // second high-pass would double the phase shift on CV/audio inputs
+    // (servando 679ef85b).
     fv3::dccut_f in_dccutl, in_dccutr;
-    //fv3::dccut_f out_dccutl, out_dccutr;
     in_dccutl.setCutOnFreq(3.7f, 44100.f);
     in_dccutr.setCutOnFreq(3.7f, 44100.f);
+#endif
     /*
     out_dccutl.setCutOnFreq(3.7f, 44100.f);
     out_dccutr.setCutOnFreq(3.7f, 44100.f);
@@ -176,14 +181,19 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         start = esp_cpu_get_cycle_count();
 
         // In peak detection
-        // dc cut input
+        // dc cut input (BBA2: DC cut lives in the WM8978 ADC hardware HPF,
+        // R14 = 0x108 — the software cut here would double the high-pass)
         float maxl = 0.f, maxr = 0.f;
         float max = 0.f;
         for (uint32_t i = 0; i < BUF_SZ; i++) {
+#if !defined(CONFIG_TBD_PLATFORM_BBA2)
             fbuf[i * 2] = in_dccutl(fbuf[i * 2]);
+#endif
             float val = fabsf(fbuf[i * 2]);
             if (val > maxl) maxl = val;
+#if !defined(CONFIG_TBD_PLATFORM_BBA2)
             fbuf[i * 2 + 1] = in_dccutr(fbuf[i * 2 + 1]);
+#endif
             val = fabsf(fbuf[i * 2 + 1]);
             if (val > maxr) maxr = val;
         }

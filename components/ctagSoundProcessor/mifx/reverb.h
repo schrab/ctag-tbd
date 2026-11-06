@@ -90,6 +90,9 @@ namespace mifx {
                 engine_.Start(&c);
 
                 // Smear AP1 inside the loop.
+                // BOUNDS (servando b69cb179): ap1 = 150 samples — center
+                // 10 + LFO depth 80 reads at most 90; the line is sized to
+                // exact capacity, DO NOT increase the LFO excursion.
                 c.Interpolate(ap1, 10.0f, LFO_1, 80.0f, 1.0f);
                 c.Write(ap1, 100, 0.0f);
 
@@ -107,6 +110,12 @@ namespace mifx {
                 c.Write(apout);
 
                 // Main reverb loop.
+                // BOUNDS (servando b69cb179): del2 = 6312 samples (center
+                // 6261 + depth 50 reads at most 6311); del1 = 4501 samples
+                // (center 4460 + depth 40 reads at most 4500). Sized to
+                // exact capacity — DO NOT increase the LFO depths; an
+                // earlier excursion increase produced out-of-bounds reads
+                // and harsh feedback explosions.
                 c.Load(apout);
                 c.Interpolate(del2, 6261.0f, LFO_2, 50.0f, krt);
                 c.Lp(lp_1, klp);
