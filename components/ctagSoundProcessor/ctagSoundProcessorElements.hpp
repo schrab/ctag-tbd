@@ -38,53 +38,12 @@ namespace CTAG {
     namespace SP {
         class ctagSoundProcessorElements : public ctagSoundProcessor {
         public:
-            // BBA2: claim the boot-time internal-SRAM reservation (see
-            // ReserveObject). Must run from app_main BEFORE the plugin
-            // arena allocation.
-            static void ReserveObject();
-            // BBA2: free the unclaimed boot reservation back to the heap
-            // (see ElementsReleaseReservation in ctagSoundProcessor.hpp).
-            static void ReleaseReservation();
-            // Allocate from PSRAM — class is too large for the 112KB DRAM arena
-            static void* operator new(std::size_t sz) {
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-                // BBA2: render from internal SRAM — from PSRAM the render
-                // cost roughly doubles (measured 246k vs 117k cycles per
-                // 32-sample block). The boot reservation guarantees the
-                // block exists; claim it once. The reservation is released
-                // to the heap whenever a non-Elements plugin loads or
-                // Elements unloads (see ElementsReleaseReservation), so
-                // other plugins are never crowded out.
-                if (s_reservedObject != nullptr && sz <= s_reservedObjectSize) {
-                    void* p = s_reservedObject;
-                    s_reservedObject = nullptr;
-                    s_activeReserved = p;
-                    ESP_LOGI("Elements", "object %u bytes -> INTERNAL (boot reservation)",
-                             (unsigned)sz);
-                    return p;
-                }
-                void* p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-                ESP_LOGI("Elements", "object %u bytes -> %s (largest internal block was %u)",
-                         (unsigned)sz,
-                         p ? "INTERNAL" : "PSRAM (internal block too small!)",
-                         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
-                if (!p) p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
-#else
-                // Allocate from PSRAM — class is too large for the 112KB DRAM arena
-                void* p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
-                if (!p) p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-#endif
-                assert(p);
-                return p;
-            }
-            static void operator delete(void* p) {
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-                if (p == s_activeReserved) {
-                    s_activeReserved = nullptr; // block goes back to the heap
-                }
-#endif
-                heap_caps_free(p);
-            }
+            // Arena-allocated like every other plugin: the Part engine
+            // union (elements/dsp/voice.h) shrank the object from 115,856 B
+            // to ~81.5 kB, so it fits the internal-SRAM arena — NO PSRAM
+            // (PSRAM residency doubled the render cost and the user
+            // rejected it). The previous heap overrides and the 963a2f45
+            // boot reservation are gone.
 
             virtual void Process(const ProcessData &) override;
             virtual ~ctagSoundProcessorElements();
@@ -93,16 +52,6 @@ namespace CTAG {
         private:
             virtual void knowYourself() override;
             void PublishDebugStats();
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-            // Boot-time internal-SRAM reservation for the ~115.8 KB object
-            // (Elements' largest block was ~9.4 KB short of internal at
-            // load time once the plugin arena sat in SRAM1). s_reservedObject
-            // holds the block until an instance claims it; s_activeReserved
-            // routes the delete back to the reservation.
-            static void* s_reservedObject;
-            static void* s_activeReserved;
-            static std::size_t s_reservedObjectSize;
-#endif
 
             static constexpr std::size_t kBlockSize = 32;
 #if defined(CONFIG_TBD_PLATFORM_BBA2)

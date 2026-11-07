@@ -55,13 +55,6 @@ https://www.embedded.com/modern-c-in-embedded-systems-part-1-myth-and-reality/
 */
 
 void app_main() {
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-    // Reserve the Elements object from the top of internal SRAM BEFORE the
-    // plugin arena — the largest internal block at Elements load time was
-    // ~9.4 KB short of the 115.8 KB object once the arena sat in SRAM1, so
-    // it fell back to PSRAM (render cost ~2x). User-approved 2026-11-06.
-    CTAG::SP::ElementsReserveObject();
-#endif
     // reserve large block of memory before anything else happens
     ctagSPAllocator::AllocateInternalBuffer(CONFIG_SP_FIXED_MEM_ALLOC_SZ); // TBDings has highest needs of 113944 bytes, take 112k=114688 bytes as default
 

@@ -94,56 +94,13 @@ extern "C" int elements_debug_set_mode_override(int modes) {
     return gElementsDebugModeOverride.exchange(modes);
 }
 
-// BBA2 boot-time internal-SRAM reservation for the ~115.8 KB object.
-// Called from app_main BEFORE ctagSPAllocator::AllocateInternalBuffer: at
-// Elements load time the largest free internal block (106,496 B) was ~9.4 KB
-// short of the object once the plugin arena sat in SRAM1, so the object fell
-// back to PSRAM and rendered at ~2x cost (user-approved 2026-11-06).
-void* ctagSoundProcessorElements::s_reservedObject = nullptr;
-void* ctagSoundProcessorElements::s_activeReserved = nullptr;
-std::size_t ctagSoundProcessorElements::s_reservedObjectSize = 0;
-
-void ctagSoundProcessorElements::ReserveObject() {
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-    const std::size_t sz = sizeof(ctagSoundProcessorElements);
-    const uint32_t largestBefore =
-        heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
-    s_reservedObject =
-        heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    s_reservedObjectSize = s_reservedObject != nullptr ? sz : 0;
-    ESP_LOGI("Elements",
-             "object reservation %u bytes -> %s (largest internal was %u, now %u)",
-             (unsigned)sz, s_reservedObject != nullptr ? "INTERNAL" : "FAILED — PSRAM fallback at load",
-             (unsigned)largestBefore,
-             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
-#endif
-}
-
-void CTAG::SP::ElementsReserveObject() {
-    ctagSoundProcessorElements::ReserveObject();
-}
-
-// Release the unclaimed boot reservation back to the heap: Subbotnik
-// (36,000 B), CStrip (33,500 B) and TBDings (105,708 B) objects all exceed
-// the 31,744 B largest block the held reservation leaves, and would
-// degrade to ~2x-cost PSRAM renders. Called by SPManager whenever a
-// non-Elements plugin loads; Elements unloads free their block via
-// operator delete, and a later Elements load re-claims it if still
-// contiguous (else falls back to PSRAM exactly as before this feature).
-void CTAG::SP::ElementsReleaseReservation() {
-    ctagSoundProcessorElements::ReleaseReservation();
-}
-
-void ctagSoundProcessorElements::ReleaseReservation() {
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-    if (s_reservedObject != nullptr) {
-        heap_caps_free(s_reservedObject);
-        s_reservedObject = nullptr;
-        s_reservedObjectSize = 0;
-        ESP_LOGI("Elements", "internal object reservation released to heap");
-    }
-#endif
-}
+// BBA2 boot-time internal-SRAM reservation: REVERTED (2026-11-07). The
+// scheme reserved 115,856 B before the arena, but the boot-time largest
+// contiguous internal block is only 217,088 B — arena (111,616) + object
+// (115,856) = 227,472 B can never coexist, so the arena clamped to
+// 102,400 B and TBDings (105,708 B object) assert-crashed at load.
+// Elements must instead be made to FIT THE ARENA like every other plugin
+// (see the Part engine-sharing work); a PSRAM fallback is not acceptable.
 
 void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     knowYourself();

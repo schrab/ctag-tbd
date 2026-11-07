@@ -526,14 +526,6 @@ void SoundProcessorManager::SetSoundProcessorChannel(const int chan, const strin
         xSemaphoreGive(processMutex);
         return;
     }
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-    if (id != "Elements") {
-        // Non-Elements plugin objects (Subbotnik 36k, CStrip 33.5k, TBDings
-        // 105.7k) exceed the largest internal block the held reservation
-        // leaves — give the memory back so they render from internal SRAM.
-        CTAG::SP::ElementsReleaseReservation();
-    }
-#endif
     model->SetActivePluginID(id, chan);
     sp[chan]->LoadPreset(model->GetActivePatchNum(chan));
     // The panel's param table is stale now — the link tick does a FULL
