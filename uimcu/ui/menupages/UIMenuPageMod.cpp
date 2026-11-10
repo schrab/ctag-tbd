@@ -87,7 +87,7 @@ namespace CTAG {
             switch (subPage) {
                 case SP_MAIN: return 6;
                 case SP_PANEL: return 9;  // the module's 8 knobs + DV length button
-                case SP_CLOCK: return 7;  // Clock, BPM, [Tap], Fine, Range, XClock, [Reset]
+                case SP_CLOCK: return 8;  // Clock, BPM, [Tap], Fine, Range, XClock, ClkOut, [Reset]
                 case SP_T: return 8;      // Model, Range, PW, PWv, DV, T1..T3 slots
                 case SP_X: return 7;      // Scale, Rng, Ctl, DV, X1..X3 slots
                 case SP_Y: return 5;      // Rng, Sprd, Bias, Step, Y slot
@@ -98,7 +98,7 @@ namespace CTAG {
         }
 
         bool UIMenuPageMod::rowIsAction(int row) const {
-            if (subPage == SP_CLOCK && (row == 2 || row == 6)) return true;  // [Tap], [Reset]
+            if (subPage == SP_CLOCK && (row == 2 || row == 7)) return true;  // [Tap], [Reset]
             if (subPage == SP_CC_EDIT && row == 2) return true; // [Learn]
             return false;
         }
@@ -106,7 +106,7 @@ namespace CTAG {
         void UIMenuPageMod::activateRow(int row) {
             if (subPage == SP_CLOCK && row == 2) {
                 onTapTempo();
-            } else if (subPage == SP_CLOCK && row == 6) {
+            } else if (subPage == SP_CLOCK && row == 7) {
                 DspProxy::RequestReset();
             } else if (subPage == SP_CC_EDIT && row == 2) {
                 if (DspProxy::IsLearning()) {
@@ -192,6 +192,7 @@ namespace CTAG {
                         // the global BPM never moves (see tempo helpers).
                         case 4: DspProxy::SetTRange(DspProxy::GetTRange() + delta); break;
                         case 5: DspProxy::SetXYClockSource(DspProxy::GetXYClockSource() + delta); break;
+                        case 6: DspProxy::SetClockOut(!DspProxy::GetClockOut()); break;
                     }
                     break;
                 case SP_T:
@@ -292,10 +293,13 @@ namespace CTAG {
                         case 5:
                             snprintf(buf, buflen, " X Clock:%s", xyClkNames[DspProxy::GetXYClockSource()]);
                             break;
+                        case 6:
+                            snprintf(buf, buflen, " Clock Out:%s", DspProxy::GetClockOut() ? "On" : "Off");
+                            break;
                         case 2:
                             snprintf(buf, buflen, tapHistoryCount > 0 ? " [Tap] %.0fbpm" : " [Tap]", MasterBPM());
                             break;
-                        case 6:
+                        case 7:
                             snprintf(buf, buflen, " [Reset]");
                             break;
                     }

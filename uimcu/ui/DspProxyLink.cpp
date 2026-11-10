@@ -130,6 +130,7 @@ namespace CTAG {
                 float ySpread = 0.5f, yBias = 0.5f, ySteps = 0.5f;
                 float dejaVuAmount = 0.5f;
                 bool tExternal = false;
+                bool clockOut = false;
                 int tSlot[3] = {40, 41, 42};
                 int xSlot[3] = {98, 99, 100};
                 int ySlot = 101;
@@ -162,6 +163,7 @@ namespace CTAG {
                 else if (!strcmp(key, "tr")) mb.tRange = clampI(iv, 0, 2);
                 else if (!strcmp(key, "txy")) mb.xyClockSource = clampI(iv, 0, 4);
                 else if (!strcmp(key, "te")) mb.tExternal = bv;
+                else if (!strcmp(key, "clko")) mb.clockOut = bv;
                 else if (!strcmp(key, "bpm")) mb.bpm = clampF((float)v, 20.0f, 480.0f);
                 else if (!strcmp(key, "trate")) mb.tRate = clampF((float)v, -60.0f, 60.0f);
                 else if (!strcmp(key, "tb")) mb.tBias = clampF((float)v, 0.0f, 1.0f);
@@ -210,6 +212,7 @@ namespace CTAG {
                 mb.tRange = gi("tr", mb.tRange);
                 mb.xyClockSource = gi("txy", mb.xyClockSource);
                 mb.tExternal = gb("te", mb.tExternal);
+                mb.clockOut = gb("clko", mb.clockOut);
                 mb.bpm = gf("bpm", mb.bpm);
                 mb.tRate = gf("trate", mb.tRate);
                 mb.tBias = gf("tb", mb.tBias);
@@ -924,6 +927,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         void DspProxy::SetTDejaVu(int v) { mb.tDejaVu = clampI(v, 0, 2); sendMarblesSet("tdv", v); }
         bool DspProxy::GetTExternal() { return mb.tExternal; }
         void DspProxy::SetTExternal(bool v) { mb.tExternal = v; sendMarblesSet("te", v ? 1 : 0); }
+        bool DspProxy::GetClockOut() { return mb.clockOut; }
+        void DspProxy::SetClockOut(bool v) { mb.clockOut = v; sendMarblesSet("clko", v ? 1 : 0); }
         float DspProxy::GetBPM() { return mb.bpm; }
         void DspProxy::SetBPM(float v) { mb.bpm = clampF(v, 20.0f, 480.0f); sendMarblesSet("bpm", v); }
         int DspProxy::GetXYClockSource() { return mb.xyClockSource; }

@@ -396,6 +396,7 @@ namespace CTAG {
                 s += ",\"tr\":" + to_string(MarblesEngine::GetTRange());
                 s += ",\"txy\":" + to_string(MarblesEngine::GetXYClockSource());
                 s += ",\"te\":" + to_string(MarblesEngine::GetTExternal() ? 1 : 0);
+                s += ",\"clko\":" + to_string(MarblesEngine::GetClockOut() ? 1 : 0);
                 s += ",\"bpm\":" + to_string(MarblesEngine::GetBPM());
                 s += ",\"trate\":" + to_string(MarblesEngine::GetTRate());
                 s += ",\"tb\":" + to_string(MarblesEngine::GetTBias());
@@ -660,6 +661,7 @@ namespace CTAG {
                 else if (k == "tr") MarblesEngine::SetTRange(iv);
                 else if (k == "txy") MarblesEngine::SetXYClockSource(iv);
                 else if (k == "te") MarblesEngine::SetTExternal(bv);
+                else if (k == "clko") MarblesEngine::SetClockOut(bv);
                 else if (k == "bpm") MarblesEngine::SetBPM((float)v);
                 else if (k == "trate") MarblesEngine::SetTRate((float)v);
                 else if (k == "tb") MarblesEngine::SetTBias((float)v);
@@ -1157,6 +1159,20 @@ namespace CTAG {
                     // the CV/trig arrays the audio task reads per block
                     // (the old Control::Update caller stays uncalled).
                     Midi::Update();
+
+                    // Marbles MIDI clock out: forward queued 0xF8 ticks to
+                    // the panel's TRS OUT jack. kMsgMidiOut is a COMMAND
+                    // served by the panel dispatcher — it MUST carry the
+                    // "/link/" prefix (protocol.hpp's prefix-drop note).
+                    uint8_t mo[16];
+                    int moN = DRIVERS::MarblesEngine::ReadMidiOut(mo, sizeof(mo));
+                    if (moN > 0 && s_online) {
+                        string s = "{\"cmd\":\"/link/midiOut\",\"d\":[";
+                        for (int i = 0; i < moN; i++)
+                            s += (i ? "," : "") + to_string((unsigned) mo[i]);
+                        s += "]}";
+                        sendStr(s);
+                    }
 
                     // One FULL tick (10 ms at FREERTOS_HZ=100): finer delays
                     // round to zero ticks and busy-spin into task_wdt — the

@@ -187,6 +187,23 @@ static stmlib::GateFlags extClockFlags = stmlib::GATE_FLAG_LOW;
 static bool extGateLevel = false;
 static std::atomic<uint32_t> outSnapshot{0};
 
+// ---- MIDI clock out (T2 rising edges -> 0xF8 -> TRS OUT jack) ----
+static std::atomic<bool> clockOutEnabled{false};
+// SPSC ring: producer = audio task (Process), consumer = link task
+// (ReadMidiOut). 16 slots is ample — worst case 480 BPM x 4 range = 32
+// ticks/s vs a 100 Hz drain loop.
+#define MIDIOUT_RING_SZ 16  // power of two
+static uint8_t midiOutRing[MIDIOUT_RING_SZ];
+static volatile uint32_t midiOutWr = 0, midiOutRd = 0;
+static bool prevT2Out = false;      // audio-task-only edge memory
+
+static void MidiOutPush(uint8_t b) {
+    uint32_t next = (midiOutWr + 1) & (MIDIOUT_RING_SZ - 1);
+    if (next == midiOutRd) return;  // full: drop (clock ticks, no backlog value)
+    midiOutRing[midiOutWr] = b;
+    midiOutWr = next;
+}
+
 // Normalize volts to -1..1 against an ABSOLUTE ±5 V ruler — independent of
 // the selected output range, so switching the octave range never moves the
 // UI bar (a 1 V note always sits at the same position) — and quantize to
@@ -340,11 +357,17 @@ void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
         1);
 
     // --- write outputs into the shared buffers ---
+    bool t2Level = ramp_master < 0.5f;   // T2 = clock
     if (trig_buffer != nullptr) {
         if (tSlot[0] >= 0) trig_buffer[tSlot[0]] = gates[0] ? 1 : 0;      // T1
-        if (tSlot[1] >= 0) trig_buffer[tSlot[1]] = ramp_master < 0.5f ? 1 : 0; // T2 = clock
+        if (tSlot[1] >= 0) trig_buffer[tSlot[1]] = t2Level ? 1 : 0;       // T2
         if (tSlot[2] >= 0) trig_buffer[tSlot[2]] = gates[1] ? 1 : 0;      // T3
     }
+    // MIDI clock out: one 0xF8 per T2 rising edge, covering every clock
+    // source (internal BPM, tap, MIDI-slaved) through this single path.
+    if (clockOutEnabled.load(std::memory_order_relaxed) && t2Level && !prevT2Out)
+        MidiOutPush(0xF8);
+    prevT2Out = t2Level;
     if (cv_buffer != nullptr) {
         for (int i = 0; i < 3; i++) {
             if (xSlot[i] >= 0) cv_buffer[xSlot[i]] = voltages[i] * VOLTS_TO_CV;
@@ -393,6 +416,17 @@ float MarblesEngine::GetTRate() { return tFine; }
 void MarblesEngine::SetTRate(float v) {
     tFine = ClampFloat(v, -60.0f, 60.0f);
     ApplyClock();
+}
+// MIDI clock out (T2 edges -> 0xF8 -> /link/midiOut -> TRS OUT jack).
+bool MarblesEngine::GetClockOut() { return clockOutEnabled.load(std::memory_order_relaxed); }
+void MarblesEngine::SetClockOut(bool v) { clockOutEnabled.store(v, std::memory_order_relaxed); }
+int MarblesEngine::ReadMidiOut(uint8_t *dst, int cap) {
+    int n = 0;
+    while (n < cap && midiOutRd != midiOutWr) {
+        dst[n++] = midiOutRing[midiOutRd];
+        midiOutRd = (midiOutRd + 1) & (MIDIOUT_RING_SZ - 1);
+    }
+    return n;
 }
 float MarblesEngine::GetTBias() { return tBias; }
 void MarblesEngine::SetTBias(float v) { tBias = ClampFloat(v, 0.0f, 1.0f); }
@@ -541,6 +575,7 @@ void MarblesEngine::SaveConfig() {
 
     Value m(kObjectType);
     m.AddMember("tExternal", tExternal, alloc);
+    m.AddMember("clkOut", clockOutEnabled.load(std::memory_order_relaxed), alloc);
     m.AddMember("tModel", tModel, alloc);
     m.AddMember("tRange", tRange, alloc);
     m.AddMember("bpm", bpm, alloc);
@@ -645,6 +680,7 @@ void MarblesEngine::LoadConfig() {
         float f;
         bool b;
         if (GetBoolMember(m, "tExternal", b)) SetTExternal(b);
+        if (GetBoolMember(m, "clkOut", b)) SetClockOut(b);
         if (GetIntMember(m, "tModel", n)) SetTModel(n);
         if (GetIntMember(m, "tRange", n)) SetTRange(n);
         // NOTE: tRate/bpm/tFine are handled by the migration block below —

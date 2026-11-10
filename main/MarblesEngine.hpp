@@ -77,6 +77,16 @@ public:
     // plugins can consume it later.
     static float GetBPM();   static void SetBPM(float v);     // 20..480
 
+    // --- MIDI clock out ---
+    // When enabled, each T2 (master clock) rising edge queues one 0xF8 tick;
+    // the link task drains them and forwards them to the panel's TRS MIDI
+    // OUT jack as /link/midiOut frames. Covers every clock source (internal
+    // BPM, tap, MIDI-slaved) through one code path.
+    static bool GetClockOut(); static void SetClockOut(bool v);
+    // Drain queued clock-out bytes; producer = audio task, consumer = link
+    // task (SPSC ring, returns up to cap bytes). Called from the link task.
+    static int ReadMidiOut(uint8_t *dst, int cap);
+
     // --- t section (Marbles' own clock = BPM * range * 2^(fine/12)) ---
     static int GetTModel();  static void SetTModel(int v);    // 0..6, 6 = Markov
     static int GetTRange();  static void SetTRange(int v);    // 0=0.25x 1=1x 2=4x

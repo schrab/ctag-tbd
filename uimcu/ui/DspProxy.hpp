@@ -216,6 +216,7 @@ namespace CTAG {
             static int GetTPwStd();    static void SetTPwStd(int v);
             static int GetTDejaVu();   static void SetTDejaVu(int v);
             static bool GetTExternal(); static void SetTExternal(bool v);
+            static bool GetClockOut(); static void SetClockOut(bool v);
             static float GetBPM();     static void SetBPM(float v);
             static int GetXYClockSource(); static void SetXYClockSource(int v);
             static int GetXScale();    static void SetXScale(int v);
