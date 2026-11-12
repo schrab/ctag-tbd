@@ -721,17 +721,25 @@ void MarblesEngine::LoadConfig() {
     }
 
     // ccSlots keep the ModEngine schema so an old config file carries over;
-    // saved as {"slots":[...]} (ReadSectionJSON hands out objects).
+    // saved as {"slots":[...]}, but pre-section-IO files store a BARE ARRAY
+    // (ReadSectionJSON hands both through) — parse either, then let the
+    // next SaveConfig convert the file to the wrapper form.
     Document cc;
     if (ModTransport::ReadSectionJSON("ccSlots", buf, sizeof(buf)) &&
-        !cc.Parse(buf).HasParseError() && cc.IsObject() &&
-        cc.HasMember("slots") && cc["slots"].IsArray()) {
-        const Value &ccArr = cc["slots"];
-        for (SizeType i = 0; i < ccArr.Size() && i < 8; i++) {
-            const Value &slot = ccArr[i];
-            if (!slot.IsObject()) continue;
-            GetIntMember(slot, "cc", dynCC[i]);
-            GetIntMember(slot, "chan", dynChan[i]);
+        !cc.Parse(buf).HasParseError()) {
+        const Value *ccArrPtr = nullptr;
+        if (cc.IsObject() && cc.HasMember("slots") && cc["slots"].IsArray())
+            ccArrPtr = &cc["slots"];
+        else if (cc.IsArray())
+            ccArrPtr = &cc;   // legacy bare array
+        if (ccArrPtr != nullptr) {
+            const Value &ccArr = *ccArrPtr;
+            for (SizeType i = 0; i < ccArr.Size() && i < 8; i++) {
+                const Value &slot = ccArr[i];
+                if (!slot.IsObject()) continue;
+                GetIntMember(slot, "cc", dynCC[i]);
+                GetIntMember(slot, "chan", dynChan[i]);
+            }
         }
     }
 

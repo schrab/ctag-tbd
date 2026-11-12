@@ -28,8 +28,9 @@ namespace {
     int64_t   lastMidiTickUs = 0;
     std::atomic<uint32_t> pendingClockEdges{0};  // MIDI task -> audio task
     bool      midiRunning = false;
-    bool      startResetPending = false;
-    bool      globalClockMidi = false;   // SEQ "Global" sources follow MIDI clock
+    bool      startResetPending = false;   // MIDI task -> audio task latch
+    bool      startResetThisBlock = false; // per-block FA broadcast (both engines)
+    bool      globalClockMidi = false;     // SEQ "Global" sources follow MIDI clock
     bool      extGateLevel = false;
     uint8_t   extGateFlags = stmlib::GATE_FLAG_LOW;
     int       ticksThisBlock = 0;
@@ -158,6 +159,15 @@ void ModTransport::Process(float dt) {
     // higher is still correct (edges coalesce into one block count).
     uint32_t e = pendingClockEdges.exchange(0, std::memory_order_relaxed);
     ticksThisBlock = (int)e;
+    // FA start-reset is a per-block BROADCAST, not a consumable latch: both
+    // engines must see the same pulse (double-consume is the documented bug
+    // class). Cleared at the next Process.
+    if (startResetPending) {
+        startResetThisBlock = true;
+        startResetPending = false;
+    } else {
+        startResetThisBlock = false;
+    }
     // Marbles gate-flag chain: ONE block-high pulse per drained tick max
     // (same collapse rule as the pre-hoist single-edge drain; keeps the
     // RampExtractor feed identical).
@@ -166,7 +176,7 @@ void ModTransport::Process(float dt) {
 
 int ModTransport::TicksThisBlock() { return ticksThisBlock; }
 bool ModTransport::IsRunning() { return midiRunning; }
-bool ModTransport::TakeStartReset() { bool r = startResetPending; startResetPending = false; return r; }
+bool ModTransport::TakeStartReset() { return startResetThisBlock; }
 uint8_t ModTransport::ExternalGateFlags() { return extGateFlags; }
 void ModTransport::SetExternalGateLevel(bool high) {
     extGateLevel = high;
@@ -189,7 +199,11 @@ bool ModTransport::ReadSectionJSON(const char *name, char *dst, int cap) {
     rapidjson::Document d;
     if (d.Parse(all.c_str()).HasParseError() || !d.IsObject()) return false;
     auto it = d.FindMember(name);
-    if (it == d.MemberEnd() || !it->value.IsObject()) return false;
+    // Objects are the normal case; legacy mod-config.jsn stores "ccSlots"
+    // as a BARE ARRAY — hand it through verbatim so the learned CC bindings
+    // survive the upgrade.
+    if (it == d.MemberEnd() || (!it->value.IsObject() && !it->value.IsArray()))
+        return false;
     rapidjson::StringBuffer sb;
     rapidjson::Writer<rapidjson::StringBuffer> w(sb);
     it->value.Accept(w);

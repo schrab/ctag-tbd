@@ -180,12 +180,20 @@ namespace CTAG {
                     case 4: {
                         int k = row - 1;
                         if (arpParamChoices[algo][k] != nullptr) {
-                            // enumerated choice: step through 0..max
-                            delta = delta > 0 ? arpParamStep[algo][k] : -arpParamStep[algo][k];
+                            // enumerated choice: step through the engine's own
+                            // idx mapping (idx = p*K/101) so display and engine
+                            // always agree; 0 stays 0.
+                            const int K = arpParamMax[algo][k] + 1;
+                            int idx = (DspProxy::GetSeqArpP(i, k) * K) / 101;
+                            idx += delta;
+                            if (idx < 0) idx = 0;
+                            if (idx > arpParamMax[algo][k]) idx = arpParamMax[algo][k];
+                            int p = (idx == 0) ? 0 : (idx * 101) / K + 1;
+                            DspProxy::SetSeqArpP(i, k, p);
                         } else {
-                            delta *= arpParamStep[algo][k];
+                            DspProxy::SetSeqArpP(i, k,
+                                DspProxy::GetSeqArpP(i, k) + delta * arpParamStep[algo][k]);
                         }
-                        DspProxy::SetSeqArpP(i, k, DspProxy::GetSeqArpP(i, k) + delta);
                         break;
                     }
                     case 5: {
@@ -275,7 +283,10 @@ namespace CTAG {
                         int k = row - 1;
                         const char *choices = arpParamChoices[algo][k];
                         if (choices != nullptr) {
-                            FormatChoice(buf, buflen, choices, DspProxy::GetSeqArpP(i, k),
+                            // display the ENGINE's idx (p*K/101), not the raw p
+                            const int K = arpParamMax[algo][k] + 1;
+                            FormatChoice(buf, buflen, choices,
+                                         (DspProxy::GetSeqArpP(i, k) * K) / 101,
                                          arpParamNames[algo][k]);
                         } else {
                             snprintf(buf, buflen, " %s:%d", arpParamNames[algo][k],

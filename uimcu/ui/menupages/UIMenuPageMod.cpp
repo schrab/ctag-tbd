@@ -185,7 +185,15 @@ namespace CTAG {
                     break;
                 case SP_CLOCK:
                     switch (row) {
-                        case 0: DspProxy::SetTExternal(!DspProxy::GetTExternal()); break;
+                        case 0: {
+                            // one clock-source choice drives both engines:
+                            // Marbles' own tExternal flag AND the SEQ
+                            // "Global" clock option (bpm stays shared).
+                            bool midi = !DspProxy::GetTExternal();
+                            DspProxy::SetTExternal(midi);
+                            DspProxy::SetSeqGlobalExt(midi ? 1 : 0);
+                            break;
+                        }
                         case 1: SetMasterBPM(MasterBPM() + delta); break;
                         case 3: DspProxy::SetTRate(DspProxy::GetTRate() + delta); break;
                         // Clock Range multiplies the Marbles clock only —

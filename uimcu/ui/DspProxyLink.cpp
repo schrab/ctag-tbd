@@ -54,6 +54,8 @@ namespace CTAG {
 
         namespace {
             // Slot bounds mirror the BBA DSP slot space (N_CVS=102, N_TRIGS=43).
+            // Slot bounds mirror the DSP (N_CVS=106, N_TRIGS=51 since the
+            // SEQ slot extension; must track CMakeLists + ctagSlotBounds).
             constexpr int kNCvs = 106;
             constexpr int kNTrigs = 51;
 

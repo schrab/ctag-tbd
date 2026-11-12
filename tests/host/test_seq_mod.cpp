@@ -44,12 +44,34 @@ TEST(transport_start_stop_states) {
     CTAG::DRIVERS::ModTransport::Init();
     CHECK(!CTAG::DRIVERS::ModTransport::IsRunning());
     CTAG::DRIVERS::ModTransport::OnMidiStart();
+    // Start-reset is a per-block BROADCAST now: stable within the block,
+    // cleared at the next Process — BOTH engines see the same pulse
+    // (double-consume of a latch is the documented bug class).
+    CTAG::DRIVERS::ModTransport::Process(1.0f / 1000.0f);
     CHECK(CTAG::DRIVERS::ModTransport::TakeStartReset());
-    CHECK(!CTAG::DRIVERS::ModTransport::TakeStartReset());  // once per FA
+    CHECK(CTAG::DRIVERS::ModTransport::TakeStartReset());   // stable in-block
+    CTAG::DRIVERS::ModTransport::Process(1.0f / 1000.0f);
+    CHECK(!CTAG::DRIVERS::ModTransport::TakeStartReset());  // cleared next block
     CHECK(CTAG::DRIVERS::ModTransport::IsRunning());
     CTAG::DRIVERS::ModTransport::OnMidiStop();
     CHECK(!CTAG::DRIVERS::ModTransport::IsRunning());
     CHECK(CTAG::DRIVERS::ModTransport::TicksThisBlock() == 0); // no ticks yet
+}
+
+TEST(transport_config_section_array) {
+    // Legacy mod-config.jsn files store "ccSlots" as a BARE ARRAY (pre
+    // section-IO format). ReadSectionJSON must hand it through so the
+    // learned CC bindings survive the upgrade.
+    FILE* fp = fopen(MODTRANSPORT_CFG_PATH, "w");
+    CHECK(fp != nullptr);
+    fputs("{\"transport\":{\"bpm\":120.0},\"marbles\":{\"tModel\":0},"
+          "\"ccSlots\":[{\"cc\":1,\"chan\":2},{\"cc\":64,\"chan\":0}]}",
+          fp);
+    fclose(fp);
+    char buf[256];
+    CHECK(CTAG::DRIVERS::ModTransport::ReadSectionJSON("ccSlots", buf, sizeof(buf)));
+    CHECK_STREQ(buf, "[{\"cc\":1,\"chan\":2},{\"cc\":64,\"chan\":0}]");
+    remove(MODTRANSPORT_CFG_PATH);   // leave a clean slate for later tests
 }
 
 TEST(transport_bpm_clamp_and_ema) {
@@ -378,5 +400,62 @@ TEST(transport_global_clock_flag_roundtrip) {
     CHECK(CTAG::DRIVERS::ModTransport::GetGlobalClockMidi());
     CTAG::DRIVERS::ModTransport::SetGlobalClockMidi(false);
     CTAG::DRIVERS::ModTransport::SaveConfig();   // leave the scratch file default
+}
+
+TEST(engine_arp_pitch_seed_no_slam) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+    // Root C default: the pitch CV must sit at 0 V from the first block —
+    // not slam to (0-note)/12*0.2 = -0.8 V until the first gated step.
+    CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+    CHECK_NEAR(cv[104], 0.0, 0.001);
+}
+
+TEST(engine_fa_rephase_midi_sources) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetGateClk(1, 2);        // gate 2: MIDI, preset 03 starts OFF
+    CTAG::DRIVERS::SeqEngine::SetArpClk(0, 2);
+    CTAG::DRIVERS::ModTransport::OnMidiStart();
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+    // Advance several steps (1 tick per block, 6 PPQ per 1/16 step) with the
+    // REAL call order: ModTransport::Process before SeqEngine::Process.
+    for (int b = 0; b < 200; ++b) {
+        CTAG::DRIVERS::ModTransport::OnMidiClockAt((b + 1) * 20000);
+        CTAG::DRIVERS::ModTransport::Process(1.0f / 1000.0f);
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+    }
+    uint32_t pre = CTAG::DRIVERS::SeqEngine::GetOutputSnapshot();
+    CHECK(((pre >> 8) & 0xFu) != 0u);                  // A1 actually advanced
+    // FA re-phase: both MIDI-clocked sources snap to step 0.
+    CTAG::DRIVERS::ModTransport::OnMidiStart();
+    CTAG::DRIVERS::ModTransport::Process(1.0f / 1000.0f);
+    CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+    uint32_t snap = CTAG::DRIVERS::SeqEngine::GetOutputSnapshot();
+    CHECK(((snap >> 8) & 0xFu) == 0u);                 // A1 step index == 0
+    CHECK(trig[44] == 1);                              // gate 2 idle on the downbeat
+}
+
+TEST(engine_stop_releases_windows) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetGateMode(0, 1);       // alternating, step 0 ON
+    CTAG::DRIVERS::SeqEngine::SetGateClk(0, 2);        // MIDI clock
+    CTAG::DRIVERS::ModTransport::OnMidiStart();
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+    CTAG::DRIVERS::ModTransport::OnMidiClockAt(1000000);
+    CTAG::DRIVERS::ModTransport::Process(1.0f / 1000.0f);
+    CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+    CHECK(trig[43] == 0);                              // gate window open
+    // Transport STOP: a frozen open window would hang a mapped note —
+    // the window must release (idle) while the transport is stopped.
+    CTAG::DRIVERS::ModTransport::OnMidiStop();
+    CTAG::DRIVERS::ModTransport::Process(1.0f / 1000.0f);
+    CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+    CHECK(trig[43] == 1);
 }
 

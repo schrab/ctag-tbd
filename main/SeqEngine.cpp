@@ -68,6 +68,9 @@ void SeqEngine::InitDefaults() {
         gArp[i].algo = (i == 0) ? SEQ::kArpAlgoHyp1 : SEQ::kArpAlgoMotif;
         gArp[i].range = 2;
         gArp[i].p[0] = 62; gArp[i].p[1] = 40; gArp[i].p[2] = 50; gArp[i].p[3] = 0;
+        // Seed the current note at the root: cur_note 0 would slam the pitch
+        // CV to -0.8 V from boot until the first gated step wraps.
+        gArp[i].cur_note = (uint8_t)(48u + gArp[i].root);
         gArp[i].rng = 0x1fff7a10u + (uint32_t)i * 2654435761u;
         arpGlideMs[i] = 0;
         arpClk[i] = 0;
@@ -112,12 +115,21 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
     const int midiTicks = ModTransport::TicksThisBlock();
     const bool running = ModTransport::IsRunning();
     const bool globalMidi = ModTransport::GetGlobalClockMidi();
+    const bool startReset = ModTransport::TakeStartReset();
 
     for (int i = 0; i < 2; ++i) {
         // ---- GATE ----
         SEQ::GateSource &g = gGate[i];
         const bool gUseMidi = (gateClk[i] == 2) || (gateClk[i] == 0 && globalMidi);
         const bool gActive = gUseMidi ? running : true;   // MIDI sources freeze while stopped
+        // FA re-phase: MIDI-clocked sources snap to the downbeat (rack
+        // behavior; the broadcast is consumed read-only here). Runs BEFORE
+        // this block's tick advance so the downbeat re-phases first.
+        if (startReset && gUseMidi && running) {
+            g.step = 0;
+            g.level = (g.mask >> 15) & 1u;
+            gPhase[i] = 0.0f;
+        }
         const float gDivPpq = (float)SEQ::kDivisions[gateDiv[i]].ppq;
         const float gAdv = gActive
             ? (gUseMidi ? (float)midiTicks / gDivPpq : intDelta / gDivPpq)
@@ -129,8 +141,9 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         if (gWraps) SEQ::GateAdvanceStep(g, gWraps);
 
         // Gate length: the step's level holds only for the first glen
-        // fraction of the division cycle.
-        const bool gHigh = (g.level != 0) && (gPhase[i] < g.glen);
+        // fraction of the division cycle. A stopped MIDI source releases
+        // the window (a frozen open gate would hang a mapped note).
+        const bool gHigh = gActive && (g.level != 0) && (gPhase[i] < g.glen);
         const float gTarget = gHigh ? 1.0f : 0.0f;
         // Asymmetric one-pole slew for click-free continuous gating
         // (~1 ms attack, ~3 ms release — rack values).
@@ -152,6 +165,14 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         SEQ::ArpExt &e = gArpExt[i];
         const bool aUseMidi = (arpClk[i] == 2) || (arpClk[i] == 0 && globalMidi);
         const bool aActive = aUseMidi ? running : true;
+        // FA re-phase to the downbeat, before this block's tick advance
+        if (startReset && aUseMidi && running) {
+            s.step = 0;
+            s.level = 0u;
+            s.held = 0u;
+            s.retrig_edge = 0u;
+            aPhase[i] = 0.0f;
+        }
         const float aDivPpq = (float)SEQ::kDivisions[arpDiv[i]].ppq;
         const float aAdv = aActive
             ? (aUseMidi ? (float)midiTicks / aDivPpq : intDelta / aDivPpq)
@@ -211,7 +232,9 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         }
 
         // pitch glide: GLIDE=0 instant (TBD03 does the slide via slide_level),
-        // else ms slew; fresh (non-slid) attacks always snap.
+        // else ms slew; fresh (non-slid) attacks always snap. Between steps
+        // cur_note is unchanged, so the slew sits still and the CV holds the
+        // last note (spec: "holds last note between gated steps").
         const int32_t targetQ16 = ((int32_t)s.cur_note) << 16;
         if (arpGlideMs[i] <= 0 || s.retrig_edge || !s.held) {
             e.current_pitch_q16 = targetQ16;

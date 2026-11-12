@@ -24,6 +24,9 @@ public:
     // Block state, valid after Process until the next Process:
     static int     TicksThisBlock();    // MIDI PPQ ticks landed in this block
     static bool    IsRunning();         // transport running (FA/FB set, FC clears)
+    // Per-block FA broadcast: true for the whole block after a Start/Continue
+    // lands, cleared at the next Process — BOTH engines read it (never a
+    // consumable latch; double-consume is the documented bug class).
     static bool    TakeStartReset();    // true once per FA (pattern re-phase)
     // Marbles RampExtractor feed (one gate-flag stream per block, same
     // collapse rule as the pre-hoist pendingClockEdges drain):

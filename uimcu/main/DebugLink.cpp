@@ -305,6 +305,23 @@ namespace CTAG {
                            // plugin actually landed in the C3 cache.
                            + ",\"params0\":" + to_string(DspProxy::GetParamEntryCount(0))
                            + ",\"params1\":" + to_string(DspProxy::GetParamEntryCount(1))
+                           // SEQ mirror (post-push DSP-confirmed values; the
+                           // bench reads it to separate optimistic UI values
+                           // from what the DSP actually accepted).
+                           + ",\"seqstate\":{\"g1mode\":" + to_string(DspProxy::GetSeqGateMode(0))
+                           + ",\"g1dens\":" + to_string(DspProxy::GetSeqGateDens(0))
+                           + ",\"a1algo\":" + to_string(DspProxy::GetSeqArpAlgo(0))
+                           + ",\"a1p\":[" + to_string(DspProxy::GetSeqArpP(0, 0))
+                           + "," + to_string(DspProxy::GetSeqArpP(0, 1))
+                           + "," + to_string(DspProxy::GetSeqArpP(0, 2))
+                           + "," + to_string(DspProxy::GetSeqArpP(0, 3)) + "]"
+                           + ",\"a2p\":[" + to_string(DspProxy::GetSeqArpP(1, 0))
+                           + "," + to_string(DspProxy::GetSeqArpP(1, 1))
+                           + "," + to_string(DspProxy::GetSeqArpP(1, 2))
+                           + "," + to_string(DspProxy::GetSeqArpP(1, 3)) + "]"
+                           + ",\"root\":" + to_string(DspProxy::GetSeqRoot())
+                           + ",\"scale\":" + to_string(DspProxy::GetSeqScale())
+                           + "}"
                            + ",\"proto\":" + to_string(kProtoMajor) + "." + to_string(kProtoMinor)
                            + "}";
                 return true;

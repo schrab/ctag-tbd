@@ -817,8 +817,9 @@ namespace CTAG {
                     else return false;
                     return true;
                 }
-                // arps: a<1|2><field> (p1..p4 -> p[0..3])
-                if (k.size() >= 5 && k[0] == 'a' && (k[1] == '1' || k[1] == '2')) {
+                // arps: a<1|2><field> (p1..p4 -> p[0..3]); the shortest key
+                // is "a1p1" (4 chars) so the guard must accept 4.
+                if (k.size() >= 4 && k[0] == 'a' && (k[1] == '1' || k[1] == '2')) {
                     int i = k[1] - '1';
                     string f = k.substr(2);
                     if (f == "algo") SeqEngine::SetArpAlgo(i, iv);
