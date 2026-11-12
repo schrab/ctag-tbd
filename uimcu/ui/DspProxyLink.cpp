@@ -54,8 +54,8 @@ namespace CTAG {
 
         namespace {
             // Slot bounds mirror the BBA DSP slot space (N_CVS=102, N_TRIGS=43).
-            constexpr int kNCvs = 102;
-            constexpr int kNTrigs = 43;
+            constexpr int kNCvs = 106;
+            constexpr int kNTrigs = 51;
 
             int clampI(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
             float clampF(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -141,6 +141,19 @@ namespace CTAG {
             };
             MarblesState mb;
 
+            // SEQ modulator mirror (flat, no maps — C3 heap ceiling).
+            struct SeqState {
+                int gateMode[2]; int gateDens[2]; int gateSync[2]; float gateLen[2];
+                int gateClk[2]; int gateDiv[2]; int gateTrigSlot[2]; int gateCvSlot[2];
+                uint32_t gateMask[2];
+                int arpAlgo[2]; int arpP[2][4]; int arpGlide[2]; int arpClk[2]; int arpDiv[2];
+                int arpPitchSlot[2]; int arpGateSlot[2]; int arpAccSlot[2]; int arpSlideSlot[2];
+                int root; int rootMode; int neoOp; int scale; float bpm; int globalExt;
+                uint32_t snapshot;
+            };
+            SeqState seq = {};
+            uint32_t seqVersion = 0;
+
             // --- command senders ---
             void sendCmd(const string &payload) {
                 LinkClient::SendCommand(payload);
@@ -150,6 +163,13 @@ namespace CTAG {
                 char buf[96];
                 // %g keeps floats compact; the DSP setters clamp anyway.
                 snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/marblesSet\",\"k\":\"%s\",\"v\":%g}",
+                         key, v);
+                sendCmd(buf);
+            }
+
+            void sendSeqSet(const char *key, double v) {
+                char buf[96];
+                snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/seqSet\",\"k\":\"%s\",\"v\":%g}",
                          key, v);
                 sendCmd(buf);
             }
@@ -193,6 +213,43 @@ namespace CTAG {
                 else if (!strcmp(key, "xs2")) mb.xSlot[2] = clampI(iv, -1, kNCvs - 1);
                 else if (!strcmp(key, "ys")) mb.ySlot = clampI(iv, -1, kNCvs - 1);
                 else if (!strcmp(key, "learn")) mb.learning = bv;
+            }
+
+            void applySeqLocal(const char *key, double v) {
+                // Optimistic cache for /link/seqSet keys; same clamps as the
+                // engine setters so the UI shows the value it will get even
+                // before the push confirms. Key shapes: g<1|2><field>,
+                // a<1|2><field>, shm*, globalext.
+                int iv = (int)v;
+                if (key[0] == 'g' && (key[1] == '1' || key[1] == '2')) {
+                    int i = key[1] - '1';
+                    const char *f = key + 2;
+                    if (!strcmp(f, "mode")) seq.gateMode[i] = clampI(iv, 0, 18);
+                    else if (!strcmp(f, "dens")) seq.gateDens[i] = clampI(iv, 1, 16);
+                    else if (!strcmp(f, "sync")) seq.gateSync[i] = clampI(iv, 0, 100);
+                    else if (!strcmp(f, "glen")) seq.gateLen[i] = clampF((float)v, 0.0f, 1.0f);
+                    else if (!strcmp(f, "clk")) seq.gateClk[i] = clampI(iv, 0, 2);
+                    else if (!strcmp(f, "div")) seq.gateDiv[i] = clampI(iv, 0, 12);
+                    else if (!strcmp(f, "tslot")) seq.gateTrigSlot[i] = clampI(iv, -1, kNTrigs - 1);
+                    else if (!strcmp(f, "cvslot")) seq.gateCvSlot[i] = clampI(iv, -1, kNCvs - 1);
+                } else if (key[0] == 'a' && (key[1] == '1' || key[1] == '2')) {
+                    int i = key[1] - '1';
+                    const char *f = key + 2;
+                    if (!strcmp(f, "algo")) seq.arpAlgo[i] = clampI(iv, 0, 14);
+                    else if (f[0] == 'p' && f[1] >= '1' && f[1] <= '4' && f[2] == 0)
+                        seq.arpP[i][f[1] - '1'] = clampI(iv, 0, 100);
+                    else if (!strcmp(f, "glide")) seq.arpGlide[i] = clampI(iv, 0, 100);
+                    else if (!strcmp(f, "clk")) seq.arpClk[i] = clampI(iv, 0, 2);
+                    else if (!strcmp(f, "div")) seq.arpDiv[i] = clampI(iv, 0, 12);
+                    else if (!strcmp(f, "pslot")) seq.arpPitchSlot[i] = clampI(iv, -1, kNCvs - 1);
+                    else if (!strcmp(f, "gslot")) seq.arpGateSlot[i] = clampI(iv, -1, kNTrigs - 1);
+                    else if (!strcmp(f, "aslot")) seq.arpAccSlot[i] = clampI(iv, -1, kNTrigs - 1);
+                    else if (!strcmp(f, "sslot")) seq.arpSlideSlot[i] = clampI(iv, -1, kNTrigs - 1);
+                } else if (!strcmp(key, "shmroot")) seq.root = clampI(iv, 0, 11);
+                else if (!strcmp(key, "shmrootmode")) seq.rootMode = clampI(iv, 0, 2);
+                else if (!strcmp(key, "shmneoop")) seq.neoOp = clampI(iv, 0, 7);
+                else if (!strcmp(key, "shmscale")) seq.scale = clampI(iv, 0, 19);
+                else if (!strcmp(key, "globalext")) seq.globalExt = iv != 0 ? 1 : 0;
             }
 
             // --- push parsing ---
@@ -250,6 +307,76 @@ namespace CTAG {
                 }
                 mb.learning = gb("learn", mb.learning);
                 mb.lastLearned = gi("lls", mb.lastLearned);
+            }
+
+            void parsePushSeq(const Document &d) {
+                if (!d.HasMember("st") || !d["st"].IsObject()) return;
+                const Value &s = d["st"];
+                auto gi = [&](const char *k, int def) {
+                    return s.HasMember(k) && s[k].IsInt() ? s[k].GetInt() : def;
+                };
+                auto gu = [&](const char *k, uint32_t def) {
+                    return s.HasMember(k) && s[k].IsUint() ? s[k].GetUint() : def;
+                };
+                auto gf = [&](const char *k, float def) {
+                    return s.HasMember(k) && s[k].IsNumber() ? (float)s[k].GetDouble() : def;
+                };
+                auto gs = [&](const char *k, uint32_t def) {
+                    // gate masks ride as "0x%04x" strings
+                    if (!s.HasMember(k) || !s[k].IsString()) return def;
+                    return (uint32_t)strtoul(s[k].GetString(), nullptr, 16);
+                };
+                for (int i = 0; i < 2; i++) {
+                    char k[12];
+                    snprintf(k, sizeof(k), "g%dmode", i + 1);
+                    seq.gateMode[i] = gi(k, seq.gateMode[i]);
+                    snprintf(k, sizeof(k), "g%ddens", i + 1);
+                    seq.gateDens[i] = gi(k, seq.gateDens[i]);
+                    snprintf(k, sizeof(k), "g%dsync", i + 1);
+                    seq.gateSync[i] = gi(k, seq.gateSync[i]);
+                    snprintf(k, sizeof(k), "g%dglen", i + 1);
+                    seq.gateLen[i] = gf(k, seq.gateLen[i]);
+                    snprintf(k, sizeof(k), "g%dclk", i + 1);
+                    seq.gateClk[i] = gi(k, seq.gateClk[i]);
+                    snprintf(k, sizeof(k), "g%ddiv", i + 1);
+                    seq.gateDiv[i] = gi(k, seq.gateDiv[i]);
+                    snprintf(k, sizeof(k), "g%dtslot", i + 1);
+                    seq.gateTrigSlot[i] = gi(k, seq.gateTrigSlot[i]);
+                    snprintf(k, sizeof(k), "g%dcvslot", i + 1);
+                    seq.gateCvSlot[i] = gi(k, seq.gateCvSlot[i]);
+                    snprintf(k, sizeof(k), "g%dmask", i + 1);
+                    seq.gateMask[i] = gs(k, seq.gateMask[i]);
+                }
+                for (int i = 0; i < 2; i++) {
+                    char k[12];
+                    snprintf(k, sizeof(k), "a%dalgo", i + 1);
+                    seq.arpAlgo[i] = gi(k, seq.arpAlgo[i]);
+                    for (int j = 0; j < 4; j++) {
+                        snprintf(k, sizeof(k), "a%dp%d", i + 1, j + 1);
+                        seq.arpP[i][j] = gi(k, seq.arpP[i][j]);
+                    }
+                    snprintf(k, sizeof(k), "a%dglide", i + 1);
+                    seq.arpGlide[i] = gi(k, seq.arpGlide[i]);
+                    snprintf(k, sizeof(k), "a%dclk", i + 1);
+                    seq.arpClk[i] = gi(k, seq.arpClk[i]);
+                    snprintf(k, sizeof(k), "a%ddiv", i + 1);
+                    seq.arpDiv[i] = gi(k, seq.arpDiv[i]);
+                    snprintf(k, sizeof(k), "a%dpslot", i + 1);
+                    seq.arpPitchSlot[i] = gi(k, seq.arpPitchSlot[i]);
+                    snprintf(k, sizeof(k), "a%dgslot", i + 1);
+                    seq.arpGateSlot[i] = gi(k, seq.arpGateSlot[i]);
+                    snprintf(k, sizeof(k), "a%daslot", i + 1);
+                    seq.arpAccSlot[i] = gi(k, seq.arpAccSlot[i]);
+                    snprintf(k, sizeof(k), "a%dsslot", i + 1);
+                    seq.arpSlideSlot[i] = gi(k, seq.arpSlideSlot[i]);
+                }
+                seq.root = gi("shmroot", seq.root);
+                seq.rootMode = gi("shmrootmode", seq.rootMode);
+                seq.neoOp = gi("shmneoop", seq.neoOp);
+                seq.scale = gi("shmscale", seq.scale);
+                seq.bpm = gf("bpm", seq.bpm);
+                seq.globalExt = gi("ext", seq.globalExt);
+                seqVersion++;   // pages compare this to re-render confirmed values
             }
         }
 
@@ -540,6 +667,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 }
             } else if (strcmp(cmd, kMsgPushMarbles) == 0) {
                 parsePushMarbles(d);
+            } else if (strcmp(cmd, kMsgPushSeq) == 0) {
+                parsePushSeq(d);
             } else if (strcmp(cmd, kMsgPushIoCaps) == 0) {
                 if (d.HasMember("sd") && d["sd"].IsInt()) sdMounted = d["sd"].GetInt() != 0;
                 if (d.HasMember("cd") && d["cd"].IsInt()) sdCardPresent = d["cd"].GetInt() != 0;
@@ -551,6 +680,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     }
                 }
                 if (d.HasMember("mb") && d["mb"].IsUint()) snapshot = d["mb"].GetUint();
+                if (d.HasMember("sq") && d["sq"].IsUint()) seq.snapshot = d["sq"].GetUint();
                 if (d.HasMember("ov") && d["ov"].IsInt()) cpuOverload = d["ov"].GetInt() != 0;
                 if (d.HasMember("tl") && d["tl"].IsUint()) sdLevel = d["tl"].GetUint();
                 if (d.HasMember("sd") && d["sd"].IsObject()) {
@@ -1013,5 +1143,145 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         void DspProxy::SaveConfig() { sendMarblesSet("_save", 0); }
+
+        // ---- SEQ modulator surface ----
+        uint32_t DspProxy::GetSeqSnapshot() { return seq.snapshot; }
+        uint32_t DspProxy::GetSeqVersion() { return seqVersion; }
+        void DspProxy::SeqSaveConfig() { sendSeqSet("_save", 0); }
+
+        int DspProxy::GetSeqGateMode(int i) { return seq.gateMode[i]; }
+        void DspProxy::SetSeqGateMode(int i, int v) {
+            seq.gateMode[i] = clampI(v, 0, 18);
+            char k[32]; snprintf(k, sizeof(k), "g%dmode", i + 1);
+            sendSeqSet(k, seq.gateMode[i]);
+        }
+        int DspProxy::GetSeqGateDens(int i) { return seq.gateDens[i]; }
+        void DspProxy::SetSeqGateDens(int i, int v) {
+            seq.gateDens[i] = clampI(v, 1, 16);
+            char k[32]; snprintf(k, sizeof(k), "g%ddens", i + 1);
+            sendSeqSet(k, seq.gateDens[i]);
+        }
+        int DspProxy::GetSeqGateSync(int i) { return seq.gateSync[i]; }
+        void DspProxy::SetSeqGateSync(int i, int v) {
+            seq.gateSync[i] = clampI(v, 0, 100);
+            char k[32]; snprintf(k, sizeof(k), "g%dsync", i + 1);
+            sendSeqSet(k, seq.gateSync[i]);
+        }
+        // Gate Length: UI percent 0..100 <-> engine fraction 0..1
+        int DspProxy::GetSeqGateLen(int i) { return (int)(seq.gateLen[i] * 100.0f + 0.5f); }
+        void DspProxy::SetSeqGateLen(int i, int v) {
+            v = clampI(v, 0, 100);
+            seq.gateLen[i] = v / 100.0f;
+            char k[32]; snprintf(k, sizeof(k), "g%dglen", i + 1);
+            sendSeqSet(k, seq.gateLen[i]);
+        }
+        int DspProxy::GetSeqGateClk(int i) { return seq.gateClk[i]; }
+        void DspProxy::SetSeqGateClk(int i, int v) {
+            seq.gateClk[i] = clampI(v, 0, 2);
+            char k[32]; snprintf(k, sizeof(k), "g%dclk", i + 1);
+            sendSeqSet(k, seq.gateClk[i]);
+        }
+        int DspProxy::GetSeqGateDiv(int i) { return seq.gateDiv[i]; }
+        void DspProxy::SetSeqGateDiv(int i, int v) {
+            seq.gateDiv[i] = clampI(v, 0, 12);
+            char k[32]; snprintf(k, sizeof(k), "g%ddiv", i + 1);
+            sendSeqSet(k, seq.gateDiv[i]);
+        }
+        int DspProxy::GetSeqGateTrigSlot(int i) { return seq.gateTrigSlot[i]; }
+        void DspProxy::SetSeqGateTrigSlot(int i, int s) {
+            seq.gateTrigSlot[i] = clampI(s, -1, kNTrigs - 1);
+            char k[32]; snprintf(k, sizeof(k), "g%dtslot", i + 1);
+            sendSeqSet(k, seq.gateTrigSlot[i]);
+        }
+        int DspProxy::GetSeqGateCvSlot(int i) { return seq.gateCvSlot[i]; }
+        void DspProxy::SetSeqGateCvSlot(int i, int s) {
+            seq.gateCvSlot[i] = clampI(s, -1, kNCvs - 1);
+            char k[32]; snprintf(k, sizeof(k), "g%dcvslot", i + 1);
+            sendSeqSet(k, seq.gateCvSlot[i]);
+        }
+        uint32_t DspProxy::GetSeqGateMask(int i) { return seq.gateMask[i]; }
+
+        int DspProxy::GetSeqArpAlgo(int i) { return seq.arpAlgo[i]; }
+        void DspProxy::SetSeqArpAlgo(int i, int v) {
+            seq.arpAlgo[i] = clampI(v, 0, 14);
+            char k[32]; snprintf(k, sizeof(k), "a%dalgo", i + 1);
+            sendSeqSet(k, seq.arpAlgo[i]);
+        }
+        int DspProxy::GetSeqArpP(int i, int j) { return seq.arpP[i][j]; }
+        void DspProxy::SetSeqArpP(int i, int j, int v) {
+            if (j < 0 || j > 3) return;
+            seq.arpP[i][j] = clampI(v, 0, 100);
+            char k[32]; snprintf(k, sizeof(k), "a%dp%d", i + 1, j + 1);
+            sendSeqSet(k, seq.arpP[i][j]);
+        }
+        int DspProxy::GetSeqArpGlide(int i) { return seq.arpGlide[i]; }
+        void DspProxy::SetSeqArpGlide(int i, int v) {
+            seq.arpGlide[i] = clampI(v, 0, 100);
+            char k[32]; snprintf(k, sizeof(k), "a%dglide", i + 1);
+            sendSeqSet(k, seq.arpGlide[i]);
+        }
+        int DspProxy::GetSeqArpClk(int i) { return seq.arpClk[i]; }
+        void DspProxy::SetSeqArpClk(int i, int v) {
+            seq.arpClk[i] = clampI(v, 0, 2);
+            char k[32]; snprintf(k, sizeof(k), "a%dclk", i + 1);
+            sendSeqSet(k, seq.arpClk[i]);
+        }
+        int DspProxy::GetSeqArpDiv(int i) { return seq.arpDiv[i]; }
+        void DspProxy::SetSeqArpDiv(int i, int v) {
+            seq.arpDiv[i] = clampI(v, 0, 12);
+            char k[32]; snprintf(k, sizeof(k), "a%ddiv", i + 1);
+            sendSeqSet(k, seq.arpDiv[i]);
+        }
+        int DspProxy::GetSeqArpPitchSlot(int i) { return seq.arpPitchSlot[i]; }
+        void DspProxy::SetSeqArpPitchSlot(int i, int s) {
+            seq.arpPitchSlot[i] = clampI(s, -1, kNCvs - 1);
+            char k[32]; snprintf(k, sizeof(k), "a%dpslot", i + 1);
+            sendSeqSet(k, seq.arpPitchSlot[i]);
+        }
+        int DspProxy::GetSeqArpGateSlot(int i) { return seq.arpGateSlot[i]; }
+        void DspProxy::SetSeqArpGateSlot(int i, int s) {
+            seq.arpGateSlot[i] = clampI(s, -1, kNTrigs - 1);
+            char k[32]; snprintf(k, sizeof(k), "a%dgslot", i + 1);
+            sendSeqSet(k, seq.arpGateSlot[i]);
+        }
+        int DspProxy::GetSeqArpAccSlot(int i) { return seq.arpAccSlot[i]; }
+        void DspProxy::SetSeqArpAccSlot(int i, int s) {
+            seq.arpAccSlot[i] = clampI(s, -1, kNTrigs - 1);
+            char k[32]; snprintf(k, sizeof(k), "a%daslot", i + 1);
+            sendSeqSet(k, seq.arpAccSlot[i]);
+        }
+        int DspProxy::GetSeqArpSlideSlot(int i) { return seq.arpSlideSlot[i]; }
+        void DspProxy::SetSeqArpSlideSlot(int i, int s) {
+            seq.arpSlideSlot[i] = clampI(s, -1, kNTrigs - 1);
+            char k[32]; snprintf(k, sizeof(k), "a%dsslot", i + 1);
+            sendSeqSet(k, seq.arpSlideSlot[i]);
+        }
+
+        int DspProxy::GetSeqRoot() { return seq.root; }
+        void DspProxy::SetSeqRoot(int v) {
+            seq.root = clampI(v, 0, 11);
+            sendSeqSet("shmroot", seq.root);
+        }
+        int DspProxy::GetSeqRootMode() { return seq.rootMode; }
+        void DspProxy::SetSeqRootMode(int v) {
+            seq.rootMode = clampI(v, 0, 2);
+            sendSeqSet("shmrootmode", seq.rootMode);
+        }
+        int DspProxy::GetSeqNeoOp() { return seq.neoOp; }
+        void DspProxy::SetSeqNeoOp(int v) {
+            seq.neoOp = clampI(v, 0, 7);
+            sendSeqSet("shmneoop", seq.neoOp);
+        }
+        int DspProxy::GetSeqScale() { return seq.scale; }
+        void DspProxy::SetSeqScale(int v) {
+            seq.scale = clampI(v, 0, 19);
+            sendSeqSet("shmscale", seq.scale);
+        }
+        float DspProxy::GetSeqBPM() { return seq.bpm; }
+        int DspProxy::GetSeqGlobalExt() { return seq.globalExt; }
+        void DspProxy::SetSeqGlobalExt(int v) {
+            seq.globalExt = v != 0 ? 1 : 0;
+            sendSeqSet("globalext", seq.globalExt);
+        }
     }
 }

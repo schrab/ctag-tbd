@@ -245,6 +245,45 @@ namespace CTAG {
             static void SetDynamicSlotChan(int slot_idx, int chan);
             static int GetDynamicSlotChan(int slot_idx);
             static void SaveConfig();
+
+            // ---- SEQ modulator surface (static mirror, same pattern as
+            // Marbles: optimistic local update + /link/seqSet; the DSP push
+            // confirms within one stream tick and bumps GetSeqVersion()) ----
+            // Live strip word from the stream "sq" field (spec §4.2 bit map).
+            static uint32_t GetSeqSnapshot();
+            // Bumps on every link/pushSeq receipt — pages compare it to
+            // re-render DSP-confirmed values.
+            static uint32_t GetSeqVersion();
+            static void SeqSaveConfig();
+
+            // Gates: gateLen rides 0..100 % on the UI surface (the link key
+            // carries the engine's 0..1 fraction; converted here).
+            static int GetSeqGateMode(int i);     static void SetSeqGateMode(int i, int v);
+            static int GetSeqGateDens(int i);     static void SetSeqGateDens(int i, int v);
+            static int GetSeqGateSync(int i);     static void SetSeqGateSync(int i, int v);
+            static int GetSeqGateLen(int i);      static void SetSeqGateLen(int i, int v);
+            static int GetSeqGateClk(int i);      static void SetSeqGateClk(int i, int v);
+            static int GetSeqGateDiv(int i);      static void SetSeqGateDiv(int i, int v);
+            static int GetSeqGateTrigSlot(int i); static void SetSeqGateTrigSlot(int i, int s);
+            static int GetSeqGateCvSlot(int i);   static void SetSeqGateCvSlot(int i, int s);
+            static uint32_t GetSeqGateMask(int i);
+            // Arps: algo uses the panel encoding v = algo*3 + (range-1), 0..14.
+            static int GetSeqArpAlgo(int i);      static void SetSeqArpAlgo(int i, int v);
+            static int GetSeqArpP(int i, int k);  static void SetSeqArpP(int i, int k, int v);
+            static int GetSeqArpGlide(int i);     static void SetSeqArpGlide(int i, int v);
+            static int GetSeqArpClk(int i);       static void SetSeqArpClk(int i, int v);
+            static int GetSeqArpDiv(int i);       static void SetSeqArpDiv(int i, int v);
+            static int GetSeqArpPitchSlot(int i); static void SetSeqArpPitchSlot(int i, int s);
+            static int GetSeqArpGateSlot(int i);  static void SetSeqArpGateSlot(int i, int s);
+            static int GetSeqArpAccSlot(int i);   static void SetSeqArpAccSlot(int i, int s);
+            static int GetSeqArpSlideSlot(int i); static void SetSeqArpSlideSlot(int i, int s);
+            // Shared root/scale/neo-op + transport mirror.
+            static int GetSeqRoot();     static void SetSeqRoot(int v);
+            static int GetSeqRootMode(); static void SetSeqRootMode(int v);
+            static int GetSeqNeoOp();    static void SetSeqNeoOp(int v);
+            static int GetSeqScale();    static void SetSeqScale(int v);
+            static float GetSeqBPM();
+            static int GetSeqGlobalExt(); static void SetSeqGlobalExt(int v);
         };
     }
 }
