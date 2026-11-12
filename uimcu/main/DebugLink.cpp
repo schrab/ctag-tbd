@@ -78,7 +78,8 @@ namespace CTAG {
                 case 1: return "TAPE";
                 case 2: return "HOME";
                 case 3: return "MOD";
-                case 4: return "PARAMS";
+                case 4: return "SEQ";
+                case 5: return "PARAMS";
                 default: return "?";
             }
         }

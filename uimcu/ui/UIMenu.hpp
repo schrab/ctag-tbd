@@ -80,14 +80,14 @@ namespace CTAG {
                 // MIDI is NOT a panel anymore — it lives as a HOME submenu
                 // (UIMenuPageHome::SP_MIDI).
                 PANEL_MIX = 0, PANEL_TAPE = 1, PANEL_HOME = 2, PANEL_MOD = 3,
-                PANEL_PARAMS = 4
+                PANEL_SEQ = 4, PANEL_PARAMS = 5
             };
 
         private:
             enum NavState : uint8_t { ROOT, PANEL_IN };
 
-            static constexpr int PANEL_COUNT = 5;
-            static UIMenuPage *pages[5];
+            static constexpr int PANEL_COUNT = 6;
+            static UIMenuPage *pages[6];
 
             static Panel currentPanel;
             static NavState navState;
