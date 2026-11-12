@@ -57,10 +57,9 @@ public:
     // Called each audio block (1378 Hz) before the sound processors.
     static void Process(float *cv_buffer, uint8_t *trig_buffer);
 
-    // External clock (MIDI clock, 24 PPQN). Called from the MIDI task.
-    static void OnMidiClock();
-    // MIDI Start/Continue (0xFA/0xFB): reset pattern phase to the downbeat.
-    static void OnMidiStart();
+    // MIDI clock edges and Start/Stop arrive via ModTransport (one funnel
+    // for Marbles + SeqEngine); the RampExtractor feed and the FA re-phase
+    // are consumed inside Process(). See ModTransport.hpp.
     // UI action: one-shot reset of t + X/Y sequences.
     static void RequestReset();
 

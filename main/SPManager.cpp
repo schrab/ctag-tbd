@@ -43,6 +43,7 @@ respective component folders / files if different from this license.
 #endif
 #include "Favorites.hpp"
 #include "MarblesEngine.hpp"
+#include "ModTransport.hpp"
 #include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
 #include "BtMidiReceiver.hpp"
@@ -163,7 +164,10 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             DRIVERS::Codec::SetSampleRate(req_rate);
         }
 
-        // Marbles random modulation → CV/trig slots
+        // Shared transport (BPM/MIDI clock) -> Marbles random modulation.
+        // SeqEngine joins in Task 7 (after MarblesEngine::Process).
+        const float modDt = (float)BUF_SZ / (float)DRIVERS::Codec::GetSampleRate();
+        DRIVERS::ModTransport::Process(modDt);
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
         // get normalized raw data from CODEC

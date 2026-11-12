@@ -25,6 +25,7 @@ with parameter state, MIDI-clock input and CV/trig-buffer outputs.
 ***************/
 
 #include "MarblesEngine.hpp"
+#include "ModTransport.hpp"
 #include <cmath>
 #include <cstdio>
 #include <atomic>
@@ -32,8 +33,7 @@ with parameter state, MIDI-clock input and CV/trig-buffer outputs.
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "rapidjson/document.h"
-#include "rapidjson/filewritestream.h"
-#include "rapidjson/filereadstream.h"
+#include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
 #include "marbles/random/random_generator.h"
@@ -119,9 +119,10 @@ static TGenerator t_generator;
 static XYGenerator xy_generator;
 
 // ---- parameter state (defaults mirror marbles.cc power-on settings) ----
-// Tempo model: BPM is the GLOBAL transport tempo (set manually or measured
-// from the MIDI clock; other plugins may read GetBPM). The Marbles t-clock
-// is its own thing, derived from BPM:
+// Tempo model: BPM is the GLOBAL transport tempo owned by ModTransport (set
+// manually or measured from the MIDI clock; other engines read it via
+// ModTransport::GetBPM). The Marbles t-clock is its own thing, derived
+// from BPM:
 //
 //   marbles_clock = BPM * range_multiplier(0.25/1/4) * 2^(tFine/12)
 //
@@ -132,7 +133,6 @@ static XYGenerator xy_generator;
 // touching the BPM number.
 static int tModel = T_GENERATOR_MODEL_COMPLEMENTARY_BERNOULLI;
 static int tRange = T_GENERATOR_RANGE_1X;
-static float bpm = 120.0f;      // global transport tempo, 20..480
 static float tFine = 0.0f;      // Marbles fine trim around BPM, +-60 st
 static float tRate = 0.0f;      // derived: 12*log2(bpm/120) + tFine
 static float tBias = 0.5f;
@@ -142,9 +142,8 @@ static int tPwStd = 0;
 static int tDejaVu = 0;         // 0=off 1=on 2=locked
 static bool tExternal = false;  // t clock = MIDI clock
 
-// MIDI-clock tempo measurement (OnMidiClock runs on the link task).
-static int64_t lastMidiTickUs = 0;
-static float midiBpmEma = -1.0f;  // -1 = no measurement yet
+// MIDI-clock tempo measurement and the pending-edge counter live in
+// ModTransport (one funnel for Marbles + SeqEngine); see ModTransport.hpp.
 
 // Defined with the parameter setters below.
 static float ClampFloat(float v, float lo, float hi);
@@ -181,10 +180,8 @@ static bool learning = false;
 static int lastLearnedSlot = -1;
 
 // ---- runtime state shared between MIDI/UI tasks and audio task ----
-static std::atomic<uint32_t> pendingClockEdges{0};
 static volatile bool resetRequest = false;
 static stmlib::GateFlags extClockFlags = stmlib::GATE_FLAG_LOW;
-static bool extGateLevel = false;
 static std::atomic<uint32_t> outSnapshot{0};
 
 // ---- MIDI clock out (T2 rising edges -> 0xF8 -> TRS OUT jack) ----
@@ -216,6 +213,11 @@ static uint32_t PackNormalized(float volts) {
 }
 
 void MarblesEngine::Init() {
+    // Transport (global BPM, MIDI-clock funnel) first — it owns mod-config's
+    // "transport" section and the legacy bpm read; our LoadConfig below only
+    // reads the "marbles" section.
+    ModTransport::Init();
+
     for (int i = 0; i < 8; i++) {
         dynCC[i] = -1;
         dynChan[i] = 0;
@@ -230,36 +232,12 @@ void MarblesEngine::Init() {
     for (int i = 0; i < 8; ++i) {
         xy_generator.LoadScale(i, preset_scales[i]);
     }
-    pendingClockEdges.store(0, std::memory_order_relaxed);
     resetRequest = false;
     extClockFlags = stmlib::GATE_FLAG_LOW;
-    extGateLevel = false;
 
     LoadConfig();
     ESP_LOGI(TAG, "Marbles engine initialized (cv %d/%d/%d/%d, trig %d/%d/%d)",
              xSlot[0], xSlot[1], xSlot[2], ySlot, tSlot[0], tSlot[1], tSlot[2]);
-}
-
-void MarblesEngine::OnMidiClock() {
-    pendingClockEdges.fetch_add(1, std::memory_order_relaxed);
-    // Measure the transport tempo from the MIDI clock (24 ticks/beat) and
-    // adopt it as the global BPM — the value then also sticks when the
-    // internal clock takes over again. EMA keeps the display steady.
-    int64_t now = esp_timer_get_time();
-    if (lastMidiTickUs != 0) {
-        float ms = (float)(now - lastMidiTickUs) / 1000.0f;
-        if (ms >= 2.5f && ms <= 1000.0f) {  // 2.5..1000 ms/tick = 15..6000 BPM
-            float inst = 60000.0f / (ms * 24.0f);
-            midiBpmEma = (midiBpmEma < 0.0f) ? inst : (0.9f * midiBpmEma + 0.1f * inst);
-            bpm = ClampFloat(midiBpmEma, 20.0f, 480.0f);
-            ApplyClock();
-        }
-    }
-    lastMidiTickUs = now;
-}
-
-void MarblesEngine::OnMidiStart() {
-    resetRequest = true;
 }
 
 void MarblesEngine::RequestReset() {
@@ -267,20 +245,19 @@ void MarblesEngine::RequestReset() {
 }
 
 void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
-    // Convert queued MIDI clock edges into a gate stream at block rate.
-    // Each edge holds the gate high for one block tick; edges closer than
-    // one block (clock > 1378 Hz) collapse.
-    uint32_t edges = pendingClockEdges.load(std::memory_order_relaxed);
-    if (edges > 0) {
-        pendingClockEdges.fetch_sub(1, std::memory_order_relaxed);
-    }
-    extGateLevel = edges > 0;
-    extClockFlags = stmlib::ExtractGateFlags(extClockFlags, extGateLevel);
-
-    bool reset = resetRequest;
+    // Transport comes from ModTransport (one MIDI-clock funnel for both
+    // engines; see ModTransport.hpp). The RampExtractor keeps its exact
+    // pre-hoist feed: one gate-flag stream per block.
+    uint8_t flags = ModTransport::ExternalGateFlags();
+    extClockFlags = (stmlib::GateFlags)flags;
+    bool reset = ModTransport::TakeStartReset() || resetRequest;
     resetRequest = false;
 
     // --- t section (mirrors marbles.cc) ---
+    // Re-derive the engine rate every block: the global BPM can move under
+    // us via ModTransport's measured-tempo EMA (MIDI task), which has no
+    // Marbles-side hook.
+    ApplyClock();
     t_generator.set_model(TGeneratorModel(tModel));
     t_generator.set_range(TGeneratorRange(tRange));
     t_generator.set_rate(tRate);
@@ -357,11 +334,14 @@ void MarblesEngine::Process(float *cv_buffer, uint8_t *trig_buffer) {
         1);
 
     // --- write outputs into the shared buffers ---
+    // TRIG CONVENTION: active-low (0 = active, 1 = inactive, idle 1) — see
+    // main/Midi.hpp TRIG_ON. The pre-ModTransport writes were active-high,
+    // the one outlier against every plugin reader (== 1 ? off : on).
     bool t2Level = ramp_master < 0.5f;   // T2 = clock
     if (trig_buffer != nullptr) {
-        if (tSlot[0] >= 0) trig_buffer[tSlot[0]] = gates[0] ? 1 : 0;      // T1
-        if (tSlot[1] >= 0) trig_buffer[tSlot[1]] = t2Level ? 1 : 0;       // T2
-        if (tSlot[2] >= 0) trig_buffer[tSlot[2]] = gates[1] ? 1 : 0;      // T3
+        if (tSlot[0] >= 0) trig_buffer[tSlot[0]] = gates[0] ? 0 : 1;      // T1 (active-low)
+        if (tSlot[1] >= 0) trig_buffer[tSlot[1]] = t2Level ? 0 : 1;       // T2
+        if (tSlot[2] >= 0) trig_buffer[tSlot[2]] = gates[1] ? 0 : 1;      // T3
     }
     // MIDI clock out: one 0xF8 per T2 rising edge, covering every clock
     // source (internal BPM, tap, MIDI-slaved) through this single path.
@@ -395,9 +375,10 @@ uint32_t MarblesEngine::GetOutputSnapshot() {
 static int ClampInt(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 static float ClampFloat(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
-// Re-derive the engine rate from the global BPM and the fine trim.
+// Re-derive the engine rate from the global BPM (ModTransport-owned) and
+// the Marbles-local fine trim.
 static void ApplyClock() {
-    float st = 12.0f * log2f(bpm / 120.0f) + tFine;
+    float st = 12.0f * log2f(ModTransport::GetBPM() / 120.0f) + tFine;
     tRate = ClampFloat(st, -60.0f, 60.0f);
 }
 
@@ -405,10 +386,11 @@ int MarblesEngine::GetTModel() { return tModel; }
 void MarblesEngine::SetTModel(int v) { tModel = ClampInt(v, 0, 6); }
 int MarblesEngine::GetTRange() { return tRange; }
 void MarblesEngine::SetTRange(int v) { tRange = ClampInt(v, 0, 2); }
-// Global transport tempo (manual entry, tap tempo, or MIDI-measured).
-float MarblesEngine::GetBPM() { return bpm; }
+// Global transport tempo (manual entry, tap tempo, or MIDI-measured) —
+// delegates to ModTransport, the single owner.
+float MarblesEngine::GetBPM() { return ModTransport::GetBPM(); }
 void MarblesEngine::SetBPM(float v) {
-    bpm = ClampFloat(v, 20.0f, 480.0f);
+    ModTransport::SetBPM(v);
     ApplyClock();
 }
 // Marbles fine trim around BPM (the engine rate is derived from BPM+tFine).
@@ -565,20 +547,24 @@ void MarblesEngine_ApplyDynamicCC(uint8_t channel, uint8_t cc_num, uint8_t value
 }
 
 // ---- persistence ----
+// mod-config.jsn is shared by transport ("transport"), Marbles ("marbles"),
+// the dynamic CC slots ("ccSlots") and the SEQ modulators ("seq"). Each
+// owner writes its OWN section through ModTransport's read-merge-write IO —
+// a full-file rewrite here would clobber the other sections.
 static const char *MOD_CFG_PATH = "/spiffs/data/mod-config.jsn";
 
 void MarblesEngine::SaveConfig() {
     using namespace rapidjson;
-    Document d;
-    d.SetObject();
-    auto &alloc = d.GetAllocator();
+    // bpm lives in "transport" (ModTransport::SaveConfig); everything else
+    // Marbles owns stays in "marbles".
+    Document m;
+    m.SetObject();
+    auto &alloc = m.GetAllocator();
 
-    Value m(kObjectType);
     m.AddMember("tExternal", tExternal, alloc);
     m.AddMember("clkOut", clockOutEnabled.load(std::memory_order_relaxed), alloc);
     m.AddMember("tModel", tModel, alloc);
     m.AddMember("tRange", tRange, alloc);
-    m.AddMember("bpm", bpm, alloc);
     m.AddMember("tFine", tFine, alloc);
     m.AddMember("tRate", tRate, alloc);  // derived, kept for diagnostics
     m.AddMember("tBias", tBias, alloc);
@@ -608,31 +594,36 @@ void MarblesEngine::SaveConfig() {
     for (int i = 0; i < 3; i++) xArr.PushBack(xSlot[i], alloc);
     m.AddMember("xSlot", xArr, alloc);
     m.AddMember("ySlot", ySlot, alloc);
-    d.AddMember("marbles", m, alloc);
 
+    StringBuffer sb;
+    Writer<StringBuffer> writer(sb);
+    m.Accept(writer);
+    if (!ModTransport::WriteSectionJSON("marbles", sb.GetString())) {
+        ESP_LOGE(TAG, "SaveConfig: cannot write marbles section of %s", MOD_CFG_PATH);
+        return;
+    }
+
+    // The dynamic CC slots keep the ModEngine schema so an old config file
+    // carries over; ReadSectionJSON hands out objects, so the array rides
+    // in a "slots" wrapper.
+    Document cc;
+    cc.SetObject();
     Value ccArr(kArrayType);
     for (int i = 0; i < 8; i++) {
         Value slot(kObjectType);
         slot.AddMember("cc", dynCC[i], alloc);
         slot.AddMember("chan", dynChan[i], alloc);
         slot.AddMember("cvSlot", DYN_SLOT_BASE + i, alloc);
-        ccArr.PushBack(slot, alloc);
+        ccArr.PushBack(slot, cc.GetAllocator());
     }
-    d.AddMember("ccSlots", ccArr, alloc);
-
-    FILE *fp = fopen(MOD_CFG_PATH, "w");
-    if (!fp) {
-        ESP_LOGE(TAG, "SaveConfig: cannot open %s", MOD_CFG_PATH);
+    cc.AddMember("slots", ccArr, cc.GetAllocator());
+    StringBuffer sb2;
+    Writer<StringBuffer> writer2(sb2);
+    cc.Accept(writer2);
+    if (!ModTransport::WriteSectionJSON("ccSlots", sb2.GetString())) {
+        ESP_LOGE(TAG, "SaveConfig: cannot write ccSlots section of %s", MOD_CFG_PATH);
         return;
     }
-    // SaveConfig runs on the UIMenu task (4 KB stack) — keep the buffer
-    // modest, FileWriteStream flushes in chunks.
-    char writeBuf[512];
-    FileWriteStream os(fp, writeBuf, sizeof(writeBuf));
-    Writer<FileWriteStream> writer(os);
-    d.Accept(writer);
-    fflush(fp);
-    fclose(fp);
     ESP_LOGI(TAG, "SaveConfig: written to %s", MOD_CFG_PATH);
 }
 
@@ -658,24 +649,17 @@ static bool GetBoolMember(const rapidjson::Value &v, const char *name, bool &out
 
 void MarblesEngine::LoadConfig() {
     using namespace rapidjson;
+    // The "marbles" section via ModTransport's section IO (the file is
+    // shared with "transport"/"ccSlots"/"seq"). bpm is transport-owned and
+    // arrives through ModTransport::Init()'s legacy read.
     Document d;
-    FILE *fp = fopen(MOD_CFG_PATH, "r");
-    if (!fp) {
-        ESP_LOGW(TAG, "LoadConfig: no config file %s, using defaults", MOD_CFG_PATH);
-        return;
-    }
-    char readBuf[512];
-    FileReadStream is(fp, readBuf, sizeof(readBuf));
-    d.ParseStream(is);
-    fclose(fp);
-
-    if (d.HasParseError() || !d.IsObject()) {
-        ESP_LOGE(TAG, "LoadConfig: parse error, using defaults");
-        return;
-    }
-
-    if (d.HasMember("marbles") && d["marbles"].IsObject()) {
-        const Value &m = d["marbles"];
+    char buf[1024];
+    bool haveMarbles = ModTransport::ReadSectionJSON("marbles", buf, sizeof(buf)) &&
+                       !d.Parse(buf).HasParseError() && d.IsObject();
+    if (!haveMarbles) {
+        ESP_LOGW(TAG, "LoadConfig: no marbles section in %s, using defaults", MOD_CFG_PATH);
+    } else {
+        const Value &m = d;
         int n;
         float f;
         bool b;
@@ -683,9 +667,9 @@ void MarblesEngine::LoadConfig() {
         if (GetBoolMember(m, "clkOut", b)) SetClockOut(b);
         if (GetIntMember(m, "tModel", n)) SetTModel(n);
         if (GetIntMember(m, "tRange", n)) SetTRange(n);
-        // NOTE: tRate/bpm/tFine are handled by the migration block below —
-        // tRate is a derived quantity and must not feed SetTRate (the fine
-        // trim) directly.
+        // NOTE: tRate is a derived quantity and must not feed SetTRate (the
+        // fine trim) directly; bpm is transport-owned. Only tFine and the
+        // legacy tRate migration are handled here.
         if (GetFloatMember(m, "tBias", f)) SetTBias(f);
         if (GetFloatMember(m, "tJitter", f)) SetTJitter(f);
         if (GetIntMember(m, "tPwMean", n)) SetTPwMean(n);
@@ -725,9 +709,10 @@ void MarblesEngine::LoadConfig() {
         // effective clock at 1x was 2 Hz * 2^(tRate/12) = 120 BPM *
         // 2^(tRate/12), so that becomes the global BPM with no fine trim —
         // the new model reproduces the same clock for any persisted range.
-        if (GetFloatMember(m, "bpm", f)) {
-            SetBPM(f);
-            if (GetFloatMember(m, "tFine", f)) SetTRate(f);
+        // (Cards WITH marbles.bpm get their bpm via ModTransport's legacy
+        // read; the fine trim is Marbles-local and stays here.)
+        if (GetFloatMember(m, "tFine", f)) {
+            SetTRate(f);
         } else if (GetFloatMember(m, "tRate", f)) {
             SetBPM(120.0f * powf(2.0f, f / 12.0f));
             tFine = 0.0f;
@@ -735,9 +720,13 @@ void MarblesEngine::LoadConfig() {
         ApplyClock();
     }
 
-    // ccSlots keep the ModEngine schema so an old config file carries over.
-    if (d.HasMember("ccSlots") && d["ccSlots"].IsArray()) {
-        const Value &ccArr = d["ccSlots"];
+    // ccSlots keep the ModEngine schema so an old config file carries over;
+    // saved as {"slots":[...]} (ReadSectionJSON hands out objects).
+    Document cc;
+    if (ModTransport::ReadSectionJSON("ccSlots", buf, sizeof(buf)) &&
+        !cc.Parse(buf).HasParseError() && cc.IsObject() &&
+        cc.HasMember("slots") && cc["slots"].IsArray()) {
+        const Value &ccArr = cc["slots"];
         for (SizeType i = 0; i < ccArr.Size() && i < 8; i++) {
             const Value &slot = ccArr[i];
             if (!slot.IsObject()) continue;
@@ -751,7 +740,7 @@ void MarblesEngine::LoadConfig() {
     // the engine rate is derived from the global BPM and the fine trim.
     const char *tclksrc = tExternal ? "MIDI" : "internal";
     ESP_LOGI(TAG, "LoadConfig: clock src=%s bpm=%.1f fine=%.2fst range=%d -> rate=%.2fst",
-             tclksrc, bpm, tFine, tRange, tRate);
+             tclksrc, ModTransport::GetBPM(), tFine, tRange, tRate);
 }
 
 } // namespace CTAG::DRIVERS

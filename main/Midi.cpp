@@ -23,6 +23,7 @@ respective component folders / files if different from this license.
 #include "Midi.hpp"
 #include "Favorites.hpp"
 #include "MarblesEngine.hpp"
+#include "ModTransport.hpp"
 #include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
 #include "BtMidiReceiver.hpp"
@@ -1161,19 +1162,20 @@ uint8_t *Midi::Update() {
                 bool was_realtime_message = false;    // Will only become true, if we find a real-time message status byte now...
                 switch(*ptr)                          // ### MB20240911: Added Edge-case detection: Realtime-Events are no valid status-bytes that to end a possible running-status byte situation!   
                 {
-                    case 0xf8:    // Clock — feeds the Marbles external clock inputs
-                        CTAG::DRIVERS::MarblesEngine::OnMidiClock();
+                    case 0xf8:    // Clock — ModTransport funnel (Marbles + Seq)
+                        CTAG::DRIVERS::ModTransport::OnMidiClock();
                         was_realtime_message = true;
                         break;
-                    case 0xfa:    // Start — reset Marbles patterns to the downbeat
-                        CTAG::DRIVERS::MarblesEngine::OnMidiStart();
+                    case 0xfa:    // Start — transport running, re-phase to the downbeat
+                        CTAG::DRIVERS::ModTransport::OnMidiStart();
                         was_realtime_message = true;
                         break;
                     case 0xfb:    // Continue — re-align to the downbeat
-                        CTAG::DRIVERS::MarblesEngine::OnMidiStart();
+                        CTAG::DRIVERS::ModTransport::OnMidiStart();
                         was_realtime_message = true;
                         break;
-                    case 0xfc:    // Stop — clock edges simply stop arriving
+                    case 0xfc:    // Stop — transport stopped, MIDI sources freeze
+                        CTAG::DRIVERS::ModTransport::OnMidiStop();
                         was_realtime_message = true;
                         break;
                     case 0xfe:    // Active Sensing
