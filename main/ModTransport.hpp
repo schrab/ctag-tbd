@@ -35,6 +35,12 @@ public:
     static void  SetBPM(float v);
     static float GetMeasuredBPM();   // -1 = no measurement yet
 
+    // Global clock source for the SEQ "Global" clk option (the MOD CLOCK
+    // page's MIDI-vs-internal choice; Marbles' tExternal is its own flag by
+    // design). Persisted as "ext" in the "transport" section.
+    static bool GetGlobalClockMidi();
+    static void SetGlobalClockMidi(bool v);
+
     // mod-config.jsn ownership: single file, read-merge-write per section so
     // transport/marbles/seq never overwrite each other.
     static void  LoadConfig();       // "transport" + legacy marbles.bpm

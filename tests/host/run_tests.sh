@@ -44,6 +44,7 @@ echo "==> Building host tests"
     "$HERE/test_render_ladder.cpp" \
     "$HERE/test_seq_mod.cpp" \
     "$ROOT/main/ModTransport.cpp" \
+    "$ROOT/main/SeqEngine.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
     "$EURORACK/marbles/resources.cc" \
     "$EURORACK/marbles/random/t_generator.cc" \

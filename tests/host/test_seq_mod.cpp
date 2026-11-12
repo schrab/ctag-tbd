@@ -260,3 +260,123 @@ TEST(arp_root_modes_exist) {
     CHECK(e.deg >= 0);
 }
 
+// ---- SeqEngine shell ----
+
+#include "SeqEngine.hpp"
+
+TEST(engine_trig_idle_is_one) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    // Preset 01 legitimately asserts from block 0 (its step 0 is ON and
+    // GateRecompute pre-arms the level, rack-verbatim) — use preset 02
+    // (0x5555, starts on an off-step) so every owned slot is idle here.
+    CTAG::DRIVERS::SeqEngine::SetGateMode(0, 2);
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 0, sizeof(trig));      // hostile init: proves the engine writes idle
+    memset(cv, 0, sizeof(cv));
+    for (int b = 0; b < 8; ++b)
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+    CHECK(trig[43] == 1); CHECK(trig[44] == 1); CHECK(trig[45] == 1);
+    CHECK(trig[46] == 1); CHECK(trig[47] == 1); CHECK(trig[48] == 1);
+    CHECK(trig[49] == 1); CHECK(trig[50] == 1);
+}
+
+TEST(engine_gate_steps_and_window) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetGateMode(0, 1);       // preset 01 = alternating
+    CTAG::DRIVERS::SeqEngine::SetGateDens(0, 16);
+    CTAG::DRIVERS::SeqEngine::SetGateDiv(0, 7);        // 1/16 = 6 PPQ
+    CTAG::DRIVERS::SeqEngine::SetGateLen(0, 0.5f);
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    int lows = 0, highs = 0;
+    for (int b = 0; b < 2000; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        (trig[43] == 0) ? ++lows : ++highs;
+    }
+    CHECK(lows > 0);                    // gate window asserted (active-low)
+    // trig==0 = gate ON: duty = on-steps fraction x gate length = 0.5 x 0.5,
+    // so active blocks are the minority (measured 504/2000 = 25 %)
+    CHECK(lows < highs);
+}
+
+TEST(engine_arp_pitch_and_trig_on_steps) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 0);        // Acid 303, 1 oct
+    CTAG::DRIVERS::SeqEngine::SetArpDiv(0, 7);
+    CTAG::DRIVERS::SeqEngine::SetRoot(0);              // fixed C
+    CTAG::DRIVERS::SeqEngine::SetRootMode(0);
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    float minCv = 2.f, maxCv = -2.f; int trigLows = 0;
+    for (int b = 0; b < 4000; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        if (cv[104] < minCv) minCv = cv[104];
+        if (cv[104] > maxCv) maxCv = cv[104];
+        if (trig[45] == 0) ++trigLows;
+    }
+    CHECK(trigLows > 0);                                  // arp gate fires
+    CHECK(minCv >= -1.05f && maxCv <= 1.05f);             // 1 V/oct envelope bound
+    CHECK(minCv < 0.0f || maxCv > 0.0f);                  // melody moves
+}
+
+TEST(engine_config_roundtrip) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetGateMode(0, 17);
+    CTAG::DRIVERS::SeqEngine::SetGateSync(0, 42);
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(1, 7);
+    CTAG::DRIVERS::SeqEngine::SetScale(11);
+    CTAG::DRIVERS::SeqEngine::SetRoot(5);
+    CTAG::DRIVERS::SeqEngine::SetRootMode(2);
+    char json[1024];
+    CTAG::DRIVERS::SeqEngine::SerializeConfig(json, sizeof(json));
+    CTAG::DRIVERS::SeqEngine::InitDefaults();            // wipe state
+    CHECK(CTAG::DRIVERS::SeqEngine::DeserializeConfig(json));
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateMode(0) == 17);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateSync(0) == 42);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(1) == 7);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetScale() == 11);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetRoot() == 5);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetRootMode() == 2);
+}
+
+TEST(engine_config_clamps_hostile_input) {
+    CTAG::DRIVERS::SeqEngine::InitDefaults();
+    // hand-editable file rule: every member type-checked + clamped
+    CHECK(CTAG::DRIVERS::SeqEngine::DeserializeConfig(
+        "{\"gates\":[{\"mode\":99,\"dens\":0,\"sync\":300,\"glen\":7,\"clk\":9,\"div\":99,\"trigSlot\":999,\"cvSlot\":-5}],"
+        "\"arps\":[{\"algo\":77,\"range\":9,\"p\":[999,-4,50,50],\"glide\":-3,\"clk\":8,\"div\":-1,\"pitchSlot\":999,\"gateSlot\":0,\"accSlot\":0,\"slideSlot\":0}],"
+        "\"shared\":{\"rootMode\":9,\"root\":999,\"neoOp\":-2,\"scale\":31}}"));
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateMode(0) == 18);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateDens(0) == 1);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateSync(0) == 100);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateLen(0) == 1.0f);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateClk(0) == 2);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateDiv(0) == 12);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateTrigSlot(0) == -1);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetGateCvSlot(0) == -1);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(0) == 14);   // algo 4, range 3
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 0) == 100);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 1) == 0);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpGlide(0) == 0);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpPitchSlot(0) == -1);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetRootMode() == 2);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetRoot() == 11);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetNeoOp() == 0);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetScale() == 19);
+    // malformed JSON refused wholesale
+    CTAG::DRIVERS::SeqEngine::InitDefaults();
+    CHECK(!CTAG::DRIVERS::SeqEngine::DeserializeConfig("{\"gates\": ["));
+}
+
+TEST(transport_global_clock_flag_roundtrip) {
+    CTAG::DRIVERS::ModTransport::Init();
+    CHECK(!CTAG::DRIVERS::ModTransport::GetGlobalClockMidi());  // default internal
+    CTAG::DRIVERS::ModTransport::SetGlobalClockMidi(true);
+    CTAG::DRIVERS::ModTransport::SaveConfig();
+    CTAG::DRIVERS::ModTransport::SetGlobalClockMidi(false);
+    CTAG::DRIVERS::ModTransport::LoadConfig();
+    CHECK(CTAG::DRIVERS::ModTransport::GetGlobalClockMidi());
+    CTAG::DRIVERS::ModTransport::SetGlobalClockMidi(false);
+    CTAG::DRIVERS::ModTransport::SaveConfig();   // leave the scratch file default
+}
+

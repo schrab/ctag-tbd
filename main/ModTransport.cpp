@@ -29,6 +29,7 @@ namespace {
     std::atomic<uint32_t> pendingClockEdges{0};  // MIDI task -> audio task
     bool      midiRunning = false;
     bool      startResetPending = false;
+    bool      globalClockMidi = false;   // SEQ "Global" sources follow MIDI clock
     bool      extGateLevel = false;
     uint8_t   extGateFlags = stmlib::GATE_FLAG_LOW;
     int       ticksThisBlock = 0;
@@ -110,6 +111,7 @@ void ModTransport::Init() {
     bpm = 120.0f; midiBpmEma = -1.0f; lastMidiTickUs = 0;
     pendingClockEdges.store(0, std::memory_order_relaxed);
     midiRunning = false; startResetPending = false;
+    globalClockMidi = false;
     extGateLevel = false; extGateFlags = stmlib::GATE_FLAG_LOW; ticksThisBlock = 0;
     LoadConfig();
 }
@@ -173,6 +175,8 @@ void ModTransport::SetExternalGateLevel(bool high) {
 float ModTransport::GetBPM() { return bpm; }
 void ModTransport::SetBPM(float v) { bpm = ClampBPM(v); }
 float ModTransport::GetMeasuredBPM() { return midiBpmEma; }
+bool ModTransport::GetGlobalClockMidi() { return globalClockMidi; }
+void ModTransport::SetGlobalClockMidi(bool v) { globalClockMidi = v; }
 
 // --- mod-config.jsn section IO: read file -> parse -> attach member ->
 // write back atomically. Host tests point MODTRANSPORT_CFG_PATH at a
@@ -226,6 +230,8 @@ void ModTransport::LoadConfig() {
     float v = -1.0f;
     if (ReadSectionDoc("transport", sec)) {
         v = ReadBpmFromDoc(sec);
+        if (sec.IsObject() && sec.HasMember("ext") && sec["ext"].IsInt())
+            globalClockMidi = sec["ext"].GetInt() != 0;
     }
     if (v < 0.0f && ReadSectionDoc("marbles", sec)) {
         v = ReadBpmFromDoc(sec);
@@ -238,7 +244,7 @@ void ModTransport::LoadConfig() {
 
 void ModTransport::SaveConfig() {
     char buf[64];
-    snprintf(buf, sizeof(buf), "{\"bpm\":%.1f}", bpm);
+    snprintf(buf, sizeof(buf), "{\"bpm\":%.1f,\"ext\":%d}", bpm, globalClockMidi ? 1 : 0);
     WriteSectionJSON("transport", buf);
 }
 
