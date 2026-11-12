@@ -101,3 +101,83 @@ TEST(transport_config_section_roundtrip) {
     CHECK_STREQ(buf, "{\"bpm\":123.5}");
 }
 
+// ---- SeqEngineCore: gate generator + clock bus ----
+
+#include "SeqEngineCore.hpp"
+
+TEST(gate_preset_patterns) {
+    using namespace CTAG::SEQ;
+    // 16 canonical patterns, MSB = step 1 (rack mod_engine.h:396-413)
+    CHECK(kTranceGatePresets[0] == 0xAAAAu);
+    CHECK(kTranceGatePresets[9] == 0x9292u);
+    CHECK(kTranceGatePresets[15] == 0x88AFu);
+    GateSource g{};
+    g.mode = 1; g.dens = 16; g.sync = 0; g.glen = 0.5f;
+    GateRecompute(g);
+    CHECK(g.mask == 0xAAAAu);   // preset 01 untouched at full density
+    g.mode = 3; GateRecompute(g); CHECK(g.mask == 0x7777u);
+}
+
+TEST(gate_barlow_density_ordering) {
+    using namespace CTAG::SEQ;
+    // GEN mode: density n keeps every strong beat of density n-1 (Barlow trim)
+    GateSource a{}, b{};
+    a.mode = 0; a.dens = 8;  a.sync = 0; b.mode = 0; b.dens = 10; b.sync = 0;
+    GateRecompute(a); GateRecompute(b);
+    CHECK((b.mask & a.mask) == a.mask);
+}
+
+TEST(gate_tmr_deterministic) {
+    using namespace CTAG::SEQ;
+    GateSource a{}, b{};
+    a.mode = 17; a.dens = 12; a.sync = 40; b = a;
+    a.rng_state = 0x12345678u; b.rng_state = 0x12345678u;
+    GateRecompute(a); GateRecompute(b);
+    CHECK(a.mask == b.mask);            // same seed -> same groove
+    uint32_t flips = 0;
+    for (int i = 0; i < 64; ++i) {
+        uint32_t before = a.mask;
+        GateAdvanceStep(a, 1);          // advances the step AND maybe mutates
+        flips += (a.mask != before);
+    }
+    CHECK(flips > 0);                   // mutation actually mutates
+}
+
+TEST(gate_markov_adjacent_transitions) {
+    using namespace CTAG::SEQ;
+    // MRKV: dens seeds the preset, temp drives weighted transitions through
+    // mod_gate_markov_next; the mask ALWAYS mirrors the tracked preset.
+    GateSource g{}, h{};
+    g.mode = 18; g.dens = 3; g.sync = 100; g.rng_state = 99;
+    h = g;
+    GateRecompute(g); GateRecompute(h);
+    CHECK(g.mask == kTranceGatePresets[2]);   // dens 3 -> preset index 2
+    for (int i = 0; i < 16; ++i) { GateAdvanceStep(g, 1); GateAdvanceStep(h, 1); }
+    CHECK(g.mask == h.mask);   // same seed -> identical transition chain
+    CHECK(g.mask == kTranceGatePresets[g.cur_preset]);
+}
+
+TEST(division_table_and_default) {
+    using namespace CTAG::SEQ;
+    CHECK(kDivCount == 13);
+    CHECK(strcmp(kDivisions[7].name, "1/16") == 0);   // Review Focus #4: index 7 IS 1/16
+    CHECK(kDivisions[7].ppq == 6);
+    CHECK(kDivisions[12].ppq == 2);                   // 1/32T
+    CHECK(kDivisions[3].ppq == 96);                   // 1/1
+}
+
+TEST(gate_step_advance_1_16) {
+    using namespace CTAG::SEQ;
+    GateSource g{};
+    g.mode = 1; g.dens = 16; g.sync = 0; g.glen = 0.5f;
+    GateRecompute(g);
+    g.step = 15;
+    g.level = (g.mask >> (15 - g.step)) & 1u;   // 0xAAAA bit 0 = 0
+    CHECK(g.level == 0u);
+    CHECK(GateAdvanceStep(g, 0) == 0u);         // no wraps -> nothing moves
+    CHECK(g.step == 15);
+    CHECK(GateAdvanceStep(g, 1) == 1u);         // one wrap: 15 -> 0
+    CHECK(g.step == 0);
+    CHECK(g.level == 1u);                       // 0xAAAA bit 15 = 1
+}
+
