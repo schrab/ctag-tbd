@@ -109,10 +109,13 @@ struct Engine {
 TEST(SlotBoundsCoverMarblesOutputs) {
     CHECK_EQ(CTAG::SP::HELPERS::ClampCVSlot(98), 98);
     CHECK_EQ(CTAG::SP::HELPERS::ClampCVSlot(101), 101);
-    CHECK_EQ(CTAG::SP::HELPERS::ClampCVSlot(102), -1);
+    // 102-105 now belong to the SEQ modulators (test_seq_mod.cpp); the
+    // first invalid index moved with the extension.
+    CHECK_EQ(CTAG::SP::HELPERS::ClampCVSlot(106), -1);
     CHECK_EQ(CTAG::SP::HELPERS::ClampTrigSlot(40), 40);
     CHECK_EQ(CTAG::SP::HELPERS::ClampTrigSlot(42), 42);
-    CHECK_EQ(CTAG::SP::HELPERS::ClampTrigSlot(43), -1);
+    CHECK_EQ(CTAG::SP::HELPERS::ClampTrigSlot(50), 50);
+    CHECK_EQ(CTAG::SP::HELPERS::ClampTrigSlot(51), -1);
 }
 
 TEST(DeterminismSameSeedSameSequence) {

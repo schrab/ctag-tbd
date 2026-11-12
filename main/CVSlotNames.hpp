@@ -4,8 +4,9 @@
 
 // Display names for CV slots (7-char max). 0-89 mirror the MIDI-mapped
 // sources, 90-97 are the MIDI-learn dynamic CC slots, 98-101 are the
-// Marbles random CV outputs (X1..X3, Y).
-static const char* cvSlotDisplayNames[102] = {
+// Marbles random CV outputs (X1..X3, Y), 102-105 are the SEQ modulator
+// outputs (GATE x2 level, ARP x2 pitch).
+static const char* cvSlotDisplayNames[106] = {
     // Slots 0-39: Voice A/B/C/D note/velocity/control params
     "A.Note", "A.Velo", "A.Bank", "A.SBnk", "A.Prog",
     "A.PB",   "A.PBLg", "A.AT",   "A.MW1",  "A.BC2",
@@ -33,11 +34,19 @@ static const char* cvSlotDisplayNames[102] = {
     // Slots 90-97: dynamic CC (MIDI learn)
     "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8",
     // Slots 98-101: Marbles random CV outputs
-    "MB.X1", "MB.X2", "MB.X3", "MB.Y"
+    "MB.X1", "MB.X2", "MB.X3", "MB.Y",
+    // Slots 102-105: SEQ modulators (GATE x2 level, ARP x2 pitch)
+    "SQ.G1", "SQ.G2", "SQ.A1", "SQ.A2"
 };
 
-// Display names for the Marbles trigger outputs at trig slots 40-42.
-static const char* marblesTrigSlotNames[3] = {"MB.T1", "MB.T2", "MB.T3"};
+// Display names for trigger outputs: Marbles T1-T3 at trig slots 40-42,
+// SEQ modulator trig outputs at trig slots 43-50 (GATE x2, ARP gate/
+// accent/slide x2). Slot 43-44 double as the GATE trig names.
+static const char* trigSlotNames[11] = {
+    "MB.T1", "MB.T2", "MB.T3",
+    "SQ.G1", "SQ.G2", "SQ.A1 GATE", "SQ.A2 GATE",
+    "SQ.A1 ACC", "SQ.A2 ACC", "SQ.A1 SLIDE", "SQ.A2 SLIDE"
+};
 
 // Render a trig slot for the UI: marbles slots by name, MIDI-mapped slots
 // (0-39) by their cv-table name (same sources), anything else as its
@@ -50,8 +59,8 @@ inline const char* TrigSlotName(int slot) {
     rot = (rot + 1) % 3;
     if (slot < 0) {
         b[0] = '-'; b[1] = 0;
-    } else if (slot >= 40 && slot < 43) {
-        const char *s = marblesTrigSlotNames[slot - 40];
+    } else if (slot >= 40 && slot < 51) {
+        const char *s = trigSlotNames[slot - 40];
         uint8_t i = 0;
         while (s[i] && i < 7) { b[i] = s[i]; ++i; }
         b[i] = 0;
