@@ -35,9 +35,9 @@ namespace CTAG::DRIVERS {
 // ClampCVSlot/ClampTrigSlot (audio-task stack safety).
 //
 // Outputs (spec §4.2, defaults):
-//   cv 102/103 = SQ.G1/SQ.G2   gate level, slewed 0..1
-//   cv 104/105 = SQ.A1/SQ.A2   arp pitch, 1 V/oct: (note - root)/12 * 0.2
-//   trig 43/44 = SQ.G1/SQ.G2   gate window
+//   cv 102/103 = SEQ.1Level/SEQ.2Level   gate level, slewed 0..1
+//   cv 104/105 = SEQ.1Note/SEQ.2Note     arp pitch, 1 V/oct
+//   trig 43/44 = SEQ.1Trig/SEQ.2Trig     gate window
 //   trig 45/46 = arp gate window (55 %, 100 % on slide steps)
 //   trig 47/48 = arp accent (0 on accent steps)
 //   trig 49/50 = arp slide (0 on slide steps)
@@ -81,6 +81,9 @@ public:
     // 16-step gate pattern of the current arp pattern, bit (15-step) set on
     // gated steps — same convention as GetGateMask; feeds the panel strip.
     static uint32_t GetArpGateMask(int i);
+    // Accent / slide patterns (same bit convention) for the detail strip.
+    static uint32_t GetArpAccMask(int i);
+    static uint32_t GetArpSlideMask(int i);
     // Current gate step 0..15 (the strip's playhead; rides the 25 Hz stream).
     static int GetGateStep(int i);
 

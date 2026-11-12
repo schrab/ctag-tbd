@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-// Display names for CV slots (7-char max). 0-89 mirror the MIDI-mapped
+// Display names for CV slots. 0-89 mirror the MIDI-mapped
 // sources, 90-97 are the MIDI-learn dynamic CC slots, 98-101 are the
 // Marbles random CV outputs (X1..X3, Y), 102-105 are the SEQ modulator
 // outputs (GATE x2 level, ARP x2 pitch).
@@ -36,16 +36,17 @@ static const char* cvSlotDisplayNames[106] = {
     // Slots 98-101: Marbles random CV outputs
     "MB.X1", "MB.X2", "MB.X3", "MB.Y",
     // Slots 102-105: SEQ modulators (GATE x2 level, ARP x2 pitch)
-    "SQ.G1", "SQ.G2", "SQ.A1", "SQ.A2"
+    "SEQ.1Level", "SEQ.2Level", "SEQ.1Note", "SEQ.2Note"
 };
 
 // Display names for trigger outputs: Marbles T1-T3 at trig slots 40-42,
-// SEQ modulator trig outputs at trig slots 43-50 (GATE x2, ARP gate/
-// accent/slide x2). Slot 43-44 double as the GATE trig names.
+// SEQ modulator trig outputs at trig slots 43-50 (GATE generator trig,
+// ARP step gate/accent/slide). SEQ.1Gate is the ARP step gate — the
+// TBD03 trigger target.
 static const char* trigSlotNames[11] = {
     "MB.T1", "MB.T2", "MB.T3",
-    "SQ.G1", "SQ.G2", "SQ.A1 GATE", "SQ.A2 GATE",
-    "SQ.A1 ACC", "SQ.A2 ACC", "SQ.A1 SLIDE", "SQ.A2 SLIDE"
+    "SEQ.1Trig", "SEQ.2Trig", "SEQ.1Gate", "SEQ.2Gate",
+    "SEQ.1Acc", "SEQ.2Acc", "SEQ.1Slide", "SEQ.2Slide"
 };
 
 // Render a trig slot for the UI: marbles slots by name, MIDI-mapped slots
@@ -53,16 +54,16 @@ static const char* trigSlotNames[11] = {
 // number. Uses a small static rotation so it can be called several times
 // per snprintf argument list.
 inline const char* TrigSlotName(int slot) {
-    static char buf[3][8];
-    static uint8_t rot = 0;
-    char *b = buf[rot];
-    rot = (rot + 1) % 3;
-    if (slot < 0) {
-        b[0] = '-'; b[1] = 0;
-    } else if (slot >= 40 && slot < 51) {
-        const char *s = trigSlotNames[slot - 40];
-        uint8_t i = 0;
-        while (s[i] && i < 7) { b[i] = s[i]; ++i; }
+static char buf[3][12];
+static uint8_t rot = 0;
+char *b = buf[rot];
+rot = (rot + 1) % 3;
+if (slot < 0) {
+    b[0] = '-'; b[1] = 0;
+} else if (slot >= 40 && slot < 51) {
+    const char *s = trigSlotNames[slot - 40];
+    uint8_t i = 0;
+    while (s[i] && i < 11) { b[i] = s[i]; ++i; }
         b[i] = 0;
     } else if (slot < 40) {
         return cvSlotDisplayNames[slot];

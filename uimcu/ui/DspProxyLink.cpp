@@ -152,9 +152,11 @@ namespace CTAG {
                 int arpPitchSlot[2]; int arpGateSlot[2]; int arpAccSlot[2]; int arpSlideSlot[2];
                 int root; int rootMode; int neoOp; int scale; float bpm; int globalExt;
                 uint32_t snapshot;
-                // live strip extras: arp gate patterns (pushSeq "a1g/a2g")
-                // and gate playheads (stream "sqg")
+                // live strip extras: arp gate/accent/slide patterns (pushSeq
+                // "a1g/a1acc/a1sld") and gate playheads (stream "sqg")
                 uint32_t arpGateMask[2];
+                uint32_t arpAccMask[2];
+                uint32_t arpSlideMask[2];
                 int gateStep[2];
             };
             SeqState seq = {};
@@ -354,6 +356,10 @@ namespace CTAG {
                     seq.gateMask[i] = gs(k, seq.gateMask[i]);
                     snprintf(k, sizeof(k), "a%dg", i + 1);
                     seq.arpGateMask[i] = gs(k, seq.arpGateMask[i]);
+                    snprintf(k, sizeof(k), "a%dacc", i + 1);
+                    seq.arpAccMask[i] = gs(k, seq.arpAccMask[i]);
+                    snprintf(k, sizeof(k), "a%dsld", i + 1);
+                    seq.arpSlideMask[i] = gs(k, seq.arpSlideMask[i]);
                 }
                 for (int i = 0; i < 2; i++) {
                     char k[12];
@@ -1214,6 +1220,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
         uint32_t DspProxy::GetSeqGateMask(int i) { return seq.gateMask[i]; }
         uint32_t DspProxy::GetSeqArpGateMask(int i) { return seq.arpGateMask[i]; }
+        uint32_t DspProxy::GetSeqArpAccMask(int i) { return seq.arpAccMask[i]; }
+        uint32_t DspProxy::GetSeqArpSlideMask(int i) { return seq.arpSlideMask[i]; }
         int DspProxy::GetSeqGateStep(int i) { return seq.gateStep[i]; }
 
         int DspProxy::GetSeqArpAlgo(int i) { return seq.arpAlgo[i]; }

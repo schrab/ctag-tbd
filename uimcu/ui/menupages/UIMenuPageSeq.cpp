@@ -94,14 +94,55 @@ namespace CTAG {
             snprintf(buf, buflen, " %s:%s", label, tmp);
         }
 
-        // ---- live output strip: 2x2 pattern grid — top row GATE1/GATE2
-        // trance masks, bottom row ARP1/ARP2 gate patterns; each cell is
-        // 3 px wide: filled 3x3 square = playhead, 1 px dot = gated step,
-        // blank = muted step. Rows are 5 px tall with a 2 px gap, sitting
-        // below the last text row. Right edge: 4 accent/slide squares.
-        // (snapshot bits: 4-5 acc, 6-7 slide, 8-11/12-15 arp step) ----
+        // ---- live output strip ----
+        // MAIN: 2x2 pattern grid — top row GATE1/GATE2 trance masks, bottom
+        // row ARP1/ARP2 gate patterns. 3 px cells: solid square = playhead
+        // on a gated step, hollow square = playhead on a muted step, 1 px
+        // dot = gated step, blank = muted. Rows 5 px tall, 2 px gap.
+        // Sub-page (GATE n / ARP n): a full-width detail view — one glyph
+        // per step from the ext font (● gate, ▲ +accent, ♪ +slide, ♫ both),
+        // playhead = inverted column. (snapshot bits 8-11/12-15 = arp step.)
         void UIMenuPageSeq::drawOutputLine() {
             uint32_t s = DspProxy::GetSeqSnapshot();
+            if (subPage != SP_MAIN) {
+                // ---- detail view for the open source ----
+                const uint32_t gateMask = (subPage == SP_GATE1)
+                                              ? DspProxy::GetSeqGateMask(0)
+                                          : (subPage == SP_GATE2)
+                                              ? DspProxy::GetSeqGateMask(1)
+                                          : (subPage == SP_ARP1)
+                                              ? DspProxy::GetSeqArpGateMask(0)
+                                              : DspProxy::GetSeqArpGateMask(1);
+                const uint32_t accMask = (subPage == SP_ARP1)
+                                             ? DspProxy::GetSeqArpAccMask(0)
+                                         : (subPage == SP_ARP2)
+                                             ? DspProxy::GetSeqArpAccMask(1)
+                                             : 0;
+                const uint32_t sldMask = (subPage == SP_ARP1)
+                                             ? DspProxy::GetSeqArpSlideMask(0)
+                                         : (subPage == SP_ARP2)
+                                             ? DspProxy::GetSeqArpSlideMask(1)
+                                             : 0;
+                const int step = (subPage == SP_GATE1)   ? DspProxy::GetSeqGateStep(0)
+                                 : (subPage == SP_GATE2) ? DspProxy::GetSeqGateStep(1)
+                                 : (subPage == SP_ARP1)  ? (int)((s >> 8) & 0xFu)
+                                                         : (int)((s >> 12) & 0xFu);
+                for (int st = 0; st < 16; ++st) {
+                    const int x = st * 8 + 1;
+                    const bool gate = ((gateMask >> (15 - st)) & 1u) != 0;
+                    const bool acc = ((accMask >> (15 - st)) & 1u) != 0;
+                    const bool sld = ((sldMask >> (15 - st)) & 1u) != 0;
+                    const char *g = " ";
+                    if (gate && acc && sld) g = "\xE2\x99\xAB";   // ♫
+                    else if (gate && acc) g = "\xE2\x96\xB2";     // ▲
+                    else if (gate && sld) g = "\xE2\x99\xAA";     // ♪
+                    else if (gate) g = "\xE2\x97\x8F";            // ●
+                    Display::DrawString(x, 52, g, FONT_UI);
+                    if (st == step) Display::InvertRect(x - 1, 51, 8, 13);
+                }
+                return;
+            }
+            // ---- MAIN: 2x2 grid ----
             const uint32_t masks[2][2] = {
                 { DspProxy::GetSeqGateMask(0), DspProxy::GetSeqGateMask(1) },
                 { DspProxy::GetSeqArpGateMask(0), DspProxy::GetSeqArpGateMask(1) },
@@ -116,19 +157,13 @@ namespace CTAG {
                     const int x0 = 2 + col * 52;
                     for (int st = 0; st < 16; ++st) {
                         const int x = x0 + st * 3;
+                        const bool gated = ((masks[row][col] >> (15 - st)) & 1u) != 0;
                         if (st == steps[row][col])
-                            Display::DrawRect(x, rowY[row] + 1, 3, 3, true);   // playhead
-                        else if ((masks[row][col] >> (15 - st)) & 1u)
+                            Display::DrawRect(x, rowY[row] + 1, 3, 3, gated); // solid on gate, hollow on mute
+                        else if (gated)
                             Display::DrawRect(x + 1, rowY[row] + 2, 1, 1, true); // gate dot
                     }
                 }
-            }
-            const int markX[4] = {103, 109, 115, 121};
-            for (int i = 0; i < 2; i++) {
-                bool acc = ((s >> (4 + i)) & 1) != 0;
-                bool sld = ((s >> (6 + i)) & 1) != 0;
-                Display::DrawRect(markX[i * 2], 59, 6, 5, acc);     // A1/A2 accent
-                Display::DrawRect(markX[i * 2 + 1], 59, 6, 5, sld); // A1/A2 slide
             }
         }
 

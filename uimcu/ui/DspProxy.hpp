@@ -268,6 +268,8 @@ namespace CTAG {
             static int GetSeqGateCvSlot(int i);   static void SetSeqGateCvSlot(int i, int s);
             static uint32_t GetSeqGateMask(int i);
             static uint32_t GetSeqArpGateMask(int i);  // 16-step arp gate pattern
+            static uint32_t GetSeqArpAccMask(int i);   // accent flags per step
+            static uint32_t GetSeqArpSlideMask(int i); // slide flags per step
             static int GetSeqGateStep(int i);          // gate playhead (stream)
             // Arps: algo uses the panel encoding v = algo*3 + (range-1), 0..14.
             static int GetSeqArpAlgo(int i);      static void SetSeqArpAlgo(int i, int v);

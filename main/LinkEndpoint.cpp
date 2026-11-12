@@ -471,6 +471,10 @@ namespace CTAG {
                     s += key("g" + p + "mask") + "\"" + tmp + "\"";
                     snprintf(tmp, sizeof(tmp), "0x%04x", (unsigned)SeqEngine::GetArpGateMask(i));
                     s += key("a" + p + "g") + "\"" + tmp + "\"";
+                    snprintf(tmp, sizeof(tmp), "0x%04x", (unsigned)SeqEngine::GetArpAccMask(i));
+                    s += key("a" + p + "acc") + "\"" + tmp + "\"";
+                    snprintf(tmp, sizeof(tmp), "0x%04x", (unsigned)SeqEngine::GetArpSlideMask(i));
+                    s += key("a" + p + "sld") + "\"" + tmp + "\"";
                 }
                 for (int i = 0; i < 2; i++) {
                     string p = to_string(i + 1);
@@ -570,6 +574,8 @@ namespace CTAG {
                 for (int i = 0; i < 2; i++) {
                     mix(SeqEngine::GetGateMode(i)); mix(SeqEngine::GetGateDens(i));
                     mix(SeqEngine::GetArpGateMask(i));   // pattern rebuilds re-push
+                    mix(SeqEngine::GetArpAccMask(i));
+                    mix(SeqEngine::GetArpSlideMask(i));
                     mix(SeqEngine::GetGateSync(i));
                     bit.f = SeqEngine::GetGateLen(i); mix(bit.u);
                     mix(SeqEngine::GetGateClk(i)); mix(SeqEngine::GetGateDiv(i));

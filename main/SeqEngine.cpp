@@ -309,6 +309,20 @@ uint32_t SeqEngine::GetArpGateMask(int i) {
     return m;
 }
 
+uint32_t SeqEngine::GetArpAccMask(int i) {
+    uint32_t m = 0;
+    for (int st = 0; st < 16; ++st)
+        if (gArpExt[i].steps[st].flags & 2u) m |= (1u << (15 - st));
+    return m;
+}
+
+uint32_t SeqEngine::GetArpSlideMask(int i) {
+    uint32_t m = 0;
+    for (int st = 0; st < 16; ++st)
+        if (gArpExt[i].steps[st].flags & 4u) m |= (1u << (15 - st));
+    return m;
+}
+
 int SeqEngine::GetGateStep(int i) { return gGate[i].step; }
 
 // ---- arp setters ----
