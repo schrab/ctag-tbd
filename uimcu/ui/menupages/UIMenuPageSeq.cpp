@@ -95,26 +95,29 @@ namespace CTAG {
         }
 
         // ---- live output strip: 4 gate dots (G1 G2 A1 A2), two 16-step
-        // progress bars (A1/A2), accent/slide markers (spec §4.2 bit map:
-        // 0-1 gate, 2-3 arp gate, 4-5 acc, 6-7 slide, 8-11/12-15 step,
-        // 16-23/24-31 note) ----
+        // progress bars (A1/A2), 4 status squares (A1acc A1sld A2acc A2sld)
+        // (spec §4.2 bit map: 0-1 gate, 2-3 arp gate, 4-5 acc, 6-7 slide,
+        // 8-11/12-15 step, 16-23/24-31 note). All elements share the dot
+        // size; the bar fills span their tracks (2 px per step). ----
         void UIMenuPageSeq::drawOutputLine() {
             uint32_t s = DspProxy::GetSeqSnapshot();
             for (int i = 0; i < 4; i++) {
                 Display::DrawRect(1 + i * 8, 57, 6, 6, (s >> i) & 1);
             }
-            const int barX[2] = {36, 72};
+            const int barX[2] = {34, 67};
             for (int i = 0; i < 2; i++) {
                 int step = (s >> (8 + i * 4)) & 0xFu;
                 Display::DrawRect(barX[i], 57, 32, 6, false);
-                Display::DrawRect(barX[i] + 1, 58, step + 1, 4, true);
+                int fill = (step + 1) * 2;    // 2 px per step across the track
+                if (fill > 30) fill = 30;     // 1 px inset on the right
+                Display::DrawRect(barX[i] + 1, 58, fill, 4, true);
             }
-            const int markX[4] = {108, 114, 120, 126};
+            const int markX[4] = {101, 108, 115, 122};
             for (int i = 0; i < 2; i++) {
                 bool acc = ((s >> (4 + i)) & 1) != 0;
                 bool sld = ((s >> (6 + i)) & 1) != 0;
-                Display::DrawRect(markX[i * 2], 57, 4, 6, acc);   // accent
-                Display::DrawRect(markX[i * 2 + 1], 57, 2, 6, sld); // slide
+                Display::DrawRect(markX[i * 2], 57, 6, 6, acc);     // accent
+                Display::DrawRect(markX[i * 2 + 1], 57, 6, 6, sld); // slide
             }
         }
 
@@ -301,10 +304,10 @@ namespace CTAG {
                         break;
                     }
                     case 6:
-                        if (DspProxy::GetSeqRootMode() == 2)
-                            snprintf(buf, buflen, " Neo-Op:%s", neoOpNames[DspProxy::GetSeqNeoOp()]);
-                        else
-                            snprintf(buf, buflen, " Neo-Op:(n/a)");
+                        // the op is engine state even while inactive — show
+                        // it always (a permanently-dead "(n/a)" row is just
+                        // redundant space)
+                        snprintf(buf, buflen, " Neo-Op:%s", neoOpNames[DspProxy::GetSeqNeoOp()]);
                         break;
                     case 7:
                         snprintf(buf, buflen, " Scale:%s", seqScaleNames[DspProxy::GetSeqScale()]);
