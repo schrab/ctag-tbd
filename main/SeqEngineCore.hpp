@@ -289,5 +289,766 @@ inline uint32_t GateAdvanceStep(GateSource &s, uint32_t wraps) {
     return wraps;
 }
 
+// ===================== ARP: 5-Algo Generative Melody & Acid Engine ===========
+// Verbatim port of rack mod_engine.h MOD_ARP + gen_tables.h. The rack's
+// g_mod_engine globals are gone: every function takes the ArpExt (pattern +
+// harmony state) and the ArpSource (parameters + runtime) explicitly, and
+// the shared root/scale/neo-op sync across the two instances is the shell's
+// job (rack mod_arp_set_shared_* / the in-function sibling loops).
+
+// 20 canonical 12-bit pitch-class scale masks (bit s = semitone s above root)
+enum scale_id_t {
+    SCALE_CHROMATIC = 0,
+    SCALE_IONIAN_MAJOR,
+    SCALE_DORIAN,
+    SCALE_PHRYGIAN,
+    SCALE_LYDIAN,
+    SCALE_MIXOLYDIAN,
+    SCALE_AEOLIAN_MINOR,
+    SCALE_LOCRIAN,
+    SCALE_PENTATONIC_MAJ,
+    SCALE_PENTATONIC_MIN,
+    SCALE_BLUES,
+    SCALE_HARMONIC_MINOR,
+    SCALE_MELODIC_MINOR,
+    SCALE_PHRYGIAN_DOM,
+    SCALE_WHOLE_TONE,
+    SCALE_OCTATONIC_HW,
+    SCALE_HIRAJOSHI,
+    SCALE_INSEN,
+    SCALE_DOUBLE_HARMONIC,
+    SCALE_ACID_DOM7_POOL,
+    SCALE_COUNT
+};
+
+inline constexpr uint16_t SCALE_BITMASKS[SCALE_COUNT] = {
+    0x0FFFu, /*  0: Chromatic          [0,1,2,3,4,5,6,7,8,9,10,11] */
+    0x0AB5u, /*  1: Ionian (Major)     [0,2,4,5,7,9,11]            */
+    0x06ADu, /*  2: Dorian             [0,2,3,5,7,9,10]            */
+    0x05ABu, /*  3: Phrygian           [0,1,3,5,7,8,10]            */
+    0x0AD5u, /*  4: Lydian             [0,2,4,6,7,9,11]            */
+    0x06B5u, /*  5: Mixolydian         [0,2,4,5,7,9,10]            */
+    0x05ADu, /*  6: Aeolian (Nat Min)  [0,2,3,5,7,8,10]            */
+    0x056Bu, /*  7: Locrian            [0,1,3,5,6,8,10]            */
+    0x0295u, /*  8: Major Pentatonic   [0,2,4,7,9]                 */
+    0x04A9u, /*  9: Minor Pentatonic   [0,3,5,7,10]                */
+    0x04E9u, /* 10: Blues Scale        [0,3,5,6,7,10]              */
+    0x09ADu, /* 11: Harmonic Minor     [0,2,3,5,7,8,11]            */
+    0x0AADu, /* 12: Melodic Minor      [0,2,3,5,7,9,11]            */
+    0x05B3u, /* 13: Phrygian Dominant  [0,1,4,5,7,8,10]            */
+    0x0555u, /* 14: Whole Tone         [0,2,4,6,8,10]              */
+    0x06DBu, /* 15: Octatonic (H-W)    [0,1,3,4,6,7,9,10]          */
+    0x018Du, /* 16: Hirajoshi          [0,2,3,7,8]                 */
+    0x04A3u, /* 17: In-Sen             [0,1,5,7,10]                */
+    0x09B3u, /* 18: Double Harmonic    [0,1,4,5,7,8,11]            */
+    0x0499u  /* 19: Acid Dom7 Pool     [0,3,4,7,10]                */
+};
+
+// Metrical Beat-Hierarchy Scale-Degree Gravity Weights (for 7-note scales)
+inline constexpr uint8_t DEGREE_METRICAL_GRAVITY[3][7] = {
+    /* Deg 0(1st)  Deg 1(2nd)  Deg 2(3rd)  Deg 3(4th)  Deg 4(5th)  Deg 5(6th)  Deg 6(7th) */
+    {    255,         15,        180,         20,        210,         15,         40 }, /* Strong */
+    {    180,         60,        170,         70,        190,         85,        120 }, /* Medium */
+    {     60,        165,         95,        155,         90,        150,        175 }  /* Weak   */
+};
+
+// First-Order Scale-Degree Voice-Leading Markov Matrix (7x7)
+inline constexpr uint8_t DEGREE_MARKOV_7X7[7][7] = {
+    /* To:  d0   d1   d2   d3   d4   d5   d6  */
+    /* d0 */ { 30,  70,  65,  35,  60,  20,  40 },
+    /* d1 */ { 95,  10,  85,  25,  40,  10,  25 },
+    /* d2 */ { 55,  65,  20,  60,  55,  25,  15 },
+    /* d3 */ { 35,  30, 110,  10,  65,  20,  15 },
+    /* d4 */ { 80,  25,  45,  50,  25,  60,  45 },
+    /* d5 */ { 30,  20,  30,  40, 110,  10,  55 },
+    /* d6 */ {140,  20,  25,  15,  50,  25,  10 }
+};
+
+// HYP-1 Empirical Diatonic Chord Drift Weights (Degrees I..VII)
+inline constexpr uint8_t DIATONIC_W7_WEIGHTS[7] = { 40, 20, 10, 30, 30, 30, 4 };
+
+// Functional Diatonic Chord Progression Markov Matrix (I..VII -> I..VII)
+inline constexpr uint8_t CHORD_MARKOV_7X7[7][7] = {
+    /* From \ To:  I   II  III   IV    V   VI  VII */
+    /* I   */ {   0,  35,  20,  65,  65,  55,  10 },
+    /* II  */ {  15,   0,  10,  20, 110,  15,  25 },
+    /* III */ {  15,  35,   0,  65,  20,  80,  10 },
+    /* IV  */ {  55,  45,  10,   0,  85,  25,  20 },
+    /* V   */ { 120,  15,  10,  35,   0,  65,  10 },
+    /* VI  */ {  25,  65,  25,  70,  45,   0,  10 },
+    /* VII */ { 130,  10,  20,  15,  40,  35,   0 }
+};
+
+// Neo-Riemannian PLR & NSH Triad Transformations
+typedef enum {
+    NR_TRANSFORM_P = 0, /* Parallel:          C Maj <-> C Min  */
+    NR_TRANSFORM_L,     /* Leittonwechsel:    C Maj <-> E Min  */
+    NR_TRANSFORM_R,     /* Relative:          C Maj <-> A Min  */
+    NR_TRANSFORM_N,     /* Nebenverwandt:     C Maj <-> F Min  */
+    NR_TRANSFORM_S,     /* Slide (shared 3rd):C Maj <-> C# Min */
+    NR_TRANSFORM_H,     /* Hexatonic Pole:    C Maj <-> Ab Min */
+    NR_TRANSFORM_COUNT
+} neo_riemannian_id_t;
+
+// Col 0: Semitone delta when current triad is Major (0 -> 1)
+// Col 1: Semitone delta when current triad is Minor (1 -> 0)
+inline constexpr uint8_t NEO_RIEMANNIAN_DELTAS[NR_TRANSFORM_COUNT][2] = {
+    { 0,  0 }, /* P: Maj+0 -> Min,  Min+0  -> Maj */
+    { 4,  8 }, /* L: Maj+4 -> Min,  Min+8  -> Maj */
+    { 9,  3 }, /* R: Maj+9 -> Min,  Min+3  -> Maj */
+    { 5,  7 }, /* N: Maj+5 -> Min,  Min+7  -> Maj */
+    { 1, 11 }, /* S: Maj+1 -> Min,  Min+11 -> Maj */
+    { 8,  4 }  /* H: Maj+8 -> Min,  Min+4  -> Maj */
+};
+
+inline void apply_neo_riemannian(uint8_t *root_pc, uint8_t *is_minor, neo_riemannian_id_t op) {
+    uint8_t q = (*is_minor) ? 1u : 0u;
+    uint8_t delta = NEO_RIEMANNIAN_DELTAS[op % NR_TRANSFORM_COUNT][q];
+    *root_pc = (uint8_t)((*root_pc + delta) % 12u);
+    *is_minor = (uint8_t)(1u - q);
+}
+
+// 16 canonical 1-bar melodic contour & motif archetypes (int8_t [16][16]),
+// signed scale-degree offsets relative to the active chord root
+inline constexpr int8_t MELODIC_CONTOURS_DEG[16][16] = {
+    /*  0: Arch (Smooth diatonic swell peaking at octave on step 7) */
+    {  0,  1,  2,  3,  4,  5,  6,  7,  6,  5,  4,  3,  2,  1,  0,  0 },
+    /*  1: Inverted Arch (Valley descent into lower register, rising back home) */
+    {  0, -1, -2, -3, -4, -5, -6, -7, -6, -5, -4, -3, -2, -1,  0,  0 },
+    /*  2: Pendulum (Converging oscillation between low root and high octave) */
+    {  0,  7,  1,  6,  2,  5,  3,  4,  3,  5,  2,  6,  1,  7, -1,  0 },
+    /*  3: Pedal-Point Ostinato (Grounded root on even steps, rising melody on odd steps) */
+    {  0,  2,  0,  3,  0,  4,  0,  5,  0,  6,  0,  7,  0,  4,  0, -1 },
+    /*  4: Acid Octave-Bounce (Syncopated octave pops and b7/3rd inflections) */
+    {  0,  0,  7,  0,  0,  7,  0,  2,  0,  0,  7,  0,  7,  0,  4, -1 },
+    /*  5: Rising Cadence (Two-octave diatonic climb from -7 to +7) */
+    { -7, -6, -5, -4, -3, -2, -1,  0,  1,  2,  3,  4,  5,  6,  7,  7 },
+    /*  6: Falling Resolution (Cascading descent from high octave to low root) */
+    {  7,  6,  5,  4,  3,  2,  1,  0, -1, -2, -3, -4, -5, -6, -7, -7 },
+    /*  7: Double Wave Hump (Two symmetrical phrase peaks on beats 1.4 and 3.4) */
+    {  0,  2,  4,  7,  4,  2,  1,  0,  1,  3,  5,  7,  5,  3,  1,  0 },
+    /*  8: High Plateau (Rapid arpeggiated ascent to sustained octave, late drop) */
+    {  0,  4,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  4,  2,  0 },
+    /*  9: Terraced Sequence Ascending (Four 4-step rising diatonic sequences) */
+    {  0,  1,  2,  4,  1,  2,  3,  5,  2,  3,  4,  6,  3,  4,  5,  7 },
+    /* 10: Terraced Sequence Descending (Four 4-step tumbling diatonic sequences) */
+    {  7,  5,  4,  2,  6,  4,  3,  1,  5,  3,  2,  0,  4,  2,  1,  0 },
+    /* 11: Triad + 7th Arpeggio Wave (Up-down 1-3-5-7-8 voice-led arpeggiation) */
+    {  0,  2,  4,  6,  7,  6,  4,  2,  0,  2,  4,  6,  7,  6,  4,  1 },
+    /* 12: Cresting Tension Wave (Slow chromatic/diatonic creep to step 12, fast drop) */
+    {  0,  0,  1,  1,  2,  2,  3,  4,  5,  6,  7,  8,  9,  4,  2, -1 },
+    /* 13: Grounded Techno Sub-Bass (Root anchor with syncopated 7th/octave stabs) */
+    {  0,  0,  0,  6,  0,  0,  7,  0,  0,  0,  0,  6,  0,  7,  0,  4 },
+    /* 14: Turnaround Fill Cascade (Root-fifth alternation followed by steps 10..15 run) */
+    {  0,  4,  0,  4,  0,  4,  0,  4,  0,  4,  7,  6,  5,  4,  2,  1 },
+    /* 15: Syncopated Call & Response (Question leap on beat 1-2, step answer on 3-4) */
+    {  0,  4,  7,  0,  0,  0,  5,  4,  2,  0,  0,  0,  4,  3,  1,  0 }
+};
+
+// Metrical Mutation Sensitivity (0..255) for Algo 4 (Deja-Vu)
+inline constexpr uint8_t METRIC_MUTATE_SENSITIVITY[16] = {
+     35, 240, 140, 255,  85, 230, 150, 255,
+     60, 240, 140, 255,  95, 235, 160, 250
+};
+
+// Fast integer scale & degree conversion utilities — negative-safe Euclidean
+// floor division and modulo (C99 '%' truncates toward 0!)
+inline int16_t floor_div_i16(int16_t a, int16_t b) {
+    int16_t q = a / b;
+    int16_t r = a % b;
+    if ((r != 0) && ((r < 0) != (b < 0))) {
+        q--;
+    }
+    return q;
+}
+
+inline int16_t floor_mod_i16(int16_t a, int16_t b) {
+    int16_t r = a % b;
+    if ((r != 0) && ((r < 0) != (b < 0))) {
+        r += b;
+    }
+    return r;
+}
+
+// Expands a 12-bit scale mask into ascending semitone offsets (0..11), returns note count M
+inline uint8_t expand_scale_mask(uint16_t mask, uint8_t steps_out[12]) {
+    uint8_t count = 0;
+    mask |= 0x0001u; /* Always force root bit 0 active */
+    for (uint8_t s = 0; s < 12u; s++) {
+        if ((mask >> s) & 0x01u) {
+            steps_out[count++] = s;
+        }
+    }
+    return count;
+}
+
+// Converts a chord-relative scale degree offset into a folded MIDI note [28..96]
+inline uint8_t degree_to_midi_folded(uint8_t root_pc,
+                                     int8_t chord_deg,
+                                     int16_t deg_offset,
+                                     int8_t oct_offset,
+                                     const uint8_t scale_steps[12],
+                                     uint8_t num_steps) {
+    int16_t m = (num_steps > 0) ? (int16_t)num_steps : 7;
+    int16_t total_deg = (int16_t)chord_deg + deg_offset;
+    int16_t oct_shift = floor_div_i16(total_deg, m) + (int16_t)oct_offset;
+    int16_t scale_idx = floor_mod_i16(total_deg, m);
+
+    int16_t base = (root_pc >= 24) ? (int16_t)root_pc : (int16_t)(36 + (root_pc % 12u));
+    int16_t midi_note = base
+                      + (int16_t)scale_steps[scale_idx]
+                      + (12 * oct_shift);
+
+    while (midi_note > 96) midi_note -= 12;
+    while (midi_note < 28) midi_note += 12;
+    return (uint8_t)midi_note;
+}
+
+// Arp algorithm ids (rack ModArpAlgo)
+enum {
+    kArpAlgoHyp1   = 0,   // HYP-1 Acid / 303 W7 Chord-Drift + Mutate + Turnarounds
+    kArpAlgoMotif  = 1,   // Phrase-Grammar Motif Transformer (ABAC/AABC)
+    kArpAlgoMarkov = 2,   // Tonal-Gravity Markov Walker + 16 Melodic Contours
+    kArpAlgoMetro  = 3,   // Metropolix 8-Stage Accumulator & Ratchets
+    kArpAlgoDejavu = 4,   // Marbles 3-Zone Deja-Vu Shift Register + Salience
+};
+
+// Compact 16-step pattern + harmony state (~112 B per instance)
+struct ArpStep {
+    uint8_t flags;   // bit 0: gate, bit 1: accent, bit 2: slide
+    int8_t  off;     // scale steps above current chord degree
+    int8_t  oct;     // octave offset (0..range-1)
+};
+
+struct ArpExt {
+    ArpStep steps[16];
+    uint8_t scale_st[12];
+    uint8_t nsteps;
+    uint8_t chord_nt;
+    int8_t  deg;
+    uint8_t is_minor_triad;
+    uint8_t bar_count;
+    uint8_t dd_fill;
+    uint8_t turn_type;
+
+    // Algorithm-specific persistent generator state
+    union {
+        struct {
+            int8_t  seed_deg[4];
+            int8_t  seed_oct[4];
+            uint8_t seed_flags[4];
+            uint8_t form;
+        } motif;
+        struct {
+            uint8_t prev_deg;
+            int8_t  prev_oct;
+            uint8_t contour_id;
+        } markov;
+        struct {
+            int8_t  accum_val[8];
+            int8_t  accum_dir[8];
+            uint8_t cur_stage;
+            uint8_t cur_pulse;
+        } metro;
+        struct {
+            uint8_t u_pitch[16];
+            uint8_t u_gate[16];
+        } dejavu;
+    } st;
+
+    // 303 DSP Articulator state (Q16.16)
+    int32_t current_pitch_q16;
+    int32_t target_pitch_q16;
+    int32_t accent_cap_q16;
+};
+
+// One arp instance (rack ModSource.p.arp + the arp runtime fields on
+// ModSource). root is a pitch class 0..11; root_mode selects the bar-line
+// chord drift (rack root_param: 3 -> mode 2 Neo, 2 -> mode 1 W7). The
+// MIDI-note root follow is deferred (spec non-goal).
+struct ArpSource {
+    uint8_t algo;        // 0..4, kArpAlgo*
+    uint8_t range;       // 1..3 octaves
+    uint8_t root_mode;   // 0 fixed, 1 W7 drift, 2 Neo-Riemannian
+    uint8_t root;        // pitch class 0..11 (base note = 48 + root)
+    uint8_t scale_idx;   // 0..19 (+64 flag bit = extended chord tones)
+    uint8_t p[4];        // per-algo params, 0..100
+    uint8_t step;        // 0..15
+    uint8_t cur_note;    // last computed MIDI note
+    uint8_t level;       // gate open on the current step
+    uint8_t cur_acc;     // accent on the current step
+    uint8_t cur_hold;    // slide/hold on the current step
+    uint8_t retrig_edge; // 1 on a fresh (non-slid) gate start
+    uint8_t held;        // gate held from the previous step
+    uint32_t ticks;      // step odometer (bar boundary detection)
+    uint32_t rng;        // LCG state (rack mod_u32_rand)
+};
+
+// Deterministic LCG rand (rack mod_u32_rand / mod_irand)
+inline uint32_t ArpU32Rand(ArpSource &s) {
+    s.rng = s.rng * 1664525u + 1013904223u;
+    return s.rng;
+}
+
+inline uint8_t ArpRand(ArpSource &s, uint8_t n) {
+    return n > 0 ? (uint8_t)(((ArpU32Rand(s) >> 16) * n) >> 16) : 0;
+}
+
+inline void ArpRebuildScale(ArpSource &s, ArpExt &ext) {
+    uint8_t sc_id = (uint8_t)((s.scale_idx & 0x3Fu) % SCALE_COUNT);
+    if (s.root_mode == 2) {
+        if (sc_id == SCALE_IONIAN_MAJOR || sc_id == SCALE_AEOLIAN_MINOR) {
+            sc_id = ext.is_minor_triad ? SCALE_AEOLIAN_MINOR : SCALE_IONIAN_MAJOR;
+        } else if (sc_id == SCALE_PENTATONIC_MAJ || sc_id == SCALE_PENTATONIC_MIN) {
+            sc_id = ext.is_minor_triad ? SCALE_PENTATONIC_MIN : SCALE_PENTATONIC_MAJ;
+        }
+    }
+    const uint16_t pool = SCALE_BITMASKS[sc_id];
+    ext.nsteps = expand_scale_mask(pool, ext.scale_st);
+    if (ext.deg >= (int8_t)ext.nsteps) ext.deg = 0;
+    ext.chord_nt = (ext.nsteps >= 6) ? 4 : 3;
+}
+
+// Bar-line chord progression (Neo-Riemannian, Diatonic Markov, or W7 drift).
+// neo_op is the rack's neo_sel: 0 RAND, 1..6 P/L/R/N/S/H, 7 PLR (random P/L/R).
+// Mutates only THIS instance — the shell mirrors root/is_minor/deg to the
+// sibling and rebuilds its scale (rack did it inline via globals).
+inline void ArpNextChord(ArpSource &s, ArpExt &ext, uint8_t neo_op) {
+    if (s.root_mode == 2) {
+        // Neo-Riemannian Triad drift (semitone shift + major/minor quality flip)
+        neo_riemannian_id_t op;
+        const uint8_t neo_sel = neo_op & 7u;
+        if (neo_sel == 0) {
+            op = (neo_riemannian_id_t)ArpRand(s, NR_TRANSFORM_COUNT);
+        } else if (neo_sel >= 1 && neo_sel <= 6) {
+            op = (neo_riemannian_id_t)(neo_sel - 1);
+        } else {
+            op = (neo_riemannian_id_t)ArpRand(s, 3);
+        }
+
+        uint8_t pc = s.root % 12u;
+        apply_neo_riemannian(&pc, &ext.is_minor_triad, op);
+        s.root = pc;
+        ext.deg = 0;
+        return;
+    }
+    // Diatonic Functional Markov or W7 drift
+    uint32_t w[12], sum = 0;
+    const uint8_t cur_d = (uint8_t)((ext.deg >= 0 && ext.deg < (int8_t)ext.nsteps) ? ext.deg : 0);
+    for (uint8_t i = 0; i < ext.nsteps; ++i) {
+        if (i == cur_d) {
+            w[i] = 0u;
+        } else if (ext.nsteps == 7) {
+            w[i] = (s.root_mode == 1) ? DIATONIC_W7_WEIGHTS[i] : CHORD_MARKOV_7X7[cur_d][i];
+        } else {
+            w[i] = (i == 0) ? 30u : 15u;
+        }
+        sum += w[i];
+    }
+    uint32_t r = ArpRand(s, (uint8_t)(sum ? sum : 1));
+    uint8_t next_deg = 0;
+    for (uint8_t i = 0; i < ext.nsteps; ++i) {
+        if (r < w[i] && w[i] > 0) { next_deg = i; break; }
+        r -= w[i];
+    }
+    if (next_deg == cur_d) {
+        next_deg = (cur_d == 0 && ext.nsteps > 1) ? 1 : 0;
+    }
+    ext.deg = (int8_t)next_deg;
+}
+
+// Pick chord-tone offset (even scale steps) or passing tone
+inline int8_t ArpPickOffset(ArpSource &s, const ArpExt &ext, bool strong_beat) {
+    const bool extended_chord = (s.scale_idx >= 64) || ((s.scale_idx & 0x08u) != 0);
+    if (strong_beat || ArpRand(s, 100) < 80) {
+        uint8_t idx = ArpRand(s, ext.chord_nt);
+        int8_t off = (int8_t)(2 * idx);
+        if (extended_chord && idx == 2) off = 6; // 9th/Sus flavor skips 5th for 7th/9th
+        if (ArpRand(s, 100) < 15) off = (int8_t)(off + ext.nsteps);
+        return off;
+    }
+    return (int8_t)ArpRand(s, ext.nsteps);
+}
+
+// Roll a single step for Algo 0 (HYP-1 Acid ac_roll)
+// p[0]=DENS (0..100), p[1]=SLIDE (0..100), p[2]=ACCENT (0..100), p[3]=MUTATE (0..100)
+inline void ArpRollHyp1Step(ArpSource &s, ArpExt &ext, uint8_t st) {
+    ArpStep &step = ext.steps[st];
+    const uint8_t dens = s.p[0];
+    const uint8_t eff_dens = (st == 0) ? (uint8_t)((dens + 30 > 100) ? 100 : dens + 30) : dens;
+    const bool gate = ArpRand(s, 100) < eff_dens;
+    const bool acc  = ArpRand(s, 100) < s.p[2];
+    const bool sld  = ArpRand(s, 100) < s.p[1];
+    step.flags = (uint8_t)((gate ? 1u : 0u) | (acc ? 2u : 0u) | (sld ? 4u : 0u));
+    step.off = ArpPickOffset(s, ext, (st & 3u) == 0u);
+    const uint8_t rng_oct = s.range ? s.range : 1;
+    step.oct = (ArpRand(s, 100) < 55) ? 0 : (int8_t)ArpRand(s, rng_oct);
+}
+
+// Algo 1: Phrase-Grammar Motif Transformer (ABAC / AABC / ABBC / AABA)
+// p[0]=DENS (0..100), p[1]=FORM (0..3), p[2]=XFORM (0..3), p[3]=MUTATE (0..100)
+inline void ArpBuildMotif(ArpSource &s, ArpExt &ext) {
+    const uint8_t rng_oct = s.range ? s.range : 1;
+    const uint8_t form = (uint8_t)((s.p[1] * 4) / 101); // 0=ABAC, 1=AABC, 2=ABBC, 3=AABA
+    const uint8_t xform = (uint8_t)((s.p[2] * 4) / 101); // 0=INV, 1=RETRO, 2=TRANS, 3=DISP
+    const uint8_t mutate = s.p[3];
+    ext.st.motif.form = form;
+
+    // Generate / refresh Seed A (4 steps = 1 beat)
+    for (uint8_t i = 0; i < 4; ++i) {
+        if (ext.st.motif.seed_flags[i] == 0 || (mutate > 0 && ArpRand(s, 100) < (mutate >> 1))) {
+            uint8_t gate_thresh = (i == 0) ? (uint8_t)((s.p[0] + 25 > 100) ? 100 : s.p[0] + 25) : s.p[0];
+            bool gate = ArpRand(s, 100) < gate_thresh;
+            int8_t deg;
+            if (i == 0) {
+                deg = (ArpRand(s, 2) == 0) ? 0 : 4; // Tonic or 5th
+            } else if (ArpRand(s, 100) < 80) {
+                deg = (int8_t)(2 * ArpRand(s, ext.chord_nt)); // Chord tone
+            } else {
+                deg = (int8_t)ArpRand(s, ext.nsteps);          // Passing tone
+            }
+            ext.st.motif.seed_deg[i] = deg;
+            ext.st.motif.seed_oct[i] = (ArpRand(s, 100) < 80) ? 0 : (int8_t)ArpRand(s, rng_oct);
+            bool acc = ArpRand(s, 100) < 30;
+            bool sld = ArpRand(s, 100) < 25;
+            ext.st.motif.seed_flags[i] = (uint8_t)((gate ? 1u : 0u) | (acc ? 2u : 0u) | (sld ? 4u : 0u));
+        }
+    }
+    // Guarantee step 0 active tonic anchor
+    ext.st.motif.seed_flags[0] |= 1u;
+    ext.st.motif.seed_deg[0] = 0;
+
+    // Transform B according to xform
+    int8_t b_deg[4], b_oct[4];
+    uint8_t b_flags[4];
+    int8_t pivot = (int8_t)(ext.st.motif.seed_deg[0] + 2);
+    for (uint8_t i = 0; i < 4; ++i) {
+        if (xform == 0) { // Inversion
+            b_deg[i] = (int8_t)((2 * pivot) - ext.st.motif.seed_deg[i]);
+            b_oct[i] = ext.st.motif.seed_oct[i];
+            b_flags[i] = ext.st.motif.seed_flags[i];
+        } else if (xform == 1) { // Retrograde
+            b_deg[i] = ext.st.motif.seed_deg[3 - i];
+            b_oct[i] = ext.st.motif.seed_oct[3 - i];
+            b_flags[i] = ext.st.motif.seed_flags[3 - i];
+        } else if (xform == 2) { // Transpose +5th
+            b_deg[i] = (int8_t)(ext.st.motif.seed_deg[i] + 4);
+            b_oct[i] = ext.st.motif.seed_oct[i];
+            b_flags[i] = ext.st.motif.seed_flags[i];
+        } else { // Rhythmic displacement (rotate right by 1)
+            uint8_t prev_i = (i + 3) & 3u;
+            b_deg[i] = ext.st.motif.seed_deg[prev_i];
+            b_oct[i] = ext.st.motif.seed_oct[prev_i];
+            b_flags[i] = ext.st.motif.seed_flags[prev_i];
+        }
+    }
+
+    // Transform C: Retrograde with Rhythmic Displacement and Cadential Pickup on step 3 (bar step 15)
+    int8_t c_deg[4], c_oct[4];
+    uint8_t c_flags[4];
+    for (uint8_t i = 0; i < 4; ++i) {
+        c_deg[i] = ext.st.motif.seed_deg[3 - i];
+        c_oct[i] = ext.st.motif.seed_oct[3 - i];
+        c_flags[i] = ext.st.motif.seed_flags[3 - i];
+    }
+    // Enforce cadential pickup on step 15 (slurs into beat 1)
+    c_flags[3] = 1u | 2u | 4u; // Gate, accent, slide
+    c_deg[3] = -1;             // Leading tone resolving to tonic
+    c_oct[3] = 0;
+
+    // Compile 16 steps into bar
+    const int8_t* deg_ptrs[4];
+    const int8_t* oct_ptrs[4];
+    const uint8_t* flag_ptrs[4];
+    if (form == 0) { // ABAC
+        deg_ptrs[0] = ext.st.motif.seed_deg; deg_ptrs[1] = b_deg;
+        deg_ptrs[2] = ext.st.motif.seed_deg; deg_ptrs[3] = c_deg;
+        oct_ptrs[0] = ext.st.motif.seed_oct; oct_ptrs[1] = b_oct;
+        oct_ptrs[2] = ext.st.motif.seed_oct; oct_ptrs[3] = c_oct;
+        flag_ptrs[0] = ext.st.motif.seed_flags; flag_ptrs[1] = b_flags;
+        flag_ptrs[2] = ext.st.motif.seed_flags; flag_ptrs[3] = c_flags;
+    } else if (form == 1) { // AABC
+        deg_ptrs[0] = ext.st.motif.seed_deg; deg_ptrs[1] = ext.st.motif.seed_deg;
+        deg_ptrs[2] = b_deg;                 deg_ptrs[3] = c_deg;
+        oct_ptrs[0] = ext.st.motif.seed_oct; oct_ptrs[1] = ext.st.motif.seed_oct;
+        oct_ptrs[2] = b_oct;                 oct_ptrs[3] = c_oct;
+        flag_ptrs[0] = ext.st.motif.seed_flags; flag_ptrs[1] = ext.st.motif.seed_flags;
+        flag_ptrs[2] = b_flags;                 flag_ptrs[3] = c_flags;
+    } else if (form == 2) { // ABBC
+        deg_ptrs[0] = ext.st.motif.seed_deg; deg_ptrs[1] = b_deg;
+        deg_ptrs[2] = b_deg;                 deg_ptrs[3] = c_deg;
+        oct_ptrs[0] = ext.st.motif.seed_oct; oct_ptrs[1] = b_oct;
+        oct_ptrs[2] = b_oct;                 oct_ptrs[3] = c_oct;
+        flag_ptrs[0] = ext.st.motif.seed_flags; flag_ptrs[1] = b_flags;
+        flag_ptrs[2] = b_flags;                 flag_ptrs[3] = c_flags;
+    } else { // AABA
+        deg_ptrs[0] = ext.st.motif.seed_deg; deg_ptrs[1] = ext.st.motif.seed_deg;
+        deg_ptrs[2] = b_deg;                 deg_ptrs[3] = ext.st.motif.seed_deg;
+        oct_ptrs[0] = ext.st.motif.seed_oct; oct_ptrs[1] = ext.st.motif.seed_oct;
+        oct_ptrs[2] = b_oct;                 oct_ptrs[3] = ext.st.motif.seed_oct;
+        flag_ptrs[0] = ext.st.motif.seed_flags; flag_ptrs[1] = ext.st.motif.seed_flags;
+        flag_ptrs[2] = b_flags;                 flag_ptrs[3] = ext.st.motif.seed_flags;
+    }
+
+    for (uint8_t b = 0; b < 4; ++b) {
+        for (uint8_t sub = 0; sub < 4; ++sub) {
+            uint8_t st = (uint8_t)((b << 2) | sub);
+            ext.steps[st].off   = deg_ptrs[b][sub];
+            ext.steps[st].oct   = oct_ptrs[b][sub];
+            ext.steps[st].flags = flag_ptrs[b][sub];
+        }
+    }
+}
+
+// Algo 2: Tonal-Gravity Markov Walker & 16 Melodic Contours
+// p[0]=DENS (0..100), p[1]=CONTOUR (0..15), p[2]=PEDAL (0..3), p[3]=GRAVTY (0..100)
+inline void ArpBuildMarkov(ArpSource &s, ArpExt &ext) {
+    const uint8_t rng_oct = s.range ? s.range : 1;
+    const uint8_t cid = (uint8_t)((s.p[1] * 16) / 101);
+    const uint8_t pedal_mode = (uint8_t)((s.p[2] * 4) / 101); // 0=OFF, 1=ROOT, 2=5TH, 3=BOUNCE
+    const uint8_t grav_weight = s.p[3]; // 0..100
+    ext.st.markov.contour_id = cid;
+    uint8_t cur_d = ext.st.markov.prev_deg % 7u;
+
+    for (uint8_t st = 0; st < 16; ++st) {
+        uint8_t beat_tier = ((st & 3u) == 0) ? 0 : (((st & 1u) == 0) ? 1 : 2);
+        uint16_t eff_dens = s.p[0];
+        if (beat_tier == 0) eff_dens += 20;
+        else if (beat_tier == 1) eff_dens += 10;
+        if (eff_dens > 100) eff_dens = 100;
+
+        bool gate = ArpRand(s, 100) < eff_dens;
+        bool is_pedal = false;
+        int8_t deg = 0, oct = 0;
+        bool acc = false, sld = false;
+
+        if (pedal_mode == 1 && beat_tier == 0) { // ROOT on quarters
+            is_pedal = true; deg = 0;
+        } else if (pedal_mode == 2 && beat_tier == 0) { // 5TH on quarters
+            is_pedal = true; deg = 4;
+        } else if (pedal_mode == 3 && (st == 0 || st == 8)) { // BOUNCE on half notes
+            is_pedal = true; deg = (st == 0) ? 0 : 4;
+        }
+
+        if (is_pedal) {
+            acc = (st == 0);
+        } else {
+            // Evaluate Markov + Metrical Gravity + Contour Proximity
+            int8_t target_deg = MELODIC_CONTOURS_DEG[cid][st];
+            int8_t target_mod = floor_mod_i16(target_deg, 7);
+
+            uint32_t cdf[7];
+            uint32_t total_w = 0;
+            for (uint8_t d = 0; d < 7; ++d) {
+                uint32_t w_markov = DEGREE_MARKOV_7X7[cur_d][d];
+                uint32_t w_metric = DEGREE_METRICAL_GRAVITY[beat_tier][d];
+                uint32_t w = (w_markov * (100u - grav_weight) + w_metric * grav_weight) >> 4;
+                int8_t dist = (int8_t)(d - target_mod);
+                if (dist < 0) dist = (int8_t)(-dist);
+                if (dist > 3) dist = (int8_t)(7 - dist);
+                w += (uint32_t)(4 - dist) * ((grav_weight * 15u) / 100u);
+                if (w == 0) w = 1;
+                total_w += w;
+                cdf[d] = total_w;
+            }
+            uint32_t pick = ArpRand(s, (uint8_t)(total_w > 255 ? 255 : total_w));
+            for (uint8_t d = 0; d < 7; ++d) {
+                if (pick < cdf[d]) { cur_d = d; break; }
+            }
+            deg = (int8_t)cur_d;
+            oct = (target_deg >= 7 && rng_oct > 1) ? 1 : ((target_deg < 0) ? -1 : 0);
+            acc = (beat_tier == 2 && ArpRand(s, 100) < 35);
+            sld = (beat_tier == 2 && ArpRand(s, 100) < 30);
+        }
+
+        ext.steps[st].off   = deg;
+        ext.steps[st].oct   = oct;
+        ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u) | (acc ? 2u : 0u) | (sld ? 4u : 0u));
+    }
+    ext.st.markov.prev_deg = cur_d;
+}
+
+// Algo 3: Metropolix Multi-Stage Accumulator
+// p[0]=PROB (0..100), p[1]=PULSES (1..8), p[2]=RATCHET (0..3), p[3]=ACCUM (0..3)
+inline void ArpBuildMetro(ArpSource &s, ArpExt &ext) {
+    const uint8_t rng_oct = s.range ? s.range : 1;
+    static const int8_t kInitDegs[8]   = { 0, 2, 4, 6, 4, 2, 1, 4 };
+    const uint8_t max_pulses = (uint8_t)(1 + (s.p[1] * 7) / 100); // 1..8
+    const uint8_t ratchet_mode = (uint8_t)((s.p[2] * 4) / 101); // 0=OFF, 1=2X, 2=3X, 3=4X
+    const uint8_t accum_mode = (uint8_t)((s.p[3] * 4) / 101);   // 0=PENDLM, 1=WRAP, 2=RANDOM, 3=HOLD
+    static const int8_t kInitAccum[8]  = { 0, 1, 0, 2, 0, -1, 1, 2 };
+
+    uint8_t st = 0;
+    for (uint8_t stage = 0; stage < 8; ++stage) {
+        uint8_t pulses = (max_pulses <= 2) ? max_pulses : (uint8_t)(1 + (stage % max_pulses));
+        int8_t base_d = kInitDegs[stage];
+        int8_t acc = ext.st.metro.accum_val[stage];
+        bool gate_stage = ArpRand(s, 100) < s.p[0];
+
+        for (uint8_t p = 0; p < pulses && st < 16; ++p, ++st) {
+            bool gate = gate_stage && (stage == 0 || p == 0 || ArpRand(s, 100) < 70);
+            bool is_hold = (stage == 0 && p < pulses - 1);
+            bool is_acc = (stage == 0 || stage == 3 || stage == 6);
+            bool is_sld = is_hold || (stage == 2 || stage == 5);
+            if (ratchet_mode > 0 && is_acc) is_sld = true; // Ratchet triggers slide/hold legato
+            ext.steps[st].off   = (int8_t)(base_d + acc);
+            ext.steps[st].oct   = (int8_t)(((stage == 3 || stage == 7) && (rng_oct > 1)) ? 1 : 0);
+            ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u) | (is_acc ? 2u : 0u) | (is_sld ? 4u : 0u));
+        }
+
+        // Accumulation advance according to accum_mode
+        if (accum_mode == 0) { // PENDULUM
+            int8_t step_amt = kInitAccum[stage];
+            if (ext.st.metro.accum_dir[stage] == 0) ext.st.metro.accum_dir[stage] = 1;
+            int16_t next = (int16_t)(ext.st.metro.accum_val[stage] + (int16_t)(step_amt * ext.st.metro.accum_dir[stage]));
+            if (next > 7) { next = (int16_t)(7 - (next - 7)); ext.st.metro.accum_dir[stage] = -1; }
+            if (next < -7) { next = (int16_t)(-7 + (-7 - next)); ext.st.metro.accum_dir[stage] = 1; }
+            ext.st.metro.accum_val[stage] = (int8_t)next;
+        } else if (accum_mode == 1) { // WRAP (0..7)
+            int8_t step_amt = kInitAccum[stage];
+            int16_t next = (int16_t)(ext.st.metro.accum_val[stage] + step_amt);
+            if (next > 7) next = 0;
+            if (next < 0) next = 7;
+            ext.st.metro.accum_val[stage] = (int8_t)next;
+        } else if (accum_mode == 2) { // RANDOM step drift
+            if (ArpRand(s, 100) < 30) {
+                ext.st.metro.accum_val[stage] = (int8_t)(ArpRand(s, 7) - 3);
+            }
+        } // accum_mode == 3: HOLD (no advance)
+    }
+}
+
+// Algo 4: Marbles 3-Zone Deja-Vu Shift Register
+// p[0]=DENS (0..100), p[1]=DEJAVU (0..100), p[2]=STEPS (0..3), p[3]=SPREAD (0..100)
+inline void ArpBuildDejavu(ArpSource &s, ArpExt &ext) {
+    const uint8_t rng_oct = s.range ? s.range : 1;
+    const uint8_t dj = s.p[1]; // 0..100 -> Zone 1 (0..45), Zone 2 (46..55), Zone 3 (56..100)
+    const uint8_t steps_mode = (uint8_t)((s.p[2] * 4) / 101); // 0=ALL, 1=PENT, 2=TRIAD, 3=ROOT
+    const uint8_t spread = s.p[3]; // 0..100
+
+    // 1. Zone 1: Metrically biased mutation (weak beats mutate first)
+    if (dj < 46) {
+        uint16_t mut_drive = (uint16_t)((46u - dj) * 5u); // 0..230
+        for (uint8_t i = 0; i < 16; ++i) {
+            uint16_t sens = METRIC_MUTATE_SENSITIVITY[i];
+            uint16_t prob = (uint16_t)((mut_drive * sens) >> 8);
+            if (ArpRand(s, 255) < prob) {
+                ext.st.dejavu.u_pitch[i] = (uint8_t)ArpRand(s, 255);
+                ext.st.dejavu.u_gate[i]  = (uint8_t)ArpRand(s, 255);
+            }
+        }
+    }
+
+    // 2. Progressive STEPS Salience Filtering:
+    for (uint8_t st = 0; st < 16; ++st) {
+        uint8_t r_ix = st;
+        // Zone 3: Permutation / jump read pointer
+        if (dj > 55) {
+            uint8_t jump_prob = (uint8_t)((dj - 55u) * 2u);
+            if (ArpRand(s, 100) < jump_prob) {
+                r_ix = (uint8_t)ArpRand(s, 16);
+            }
+        }
+
+        uint8_t raw_p = ext.st.dejavu.u_pitch[r_ix];
+        uint8_t raw_g = ext.st.dejavu.u_gate[r_ix];
+        uint16_t g_thresh = (uint16_t)(255u - (uint16_t)s.p[0] * 255u / 100u);
+        if (st == 0 && g_thresh > 40) g_thresh -= 40;
+
+        bool gate = (raw_g >= g_thresh);
+        int16_t deg = (int16_t)(((int32_t)raw_p - 128) * 10 / 256);
+        int16_t base_d = floor_mod_i16(deg, 7);
+        int8_t oct = (int8_t)floor_div_i16(deg, 7);
+        if (spread > 0 && ArpRand(s, 100) < spread) {
+            oct = (int8_t)ArpRand(s, rng_oct);
+        }
+        if (oct < 0) oct = 0;
+        if (oct >= rng_oct) oct = (int8_t)(rng_oct - 1);
+
+        // STEPS salience filtering
+        if (steps_mode == 3) {
+            // ROOT lock
+            base_d = 0;
+        } else if (steps_mode == 2) {
+            // Triad only
+            static const int8_t kTriadSnap[7] = { 0, 0, 2, 2, 4, 4, 0 };
+            base_d = kTriadSnap[base_d];
+        } else if (steps_mode == 1) {
+            // Pentatonic subset (strip 4th and 7th)
+            if (base_d == 3) base_d = 2;
+            if (base_d == 6) base_d = 4;
+        } // steps_mode == 0: ALL
+
+        bool acc = (raw_g > 200);
+        bool sld = ((raw_g & 0x07u) == 0x07u);
+        ext.steps[st].off   = (int8_t)base_d;
+        ext.steps[st].oct   = oct;
+        ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u) | (acc ? 2u : 0u) | (sld ? 4u : 0u));
+    }
+}
+
+// Rebuild all 16 steps for the currently selected algorithm (0..4)
+inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext) {
+    ArpRebuildScale(s, ext);
+
+    switch (s.algo) {
+        case kArpAlgoHyp1:
+            for (uint8_t st = 0; st < 16; ++st) ArpRollHyp1Step(s, ext, st);
+            break;
+        case kArpAlgoMotif:
+            ArpBuildMotif(s, ext);
+            break;
+        case kArpAlgoMarkov:
+            ArpBuildMarkov(s, ext);
+            break;
+        case kArpAlgoMetro:
+            ArpBuildMetro(s, ext);
+            break;
+        case kArpAlgoDejavu:
+        default:
+            ArpBuildDejavu(s, ext);
+            break;
+    }
+}
+
+// Intercepts step output on final bar of phrase cycle to inject cadential turnaround fills
+inline void ArpApplyTurnaround(ArpSource &s, ArpExt &ext, uint8_t st, ArpStep &io_step) {
+    (void)s;
+    if (ext.dd_fill == 0) return;
+    const uint8_t fill_type = ext.turn_type & 3u;
+    if (fill_type == 0 && st >= 8) {
+        // Type 0: Ascending Chord-Tone Run (Steps 8..15)
+        static const int8_t kRun[8] = { 0, 2, 4, 6, 8, 10, 12, 14 };
+        io_step.flags = (uint8_t)(1u | ((st >= 12) ? 2u : 0u) | ((st == 11 || st == 14) ? 4u : 0u));
+        io_step.off = kRun[st - 8];
+        io_step.oct = 0;
+    } else if (fill_type == 1 && st >= 12) {
+        // Type 1: Acid Descending Slid Cascade (Steps 12..15)
+        static const int8_t kDesc[4] = { 7, 5, 4, 1 };
+        io_step.flags = (uint8_t)(1u | 2u | ((st != 15) ? 4u : 0u));
+        io_step.off = kDesc[st - 12];
+        io_step.oct = 0;
+    } else if (fill_type == 2 && st >= 12) {
+        // Type 2: Accelerating Octave Ratchet / Pedal Build
+        io_step.flags = (uint8_t)(1u | ((st >= 14) ? 2u : 0u));
+        io_step.off = ((st & 1u) == 0) ? 0 : 7;
+        io_step.oct = 0;
+    } else if (fill_type == 3 && st >= 12) {
+        // Type 3: Dominant Tension Tie -> Leading-Tone Pickup
+        io_step.flags = (uint8_t)(1u | ((st == 12 || st == 15) ? 2u : 0u) | 4u);
+        io_step.off = (st < 15) ? 4 : -1;
+        io_step.oct = 0;
+    }
+}
+
+// Compute MIDI note (28..96) for a step. The rack branched on root_param for
+// the base note; this port always bases on 48 + root pitch class (drift
+// modes mutate s.root itself, W7 leaves it — spec §4.2 fixed base).
+inline uint8_t ArpCalcNote(const ArpSource &s, const ArpExt &ext,
+                           const ArpStep &step) {
+    const uint8_t base_root = (uint8_t)(48u + s.root);
+    return degree_to_midi_folded(base_root, ext.deg, step.off, step.oct, ext.scale_st, ext.nsteps);
+}
+
 } // namespace SEQ
 } // namespace CTAG

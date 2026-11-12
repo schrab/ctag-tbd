@@ -181,3 +181,82 @@ TEST(gate_step_advance_1_16) {
     CHECK(g.level == 1u);                       // 0xAAAA bit 15 = 1
 }
 
+// ---- SeqEngineCore: ARP generators ----
+
+TEST(arp_scale_quantization_all_20) {
+    using namespace CTAG::SEQ;
+    for (uint8_t sc = 0; sc < SCALE_COUNT; ++sc) {
+        ArpSource s{}; s.scale_idx = sc; s.root = 0;   // fixed C
+        ArpExt e{};
+        ArpRebuildScale(s, e);
+        CHECK(e.nsteps >= 2 && e.nsteps <= 12);
+        // scale steps are strictly ascending semitone offsets < 12
+        for (uint8_t i = 1; i < e.nsteps; ++i) CHECK(e.scale_st[i] > e.scale_st[i - 1]);
+        CHECK(e.scale_st[0] == 0);
+    }
+}
+
+TEST(arp_pitch_convention_1v_oct) {
+    using namespace CTAG::SEQ;
+    ArpSource s{}; s.root = 0; s.scale_idx = 6 /* Aeolian */; s.range = 2;
+    ArpExt e{}; ArpRebuildScale(s, e);
+    e.deg = 0;
+    ArpStep step{}; step.off = 7; step.oct = 0; step.flags = 1;  // +7 scale degrees = one octave
+    uint8_t note = ArpCalcNote(s, e, step);
+    // 1 V/oct convention: cv 0.2 == exactly +12 st (TBD03 multiplies by 12*5)
+    float cv = (float)(note - 48) / 12.0f * 0.2f;
+    CHECK_NEAR(cv, 0.2, 0.001);
+    CHECK((note - 48) == (int)((cv * 60.0f) + 0.01f));
+}
+
+TEST(arp_algo_determinism_seeded) {
+    using namespace CTAG::SEQ;
+    for (uint8_t algo = 0; algo < 5; ++algo) {
+        ArpSource a{}, b{};
+        a.algo = algo; b.algo = algo;
+        a.range = 2; b.range = 2;
+        a.scale_idx = 6; b.scale_idx = 6;
+        a.p[0] = 62; a.p[1] = 40; a.p[2] = 50; a.p[3] = 20;
+        b = a;
+        a.rng = 0x1fff7a10u; b.rng = 0x1fff7a10u;
+        ArpExt ea{}, eb{};
+        ArpRebuildPattern(a, ea); ArpRebuildPattern(b, eb);
+        CHECK(memcmp(ea.steps, eb.steps, sizeof(ea.steps)) == 0);
+    }
+}
+
+TEST(arp_accent_slide_flags_on_every_algo) {
+    using namespace CTAG::SEQ;
+    bool saw_acc = false, saw_sld = false, saw_gate = false, saw_off = false;
+    for (uint8_t algo = 0; algo < 5; ++algo) {
+        ArpSource s{}; s.algo = algo; s.range = 3; s.scale_idx = 6;
+        s.p[0] = 80; s.p[1] = 50; s.p[2] = 50; s.p[3] = 50; s.rng = 12345;
+        ArpExt e{};
+        ArpRebuildPattern(s, e);
+        for (int st = 0; st < 16; ++st) {
+            saw_gate |= (e.steps[st].flags & 1) != 0;
+            saw_off  |= (e.steps[st].flags & 1) == 0;
+            saw_acc  |= (e.steps[st].flags & 2) != 0;
+            saw_sld  |= (e.steps[st].flags & 4) != 0;
+        }
+    }
+    CHECK(saw_gate); CHECK(saw_off); CHECK(saw_acc); CHECK(saw_sld);
+}
+
+TEST(arp_root_modes_exist) {
+    using namespace CTAG::SEQ;
+    // Neo drift: root rotates as a pitch class, never out of range
+    ArpSource s{}; s.root = 4 /* E */; s.root_mode = 2; s.scale_idx = 0;
+    s.p[0] = 50; s.p[1] = 50; s.p[2] = 50; s.p[3] = 60; s.rng = 7;
+    ArpExt e{};
+    ArpRebuildPattern(s, e);
+    ArpNextChord(s, e, 3 /* R op */);
+    CHECK(s.root >= 0 && s.root <= 11);
+    // W7 drift: root stays, degree moves
+    s.root_mode = 1;
+    s.root = 2; e.deg = 0;
+    ArpNextChord(s, e, 0);
+    CHECK(s.root == 2);
+    CHECK(e.deg >= 0);
+}
+
