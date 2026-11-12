@@ -96,16 +96,16 @@ namespace CTAG {
 
         // ---- live output strip ----
         // MAIN: 2x2 pattern grid — top row GATE1/GATE2 trance masks, bottom
-        // row ARP1/ARP2 gate patterns. 3 px cells: solid square = playhead
-        // on a gated step, hollow square = playhead on a muted step, 1 px
-        // dot = gated step, blank = muted. Rows 5 px tall, 2 px gap.
-        // Sub-page (GATE n / ARP n): a full-width detail view — one glyph
-        // per step from the ext font (● gate, ▲ +accent, ♪ +slide, ♫ both),
-        // playhead = inverted column. (snapshot bits 8-11/12-15 = arp step.)
+        // row ARP1/ARP2 gate patterns, 4 px pitch filling the full width.
+        // solid 3x3 square with center dot = playhead on a gated step,
+        // hollow 3x3 square = playhead on a muted step, 1 px dot = gated,
+        // blank = muted. Rows 5 px tall, 2 px gap.
+        // Sub-page (GATE n / ARP n): full-width detail view, one ext-font
+        // glyph per step — ○ muted, ● gate, ◉ gate+accent, ▲ gate+slide,
+        // ◆ gate+accent+slide — ☐ marks the playhead.
         void UIMenuPageSeq::drawOutputLine() {
             uint32_t s = DspProxy::GetSeqSnapshot();
             if (subPage != SP_MAIN) {
-                // ---- detail view for the open source ----
                 const uint32_t gateMask = (subPage == SP_GATE1)
                                               ? DspProxy::GetSeqGateMask(0)
                                           : (subPage == SP_GATE2)
@@ -128,21 +128,21 @@ namespace CTAG {
                                  : (subPage == SP_ARP1)  ? (int)((s >> 8) & 0xFu)
                                                          : (int)((s >> 12) & 0xFu);
                 for (int st = 0; st < 16; ++st) {
-                    const int x = st * 8 + 1;
+                    const int x = st * 8;
                     const bool gate = ((gateMask >> (15 - st)) & 1u) != 0;
                     const bool acc = ((accMask >> (15 - st)) & 1u) != 0;
                     const bool sld = ((sldMask >> (15 - st)) & 1u) != 0;
-                    const char *g = " ";
-                    if (gate && acc && sld) g = "\xE2\x99\xAB";   // ♫
-                    else if (gate && acc) g = "\xE2\x96\xB2";     // ▲
-                    else if (gate && sld) g = "\xE2\x99\xAA";     // ♪
+                    const char *g = "\xE2\x97\x8B";               // ○ muted
+                    if (st == step) g = "\xE2\x98\x90";           // ☐ playhead
+                    else if (gate && acc && sld) g = "\xE2\x97\x86"; // ◆
+                    else if (gate && acc) g = "\xE2\x97\x89";     // ◉
+                    else if (gate && sld) g = "\xE2\x96\xB2";     // ▲
                     else if (gate) g = "\xE2\x97\x8F";            // ●
-                    Display::DrawString(x, 52, g, FONT_UI);
-                    if (st == step) Display::InvertRect(x - 1, 51, 8, 13);
+                    Display::DrawString(x, 53, g, FONT_UI);
                 }
                 return;
             }
-            // ---- MAIN: 2x2 grid ----
+            // ---- MAIN: 2x2 grid, full width ----
             const uint32_t masks[2][2] = {
                 { DspProxy::GetSeqGateMask(0), DspProxy::GetSeqGateMask(1) },
                 { DspProxy::GetSeqArpGateMask(0), DspProxy::GetSeqArpGateMask(1) },
@@ -154,14 +154,16 @@ namespace CTAG {
             const int rowY[2] = {52, 59};   // 5 px rows, 2 px gap
             for (int row = 0; row < 2; ++row) {
                 for (int col = 0; col < 2; ++col) {
-                    const int x0 = 2 + col * 52;
+                    const int x0 = col * 64;
                     for (int st = 0; st < 16; ++st) {
-                        const int x = x0 + st * 3;
+                        const int x = x0 + st * 4;
                         const bool gated = ((masks[row][col] >> (15 - st)) & 1u) != 0;
-                        if (st == steps[row][col])
-                            Display::DrawRect(x, rowY[row] + 1, 3, 3, gated); // solid on gate, hollow on mute
-                        else if (gated)
-                            Display::DrawRect(x + 1, rowY[row] + 2, 1, 1, true); // gate dot
+                        if (st == steps[row][col]) {
+                            Display::DrawRect(x, rowY[row] + 1, 3, 3, gated);
+                            if (gated) Display::DrawRect(x + 1, rowY[row] + 2, 1, 1, true);
+                        } else if (gated) {
+                            Display::DrawRect(x + 1, rowY[row] + 2, 1, 1, true);
+                        }
                     }
                 }
             }
