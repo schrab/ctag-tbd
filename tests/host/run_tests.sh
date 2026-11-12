@@ -17,6 +17,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 HELPERS="$ROOT/components/ctagSoundProcessor/helpers"
 EURORACK="$ROOT/components/mutable/eurorack"
 PROTOCOL="$ROOT/protocol"
+RAPIDJSON="$ROOT/components/rapidjson"
 SHIM="$HERE/shim"
 OUT="$HERE/build"
 
@@ -32,7 +33,9 @@ echo "==> Building host tests"
     -I "$ROOT/components/ctagSoundProcessor" \
     -I "$ROOT/main" \
     -I "$PROTOCOL/include" \
+    -I "$RAPIDJSON" \
     -I "$EURORACK" \
+    -DMODTRANSPORT_CFG_PATH="\"$OUT/mt_cfg_test.jsn\"" \
     "$HERE/main.cpp" \
     "$HERE/test_marbles_core.cpp" \
     "$HERE/test_input_source.cpp" \
@@ -40,6 +43,7 @@ echo "==> Building host tests"
     "$HERE/test_chain_budget.cpp" \
     "$HERE/test_render_ladder.cpp" \
     "$HERE/test_seq_mod.cpp" \
+    "$ROOT/main/ModTransport.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
     "$EURORACK/marbles/resources.cc" \
     "$EURORACK/marbles/random/t_generator.cc" \
@@ -53,4 +57,5 @@ echo "==> Building host tests"
     -o "$OUT/host_tests"
 
 echo "==> Running"
+rm -f "$OUT/mt_cfg_test.jsn"   # section-IO test needs a fresh scratch file
 "$OUT/host_tests"
