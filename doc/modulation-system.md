@@ -57,21 +57,37 @@ the stack. Bounds are verified by host tests in `tests/host/`.
 | 90–97 | Dynamic CC | 8 MIDI-learnable CC-to-CV mappings (unchanged from the old engine) |
 | 98–100 | Marbles X1–X3 | Quantized random CV |
 | 101 | Marbles Y | Divided random CV |
+| 102–103 | SEQ G1/G2 | GATE level, slewed 0..1 |
+| 104–105 | SEQ A1/A2 | ARP pitch, 1 V/oct: `(note − root)/12 × 0.2` |
 | 40–41–42 (trig) | Marbles T1/T2/T3 | T1 random gate, T2 master clock, T3 random gate |
+| 43–44 (trig) | SEQ G1/G2 | GATE window, active-low |
+| 45–46 (trig) | SEQ A1/A2 GATE | ARP step gate window (55 %, 100 % on slide steps), active-low |
+| 47–48 (trig) | SEQ A1/A2 ACC | 0 on accent steps, idle 1 |
+| 49–50 (trig) | SEQ A1/A2 SLIDE | 0 on slide steps, idle 1 |
 
-All Marbles output slots are re-assignable (−1 = off) from the UI; pointing
-them at MIDI-owned slots follows last-writer-wins (Marbles writes first in
-the block, before the sound processors run).
+All Marbles and SEQ output slots are re-assignable (−1 = off) from the UI;
+pointing them at MIDI-owned slots follows last-writer-wins (both engines
+write first in the block, before the sound processors run).
 
 ## Audio Call Flow
 
 ```
 SPManager::audio_task()
+  └─ ModTransport::Process(dt)                        // shared transport
+  |    ├─ drain the MIDI-clock tick counter ONCE (one funnel, no double drain)
+  |    ├─ measured-BPM EMA, running flag, FA start-reset latch
+  |    └─ publish TicksThisBlock / IsRunning / ExternalGateFlags
+  └─ SeqEngine::Process(cv, trig, dt)
+       ├─ clock bus: per-source Global/Internal/MIDI, 13-division PPQ table
+       ├─ 2× GATE: 19 modes (Barlow gen, 16 presets, TMR, MRKV) → mask,
+       |  gate window slew, cv 102..103 + trig 43..44
+       └─ 2× ARP: 5 generative algos → 16-step pattern, pitch/gate/acc/slide
+          → cv 104..105 + trig 45..50
   └─ MarblesEngine::Process(cv_buffer, trig_buffer)   // ~1378 Hz
-       ├─ MIDI clock edges → GateFlags stream (1-tick pulses)
+       ├─ RampExtractor feed = ModTransport::ExternalGateFlags() (1 stream/block)
        ├─ t_generator_.Process(...)        // master clock + T1/T3 gates
        ├─ xy_generator_.Process(...)       // X1..X3 + Y voltages
-       └─ write cv 98..101 (volts × 0.2), trig 40..42
+       └─ write cv 98..101 (volts × 0.2), trig 40..42 (ACTIVE-LOW)
   └─ Codec::ReadBuffer() → DC cut → noise gate
   └─ sp[0]->Process(pd)                    // reads cv[] and trig[]
   └─ (mono) sp[1]->Process(pd)
@@ -85,15 +101,58 @@ Hz at the block tick.
 ## MIDI Wiring (`main/Midi.cpp`)
 
 ```
-0xF8 (Timing Clock) → MarblesEngine::OnMidiClock()   // queues a clock edge
-0xFA (Start)        → MarblesEngine::OnMidiStart()   // one-shot pattern reset
-0xFB (Continue)     → MarblesEngine::OnMidiStart()
-0xFC (Stop)         → (edges simply stop arriving)
+0xF8 (Timing Clock) → ModTransport::OnMidiClock()   // the ONE tick funnel
+0xFA (Start)        → ModTransport::OnMidiStart()   // running + re-phase latch
+0xFB (Continue)     → ModTransport::OnMidiStart()
+0xFC (Stop)         → ModTransport::OnMidiStop()    // MIDI-clocked SEQ sources freeze
 ```
 
-Clock edges are queued in an atomic counter by the MIDI task and drained one
-per block tick by the audio task into a gate stream for `RampExtractor`.
-Edges closer together than one block (> 1378 Hz clock rate) collapse.
+Clock edges are queued in an atomic counter by the MIDI task and drained
+**once per block by ModTransport::Process** — Marbles (RampExtractor gate
+stream) and SeqEngine (integer PPQ ticks) both read the published per-block
+state; nobody drains the raw counter themselves. Edits to BPM (panel/tap/
+measured) also land in ModTransport; `MarblesEngine::GetBPM/SetBPM` are
+delegating wrappers.
+
+## SEQ Modulators (GATE ×2 + ARP ×2)
+
+A second modulation engine family (rack T3 port, `main/SeqEngineCore.hpp`
+pure generators + `main/SeqEngine.{hpp,cpp}` shell) running **alongside
+Marbles** — no engine switching. Two instances each, shared root/scale:
+
+- **GATE**: 16 canonical trance-gate presets + Barlow metric-indispensability
+  generative mode (0) + Turing-machine bit mutation (17, TMR) + Hamming-Markov
+  preset transitions (18, MRKV), Sioros-Guedes syncopation (0–100 %), gate
+  length (0–100 % of the division cycle), 13 divisions (8/1 … 1/32T incl.
+  triplets). Dual output: slewed level CV **and** active-low gate trig.
+- **ARP**: 5 algorithms × 3 octave ranges (Acid 303 / Phrase Motif / Markov
+  Walker / Metropolix accumulator / Déjà-Vu shift), 20 scales, shared
+  root/scale/neo-op, W7 functional drift + Neo-Riemannian triad drift,
+  fill bars / cadential turnarounds / mutation cadence. Per-instance pitch
+  CV, gate trig, **accent + slide trig on every algorithm**.
+- **GLIDE** (per ARP, 0–100): 0 = instant pitch (default — TBD03's
+  `slide_level` blend performs the 303 glide on slide steps); 1–100 = engine
+  slew in ms for plugins without a slide input. Slide steps always assert
+  the SLIDE trig regardless.
+- **TBD03 wiring**: `pitch` cv → cv 104/105 (1 V/oct), `trigger` → trig
+  45/46 (retrigger on the 1→0 edge = step start), `accent` → trig 47/48
+  (sampled at that edge), `slide` → trig 49/50 (gate-follow; the plugin's
+  `slide_level` blends the glide).
+- **Clock**: per source Global (follows the MOD CLOCK page's MIDI-vs-internal
+  choice, `ModTransport::GetGlobalClockMidi`) / Internal (fractional PPQ
+  accumulator at the global BPM) / MIDI (integer ticks from the funnel;
+  frozen while the transport is stopped). FA re-phases.
+- **Link surface**: `/link/seqSet {"k":…,"v":…}` scalar setters (keys
+  `g1mode g1dens g1sync g1glen g1clk g1div g1tslot g1cvslot` + `g2*`,
+  `a1algo a1p1..a1p4 a1glide a1clk a1div a1pslot a1gslot a1aslot a1sslot`
+  + `a2*`, `shmroot shmrootmode shmneoop shmscale`, `globalext`, `_save`);
+  `link/pushSeq` state push on the 10 Hz hash-diff (613 B, flat build);
+  stream field `"sq"` (32-bit snapshot: bits 0-1 gate, 2-3 arp gate, 4-5
+  accent, 6-7 slide, 8-11/12-15 step index, 16-23/24-31 note).
+- **Panel**: PANEL_SEQ (wheel slot after MOD): MAIN (4 sources + live strip)
+  → Gate 1/2 + ARP 1/2 setup pages, full-word labels.
+
+## Parameters
 
 ## Parameters
 
@@ -164,9 +223,16 @@ MIDI table doesn't cover (~20 standard CC numbers on channels 1–4/global).
 ### Gotchas
 
 - **Gate polarity is active-low**: `MK_BOOL_PAR` maps `trig == 1` to *false*.
-  A Marbles T gate HIGH therefore switches a bool parameter OFF. This is
-  long-standing firmware behavior (MIDI CC < 64 sets the same convention);
-  changing it would alter existing presets.
+  A gate HIGH therefore switches a bool parameter OFF. This is long-standing
+  firmware behavior (MIDI CC < 64 sets the same convention); changing it
+  would alter existing presets.
+- **Marbles T gates were INVERTED to match (2026-11-13)**: T1/T2/T3 wrote
+  active-high (`gates ? 1 : 0`) — the only active-high writers in the tree.
+  They now write `gates ? 0 : 1` (idle 1) so a Marbles T gate retriggers
+  TBD03-style consumers on the gate-START edge like every other source.
+  Existing T→trig mappings flip to the correct behavior.
+- **Trig idle = 1, written every block**: SEQ (and Marbles) write every owned
+  slot every block, so an idle trig reads 1 even over a zeroed buffer.
 - Trig slots 0–39 reuse the CV-table names (A.Note, G.Sust, …) — as gates
   they mean the note-on/CC≥64 *gate*, not the value.
 
@@ -181,13 +247,16 @@ labelled CC1..CC8, matching their names in the parameter mapping list
 
 ## Persistence
 
-`/spiffs/data/mod-config.jsn` via RapidJSON (type-checked reads, 512-byte
-stream buffers — SaveConfig runs on the 4 KB UIMenu task stack):
+`/spiffs/data/mod-config.jsn` — one shared file, **read-merge-write per
+section** through `ModTransport::ReadSectionJSON/WriteSectionJSON` so the
+owners never clobber each other (every member type-checked + clamped on
+load; unknown members ignored):
 
 ```json
 {
+  "transport": { "bpm": 120.0, "ext": 0 },
   "marbles": {
-    "tExternal": false, "tModel": 0, "tRange": 1, "tRate": 0.0,
+    "tExternal": false, "tModel": 0, "tRange": 1, "tFine": 0.0, "tRate": 0.0,
     "tBias": 0.5, "tJitter": 0.0, "tPwMean": 90, "tPwStd": 0, "tDejaVu": 0,
     "xyClockSource": 0,
     "xScale": 0, "xRange": 2, "xControl": 0, "xSpread": 0.5,
@@ -196,14 +265,32 @@ stream buffers — SaveConfig runs on the 4 KB UIMenu task stack):
     "dvAmount": 0.0, "dvLength": 8,
     "tSlot": [40, 41, 42], "xSlot": [98, 99, 100], "ySlot": 101
   },
-  "ccSlots": [ { "cc": -1, "chan": 0, "cvSlot": 90 }, ... ]
+  "ccSlots": { "slots": [ { "cc": -1, "chan": 0, "cvSlot": 90 }, ... ] },
+  "seq": {
+    "gates": [
+      {"mode": 1, "dens": 8, "sync": 0, "glen": 0.5, "clk": 0, "div": 7,
+       "trigSlot": 43, "cvSlot": 102},
+      { "... gate 2, mode 3 ...": 0 }
+    ],
+    "arps": [
+      {"algo": 0, "range": 2, "p": [62, 40, 50, 0], "glide": 0, "clk": 0,
+       "div": 7, "pitchSlot": 104, "gateSlot": 45, "accSlot": 47, "slideSlot": 49},
+      { "... arp 2, algo 1 ...": 0 }
+    ],
+    "shared": {"rootMode": 0, "root": 48, "neoOp": 0, "scale": 6}
+  }
 }
 ```
 
-`MarblesEngine::SaveConfig()` runs from the page's `deinit()` when dirty;
-`LoadConfig()` runs from `Init()` (called from `Midi::Init()`). Old config
-files with `lfo1/2`, `seq*`, `gate*`, `tempo` keys — or the removed
-`xRegister`/`xRegisterValue`/`yDejaVu` keys — simply ignore them.
+`"transport".bpm` is the global tempo (legacy fallback: `marbles.bpm`, or
+the pre-global-BPM `marbles.tRate` migration); `"ext"` is the SEQ Global
+clock source. `"shared".root` is the MIDI note 48+pc (spec example: 48 =
+C3). `MarblesEngine::SaveConfig` writes its own `marbles` + `ccSlots`
+sections (`{"slots":[...]}` wrapper — the section IO hands out objects);
+`SeqEngine::SaveConfig` writes `seq` from the page's `deinit()` when dirty;
+`ModTransport::SaveConfig` writes `transport` (marblesSet/seqSet `_save`
+and the `globalext` setter). Loads run from `Init()` (called from
+`Midi::Init()`).
 
 ## DRAM / flash
 
@@ -221,4 +308,12 @@ with plain g++ and runs 7 marbles tests + 4 input-source tests: determinism
 (same seed → same sequence), internal master clock rate (2 Hz at default),
 external clock extraction from a synthetic 24-PPQN gate stream, X
 quantization to the major-scale grid, Markov model reachability/variation,
-déjà-vu period-N looping, and slot bounds for the new 98–101 / 40–42 slots.
+déjà-vu period-N looping, and slot bounds. `tests/host/test_seq_mod.cpp`
+adds the SEQ suites: slot bounds at the new 106/51 space, ModTransport
+(tick drain-once, start/stop, BPM clamp + EMA, gate-flag contract, config
+section merge), the gate core (preset patterns, Barlow density ordering,
+TMR determinism, MRKV transitions, division table with index 7 = 1/16),
+the ARP core (20-scale quantization, 1 V/oct pitch convention, per-algo
+determinism, accent/slide flags, root modes), and the engine shell (trig
+idle = 1, gate window duty, arp pitch/trig, config roundtrip + hostile
+input clamping).
