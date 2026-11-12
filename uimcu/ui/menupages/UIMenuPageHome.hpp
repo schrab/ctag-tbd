@@ -88,10 +88,6 @@ namespace CTAG {
             // same hosted-page pattern as the system page.
             UIMenuPageMidi *midiPage;
 
-            // Live state in the MAIN view (DSP OFF label): last value drawn,
-            // so onTick repaints only on a change.
-            int lastDrawnOnline = -1;
-
             // Transient feedback on the UNMOUNT/MOUNT item (NO CARD / BUSY):
             // shown in place of the label until this tick deadline.
             uint32_t sdMsgUntilMs = 0;

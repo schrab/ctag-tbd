@@ -395,7 +395,6 @@ namespace CTAG {
 
         void UIMenuPageHome::redrawMain() {
             Display::Clear();
-            lastDrawnOnline = DspProxy::IsOnline() ? 1 : 0;
             const char *items[] = {"SELECT", "SYSTEM", "MIDI", "FAVORITES", "SD CARD",
                                    DspProxy::IsSDMounted() ? "UNMOUNT" : "MOUNT", "SLEEP"};
             // Transient mount feedback replaces the item label for ~1.5 s.
@@ -412,10 +411,8 @@ namespace CTAG {
                 Display::DrawString(70, ROW(3), buf, FONT_UI);
             }
             // Link state (SDD §4): the panel keeps cached values when the DSP
-            // dies; make the offline state visible on the HOME panel.
-            if (!DspProxy::IsOnline()) {
-                Display::DrawString(62, ROW(0), "DSP OFF", FONT_UI);
-            }
+            // dies; the offline state is reported by the "DSP link lost"
+            // modal, so no extra label here.
             Display::InvertRect(0, ROW(cursor) - 1, 128, 8);
             Display::Flush();
         }
@@ -427,9 +424,6 @@ namespace CTAG {
                 midiPage->onTick();
                 return;
             }
-            // MAIN is the only view with live content (the DSP OFF label):
-            // repaint when the link state flips while the page idles on
-            // screen, instead of waiting for the next input event.
             if (subPage == SP_MAIN && sdMsg) {
                 const uint32_t nowMs =
                     (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
@@ -437,10 +431,6 @@ namespace CTAG {
                     sdMsg = nullptr; // transient label expired -> revert
                     doRedraw();
                 }
-            }
-            if (subPage == SP_MAIN &&
-                lastDrawnOnline != (DspProxy::IsOnline() ? 1 : 0)) {
-                doRedraw();
             }
         }
 

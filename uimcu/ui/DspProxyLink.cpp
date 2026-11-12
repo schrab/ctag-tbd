@@ -115,6 +115,10 @@ namespace CTAG {
             uint32_t sdLevel = 0;
             bool sdMounted = false;
             bool sdCardPresent = false;
+            // Codec output-level range (io-caps "lvlmax"/"lvldef"); fallback =
+            // the legacy A1S 0..33 scale until the first push lands.
+            int codecMaxLevel = 33;
+            int codecDefaultLevel = 33;
             int sdRoute = 0; // 0 = main out, 1 = plugin input (last set)
             int sdGain = 100;
             int32_t activeFav = -1;
@@ -686,6 +690,13 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             } else if (strcmp(cmd, kMsgPushIoCaps) == 0) {
                 if (d.HasMember("sd") && d["sd"].IsInt()) sdMounted = d["sd"].GetInt() != 0;
                 if (d.HasMember("cd") && d["cd"].IsInt()) sdCardPresent = d["cd"].GetInt() != 0;
+                // Codec output-level range in the codec's NATIVE scale — the
+                // SYSTEM/MIX faders clamp against this. Defaults keep an old
+                // DSP (pre-lvlmax, A1S 0..33 scale) working.
+                if (d.HasMember("lvlmax") && d["lvlmax"].IsInt())
+                    codecMaxLevel = d["lvlmax"].GetInt();
+                if (d.HasMember("lvldef") && d["lvldef"].IsInt())
+                    codecDefaultLevel = d["lvldef"].GetInt();
             } else if (strcmp(cmd, kMsgStream) == 0) {
                 if (d.HasMember("vu") && d["vu"].IsArray()) {
                     const Value &a = d["vu"];
@@ -932,7 +943,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             // Live preview only; see SetInputGain.
             char buf[112];
             snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/codecLevels\",\"l\":%d,\"r\":%d}",
-                     clampI(left, 0, MAX_OUTPUT_LEVEL), clampI(right, 0, MAX_OUTPUT_LEVEL));
+                     clampI(left, 0, codecMaxLevel), clampI(right, 0, codecMaxLevel));
             sendCmd(buf);
         }
 
@@ -1028,6 +1039,9 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/favoriteActivate\",\"id\":%d}", id);
             sendCmd(buf);
         }
+
+        int DspProxy::GetMaxOutputLevel() { return codecMaxLevel; }
+        int DspProxy::GetDefaultOutputLevel() { return codecDefaultLevel; }
 
         bool DspProxy::IsSDMounted() { return sdMounted; }
 

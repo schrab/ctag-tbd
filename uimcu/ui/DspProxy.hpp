@@ -142,8 +142,12 @@ namespace CTAG {
             static uint32_t GetVUPeak(int channel);
 
             // ---- Codec surface ----
-            static constexpr int MAX_OUTPUT_LEVEL = 33;     // es8388 OUTPUT_VOLUME_MAX
-            static constexpr int DEFAULT_OUTPUT_LEVEL = 33; // 0 dB
+            // Output-level range in the codec's NATIVE scale, pushed by the
+            // DSP in io-caps ("lvlmax"/"lvldef"; 0..63 with 57 = 0 dB on the
+            // WM8978, 0..33 on the ES8388). Fallback = the legacy A1S scale
+            // so an old DSP still faders sanely. No rescaling anywhere.
+            static int GetMaxOutputLevel();
+            static int GetDefaultOutputLevel();
             static void SetInputGain(int gain);
             static void SetOutputLevels(int left, int right);
 

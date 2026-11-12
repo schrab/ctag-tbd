@@ -47,11 +47,26 @@ namespace CTAG {
         // the tape signal meter beside it (routing on OK, shown as its
         // value line).
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
-                {"IN",   "input_gain",      0, 8,                        false, METER_IN,    2},
-                {"TAPE", "tape_gain",       0, 100,                      false, METER_NONE,  0},
-                {"LOUT", "ch0_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, METER_OUT_L, 1},
-                {"ROUT", "ch1_codecLvlOut", 0, DspProxy::MAX_OUTPUT_LEVEL, false, METER_OUT_R, 1},
+                {"IN",   "input_gain",      0, 8,   false, METER_IN,    2},
+                {"TAPE", "tape_gain",       0, 100, false, METER_NONE,  0},
+                {"LOUT", "ch0_codecLvlOut", 0, 63,  false, METER_OUT_L, 1},
+                {"ROUT", "ch1_codecLvlOut", 0, 63,  false, METER_OUT_R, 1},
         };
+
+        // Live clamp for the OUT strips: the codec's NATIVE scale, pushed by
+        // the DSP in io-caps (WM8978 0..63 with 57 = 0 dB, ES8388 0..33) —
+        // no rescaling anywhere.
+        int UIMenuPageMix::StripMax(int i) const {
+            return (i == OUT_L_STRIP || i == OUT_R_STRIP) ? DspProxy::GetMaxOutputLevel()
+                                                          : STRIP_TABLE[i].max;
+        }
+
+        // With a stereo plugin on ch0 the output image is one instrument —
+        // LOUT/ROUT move together so a single turn keeps the balance.
+        bool UIMenuPageMix::outLinked() const {
+            std::string id0 = DspProxy::GetStringID(0);
+            return DspProxy::IsPluginStereo(id0);
+        }
 
         void UIMenuPageMix::DebugStateJson(std::string &out) {
             out = "{\"cursor\":" + to_string(cursor)
@@ -60,7 +75,8 @@ namespace CTAG {
                 if (i) out += ",";
                 out += to_string(value[i]);
             }
-            out += "],\"max\":" + to_string(DspProxy::MAX_OUTPUT_LEVEL) + "}";
+            out += "],\"max\":" + to_string(DspProxy::GetMaxOutputLevel())
+                 + ",\"linked\":" + to_string(outLinked() ? 1 : 0) + "}";
         }
 
         void UIMenuPageMix::init() {
@@ -114,7 +130,7 @@ namespace CTAG {
                 if (!doc.HasMember(st.id) || !doc[st.id].IsString()) continue;
                 int v = atoi(doc[st.id].GetString());
                 if (v < st.min) v = st.min;
-                if (v > st.max) v = st.max;
+                if (v > StripMax(i)) v = StripMax(i);
                 value[i] = v;
             }
             if (doc.HasMember("input_source") && doc["input_source"].IsString()) {
@@ -238,7 +254,7 @@ namespace CTAG {
             // outer frame (only while the panel is open for editing — at
             // ROOT nothing is editable), never an inversion: an inverted
             // fader reads as filling from the top.
-            int range = st.max - st.min;
+            int range = StripMax(i) - st.min;
             int fillH = range > 0 ? ((value[i] - st.min) * (FADER_H - 2)) / range : 0;
             if (fillH < 1) fillH = 1;
             if (fillH > FADER_H - 2) fillH = FADER_H - 2;
@@ -367,9 +383,16 @@ namespace CTAG {
             int step = delta * (1 + encoderAccel * encoderAccel);
             int v = value[cursor] + step;
             if (v < st.min) v = st.min;
-            if (v > st.max) v = st.max;
+            if (v > StripMax(cursor)) v = StripMax(cursor);
             const bool changed = (v != value[cursor]);
             value[cursor] = v;
+            // Stereo plugin on ch0: the output image is one instrument —
+            // both output faders follow so one turn keeps the balance.
+            if (changed && outLinked() &&
+                (cursor == OUT_L_STRIP || cursor == OUT_R_STRIP)) {
+                value[OUT_L_STRIP] = v;
+                value[OUT_R_STRIP] = v;
+            }
             if (changed) dirty = true;
 
             // Preview only the affected codec registers. Do NOT call

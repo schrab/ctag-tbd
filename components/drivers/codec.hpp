@@ -39,13 +39,17 @@ namespace CTAG {
         class Codec {
         public:
             // Highest value the installed codec accepts for the output level
-            // setting. The ES8388 stops at 33 (0 dB); the AIC3254 maps 0..63
-            // with 58 as 0 dB, and non-BBA codecs accept 0..63 as well. The UI
-            // and the config clamp share this so an out-of-range value is
-            // never offered or written back.
+            // setting, in the codec's NATIVE register scale (no rescaling):
+            // the ES8388 stops at 33 (0 dB); the WM8978 takes 0..63 with 57
+            // as 0 dB (wm8978::OUTPUT_VOLUME_0DB); the AIC3254 maps 0..63
+            // with 58 as 0 dB. The UI and the config clamp share this so an
+            // out-of-range value is never offered or written back.
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
             static constexpr int MAX_OUTPUT_LEVEL = es8388::OUTPUT_VOLUME_MAX;
             static constexpr int DEFAULT_OUTPUT_LEVEL = es8388::OUTPUT_VOLUME_MAX; // 0 dB
+#elif defined(CONFIG_TBD_PLATFORM_BBA2)
+            static constexpr int MAX_OUTPUT_LEVEL = 63;
+            static constexpr int DEFAULT_OUTPUT_LEVEL = 57; // 0 dB on the WM8978
 #else
             static constexpr int MAX_OUTPUT_LEVEL = 63;
             static constexpr int DEFAULT_OUTPUT_LEVEL = 58; // 0 dB on the AIC3254

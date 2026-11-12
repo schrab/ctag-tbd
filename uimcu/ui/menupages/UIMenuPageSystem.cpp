@@ -179,7 +179,7 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "Ch0 Out Level");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = DspProxy::MAX_OUTPUT_LEVEL; it.valInt = DspProxy::DEFAULT_OUTPUT_LEVEL;
+                it.min = 0; it.max = DspProxy::GetMaxOutputLevel(); it.valInt = DspProxy::GetDefaultOutputLevel();
                 snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 if (doc.HasMember("ch0_codecLvlOut") && doc["ch0_codecLvlOut"].IsString()) {
                     it.valInt = clampInt(atoi(doc["ch0_codecLvlOut"].GetString()), it.min, it.max);
@@ -195,7 +195,7 @@ namespace CTAG {
                 snprintf(it.name, sizeof(it.name), "Ch1 Out Level");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = DspProxy::MAX_OUTPUT_LEVEL; it.valInt = DspProxy::DEFAULT_OUTPUT_LEVEL;
+                it.min = 0; it.max = DspProxy::GetMaxOutputLevel(); it.valInt = DspProxy::GetDefaultOutputLevel();
                 snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 if (doc.HasMember("ch1_codecLvlOut") && doc["ch1_codecLvlOut"].IsString()) {
                     it.valInt = clampInt(atoi(doc["ch1_codecLvlOut"].GetString()), it.min, it.max);
@@ -354,8 +354,8 @@ namespace CTAG {
         }
 
         void UIMenuPageSystem::previewCodecLevels() {
-            int l = DspProxy::DEFAULT_OUTPUT_LEVEL;
-            int r = DspProxy::DEFAULT_OUTPUT_LEVEL;
+            int l = DspProxy::GetDefaultOutputLevel();
+            int r = DspProxy::GetDefaultOutputLevel();
             for (int i = 0; i < itemCount; i++) {
                 if (strcmp(items[i].id, "ch0_codecLvlOut") == 0) l = items[i].valInt;
                 else if (strcmp(items[i].id, "ch1_codecLvlOut") == 0) r = items[i].valInt;

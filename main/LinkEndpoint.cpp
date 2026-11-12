@@ -386,6 +386,10 @@ namespace CTAG {
                 s += kMsgPushIoCaps;
                 s += "\",\"sd\":" + to_string(FileSystem::IsSDMounted() ? 1 : 0);
                 s += ",\"cd\":" + to_string(FileSystem::IsSDPresent() ? 1 : 0);
+                // Codec output-level range in the codec's NATIVE scale — the
+                // panel clamps its faders to this (no rescaling anywhere).
+                s += ",\"lvlmax\":" + to_string(Codec::MAX_OUTPUT_LEVEL);
+                s += ",\"lvldef\":" + to_string(Codec::DEFAULT_OUTPUT_LEVEL);
                 s += "}";
                 sendStr(s);
             }
