@@ -469,6 +469,8 @@ namespace CTAG {
                     s += key("g" + p + "cvslot") + to_string(SeqEngine::GetGateCvSlot(i));
                     snprintf(tmp, sizeof(tmp), "0x%04x", (unsigned)SeqEngine::GetGateMask(i));
                     s += key("g" + p + "mask") + "\"" + tmp + "\"";
+                    snprintf(tmp, sizeof(tmp), "0x%04x", (unsigned)SeqEngine::GetArpGateMask(i));
+                    s += key("a" + p + "g") + "\"" + tmp + "\"";
                 }
                 for (int i = 0; i < 2; i++) {
                     string p = to_string(i + 1);
@@ -567,6 +569,7 @@ namespace CTAG {
                 union { float f; uint32_t u; } bit;
                 for (int i = 0; i < 2; i++) {
                     mix(SeqEngine::GetGateMode(i)); mix(SeqEngine::GetGateDens(i));
+                    mix(SeqEngine::GetArpGateMask(i));   // pattern rebuilds re-push
                     mix(SeqEngine::GetGateSync(i));
                     bit.f = SeqEngine::GetGateLen(i); mix(bit.u);
                     mix(SeqEngine::GetGateClk(i)); mix(SeqEngine::GetGateDiv(i));
@@ -717,6 +720,9 @@ namespace CTAG {
                      + to_string(AUDIO::SoundProcessorManager::GetVUPeak(3)) + "]";
                 s += ",\"mb\":" + to_string(MarblesEngine::GetOutputSnapshot());
                 s += ",\"sq\":" + to_string(SeqEngine::GetOutputSnapshot());
+                // gate playheads for the SEQ strip: g1step | g2step << 4
+                s += ",\"sqg\":" + to_string((SeqEngine::GetGateStep(0) & 0xF)
+                                             | ((SeqEngine::GetGateStep(1) & 0xF) << 4));
                 s += ",\"ov\":" + to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0);
                 s += ",\"tl\":" + to_string(AUDIO::SDAudio::GetLevelPeak());
                 s += ",\"sd\":{\"p\":" + to_string(AUDIO::SDAudio::IsPlaying() ? 1 : 0);

@@ -302,6 +302,15 @@ int SeqEngine::GetGateCvSlot(int i) { return gateCvSlot[i]; }
 void SeqEngine::SetGateCvSlot(int i, int s) { gateCvSlot[i] = ClampCVSlot(s); }
 uint32_t SeqEngine::GetGateMask(int i) { return gGate[i].mask; }
 
+uint32_t SeqEngine::GetArpGateMask(int i) {
+    uint32_t m = 0;
+    for (int st = 0; st < 16; ++st)
+        if (gArpExt[i].steps[st].flags & 1u) m |= (1u << (15 - st));
+    return m;
+}
+
+int SeqEngine::GetGateStep(int i) { return gGate[i].step; }
+
 // ---- arp setters ----
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {

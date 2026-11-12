@@ -94,30 +94,41 @@ namespace CTAG {
             snprintf(buf, buflen, " %s:%s", label, tmp);
         }
 
-        // ---- live output strip: 4 gate dots (G1 G2 A1 A2), two 16-step
-        // progress bars (A1/A2), 4 status squares (A1acc A1sld A2acc A2sld)
-        // (spec §4.2 bit map: 0-1 gate, 2-3 arp gate, 4-5 acc, 6-7 slide,
-        // 8-11/12-15 step, 16-23/24-31 note). All elements share the dot
-        // size; the bar fills span their tracks (2 px per step). ----
+        // ---- live output strip: 2x2 pattern grid — top row GATE1/GATE2
+        // trance masks, bottom row ARP1/ARP2 gate patterns; each cell is
+        // 3 px wide: filled 3x3 square = playhead, 1 px dot = gated step,
+        // blank = muted step. Rows are 5 px tall with a 2 px gap, sitting
+        // below the last text row. Right edge: 4 accent/slide squares.
+        // (snapshot bits: 4-5 acc, 6-7 slide, 8-11/12-15 arp step) ----
         void UIMenuPageSeq::drawOutputLine() {
             uint32_t s = DspProxy::GetSeqSnapshot();
-            for (int i = 0; i < 4; i++) {
-                Display::DrawRect(1 + i * 8, 57, 6, 6, (s >> i) & 1);
+            const uint32_t masks[2][2] = {
+                { DspProxy::GetSeqGateMask(0), DspProxy::GetSeqGateMask(1) },
+                { DspProxy::GetSeqArpGateMask(0), DspProxy::GetSeqArpGateMask(1) },
+            };
+            const int steps[2][2] = {
+                { DspProxy::GetSeqGateStep(0), DspProxy::GetSeqGateStep(1) },
+                { (int)((s >> 8) & 0xFu), (int)((s >> 12) & 0xFu) },
+            };
+            const int rowY[2] = {52, 59};   // 5 px rows, 2 px gap
+            for (int row = 0; row < 2; ++row) {
+                for (int col = 0; col < 2; ++col) {
+                    const int x0 = 2 + col * 52;
+                    for (int st = 0; st < 16; ++st) {
+                        const int x = x0 + st * 3;
+                        if (st == steps[row][col])
+                            Display::DrawRect(x, rowY[row] + 1, 3, 3, true);   // playhead
+                        else if ((masks[row][col] >> (15 - st)) & 1u)
+                            Display::DrawRect(x + 1, rowY[row] + 2, 1, 1, true); // gate dot
+                    }
+                }
             }
-            const int barX[2] = {34, 67};
-            for (int i = 0; i < 2; i++) {
-                int step = (s >> (8 + i * 4)) & 0xFu;
-                Display::DrawRect(barX[i], 57, 32, 6, false);
-                int fill = (step + 1) * 2;    // 2 px per step across the track
-                if (fill > 30) fill = 30;     // 1 px inset on the right
-                Display::DrawRect(barX[i] + 1, 58, fill, 4, true);
-            }
-            const int markX[4] = {101, 108, 115, 122};
+            const int markX[4] = {103, 109, 115, 121};
             for (int i = 0; i < 2; i++) {
                 bool acc = ((s >> (4 + i)) & 1) != 0;
                 bool sld = ((s >> (6 + i)) & 1) != 0;
-                Display::DrawRect(markX[i * 2], 57, 6, 6, acc);     // accent
-                Display::DrawRect(markX[i * 2 + 1], 57, 6, 6, sld); // slide
+                Display::DrawRect(markX[i * 2], 59, 6, 5, acc);     // A1/A2 accent
+                Display::DrawRect(markX[i * 2 + 1], 59, 6, 5, sld); // A1/A2 slide
             }
         }
 

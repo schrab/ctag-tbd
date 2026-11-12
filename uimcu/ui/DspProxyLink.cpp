@@ -152,6 +152,10 @@ namespace CTAG {
                 int arpPitchSlot[2]; int arpGateSlot[2]; int arpAccSlot[2]; int arpSlideSlot[2];
                 int root; int rootMode; int neoOp; int scale; float bpm; int globalExt;
                 uint32_t snapshot;
+                // live strip extras: arp gate patterns (pushSeq "a1g/a2g")
+                // and gate playheads (stream "sqg")
+                uint32_t arpGateMask[2];
+                int gateStep[2];
             };
             SeqState seq = {};
             uint32_t seqVersion = 0;
@@ -348,6 +352,8 @@ namespace CTAG {
                     seq.gateCvSlot[i] = gi(k, seq.gateCvSlot[i]);
                     snprintf(k, sizeof(k), "g%dmask", i + 1);
                     seq.gateMask[i] = gs(k, seq.gateMask[i]);
+                    snprintf(k, sizeof(k), "a%dg", i + 1);
+                    seq.arpGateMask[i] = gs(k, seq.arpGateMask[i]);
                 }
                 for (int i = 0; i < 2; i++) {
                     char k[12];
@@ -683,6 +689,11 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 }
                 if (d.HasMember("mb") && d["mb"].IsUint()) snapshot = d["mb"].GetUint();
                 if (d.HasMember("sq") && d["sq"].IsUint()) seq.snapshot = d["sq"].GetUint();
+                if (d.HasMember("sqg") && d["sqg"].IsUint()) {
+                    int w = d["sqg"].GetUint();
+                    seq.gateStep[0] = w & 0xF;
+                    seq.gateStep[1] = (w >> 4) & 0xF;
+                }
                 if (d.HasMember("ov") && d["ov"].IsInt()) cpuOverload = d["ov"].GetInt() != 0;
                 if (d.HasMember("tl") && d["tl"].IsUint()) sdLevel = d["tl"].GetUint();
                 if (d.HasMember("sd") && d["sd"].IsObject()) {
@@ -1202,6 +1213,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             sendSeqSet(k, seq.gateCvSlot[i]);
         }
         uint32_t DspProxy::GetSeqGateMask(int i) { return seq.gateMask[i]; }
+        uint32_t DspProxy::GetSeqArpGateMask(int i) { return seq.arpGateMask[i]; }
+        int DspProxy::GetSeqGateStep(int i) { return seq.gateStep[i]; }
 
         int DspProxy::GetSeqArpAlgo(int i) { return seq.arpAlgo[i]; }
         void DspProxy::SetSeqArpAlgo(int i, int v) {

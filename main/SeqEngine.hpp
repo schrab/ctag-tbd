@@ -78,6 +78,11 @@ public:
     static int GetArpGateSlot(int i);  static void SetArpGateSlot(int i, int s);
     static int GetArpAccSlot(int i);   static void SetArpAccSlot(int i, int s);
     static int GetArpSlideSlot(int i); static void SetArpSlideSlot(int i, int s);
+    // 16-step gate pattern of the current arp pattern, bit (15-step) set on
+    // gated steps — same convention as GetGateMask; feeds the panel strip.
+    static uint32_t GetArpGateMask(int i);
+    // Current gate step 0..15 (the strip's playhead; rides the 25 Hz stream).
+    static int GetGateStep(int i);
 
     // --- shared across both arps ---
     static int GetRoot();     static void SetRoot(int v);      // pitch class 0..11
