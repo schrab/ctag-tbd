@@ -385,8 +385,16 @@ namespace CTAG {
 
         bool UIMenuPageSeq::onBack() {
             if (subPage == SP_MAIN) return false;
+            // restore the MAIN row that opened this sub-page (same behavior
+            // as UIMenuPageMod's back navigation)
+            switch (subPage) {
+                case SP_GATE1: cursor = 0; break;
+                case SP_GATE2: cursor = 1; break;
+                case SP_ARP1:  cursor = 2; break;
+                case SP_ARP2:  cursor = 3; break;
+                default:       cursor = 0; break;
+            }
             subPage = SP_MAIN;
-            cursor = 0;
             doRedraw();
             return true;
         }
