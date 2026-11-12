@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include "Favorites.hpp"
 #include "MarblesEngine.hpp"
 #include "ModTransport.hpp"
+#include "SeqEngine.hpp"
 #include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
 #include "BtMidiReceiver.hpp"
@@ -832,7 +833,8 @@ void Midi::Init() {
     memset(midi_note_trig, 1, N_TRIGS);
     distribute.setCVandTriggerPointers(midi_data, midi_note_trig);
     // CTAG::DRIVERS::tusbmidi::Init();
-    CTAG::DRIVERS::MarblesEngine::Init();
+    CTAG::DRIVERS::MarblesEngine::Init();   // also Inits ModTransport (transport owner)
+    CTAG::DRIVERS::SeqEngine::Init();
     CTAG::AUDIO::SDAudio::Init();
 }
 

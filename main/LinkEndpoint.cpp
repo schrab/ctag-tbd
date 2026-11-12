@@ -23,6 +23,8 @@ respective component folders / files if different from this license.
 #include "DebugUI.hpp"
 #include "SPManager.hpp"
 #include "MarblesEngine.hpp"
+#include "ModTransport.hpp"
+#include "SeqEngine.hpp"
 #include "SDAudio.hpp"
 #include "Favorites.hpp"
 #include "fs.hpp"
@@ -103,6 +105,7 @@ namespace CTAG {
             uint32_t lastHeartbeatMs = 0;
             uint32_t heartbeatSeq = 0;
             volatile bool marblesPushPending = false;
+            volatile bool seqPushPending = false;
 
             // Scratch for building push payloads. The model's JSON buffers
             // can be regenerated concurrently, so every push copies its
@@ -211,6 +214,7 @@ namespace CTAG {
             // ---------------------------------------------------------------------------
 
             void pushMarbles();
+            void pushSeq();
 
             // Record current hashes without pushing (defined near the diff
             // poll below); called after the boot burst.
@@ -435,6 +439,60 @@ namespace CTAG {
                 sendStr(s);
             }
 
+            // Full SEQ state push; keys are shared with the /link/seqSet key
+            // table in handleLinkCommand() and the C3 DspProxy SeqState.
+            // Flat string build only — no DOM (C3 heap ceiling). Gate masks
+            // ride as "0x%04x" strings for the pattern preview row.
+            void pushSeq() {
+                char tmp[16];
+                // member builder: the separator lambda keeps the first key
+                // comma-free (a leading "," right after "st":{ would make
+                // the whole frame unparseable on the C3).
+                bool first = true;
+                auto key = [&](const string &name) -> string {
+                    string r = first ? "\"" : ",\"";
+                    first = false;
+                    return r + name + "\":";
+                };
+                string s = "{\"cmd\":\"";
+                s += kMsgPushSeq;
+                s += "\",\"st\":{";
+                for (int i = 0; i < 2; i++) {
+                    string p = to_string(i + 1);
+                    s += key("g" + p + "mode") + to_string(SeqEngine::GetGateMode(i));
+                    s += key("g" + p + "dens") + to_string(SeqEngine::GetGateDens(i));
+                    s += key("g" + p + "sync") + to_string(SeqEngine::GetGateSync(i));
+                    s += key("g" + p + "glen") + to_string(SeqEngine::GetGateLen(i));
+                    s += key("g" + p + "clk") + to_string(SeqEngine::GetGateClk(i));
+                    s += key("g" + p + "div") + to_string(SeqEngine::GetGateDiv(i));
+                    s += key("g" + p + "tslot") + to_string(SeqEngine::GetGateTrigSlot(i));
+                    s += key("g" + p + "cvslot") + to_string(SeqEngine::GetGateCvSlot(i));
+                    snprintf(tmp, sizeof(tmp), "0x%04x", (unsigned)SeqEngine::GetGateMask(i));
+                    s += key("g" + p + "mask") + "\"" + tmp + "\"";
+                }
+                for (int i = 0; i < 2; i++) {
+                    string p = to_string(i + 1);
+                    s += key("a" + p + "algo") + to_string(SeqEngine::GetArpAlgo(i));
+                    for (int k = 0; k < 4; k++)
+                        s += key("a" + p + "p" + to_string(k + 1)) + to_string(SeqEngine::GetArpP(i, k));
+                    s += key("a" + p + "glide") + to_string(SeqEngine::GetArpGlide(i));
+                    s += key("a" + p + "clk") + to_string(SeqEngine::GetArpClk(i));
+                    s += key("a" + p + "div") + to_string(SeqEngine::GetArpDiv(i));
+                    s += key("a" + p + "pslot") + to_string(SeqEngine::GetArpPitchSlot(i));
+                    s += key("a" + p + "gslot") + to_string(SeqEngine::GetArpGateSlot(i));
+                    s += key("a" + p + "aslot") + to_string(SeqEngine::GetArpAccSlot(i));
+                    s += key("a" + p + "sslot") + to_string(SeqEngine::GetArpSlideSlot(i));
+                }
+                s += key("shmroot") + to_string(SeqEngine::GetRoot());
+                s += key("shmrootmode") + to_string(SeqEngine::GetRootMode());
+                s += key("shmneoop") + to_string(SeqEngine::GetNeoOp());
+                s += key("shmscale") + to_string(SeqEngine::GetScale());
+                s += key("bpm") + to_string(ModTransport::GetBPM());
+                s += key("ext") + to_string(ModTransport::GetGlobalClockMidi() ? 1 : 0);
+                s += "}}";
+                sendStr(s);
+            }
+
             void pushBootMetadata() {
                 pushPluginList();
                 pushActivePlugin();
@@ -445,6 +503,7 @@ namespace CTAG {
                 pushPresets(1);
                 pushFavorites();
                 pushMarbles();
+                pushSeq();
                 pushIoCaps();
                 seedLastPushed();
                 ESP_LOGI(TAG, "boot metadata pushed");
@@ -502,12 +561,38 @@ namespace CTAG {
                 return h;
             }
 
+            uint32_t hashSeq() {
+                uint32_t h = 2166136261u;
+                auto mix = [&h](uint32_t v) { h ^= v; h *= 16777619u; };
+                union { float f; uint32_t u; } bit;
+                for (int i = 0; i < 2; i++) {
+                    mix(SeqEngine::GetGateMode(i)); mix(SeqEngine::GetGateDens(i));
+                    mix(SeqEngine::GetGateSync(i));
+                    bit.f = SeqEngine::GetGateLen(i); mix(bit.u);
+                    mix(SeqEngine::GetGateClk(i)); mix(SeqEngine::GetGateDiv(i));
+                    mix(SeqEngine::GetGateTrigSlot(i)); mix(SeqEngine::GetGateCvSlot(i));
+                    mix(SeqEngine::GetGateMask(i));   // TMR mutates masks live
+                    mix(SeqEngine::GetArpAlgo(i));
+                    for (int k = 0; k < 4; k++) mix(SeqEngine::GetArpP(i, k));
+                    mix(SeqEngine::GetArpGlide(i)); mix(SeqEngine::GetArpClk(i));
+                    mix(SeqEngine::GetArpDiv(i));
+                    mix(SeqEngine::GetArpPitchSlot(i)); mix(SeqEngine::GetArpGateSlot(i));
+                    mix(SeqEngine::GetArpAccSlot(i)); mix(SeqEngine::GetArpSlideSlot(i));
+                }
+                mix(SeqEngine::GetRoot()); mix(SeqEngine::GetRootMode());
+                mix(SeqEngine::GetNeoOp()); mix(SeqEngine::GetScale());
+                bit.f = ModTransport::GetBPM(); mix(bit.u);
+                mix(ModTransport::GetGlobalClockMidi());
+                return h;
+            }
+
             struct LastPushed {
                 uint32_t modelGen = 0;
                 uint32_t pluginList = 0, params0 = 0, params1 = 0, config = 0;
                 uint32_t presets0 = 0, presets1 = 0, favorites = 0;
                 string id0, id1;
                 uint32_t marbles = 0;
+                uint32_t seq = 0;
                 int sdMounted = -1;
                 int sdCd = -1;
                 uint32_t editSeq = 0;
@@ -529,6 +614,7 @@ namespace CTAG {
                 lastPushed.id1 = SoundProcessorManager::GetStringID(1);
                 lastPushed.modelGen = CTAG::SP::ctagDataModelBase::GetGeneration();
                 lastPushed.marbles = hashMarbles();
+                lastPushed.seq = hashSeq();
                 lastPushed.sdMounted = FileSystem::IsSDMounted() ? 1 : 0;
                 lastPushed.sdCd = FileSystem::IsSDPresent() ? 1 : 0;
             }
@@ -601,6 +687,12 @@ namespace CTAG {
                     marblesPushPending = false;
                     pushMarbles();
                 }
+                h = hashSeq();
+                if (h != lastPushed.seq || seqPushPending) {
+                    lastPushed.seq = h;
+                    seqPushPending = false;
+                    pushSeq();
+                }
                 int mounted = FileSystem::IsSDMounted() ? 1 : 0;
                 if (mounted != lastPushed.sdMounted) {
                     lastPushed.sdMounted = mounted;
@@ -624,6 +716,7 @@ namespace CTAG {
                      + to_string(AUDIO::SoundProcessorManager::GetVUPeak(2)) + ","
                      + to_string(AUDIO::SoundProcessorManager::GetVUPeak(3)) + "]";
                 s += ",\"mb\":" + to_string(MarblesEngine::GetOutputSnapshot());
+                s += ",\"sq\":" + to_string(SeqEngine::GetOutputSnapshot());
                 s += ",\"ov\":" + to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0);
                 s += ",\"tl\":" + to_string(AUDIO::SDAudio::GetLevelPeak());
                 s += ",\"sd\":{\"p\":" + to_string(AUDIO::SDAudio::IsPlaying() ? 1 : 0);
@@ -697,6 +790,59 @@ namespace CTAG {
                     MarblesEngine::SetDynamicSlotCC(k[2] - '0', iv);
                 else if (k.size() == 4 && k.compare(0, 3, "cch") == 0 && k[3] >= '0' && k[3] <= '7')
                     MarblesEngine::SetDynamicSlotChan(k[3] - '0', iv);
+                else return false;
+                return true;
+            }
+
+            // One SEQ key -> engine setter. `v` is the raw value (double from
+            // JSON); the engine setters clamp. Key names are shared with
+            // pushSeq() and the C3 DspProxy SeqState. Gate Length ("glen")
+            // rides the engine's 0..1 fraction on BOTH directions — the panel
+            // renders % and divides by 100 before sending.
+            bool applySeqKey(const string &k, double v) {
+                int iv = (int)v;
+                bool bv = v != 0.0;
+                // gates: g<1|2><field>
+                if (k.size() >= 5 && k[0] == 'g' && (k[1] == '1' || k[1] == '2')) {
+                    int i = k[1] - '1';
+                    string f = k.substr(2);
+                    if (f == "mode") SeqEngine::SetGateMode(i, iv);
+                    else if (f == "dens") SeqEngine::SetGateDens(i, iv);
+                    else if (f == "sync") SeqEngine::SetGateSync(i, iv);
+                    else if (f == "glen") SeqEngine::SetGateLen(i, (float)v);
+                    else if (f == "clk") SeqEngine::SetGateClk(i, iv);
+                    else if (f == "div") SeqEngine::SetGateDiv(i, iv);
+                    else if (f == "tslot") SeqEngine::SetGateTrigSlot(i, iv);
+                    else if (f == "cvslot") SeqEngine::SetGateCvSlot(i, iv);
+                    else return false;
+                    return true;
+                }
+                // arps: a<1|2><field> (p1..p4 -> p[0..3])
+                if (k.size() >= 5 && k[0] == 'a' && (k[1] == '1' || k[1] == '2')) {
+                    int i = k[1] - '1';
+                    string f = k.substr(2);
+                    if (f == "algo") SeqEngine::SetArpAlgo(i, iv);
+                    else if (f.size() == 2 && f[0] == 'p' && f[1] >= '1' && f[1] <= '4')
+                        SeqEngine::SetArpP(i, f[1] - '1', iv);
+                    else if (f == "glide") SeqEngine::SetArpGlide(i, iv);
+                    else if (f == "clk") SeqEngine::SetArpClk(i, iv);
+                    else if (f == "div") SeqEngine::SetArpDiv(i, iv);
+                    else if (f == "pslot") SeqEngine::SetArpPitchSlot(i, iv);
+                    else if (f == "gslot") SeqEngine::SetArpGateSlot(i, iv);
+                    else if (f == "aslot") SeqEngine::SetArpAccSlot(i, iv);
+                    else if (f == "sslot") SeqEngine::SetArpSlideSlot(i, iv);
+                    else return false;
+                    return true;
+                }
+                // shared root/scale/neo-op + global clock source
+                if (k == "shmroot") SeqEngine::SetRoot(iv);
+                else if (k == "shmrootmode") SeqEngine::SetRootMode(iv);
+                else if (k == "shmneoop") SeqEngine::SetNeoOp(iv);
+                else if (k == "shmscale") SeqEngine::SetScale(iv);
+                else if (k == "globalext") {
+                    ModTransport::SetGlobalClockMidi(bv);
+                    ModTransport::SaveConfig();   // one scalar, persist now
+                }
                 else return false;
                 return true;
             }
@@ -997,6 +1143,7 @@ namespace CTAG {
                         ESP_LOGI(TAG, "marblesSet %s=%g", k.c_str(), d["v"].GetDouble());
                         if (k == "_save") {
                             MarblesEngine::SaveConfig();
+                            ModTransport::SaveConfig();   // bpm moved to "transport"
                             response = "{\"ok\":1}";
                         } else if (applyMarblesKey(k, d["v"].GetDouble())) {
                             response = "{\"ok\":1}";
@@ -1006,6 +1153,26 @@ namespace CTAG {
                         }
                     } else {
                         response = "{\"error\":\"bad marblesSet\"}";
+                    }
+                    return true;
+                }
+                if (cmdName == kMsgCmdSeqSet) {
+                    if (d.HasMember("k") && d["k"].IsString() && d.HasMember("v") &&
+                        (d["v"].IsNumber())) {
+                        string k(d["k"].GetString());
+                        ESP_LOGI(TAG, "seqSet %s=%g", k.c_str(), d["v"].GetDouble());
+                        if (k == "_save") {
+                            SeqEngine::SaveConfig();
+                            response = "{\"ok\":1}";
+                        } else if (applySeqKey(k, d["v"].GetDouble())) {
+                            seqPushPending = true;   // panel re-syncs within one tick
+                            response = "{\"ok\":1}";
+                        } else {
+                            response = "{\"cmd\":\"" + cmdName +
+                                       "\",\"error\":\"unknown key\"}";
+                        }
+                    } else {
+                        response = "{\"error\":\"bad seqSet\"}";
                     }
                     return true;
                 }
