@@ -114,6 +114,10 @@ namespace CTAG {
 
             void parseConfig();
             void applyCurrent(bool includeDeferred);
+            // OUT strips clamp to the codec's pushed native range; with a
+            // stereo plugin on ch0 the two output faders move together.
+            int StripMax(int i) const;
+            bool outLinked() const;
             void refreshMeters();
             void refreshTapeMeter();
             void drawStrip(int i);
