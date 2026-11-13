@@ -121,7 +121,9 @@ namespace CTAG {
             string id0 = DspProxy::GetStringID(0);
             string id1 = DspProxy::GetStringID(1);
             bool stereoCh0 = DspProxy::IsPluginStereo(id0);
-            hasDualCh = !stereoCh0 && !id0.empty() && !id1.empty() && id0 != id1;
+            // Same mono plugin on both channels still needs the Ch0/Ch1
+            // picker — ids may be equal here (stereo ch0 is covered above).
+            hasDualCh = !stereoCh0 && !id0.empty() && !id1.empty();
             parseParams();
         }
 
@@ -694,7 +696,7 @@ namespace CTAG {
                 string id0 = DspProxy::GetStringID(0);
                 string id1 = DspProxy::GetStringID(1);
                 bool stereoCh0 = DspProxy::IsPluginStereo(id0);
-                hasDualCh = !stereoCh0 && !id0.empty() && !id1.empty() && id0 != id1;
+                hasDualCh = !stereoCh0 && !id0.empty() && !id1.empty();
                 // Remember the edited group so an in-place refresh (value
                 // echo, preset load) can re-attach to it by name.
                 char groupName[sizeof(GroupInfo::name)] = "";
