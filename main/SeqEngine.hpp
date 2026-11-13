@@ -35,9 +35,9 @@ namespace CTAG::DRIVERS {
 // ClampCVSlot/ClampTrigSlot (audio-task stack safety).
 //
 // Outputs (spec §4.2, defaults):
-//   cv 102/103 = SEQ.1Level/SEQ.2Level   gate level, slewed 0..1
+//   cv 102/103 = GAT.1Level/GAT.2Level   gate level, slewed 0..1
 //   cv 104/105 = SEQ.1Note/SEQ.2Note     arp pitch, 1 V/oct
-//   trig 43/44 = SEQ.1Trig/SEQ.2Trig     gate window
+//   trig 43/44 = GAT.1Trig/GAT.2Trig     gate window
 //   trig 45/46 = arp gate window (55 %, 100 % on slide steps)
 //   trig 47/48 = arp accent (0 on accent steps)
 //   trig 49/50 = arp slide (0 on slide steps)

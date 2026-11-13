@@ -35,17 +35,17 @@ static const char* cvSlotDisplayNames[106] = {
     "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8",
     // Slots 98-101: Marbles random CV outputs
     "MB.X1", "MB.X2", "MB.X3", "MB.Y",
-    // Slots 102-105: SEQ modulators (GATE x2 level, ARP x2 pitch)
-    "SEQ.1Level", "SEQ.2Level", "SEQ.1Note", "SEQ.2Note"
+    // Slots 102-105: SEQ modulators (GAT = rhythmic gate level, SEQ = arp pitch)
+    "GAT.1Level", "GAT.2Level", "SEQ.1Note", "SEQ.2Note"
 };
 
 // Display names for trigger outputs: Marbles T1-T3 at trig slots 40-42,
-// SEQ modulator trig outputs at trig slots 43-50 (GATE generator trig,
-// ARP step gate/accent/slide). SEQ.1Gate is the ARP step gate — the
-// TBD03 trigger target.
+// SEQ modulator trig outputs at trig slots 43-50 (GAT = rhythmic-gate
+// window, SEQ = arp step gate/accent/slide). SEQ.1Gate is the ARP step
+// gate — the TBD03 trigger target.
 static const char* trigSlotNames[11] = {
     "MB.T1", "MB.T2", "MB.T3",
-    "SEQ.1Trig", "SEQ.2Trig", "SEQ.1Gate", "SEQ.2Gate",
+    "GAT.1Trig", "GAT.2Trig", "SEQ.1Gate", "SEQ.2Gate",
     "SEQ.1Acc", "SEQ.2Acc", "SEQ.1Slide", "SEQ.2Slide"
 };
 

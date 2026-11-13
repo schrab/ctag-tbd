@@ -57,10 +57,10 @@ the stack. Bounds are verified by host tests in `tests/host/`.
 | 90–97 | Dynamic CC | 8 MIDI-learnable CC-to-CV mappings (unchanged from the old engine) |
 | 98–100 | Marbles X1–X3 | Quantized random CV |
 | 101 | Marbles Y | Divided random CV |
-| 102–103 | SEQ G1/G2 | GATE level, slewed 0..1 |
+| 102–103 | GAT G1/G2 | GATE level, slewed 0..1 |
 | 104–105 | SEQ A1/A2 | ARP pitch, 1 V/oct: `(note − root)/12 × 0.2` |
 | 40–41–42 (trig) | Marbles T1/T2/T3 | T1 random gate, T2 master clock, T3 random gate |
-| 43–44 (trig) | SEQ G1/G2 | GATE window, active-low |
+| 43–44 (trig) | GAT G1/G2 | GATE window, active-low |
 | 45–46 (trig) | SEQ A1/A2 GATE | ARP step gate window (55 %, 100 % on slide steps), active-low |
 | 47–48 (trig) | SEQ A1/A2 ACC | 0 on accent steps, idle 1 |
 | 49–50 (trig) | SEQ A1/A2 SLIDE | 0 on slide steps, idle 1 |
