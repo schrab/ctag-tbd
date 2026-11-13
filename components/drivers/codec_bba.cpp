@@ -44,6 +44,11 @@ static uint32_t current_sample_rate = 44100;
 // These counters surface exactly that.
 static std::atomic<uint32_t> s_i2sReadErrors{0};
 static std::atomic<uint32_t> s_i2sWriteErrors{0};
+// Last configured analog settings — re-applied after any codec re-init
+// (SetSampleRate re-runs init(), which resets these registers).
+static int s_lastInputGain = 0;
+static uint32_t s_lastLevelL = 33;
+static uint32_t s_lastLevelR = 33;
 
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
 es8388 Codec::codec;
@@ -99,11 +104,18 @@ void Codec::SetSampleRate(uint32_t sample_rate) {
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
         // Re-run the ES8388 register sequence for the new MCLK: its
         // auto-ratio detection re-locks cleanly from a known register
-        // state. DACmute(false) inside init() unmutes.
+        // state. init() does NOT unmute (the DAC-unmute write is commented
+        // out in the driver) and resets gain/levels — restore everything.
         codec.init();
+        codec.DACmute(false);
+        Codec::SetInputGain(s_lastInputGain);
+        Codec::SetOutputLevels(s_lastLevelL, s_lastLevelR);
 #endif
         ESP_LOGI("BBA Codec", "I2S clock reconfigured to %lu Hz successfully", (unsigned long)sample_rate);
     } else {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+        codec.DACmute(false);   // never leave the DAC muted on a failed switch
+#endif
         ESP_LOGE("BBA Codec", "Failed to reconfigure I2S clock: tx=%d rx=%d en_tx=%d en_rx=%d",
                  err_tx, err_rx, en_tx, en_rx);
     }
@@ -252,10 +264,13 @@ void Codec::SetInputGain(int gain) {
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
     codec.setInputGain(gain);
 #endif
+    s_lastInputGain = gain;
 }
 
 void Codec::SetOutputLevels(const uint32_t left, const uint32_t right) {
     codec.setOutputVolume(static_cast<uint8_t>(left), static_cast<uint8_t>(right));
+    s_lastLevelL = left;
+    s_lastLevelR = right;
 }
 
 const uint8_t *Codec::DebugReadAllRegs() {
