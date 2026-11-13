@@ -753,6 +753,9 @@ void ctagSoundProcessorElements::HelperTask() {
 
             // Measure the whole per-block cost: resolution change, patch
             // snapshot copy, model/EE apply, then Part::Process (V9 budget).
+            // Dual-core visibility: this section prints alongside
+            // Elements_Core1 in the PERF_MONITOR 5 s windows.
+            PERF_MEASURE("Elements_Helper");
             const std::uint32_t start = esp_cpu_get_cycle_count();
             const std::size_t requested =
                 hs.requested_resolution_.load(std::memory_order_acquire);
