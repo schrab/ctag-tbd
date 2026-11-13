@@ -646,7 +646,12 @@ void SoundProcessorManager::StartSoundProcessor() {
 
     // create audio thread
     runAudioTask = 1;
-    xTaskCreatePinnedToCore(&SoundProcessorManager::audio_task, "audio_task", 4096, nullptr, 23, &audioTaskH, 1);
+    // 8192: PolyPad runs its retrigger path (std::sort + ChordSynth::Init +
+    // quantizer setup) on the audio task inside Process; at 4096 the
+    // instrumented high-water left only 2.3 KB headroom and rare random
+    // reboots fit a stack excursion (canary is armed — a real overflow now
+    // panics with the task name instead of corrupting silently).
+    xTaskCreatePinnedToCore(&SoundProcessorManager::audio_task, "audio_task", 8192, nullptr, 23, &audioTaskH, 1);
 
 #if defined(CONFIG_TBD_PLATFORM_MK2) || defined(CONFIG_TBD_PLATFORM_AEM) || defined(CONFIG_TBD_PLATFORM_BBA)
     // Favorites UI task disabled — replaced by UIMenu system (see UIMenu.cpp)
