@@ -427,10 +427,28 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
 
         // One block of latency: the previous block's render is read back here.
         const int read_slot = write_slot ^ 1;
-        const bool helper_ready =
+        bool helper_ready =
             hs.block_counter_ > 0 &&
             hs.done_seq_[read_slot].load(std::memory_order_acquire) ==
                 hs.block_counter_ - 1;
+        if (!helper_ready && hs.block_counter_ > 1) {
+            // Strike transient: the helper's worst-case block measured 362k
+            // cycles against the 240k @ 32 kHz budget — ~122 µs late. The
+            // I2S DMA's 4-block horizon (~4 ms) absorbs that lateness, so
+            // give the helper a bounded grace window (~220 µs of spin) to
+            // finish instead of repeating the previous block: a completed
+            // render beats a held block musically (a held strike sounds like
+            // a glitch). Sustained overruns still fall through to the hold,
+            // and the ladder handles them by stepping down.
+            for (int grace = 0; grace < 3 && !helper_ready; ++grace) {
+                for (volatile int spin = 0; spin < 3500; ++spin) {
+                    // ~73 µs per spin pass at 240 MHz
+                }
+                helper_ready =
+                    hs.done_seq_[read_slot].load(std::memory_order_acquire) ==
+                    hs.block_counter_ - 1;
+            }
+        }
         const HelperBlock& block = hs.blocks_[read_slot];
         const float model_gain = (block.resonator_model == 0) ? 0.15f :
                                  (block.resonator_model == 2 ? 0.4f : 0.75f);
