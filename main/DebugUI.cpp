@@ -149,7 +149,7 @@ namespace CTAG {
                            to_string(elements_debug_get_panic_count()) +
                            ",\"elementsMaxResonatorLevel\":" +
                            to_string(elements_debug_get_max_resonator_level()) +
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
                            ",\"diagStallRd\":" +
                            to_string(AUDIO::SoundProcessorManager::GetDiagStallRd()) +
                            ",\"diagStallWr\":" +
@@ -206,6 +206,7 @@ namespace CTAG {
                 // audio task — the read may straddle a block overwrite.
                 int blocks = AUDIO::SoundProcessorManager::kCaptureBlocks;
                 float scale = 8192.f;
+                bool withVuHist = true;
                 if (d.HasMember("blocks") && d["blocks"].IsInt()) {
                     int b = d["blocks"].GetInt();
                     if (b >= 1 && b <= AUDIO::SoundProcessorManager::kCaptureBlocks)
@@ -214,6 +215,12 @@ namespace CTAG {
                 if (d.HasMember("scale") && d["scale"].IsInt()) {
                     int sv = d["scale"].GetInt();
                     if (sv >= 64 && sv <= 32768) scale = static_cast<float>(sv);
+                }
+                if (d.HasMember("vuHist") && d["vuHist"].IsInt()) {
+                    // {"vuHist":0} omits the per-block peak history — the
+                    // default full dump exceeds the C3 bench relay ceiling,
+                    // which blocked output-audio inspection through the panel.
+                    withVuHist = d["vuHist"].GetInt() != 0;
                 }
                 const int kFrames = 32; // one stereo block
                 uint32_t endSeq =
@@ -242,8 +249,9 @@ namespace CTAG {
                            ",\"blocks\":" + to_string(blocks) +
                            ",\"muteBlocks\":" +
                            to_string(AUDIO::SoundProcessorManager::GetMuteBlocks()) +
-                           ",\"data\":" + out + "],\"vuHist\":[";
-                {
+                           ",\"data\":" + out + "]" +
+                           (withVuHist ? ",\"vuHist\":[" : "}");
+                if (withVuHist) {
                     // Full-coverage per-block output peaks, oldest first.
                     // The ring rotates once filled: start at the oldest
                     // live slot (seq & mask) and wrap.
@@ -260,8 +268,9 @@ namespace CTAG {
                         response += to_string(hist[i]);
                         if (k < kVUHistLen - 1) response += ",";
                     }
+                    response += "]";
                 }
-                response += "]}";
+                response += "}";
                 return true;
             }
 

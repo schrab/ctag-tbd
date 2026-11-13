@@ -27,6 +27,7 @@ respective component folders / files if different from this license.
 #include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_mac.h"
+#include <atomic>
 
 #define MAX(x, y) ((x)>(y)) ? (x) : (y)
 #define MIN(x, y) ((x)<(y)) ? (x) : (y)
@@ -36,6 +37,13 @@ using namespace CTAG::DRIVERS;
 static i2s_chan_handle_t tx_handle = NULL;
 static i2s_chan_handle_t rx_handle = NULL;
 static uint32_t current_sample_rate = 44100;
+// Dropped/failed block transfers. The v6.1 i2s driver timeout is in
+// MILLISECONDS — a pdMS_TO_TICKS(100) argument collapsed to 1 tick, and
+// any write/read that blocked across that boundary timed out with the
+// samples silently dropped (short audio drops + discontinuity distortion).
+// These counters surface exactly that.
+static std::atomic<uint32_t> s_i2sReadErrors{0};
+static std::atomic<uint32_t> s_i2sWriteErrors{0};
 
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
 es8388 Codec::codec;
@@ -53,6 +61,14 @@ void Codec::SetSampleRate(uint32_t sample_rate) {
 
     ESP_LOGI("BBA Codec", "Reconfiguring I2S sample rate from %lu to %lu Hz",
              (unsigned long)current_sample_rate, (unsigned long)sample_rate);
+
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    // Mute the DAC across the MCLK change: the ES8388 auto-derives its
+    // MCLK/LRCLK ratio and its internal state glitches while the clocks
+    // move — without this, audio after the switch carried distortion
+    // until the next full codec re-init (a fresh boot was always clean).
+    codec.DACmute(true);
+#endif
 
     esp_err_t dis_tx = i2s_channel_disable(tx_handle);
     esp_err_t dis_rx = i2s_channel_disable(rx_handle);
@@ -80,6 +96,12 @@ void Codec::SetSampleRate(uint32_t sample_rate) {
 
     if (err_tx == ESP_OK && err_rx == ESP_OK && en_tx == ESP_OK && en_rx == ESP_OK) {
         current_sample_rate = sample_rate;
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+        // Re-run the ES8388 register sequence for the new MCLK: its
+        // auto-ratio detection re-locks cleanly from a known register
+        // state. DACmute(false) inside init() unmutes.
+        codec.init();
+#endif
         ESP_LOGI("BBA Codec", "I2S clock reconfigured to %lu Hz successfully", (unsigned long)sample_rate);
     } else {
         ESP_LOGE("BBA Codec", "Failed to reconfigure I2S clock: tx=%d rx=%d en_tx=%d en_rx=%d",
@@ -261,8 +283,11 @@ void IRAM_ATTR Codec::ReadBuffer(float *buf, uint32_t sz) {
     size_t nb = 0;
     const float div = 3.0518509476E-5f;
     // 16 bit word config stereo
-    esp_err_t err = i2s_channel_read(rx_handle, tmp, sz*2*2, &nb, pdMS_TO_TICKS(100));
+    // Timeout in MILLISECONDS (the v6.1 driver converts internally —
+    // pdMS_TO_TICKS here collapsed it to 1 tick and dropped blocks).
+    esp_err_t err = i2s_channel_read(rx_handle, tmp, sz*2*2, &nb, 100);
     if (err != ESP_OK || nb == 0) {
+        s_i2sReadErrors.fetch_add(1, std::memory_order_relaxed);
         memset(buf, 0, sz * 2 * sizeof(float));
         return;
     }
@@ -277,8 +302,9 @@ void IRAM_ATTR Codec::ReadBuffer(float *buf, uint32_t sz) {
     size_t nb = 0;
     const float div = 1.0f / 2147483648.0f;
     // 32 bit word config stereo
-    esp_err_t err = i2s_channel_read(rx_handle, tmp, sz*2*4, &nb, pdMS_TO_TICKS(100));
+    esp_err_t err = i2s_channel_read(rx_handle, tmp, sz*2*4, &nb, 100);
     if (err != ESP_OK || nb == 0) {
+        s_i2sReadErrors.fetch_add(1, std::memory_order_relaxed);
         memset(buf, 0, sz * 2 * sizeof(float));
         return;
     }
@@ -288,6 +314,14 @@ void IRAM_ATTR Codec::ReadBuffer(float *buf, uint32_t sz) {
         sz--;
     }
 #endif
+}
+
+uint32_t Codec::DebugI2sReadErrors() {
+    return s_i2sReadErrors.load(std::memory_order_relaxed);
+}
+
+uint32_t Codec::DebugI2sWriteErrors() {
+    return s_i2sWriteErrors.load(std::memory_order_relaxed);
 }
 
 void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
@@ -307,7 +341,12 @@ void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
         tmp2 = MIN(tmp2, 32767);
         tmp[i * 2 + 1] = tmp2;
     }
-    i2s_channel_write(tx_handle, tmp, sz*2*2, &nb, pdMS_TO_TICKS(100));
+    // Timeout in MILLISECONDS (see ReadBuffer). The result is CHECKED: an
+    // unchecked 1-tick timeout silently dropped whole blocks of audio.
+    esp_err_t err = i2s_channel_write(tx_handle, tmp, sz*2*2, &nb, 100);
+    if (err != ESP_OK || nb != (size_t)(sz * 2 * 2)) {
+        s_i2sWriteErrors.fetch_add(1, std::memory_order_relaxed);
+    }
 #else
     int32_t tmp[sz * 2];
     int32_t tmp2;
@@ -324,6 +363,9 @@ void IRAM_ATTR Codec::WriteBuffer(float *buf, uint32_t sz) {
         tmp2 = MIN(tmp2, 2147483647);
         tmp[i * 2 + 1] = tmp2;
     }
-    i2s_channel_write(tx_handle, tmp, sz*2*4, &nb, pdMS_TO_TICKS(100));
+    esp_err_t err = i2s_channel_write(tx_handle, tmp, sz*2*4, &nb, 100);
+    if (err != ESP_OK || nb != (size_t)(sz * 2 * 4)) {
+        s_i2sWriteErrors.fetch_add(1, std::memory_order_relaxed);
+    }
 #endif
 }

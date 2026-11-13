@@ -65,6 +65,13 @@ namespace CTAG {
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
 
+            // Dropped/failed block transfers: the v6.1 i2s driver timeout is
+            // in MILLISECONDS — the pdMS_TO_TICKS(100) argument collapsed to
+            // 1 tick and any read/write that blocked across that boundary
+            // timed out with the samples silently dropped.
+            static uint32_t DebugI2sReadErrors();
+            static uint32_t DebugI2sWriteErrors();
+
         private:
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
             static es8388 codec;

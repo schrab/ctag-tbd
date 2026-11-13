@@ -152,8 +152,11 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
                 loopHistSeq.load(std::memory_order_relaxed) & (kLoopHistLen - 1);
             loopHist[slot] = static_cast<uint16_t>(period10);
             loopHistSeq.fetch_add(1, std::memory_order_relaxed);
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
-            if (period10 > 29) { // > 2.9 ms: TX DMA horizon exceeded
+#if defined(CONFIG_TBD_PLATFORM_BBA)
+            // 4 desc x 32 frames = the DMA horizon: 2.9 ms @ 44.1 kHz,
+            // 4.0 ms @ 32 kHz. A loop past the horizon means the I2S TX
+            // DMA ran ahead of the task into empty descriptors.
+            if (period10 > 1280000 / (int)DRIVERS::Codec::GetSampleRate()) {
                 diagI2sLoopOver.fetch_add(1, std::memory_order_relaxed);
             }
 #endif
@@ -174,11 +177,11 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
         // get normalized raw data from CODEC
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
         const int64_t w1 = esp_timer_get_time();
 #endif
         DRIVERS::Codec::ReadBuffer(fbuf, BUF_SZ);
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
         if (esp_timer_get_time() - w1 > 1667) {
             diagI2sStallRd.fetch_add(1, std::memory_order_relaxed);
         }
@@ -435,11 +438,11 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         }
 
         // write raw float data back to CODEC
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
         const int64_t w3 = esp_timer_get_time();
 #endif
         DRIVERS::Codec::WriteBuffer(fbuf, BUF_SZ);
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
         if (esp_timer_get_time() - w3 > 1667) {
             diagI2sStallWr.fetch_add(1, std::memory_order_relaxed);
         }
@@ -582,7 +585,7 @@ atomic<uint32_t> SoundProcessorManager::requestedSampleRate{44100};
 atomic<uint32_t> SoundProcessorManager::ch0_outputSoftClip;
 atomic<uint32_t> SoundProcessorManager::ch1_outputSoftClip;
 atomic<bool> SoundProcessorManager::meteringEnabled{false};
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
 atomic<uint32_t> SoundProcessorManager::diagI2sStallRd{0};
 atomic<uint32_t> SoundProcessorManager::diagI2sStallWr{0};
 atomic<uint32_t> SoundProcessorManager::diagI2sLoopOver{0};

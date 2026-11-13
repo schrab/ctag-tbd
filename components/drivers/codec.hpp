@@ -80,10 +80,11 @@ namespace CTAG {
             static void SetInputGain(int gain);
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+            // DMA health: dropped/failed block transfers (the classic ESP32
+            // codec counts the v6.1 1-tick write-timeout drops here; BBA2
+            // counts short/failed transfers).
             static uint32_t DebugI2sReadErrors();
             static uint32_t DebugI2sWriteErrors();
-#endif
 #else
             static void SetSampleRate(uint32_t sample_rate) {}
             static uint32_t GetSampleRate() { return 44100; }

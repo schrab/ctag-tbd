@@ -122,7 +122,7 @@ namespace CTAG {
                 return static_cast<uint32_t>(uxTaskGetStackHighWaterMark(audioTaskH))
                        * sizeof(StackType_t);
             }
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
             static uint32_t GetDiagStallRd() {
                 return diagI2sStallRd.load(std::memory_order_relaxed);
             }
@@ -266,7 +266,7 @@ namespace CTAG {
             static atomic<uint32_t> ch0_outputSoftClip;
             static atomic<uint32_t> ch1_outputSoftClip;
             static atomic<bool> meteringEnabled;
-#if defined(CONFIG_TBD_PLATFORM_BBA2)
+#if defined(CONFIG_TBD_PLATFORM_BBA)
             static atomic<uint32_t> diagI2sStallRd;
             static atomic<uint32_t> diagI2sStallWr;
             static atomic<uint32_t> diagI2sLoopOver;
