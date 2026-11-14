@@ -405,6 +405,9 @@ namespace CTAG {
                 // Debug-only equivalent of a UI parameter edit. The DSP reads
                 // the same atomics as a real edit, so this is suitable for
                 // reproducible CPU/audio sweeps without fighting the encoder.
+                // Optional "key": "current" (default) | "cv" | "trig" — the
+                // same set SetChannelParamValue routes, so modulation
+                // mappings are bench-writable too (no menu diving).
                 if (!d.HasMember("id") || !d["id"].IsString() ||
                     !d.HasMember("value") || !d["value"].IsInt()) {
                     response = cmdEcho + ",\"error\":\"missing id/value\"}";
@@ -416,8 +419,16 @@ namespace CTAG {
                     response = cmdEcho + ",\"error\":\"bad channel\"}";
                     return true;
                 }
+                string key = "current";
+                if (d.HasMember("key") && d["key"].IsString()) {
+                    key = d["key"].GetString();
+                }
+                if (key != "current" && key != "cv" && key != "trig") {
+                    response = cmdEcho + ",\"error\":\"bad key\"}";
+                    return true;
+                }
                 AUDIO::SoundProcessorManager::SetChannelParamValue(
-                    ch, d["id"].GetString(), "current", d["value"].GetInt());
+                    ch, d["id"].GetString(), key, d["value"].GetInt());
                 response = cmdEcho + ",\"ok\":1}";
                 return true;
             }
