@@ -28,6 +28,7 @@ respective component folders / files if different from this license.
 #include "DebugUI.hpp"
 #include "SPManager.hpp"
 #include "LinkEndpoint.hpp"
+#include "esp_system.h" // esp_reset_reason — crash classification over the bench
 #include "codec.hpp"
 #include "SDAudio.hpp"
 #include "perf_monitor.hpp"
@@ -99,7 +100,26 @@ namespace CTAG {
                 // Audio-task stack high-water mark plus the most recent
                 // per-block CPU-overload flag. stackHighWater is the
                 // minimum-ever-free stack in bytes (0 before the task exists).
-                response = cmdEcho + ",\"stackHighWater\":" +
+                // rstReason: the CURRENT boot's reset cause (RTC-stored,
+                // survives the reboot) — the silent-crash classifier: the
+                // ROM banner is lost to USB re-enumeration latency, but the
+                // reason is readable any time afterwards. esp_reset_reason_t
+                // order (esp_system.h): 0=unknown 1=poweron 2=ext 3=sw
+                // 4=panic 5=int_wdt 6=task_wdt 7=wdt 8=deepsleep 9=brownout
+                // 10=sdio 11=usb 12=jtag 13=efuse 14=pwr_glitch 15=cpu_lockup.
+                // NOTE: esptool RTS resets on the S3 USJ read as 11 (usb) —
+                // that is the FLASH-RESET BASELINE, not a crash.
+                static const char *kRstNames[] = {
+                    "unknown", "poweron", "ext", "sw", "panic", "int_wdt",
+                    "task_wdt", "wdt", "deepsleep", "brownout", "sdio", "usb",
+                    "jtag", "efuse", "pwr_glitch", "cpu_lockup"};
+                int rst = (int)esp_reset_reason();
+                const char *rstName =
+                    (rst >= 0 && rst < (int)(sizeof(kRstNames) / sizeof(*kRstNames)))
+                        ? kRstNames[rst] : "?";
+                response = cmdEcho + ",\"rstReason\":" + to_string(rst) +
+                           ",\"rstName\":\"" + rstName + "\"," +
+                           "\"stackHighWater\":" +
                            to_string(AUDIO::SoundProcessorManager::GetAudioStackHighWaterBytes()) +
                            ",\"cpuOverload\":" +
                            to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0) +
