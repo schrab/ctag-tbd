@@ -102,9 +102,9 @@ bool FileSystem::InitSD() {
     static bool s_spi_bus_ready = false;
     if (!s_spi_bus_ready) {
         spi_bus_config_t bus_cfg = {};
-        bus_cfg.mosi_io_num = 14; // MOSI -> card CMD/DI
-        bus_cfg.miso_io_num = 21; // MISO <- card D0/DO
-        bus_cfg.sclk_io_num = 13; // SCK
+        bus_cfg.mosi_io_num = 21; // MOSI -> card CMD/DI
+        bus_cfg.miso_io_num = 48; // MISO <- card D0/DO
+        bus_cfg.sclk_io_num = 47; // SCK
         bus_cfg.quadwp_io_num = -1;
         esp_err_t bus_ret = spi_bus_initialize(SPI2_HOST, &bus_cfg, SDSPI_DEFAULT_DMA);
         if (bus_ret != ESP_OK && bus_ret != ESP_ERR_INVALID_STATE) {
@@ -117,7 +117,7 @@ bool FileSystem::InitSD() {
     sdmmc_host_t host = SDSPI_HOST_DEFAULT(); // SPI2_HOST, 20 MHz default
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.host_id = SPI2_HOST;
-    slot_config.gpio_cs = GPIO_NUM_47;
+    slot_config.gpio_cs = GPIO_NUM_14;
     slot_config.gpio_cd = SDSPI_SLOT_NO_CD; // no CD pin — presence = mount state
     slot_config.gpio_wp = SDSPI_SLOT_NO_WP;
 
