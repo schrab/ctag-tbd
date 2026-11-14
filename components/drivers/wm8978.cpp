@@ -129,12 +129,23 @@ bool wm8978::inputSelect(Input sel) {
         r47 |= (5 << 4);
         r48 |= (5 << 4);
     } else {
-        // Mic: LIP/LIN into the PGA, PGA enabled, boost on (mono mic needs it).
-        r44 |= 0x11; // LIP2INPPGA | RIP2INPPGA (bits 4 and 0)
+        // Mic: electret biased from MICBIAS into LIP with LIN AC-coupled to
+        // ground (board wiring). Datasheet v4.5: R1 bit4 MICBEN powers the
+        // bias (Table 10 — without it the electret produces nothing); R44
+        // must connect BOTH PGA terminals (bits 0/1 LIP+LIN, 4/5 RIP+RIN,
+        // Table 5) so the inverting input terminates to the internal VMID
+        // bias instead of floating; PGA->boost stays on bit 8.
+        uint16_t r1 = _regs[1] | 0x010; // MICBEN
+        r44 |= 0x33; // LIP2INPPGA | LIN2INPPGA | RIP2INPPGA | RIN2INPPGA
         r2 |= 0x00C; // both PGAs enabled
         r47 |= 0x100;
         r48 |= 0x100;
         setInputGain(40); // sane default ~+18 dB, MIX page adjusts from here
+        bool ok = write_reg(1, r1);
+        ok = write_reg(44, r44) && ok;
+        ok = write_reg(2, r2) && ok;
+        ok = write_reg(47, r47) && ok;
+        return write_reg(48, r48) && ok;
     }
     bool ok = write_reg(44, r44);
     ok = write_reg(2, r2) && ok;

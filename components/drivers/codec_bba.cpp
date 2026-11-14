@@ -291,6 +291,20 @@ bool Codec::DebugReadReg(uint8_t reg, uint8_t &val) {
 #endif
 }
 
+bool Codec::DebugWriteReg(uint8_t reg, uint16_t val, uint16_t &readback) {
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    if (val > 0xFF) return false; // ES8388 registers are 8-bit
+    if (!codec.write_reg(reg, static_cast<uint8_t>(val))) return false;
+    readback = codec.debugReadReg(reg);
+    return true;
+#else
+    (void)reg;
+    (void)val;
+    readback = 0;
+    return false;
+#endif
+}
+
 void IRAM_ATTR Codec::ReadBuffer(float *buf, uint32_t sz) {
 #ifdef CONFIG_TBD_BBA_CODEC_ES8388
     int16_t tmp[sz * 2];

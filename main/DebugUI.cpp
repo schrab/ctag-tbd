@@ -442,6 +442,32 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/setCodecReg") {
+                // Bench register write for input-routing sweeps (mic hunt):
+                // writes through the shadowed register layer and echoes the
+                // full readback. WM8978 regs are 9-bit (val <= 0x1FF);
+                // ES8388 rejects > 0xFF.
+                if (!d.HasMember("reg") || !d["reg"].IsInt() ||
+                    !d.HasMember("val") || !d["val"].IsInt()) {
+                    response = cmdEcho + ",\"error\":\"missing reg/val\"}";
+                    return true;
+                }
+                int reg = d["reg"].GetInt();
+                int val = d["val"].GetInt();
+                if (reg < 0 || reg > 0xFF || val < 0 || val > 0x1FF) {
+                    response = cmdEcho + ",\"error\":\"bad reg/val\"}";
+                    return true;
+                }
+                uint16_t rb = 0;
+                bool ok = DRIVERS::Codec::DebugWriteReg(
+                    static_cast<uint8_t>(reg), static_cast<uint16_t>(val), rb);
+                response = cmdEcho + ",\"reg\":" + to_string(reg)
+                           + ",\"wrote\":" + to_string(val)
+                           + ",\"readback\":" + to_string(rb)
+                           + ",\"ok\":" + (ok ? "1" : "0") + "}";
+                return true;
+            }
+
             if (s == "/debug/getConfig") {
                 // The stored configuration object, returned as an escaped JSON
                 // *string* so the reply is one flat object; the host unescapes

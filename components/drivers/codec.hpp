@@ -80,6 +80,10 @@ namespace CTAG {
             static void SetInputGain(int gain);
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
+            // Bench register write (mic-routing sweeps): writes via the
+            // codec's shadowed register layer and reads the 9-bit shadow
+            // back. ES8388 restricts to 8-bit values.
+            static bool DebugWriteReg(uint8_t reg, uint16_t val, uint16_t &readback);
             // DMA health: dropped/failed block transfers (the classic ESP32
             // codec counts the v6.1 1-tick write-timeout drops here; BBA2
             // counts short/failed transfers).

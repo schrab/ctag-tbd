@@ -31,6 +31,9 @@ namespace CTAG {
             static void SetInputGain(int gain);
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
+            // Bench register write (mic-routing sweeps): shadowed write +
+            // full 9-bit shadow readback.
+            static bool DebugWriteReg(uint8_t reg, uint16_t val, uint16_t &readback);
             static uint32_t DebugI2sReadErrors();
             static uint32_t DebugI2sWriteErrors();
 

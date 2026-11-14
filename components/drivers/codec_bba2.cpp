@@ -246,3 +246,10 @@ bool Codec::DebugReadReg(uint8_t reg, uint8_t &val) {
     val = (uint8_t)(v & 0xFF); // low 8 bits; DebugUI displays hex — fine
     return true;
 }
+
+bool Codec::DebugWriteReg(uint8_t reg, uint16_t val, uint16_t &readback) {
+    if (!codec.writeReg(reg, val)) return false;
+    readback = 0;
+    codec.debugReadReg(reg, readback); // full 9-bit shadow echo
+    return true;
+}
