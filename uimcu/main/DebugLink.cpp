@@ -144,6 +144,25 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/getPresetsCached") {
+                // C3-LOCAL: the presets list the DSP pushed for a channel
+                // (kMsgPushPresets cache). Reliable — no DSP round trip; the
+                // forwarded /debug/getPresets variant loses its reply on the
+                // link (same class as getAudioCapture).
+                int ch = 0;
+                d.Parse(doc);
+                if (!d.HasParseError() && d.HasMember("ch") && d["ch"].IsInt())
+                    ch = d["ch"].GetInt();
+                if (ch < 0 || ch > 1) {
+                    response = "{\"error\":\"bad channel\"}";
+                    return true;
+                }
+                response = string("{\"ch\":") + to_string(ch)
+                           + ",\"presets\":" + DspProxy::GetCStrJSONGetPresets(ch)
+                           + "}";
+                return true;
+            }
+
             if (s == "/debug/getDisplayFramebuffer") {
                 const int fbsz = DRIVERS::Display::FRAMEBUFFER_SIZE;
                 static uint8_t fbBuf[DRIVERS::Display::FRAMEBUFFER_SIZE];

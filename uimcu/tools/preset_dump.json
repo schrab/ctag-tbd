@@ -1,0 +1,40 @@
+{
+ "active": [
+  "TBDings",
+  "Void"
+ ],
+ "presets0": {
+  "activePresetNumber": 3,
+  "presets": [
+   {
+    "name": "Default",
+    "number": 0
+   },
+   {
+    "name": "Hajewuna Bahenores",
+    "number": 1
+   },
+   {
+    "name": "Reba Zicedaga",
+    "number": 2
+   },
+   {
+    "name": "Jasudodu Farir",
+    "number": 3
+   },
+   {
+    "name": "Hatuluri Gamuwilas",
+    "number": 4
+   },
+   {
+    "name": "Yejegahet Balore",
+    "number": 5
+   },
+   {
+    "name": "Moyamo Feve",
+    "number": 6
+   }
+  ]
+ },
+ "presets1": {}
+}
