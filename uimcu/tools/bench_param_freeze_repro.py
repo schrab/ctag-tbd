@@ -32,7 +32,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from screenshot import open_port, request, wait_ready  # noqa: E402
+from screenshot import open_port, wait_ready  # noqa: E402
 
 
 def detect_c3_port():
@@ -104,6 +104,54 @@ def detect_c3_port():
         signal.signal(signal.SIGALRM, old)
     return None
 
+STX, ETX = 0x02, 0x03
+
+
+def raw_request(s, cmd_obj: dict, timeout: float = 3.0, retries: int = 2) -> dict:
+    """screenshot.request with raw-byte capture: the C3 console spews panic
+    traces (Guru Meditation + backtrace) as non-frame bytes, which the
+    frame parser otherwise silently discards. Anything outside STX..ETX
+    is logged verbatim — a C3 crash lands here with its backtrace."""
+    last_err = None
+    for attempt in range(retries + 1):
+        seq = int(time.time() * 1000) & 0x7FFFFFFF
+        cmd_obj = dict(cmd_obj, seq=seq)
+        payload = json.dumps(cmd_obj, separators=(",", ":")).encode()
+        try:
+            s.write(bytes([STX]) + payload + bytes([ETX]))
+        except Exception as e:
+            raise TimeoutError(f"port write failed: {e}") from e
+        end = time.time() + timeout
+        buf = bytearray()
+        in_frame = False
+        raw = bytearray()
+        while time.time() < end:
+            chunk = s.read(256)
+            for ch in chunk or b"":
+                if ch == STX:
+                    in_frame = True
+                    buf.clear()
+                elif ch == ETX:
+                    if not in_frame:
+                        continue
+                    if raw:
+                        print("  [RAW] " + raw.decode(errors="replace").strip())
+                        raw.clear()
+                    reply = json.loads(bytes(buf).decode(errors="replace"))
+                    if reply.get("seq") == seq:
+                        return reply
+                    in_frame = False
+                elif in_frame:
+                    buf.append(ch)
+                else:
+                    raw.append(ch)
+        if raw:
+            print("  [RAW] " + raw.decode(errors="replace").strip())
+        last_err = TimeoutError(f"no reply to {cmd_obj['cmd']}")
+        time.sleep(0.3)
+    raise last_err
+
+
 STAT_KEYS = ["vuInL", "vuInR", "vuOutL", "vuOutR", "audioCycles",
              "cpuOverload", "diagStallRd", "diagStallWr", "diagLoopOver",
              "i2sErrR", "i2sErrW", "stackHighWater"]
@@ -111,12 +159,12 @@ CODEC_REGS = [5, 6, 52, 53]  # DAC mute L/R, output volume L/R (shadow)
 
 
 def stats(s):
-    r = request(s, {"cmd": "/debug/getAudioStats"}, timeout=5.0)
+    r = raw_request(s, {"cmd": "/debug/getAudioStats"}, timeout=5.0)
     return {k: r.get(k) for k in STAT_KEYS}
 
 
 def loop_hist(s, n=16):
-    r = request(s, {"cmd": "/debug/getLoopHist", "len": n}, timeout=5.0)
+    r = raw_request(s, {"cmd": "/debug/getLoopHist", "len": n}, timeout=5.0)
     return r.get("hist") or r.get("data") or []
 
 
@@ -138,19 +186,19 @@ def snapshot(s, param_id):
     h = loop_hist(s, 64)
     print(f"  loopHist64={h}")
     for reg in CODEC_REGS:
-        r = request(s, {"cmd": "/debug/getCodecReg", "reg": reg}, timeout=5.0)
+        r = raw_request(s, {"cmd": "/debug/getCodecReg", "reg": reg}, timeout=5.0)
         print(f"  codec R{reg}={r.get('value')} (ok={r.get('ok')})")
-    st = request(s, {"cmd": "/debug/getProxyState"}, timeout=6.0)
+    st = raw_request(s, {"cmd": "/debug/getProxyState"}, timeout=6.0)
     print(f"  proxyState: active0={st.get('active0')} active1={st.get('active1')} "
           f"rate={st.get('rate')} sq={st.get('sq')}")
     try:
-        cfg = request(s, {"cmd": "/debug/getConfig"}, timeout=6.0)
+        cfg = raw_request(s, {"cmd": "/debug/getConfig"}, timeout=6.0)
         raw = json.dumps(cfg)
         print(f"  config: {raw[:400]}")
     except Exception as e:
         print(f"  config read failed: {e}")
     if param_id:
-        p = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": param_id},
+        p = raw_request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": param_id},
                     timeout=5.0)
         print(f"  param ch0 {param_id}: {p.get('param', p)}")
     a2 = stats(s)
@@ -176,7 +224,25 @@ def poll_loop(s, stop_check, tag="poll"):
           f"(park the panel on MIX page to arm vuOut)")
     while not stop_check():
         time.sleep(0.65)
-        cur = stats(s)
+        # C3-local health probe first: it answers even while the DSP is
+        # offline, so a failure here = C3 console stall (crash/reboot);
+        # getAudioStats failing while this answers = DSP link bounce.
+        try:
+            ui = raw_request(s, {"cmd": "/debug/getUiState"}, timeout=2.0)
+            ui_sig = (ui.get("panel"), ui.get("nav"), ui.get("stackFree"))
+            if ui_sig != poll_loop.last_ui:
+                print(f"[{tag}] uiState: panel={ui_sig[0]} nav={ui_sig[1]} "
+                      f"stackFree={ui_sig[2]}")
+                poll_loop.last_ui = ui_sig
+        except Exception as e:
+            print(f"[{tag}] !! C3 local getUiState FAILED: {e} "
+                  f"(C3 console stall — crash/reboot?)")
+        try:
+            cur = stats(s)
+        except Exception as e:
+            print(f"[{tag}] !! getAudioStats FAILED: {e} "
+                  f"(DSP offline or C3 relay stalled)")
+            continue
         delta_print(tag, prev, cur)
         prev = cur
         now = time.time()
@@ -187,6 +253,8 @@ def poll_loop(s, stop_check, tag="poll"):
                 prev_hist = h
             last_hist_t = now
         yield cur
+
+poll_loop.last_ui = None
 
 
 class FreezeWatcher:
@@ -214,9 +282,9 @@ class FreezeWatcher:
 
 
 def read_param_range(s, param_id):
-    st = request(s, {"cmd": "/debug/getProxyState"}, timeout=6.0)
+    st = raw_request(s, {"cmd": "/debug/getProxyState"}, timeout=6.0)
     print(f"  active: ch0={st.get('active0')} ch1={st.get('active1')}")
-    r = request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": param_id},
+    r = raw_request(s, {"cmd": "/debug/getPluginParams", "ch": 0, "id": param_id},
                 timeout=5.0)
     if r.get("error"):
         print(f"  FATAL: {param_id} not on ch0 ({r.get('error')}) — load the "
@@ -235,7 +303,7 @@ def sweep(s, args):
     param_id = args.param
     watcher = FreezeWatcher()
     if args.load:
-        r = request(s, {"cmd": "/debug/setActivePlugin", "ch": 0, "id": args.load},
+        r = raw_request(s, {"cmd": "/debug/setActivePlugin", "ch": 0, "id": args.load},
                     timeout=10.0)
         print(f"  load ch0 {args.load} -> {r}")
         time.sleep(2.0)
@@ -256,7 +324,7 @@ def sweep(s, args):
             if val == cur_val:
                 continue
             cur_val = val
-            request(s, {"cmd": "/debug/setPluginParam", "ch": 0,
+            raw_request(s, {"cmd": "/debug/setPluginParam", "ch": 0,
                         "id": param_id, "value": val}, timeout=5.0)
             t_end = time.time() + args.dwell
             while time.time() < t_end:
