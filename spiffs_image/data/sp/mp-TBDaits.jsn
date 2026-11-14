@@ -16,7 +16,7 @@
         },
         {
           "id": "frequency",
-          "current": 2047,
+          "current": 512,
           "cv": -1
         },
         {
