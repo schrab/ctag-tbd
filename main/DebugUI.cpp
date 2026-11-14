@@ -42,6 +42,10 @@ respective component folders / files if different from this license.
 #include "esp_err.h"
 #include "driver/uart.h"
 #include <cstdio>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <vector>
+#include "ctagResources.hpp"
 #include <cstring>
 #include <cstdarg>
 #include <unistd.h>
@@ -462,6 +466,87 @@ namespace CTAG {
                 const char *data = AUDIO::SoundProcessorManager::GetCStrJSONAllPresetData(ch);
                 response = cmdEcho + ",\"ch\":" + to_string(ch) +
                            ",\"presetData\":" + (data ? data : "{}");
+                return true;
+            }
+
+            if (s == "/debug/listFiles") {
+                // POSIX dir listing (names + sizes) for the preset backup —
+                // reads the SPIFFS store DIRECTLY, no plugin loads needed.
+                string dir = CTAG::RESOURCES::spiffsRoot + "/data/sp";
+                if (d.HasMember("dir") && d["dir"].IsString())
+                    dir = d["dir"].GetString();
+                DIR *dp = opendir(dir.c_str());
+                if (dp == nullptr) {
+                    response = cmdEcho + ",\"error\":\"opendir failed\"}";
+                    return true;
+                }
+                response = cmdEcho + ",\"files\":[";
+                struct dirent *ent;
+                bool first = true;
+                while ((ent = readdir(dp)) != nullptr) {
+                    string full = dir + "/" + ent->d_name;
+                    struct stat st{};
+                    if (stat(full.c_str(), &st) != 0 || S_ISDIR(st.st_mode))
+                        continue;
+                    if (!first) response += ",";
+                    response += "{\"name\":\"" + string(ent->d_name) +
+                                "\",\"size\":" + to_string(st.st_size) + "}";
+                    first = false;
+                }
+                closedir(dp);
+                response += "]}";
+                return true;
+            }
+
+            if (s == "/debug/readFileChunk") {
+                // Chunked file read (hex-encoded) — relay-safe slices for
+                // pulling SPIFFS preset files byte-exact.
+                if (!d.HasMember("path") || !d["path"].IsString() ||
+                    !d.HasMember("offset") || !d["offset"].IsInt() ||
+                    !d.HasMember("len") || !d["len"].IsInt()) {
+                    response = cmdEcho + ",\"error\":\"missing path/offset/len\"}";
+                    return true;
+                }
+                string path = d["path"].GetString();
+                if (path.find(CTAG::RESOURCES::spiffsRoot) != 0) {
+                    response = cmdEcho + ",\"error\":\"path outside spiffs root\"}";
+                    return true;
+                }
+                long off = d["offset"].GetInt();
+                int len = d["len"].GetInt();
+                if (len <= 0 || len > 512) {
+                    response = cmdEcho + ",\"error\":\"bad len (1..512)\"}";
+                    return true;
+                }
+                FILE *fp = fopen(path.c_str(), "rb");
+                if (fp == nullptr) {
+                    response = cmdEcho + ",\"error\":\"open failed\"}";
+                    return true;
+                }
+                fseek(fp, 0, SEEK_END);
+                long fsize = ftell(fp);
+                if (off >= fsize) {
+                    fclose(fp);
+                    response = cmdEcho + ",\"size\":" + to_string(fsize) +
+                               ",\"hex\":\"\"}";
+                    return true;
+                }
+                if (off + len > fsize) len = static_cast<int>(fsize - off);
+                fseek(fp, off, SEEK_SET);
+                vector<char> buf(len);
+                size_t got = fread(buf.data(), 1, len, fp);
+                fclose(fp);
+                static const char *hexd = "0123456789abcdef";
+                string hex;
+                hex.reserve(got * 2);
+                for (size_t i = 0; i < got; i++) {
+                    hex += hexd[(buf[i] >> 4) & 0xF];
+                    hex += hexd[buf[i] & 0xF];
+                }
+                response = cmdEcho + ",\"size\":" + to_string(fsize) +
+                           ",\"offset\":" + to_string(off) +
+                           ",\"got\":" + to_string(got) +
+                           ",\"hex\":\"" + hex + "\"}";
                 return true;
             }
 
