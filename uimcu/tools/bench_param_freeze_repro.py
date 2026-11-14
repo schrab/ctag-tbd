@@ -27,6 +27,7 @@ import glob
 import json
 import os
 import select
+import signal
 import sys
 import time
 
@@ -37,48 +38,70 @@ from screenshot import open_port, request, wait_ready  # noqa: E402
 def detect_c3_port():
     """Port roles flip across sessions — the C3 is whichever ACM port
     answers a framed getUiState within ~0.3 s (2026-11-15: ttyACM0 = S3,
-    whose USJ console never drains RX; a write into it BLOCKS)."""
+    whose USJ console never drains RX; a write into it can BLOCK past
+    write_timeout once the kernel tty buffer fills — the SIGALRM cap is
+    the only reliable guard). Probe the last-known-good port first."""
     import serial
     STX, ETX = 0x02, 0x03
-    for path in sorted(glob.glob("/dev/ttyACM*")):
-        print(f"  probing {path}...", flush=True)
-        try:
-            s = serial.Serial(port=path, baudrate=115200, timeout=0.1,
-                              write_timeout=0.5)
-            s.dtr = True
-            s.rts = True
-        except Exception as e:
-            print(f"  {path}: open failed ({e})")
-            continue
-        time.sleep(0.2)
-        s.reset_input_buffer()
-        payload = json.dumps({"cmd": "/debug/getUiState", "seq": 77},
-                             separators=(",", ":")).encode()
-        try:
-            s.write(bytes([STX]) + payload + bytes([ETX]))
-        except Exception:
-            s.close()
-            print(f"  {path}: write blocked/timed out — DSP console, skipping")
-            continue
-        deadline = time.time() + 0.5
-        buf = bytearray()
-        in_frame = False
-        ok = False
-        while time.time() < deadline:
-            for ch in s.read(256) or b"":
-                if ch == STX:
-                    in_frame, buf = True, bytearray()
-                elif ch == ETX and in_frame:
-                    ok = b"panelName" in buf or b"nav" in buf
-                    break
-                elif in_frame:
-                    buf.append(ch)
+
+    class _ProbeTimeout(Exception):
+        pass
+
+    def _alarm(signum, frame):
+        raise _ProbeTimeout()
+
+    known_good = "/dev/ttyACM1"
+    paths = sorted(glob.glob("/dev/ttyACM*"))
+    if known_good in paths:
+        paths.remove(known_good)
+        paths.insert(0, known_good)
+    old = signal.signal(signal.SIGALRM, _alarm)
+    try:
+        for path in paths:
+            print(f"  probing {path}...", flush=True)
+            try:
+                s = serial.Serial(port=path, baudrate=115200, timeout=0.1,
+                                  write_timeout=0.5)
+                s.dtr = True
+                s.rts = True
+            except Exception as e:
+                print(f"  {path}: open failed ({e})")
+                continue
+            time.sleep(0.2)
+            s.reset_input_buffer()
+            payload = json.dumps({"cmd": "/debug/getUiState", "seq": 77},
+                                 separators=(",", ":")).encode()
+            ok = False
+            buf = bytearray()
+            in_frame = False
+            signal.alarm(3)  # hard cap: a wedged port can block the write
+            try:
+                s.write(bytes([STX]) + payload + bytes([ETX]))
+                deadline = time.time() + 0.6
+                while time.time() < deadline:
+                    for ch in s.read(256) or b"":
+                        if ch == STX:
+                            in_frame, buf = True, bytearray()
+                        elif ch == ETX and in_frame:
+                            ok = b"panelName" in buf or b"nav" in buf
+                            break
+                        elif in_frame:
+                            buf.append(ch)
+                    if ok:
+                        break
+            except (_ProbeTimeout, Exception) as e:
+                print(f"  {path}: {'write blocked (alarm)' if isinstance(e, _ProbeTimeout) else e}")
+            finally:
+                signal.alarm(0)
+                try:
+                    s.close()
+                except Exception:
+                    pass
+            print(f"  {path}: {'C3 panel' if ok else 'no C3 reply'}")
             if ok:
-                break
-        s.close()
-        print(f"  {path}: {'C3 panel' if ok else 'no C3 reply'}")
-        if ok:
-            return path
+                return path
+    finally:
+        signal.signal(signal.SIGALRM, old)
     return None
 
 STAT_KEYS = ["vuInL", "vuInR", "vuOutL", "vuOutR", "audioCycles",
@@ -141,6 +164,9 @@ def snapshot(s, param_id):
 
 
 def poll_loop(s, stop_check, tag="poll"):
+    # Poll cadence is a C3-safety knob: getAudioStats replies are ~900 B and
+    # sustained big-reply relay traffic crashes the C3 at its heap ceiling
+    # (2026-11-15: one UI reboot during 3 Hz polling). ~1.5 Hz is the pace.
     prev = stats(s)
     print(f"[{tag}] baseline: {prev}")
     prev_hist = loop_hist(s)
@@ -149,7 +175,7 @@ def poll_loop(s, stop_check, tag="poll"):
     print(f"[{tag}] metering {'ARMED' if armed else 'not armed'} "
           f"(park the panel on MIX page to arm vuOut)")
     while not stop_check():
-        time.sleep(0.35)
+        time.sleep(0.65)
         cur = stats(s)
         delta_print(tag, prev, cur)
         prev = cur
@@ -289,13 +315,17 @@ def main():
             print("POLL MODE: drive the panel; press Enter at the freeze "
                   "for the snapshot, Ctrl-C to stop.")
             watcher = FreezeWatcher()
+            interactive = sys.stdin.isatty()
+            if not interactive:
+                print("(headless: Enter-snapshot disabled, auto-detect only)")
             try:
                 for a in poll_loop(s, lambda: False):
                     verdict = watcher.feed(a)
                     if verdict:
                         print("  AUTO-SNAPSHOT: {v} (verify by ear!)".format(v=verdict))
                         snapshot(s, args.param)
-                    if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                    if interactive and sys.stdin in \
+                            select.select([sys.stdin], [], [], 0)[0]:
                         sys.stdin.readline()
                         snapshot(s, args.param)
             except KeyboardInterrupt:
