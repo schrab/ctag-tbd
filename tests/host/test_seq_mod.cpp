@@ -413,6 +413,32 @@ TEST(engine_arp_pitch_seed_no_slam) {
     CHECK_NEAR(cv[104], 0.0, 0.001);
 }
 
+TEST(engine_arp_pitch_absolute_root_independent) {
+    // The pitch CV is ABSOLUTE: cv = (note - 48)/12*0.2. The sounding pitch
+    // must match the arp's actual MIDI notes for ANY root — a root change
+    // (manual or W7/Neo drift) must transpose the notes, not the CV
+    // reference (the plugin bases are anchored at C3).
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 0);
+    CTAG::DRIVERS::SeqEngine::SetArpDiv(0, 7);
+    CTAG::DRIVERS::SeqEngine::SetRoot(5);              // F: non-zero root
+    CTAG::DRIVERS::SeqEngine::SetRootMode(0);
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+    int checked = 0;
+    for (int b = 0; b < 4000; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        uint32_t snap = CTAG::DRIVERS::SeqEngine::GetOutputSnapshot();
+        if (((snap >> 2) & 1u) == 0) continue;         // only note-carrying steps
+        int note = (int)((snap >> 16) & 0xFFu);
+        float expect = (float)(note - 48) / 12.0f * 0.2f;
+        CHECK_NEAR(cv[104], expect, 0.001);
+        ++checked;
+    }
+    CHECK(checked > 0);                                // the arp actually ran
+}
+
 TEST(engine_fa_rephase_midi_sources) {
     CTAG::DRIVERS::SeqEngine::Init();
     CTAG::DRIVERS::SeqEngine::SetGateClk(1, 2);        // gate 2: MIDI, preset 03 starts OFF

@@ -256,9 +256,13 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         e.accent_cap_q16 = (int32_t)(((int64_t)e.accent_cap_q16 * 63000) >> 16);
 
         // outputs (every owned slot written every block; active-low trigs)
-        const uint8_t rootPc = s.root & 0x0Fu;
+        // Pitch CV is ABSOLUTE: relative to MIDI 48 (C3) — the convention the
+        // plugin pitch bases are anchored to. Subtracting the movable arp
+        // root here transposed the sounding key with every root change
+        // (manual or W7/Neo drift) — the plugins never played the actual
+        // notes.
         const float pitchCv =
-            (float)((int32_t)(e.current_pitch_q16 >> 16) - (int32_t)(48u + rootPc)) / 12.0f * 0.2f;
+            (float)((int32_t)(e.current_pitch_q16 >> 16) - 48) / 12.0f * 0.2f;
         if (arpPitchSlot[i] >= 0) cv[arpPitchSlot[i]] = pitchCv;
         const float gWin = s.cur_hold ? 1.0f : 0.55f;
         const bool gateOpen = (s.level != 0) && (aPhase[i] < gWin);
