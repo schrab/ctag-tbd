@@ -95,6 +95,23 @@ namespace CTAG {
             string activeId[2];
             bool activeStereo[2] = {false, false};
 
+            // Parsed-once snapshot of the plugin list: id -> isStereo.
+            // IsPluginStereo ran on hot paths (params-page onTick per table
+            // bump, MIX fader turns) and DOM-parsed the whole list EVERY
+            // call — pool-chunk churn that store-faulted the panel under
+            // heap pressure, plus an assign-vs-parse race when a push
+            // landed mid-parse (crash class 2026-11-15). The link task
+            // rebuilds this table in the pushPluginList handler only;
+            // readers scan it under the mux.
+            struct PluginCacheEntry {
+                char id[24];
+                bool stereo;
+            };
+            constexpr int kPluginCacheMax = 48;
+            PluginCacheEntry pluginCache[kPluginCacheMax];
+            int pluginCacheCount = 0;
+            portMUX_TYPE pluginCacheMux = portMUX_INITIALIZER_UNLOCKED;
+
             // Plugin-load overlay state: set by SetSoundProcessorChannel,
             // cleared by the loaded plugin's params push (a completed
             // paramTableVersion bump), by a refusal (pushActivePlugin
@@ -448,10 +465,14 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             Document d;
             // The params frame and plugin list frame are handled without any
             // DOM (their handlers never touch d) — skip the parse entirely.
-            // Same for the tiny single-parameter value push.
+            // Same for the tiny single-parameter value push and the 25 Hz
+            // stream frame: a DOM build+destroy 25×/s was THE C3 heap
+            // fragmentation pump (store-fault crash class, 2026-11-15 —
+            // memcpy into a failed MemoryPoolAllocator chunk).
             if (strcmp(cmd, kMsgPushParams) != 0 &&
                 strcmp(cmd, kMsgPushParamValue) != 0 &&
-                strcmp(cmd, kMsgPushPluginList) != 0) {
+                strcmp(cmd, kMsgPushPluginList) != 0 &&
+                strcmp(cmd, kMsgStream) != 0) {
                 d.Parse(payload, len);
                 if (d.HasParseError() || !d.IsObject()) return;
             }
@@ -513,6 +534,33 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     while (end > lp && *end != ']') end--;
                     if (end > lp && *lp == '[' && *end == ']') {
                         cachePluginList.assign(lp, (size_t)(end - lp + 1));
+                        // Rebuild the parsed-once stereo snapshot HERE (link
+                        // task, once per push — the list is static after
+                        // boot). One DOM parse per push is fine; per CALL
+                        // was the crash.
+                        Document pl;
+                        pl.Parse(cachePluginList.c_str());
+                        if (pl.IsArray()) {
+                            taskENTER_CRITICAL(&pluginCacheMux);
+                            pluginCacheCount = 0;
+                            for (SizeType i = 0;
+                                 i < pl.Size() && pluginCacheCount < kPluginCacheMax;
+                                 i++) {
+                                const Value &e = pl[i];
+                                if (!e.IsObject() || !e.HasMember("id") ||
+                                    !e["id"].IsString())
+                                    continue;
+                                PluginCacheEntry &c =
+                                    pluginCache[pluginCacheCount];
+                                snprintf(c.id, sizeof(c.id), "%s",
+                                         e["id"].GetString());
+                                c.stereo = e.HasMember("isStereo") &&
+                                           e["isStereo"].IsBool() &&
+                                           e["isStereo"].GetBool();
+                                pluginCacheCount++;
+                            }
+                            taskEXIT_CRITICAL(&pluginCacheMux);
+                        }
                     }
                 }
                 return;
@@ -706,27 +754,48 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 if (d.HasMember("inlvldef") && d["inlvldef"].IsInt())
                     inputDefGain = d["inlvldef"].GetInt();
             } else if (strcmp(cmd, kMsgStream) == 0) {
-                if (d.HasMember("vu") && d["vu"].IsArray()) {
-                    const Value &a = d["vu"];
-                    for (SizeType i = 0; i < a.Size() && i < 4; i++) {
-                        if (a[i].IsUint()) vu[i] = a[i].GetUint();
+                // Machine-made flat frame, every member always present
+                // (LinkEndpoint::sendStream). Scanned manually — same
+                // no-DOM doctrine as pushParams (the 25 Hz DOM churn
+                // crashed the panel, see the skip-parse note above).
+                const char *p;
+                p = strstr(payload, "\"vu\":[");
+                if (p) {
+                    p += 6;
+                    for (int i = 0; i < 4; i++) {
+                        vu[i] = (uint32_t)strtoul(p, nullptr, 10);
+                        p = strchr(p, ',');
+                        if (!p) break;
+                        p++;
                     }
                 }
-                if (d.HasMember("mb") && d["mb"].IsUint()) snapshot = d["mb"].GetUint();
-                if (d.HasMember("sq") && d["sq"].IsUint()) seq.snapshot = d["sq"].GetUint();
-                if (d.HasMember("sqg") && d["sqg"].IsUint()) {
-                    int w = d["sqg"].GetUint();
+                p = strstr(payload, "\"mb\":");
+                if (p) snapshot = (uint32_t)strtoul(p + 5, nullptr, 10);
+                p = strstr(payload, "\"sq\":");
+                if (p) seq.snapshot = (uint32_t)strtoul(p + 5, nullptr, 10);
+                p = strstr(payload, "\"sqg\":");
+                if (p) {
+                    int w = (int)strtoul(p + 6, nullptr, 10);
                     seq.gateStep[0] = w & 0xF;
                     seq.gateStep[1] = (w >> 4) & 0xF;
                 }
-                if (d.HasMember("ov") && d["ov"].IsInt()) cpuOverload = d["ov"].GetInt() != 0;
-                if (d.HasMember("tl") && d["tl"].IsUint()) sdLevel = d["tl"].GetUint();
-                if (d.HasMember("sd") && d["sd"].IsObject()) {
-                    const Value &s = d["sd"];
-                    if (s.HasMember("p") && s["p"].IsInt()) sdPlaying = s["p"].GetInt() != 0;
-                    if (s.HasMember("r") && s["r"].IsInt()) sdRecording = s["r"].GetInt() != 0;
-                    if (s.HasMember("pos") && s["pos"].IsUint()) sdPos = s["pos"].GetUint();
-                    if (s.HasMember("tot") && s["tot"].IsUint()) sdTot = s["tot"].GetUint();
+                p = strstr(payload, "\"ov\":");
+                if (p) cpuOverload = strtoul(p + 5, nullptr, 10) != 0;
+                p = strstr(payload, "\"tl\":");
+                if (p) sdLevel = (uint32_t)strtoul(p + 5, nullptr, 10);
+                p = strstr(payload, "\"sd\":{");
+                if (p) {
+                    const char *s = p + 6;
+                    const char *sEnd = strchr(s, '}');
+                    if (sEnd == nullptr) sEnd = s + 128;
+                    p = strstr(s, "\"p\":");
+                    if (p && p < sEnd) sdPlaying = strtoul(p + 4, nullptr, 10) != 0;
+                    p = strstr(s, "\"r\":");
+                    if (p && p < sEnd) sdRecording = strtoul(p + 4, nullptr, 10) != 0;
+                    p = strstr(s, "\"pos\":");
+                    if (p && p < sEnd) sdPos = (uint32_t)strtoul(p + 6, nullptr, 10);
+                    p = strstr(s, "\"tot\":");
+                    if (p && p < sEnd) sdTot = (uint32_t)strtoul(p + 6, nullptr, 10);
                 }
             } else if (strcmp(cmd, kMsgFsList) == 0) {
                 // Complete a pending RequestFsList; hand over the unescaped
@@ -855,19 +924,19 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         bool DspProxy::IsPluginStereo(const std::string &id) {
-            // Plugin list carries isStereo; fall back to the active flags.
-            Document d;
-            d.Parse(cachePluginList.c_str());
-            if (d.IsArray()) {
-                for (SizeType i = 0; i < d.Size(); i++) {
-                    const Value &p = d[i];
-                    if (p.IsObject() && p.HasMember("id") && p["id"].IsString() &&
-                        id == p["id"].GetString()) {
-                        return p.HasMember("isStereo") && p["isStereo"].IsBool() &&
-                               p["isStereo"].GetBool();
-                    }
+            // Parsed-once snapshot from the pushPluginList handler — this
+            // ran on hot paths and DOM-parsed the list EVERY call (the
+            // panel store-fault crash class); the table scan is allocation-
+            // and DOM-free. Fall back to the active flags.
+            taskENTER_CRITICAL(&pluginCacheMux);
+            for (int i = 0; i < pluginCacheCount; i++) {
+                if (strcmp(pluginCache[i].id, id.c_str()) == 0) {
+                    bool st = pluginCache[i].stereo;
+                    taskEXIT_CRITICAL(&pluginCacheMux);
+                    return st;
                 }
             }
+            taskEXIT_CRITICAL(&pluginCacheMux);
             return id == activeId[0] ? activeStereo[0] : activeStereo[1];
         }
 
