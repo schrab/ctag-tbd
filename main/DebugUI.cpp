@@ -484,13 +484,11 @@ namespace CTAG {
                 struct dirent *ent;
                 bool first = true;
                 while ((ent = readdir(dp)) != nullptr) {
-                    string full = dir + "/" + ent->d_name;
-                    struct stat st{};
-                    if (stat(full.c_str(), &st) != 0 || S_ISDIR(st.st_mode))
-                        continue;
+                    // names only: the per-entry stat() stalls the link task
+                    // on LittleFS (measured — the reply never returned with
+                    // it); sizes are not worth the wedge.
                     if (!first) response += ",";
-                    response += "{\"name\":\"" + string(ent->d_name) +
-                                "\",\"size\":" + to_string(st.st_size) + "}";
+                    response += "\"" + string(ent->d_name) + "\"";
                     first = false;
                 }
                 closedir(dp);
@@ -547,6 +545,54 @@ namespace CTAG {
                            ",\"offset\":" + to_string(off) +
                            ",\"got\":" + to_string(got) +
                            ",\"hex\":\"" + hex + "\"}";
+                return true;
+            }
+
+            if (s == "/debug/writeFileChunk") {
+                // Chunked file write (hex in) — the restore half of the
+                // SPIFFS preset backup. Path guarded to the spiffs root.
+                if (!d.HasMember("path") || !d["path"].IsString() ||
+                    !d.HasMember("offset") || !d["offset"].IsInt() ||
+                    !d.HasMember("hex") || !d["hex"].IsString()) {
+                    response = cmdEcho + ",\"error\":\"missing path/offset/hex\"}";
+                    return true;
+                }
+                string path = d["path"].GetString();
+                if (path.find(CTAG::RESOURCES::spiffsRoot) != 0) {
+                    response = cmdEcho + ",\"error\":\"path outside spiffs root\"}";
+                    return true;
+                }
+                long off = d["offset"].GetInt();
+                const string hex = d["hex"].GetString();
+                if (hex.size() % 2 != 0 || hex.size() / 2 > 512) {
+                    response = cmdEcho + ",\"error\":\"bad hex length\"}";
+                    return true;
+                }
+                vector<char> buf;
+                buf.reserve(hex.size() / 2);
+                for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+                    auto nib = [](char c) -> int {
+                        if (c >= '0' && c <= '9') return c - '0';
+                        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                        return -1;
+                    };
+                    int hi = nib(hex[i]), lo = nib(hex[i + 1]);
+                    if (hi < 0 || lo < 0) {
+                        response = cmdEcho + ",\"error\":\"bad hex digit\"}";
+                        return true;
+                    }
+                    buf.push_back(static_cast<char>((hi << 4) | lo));
+                }
+                FILE *fp = fopen(path.c_str(), off == 0 ? "wb" : "rb+");
+                if (fp == nullptr) {
+                    response = cmdEcho + ",\"error\":\"open failed\"}";
+                    return true;
+                }
+                fseek(fp, off, SEEK_SET);
+                size_t put = fwrite(buf.data(), 1, buf.size(), fp);
+                fclose(fp);
+                response = cmdEcho + ",\"written\":" + to_string(put) + ",\"ok\":1}";
                 return true;
             }
 

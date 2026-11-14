@@ -1,0 +1,230 @@
+{
+ "mp-APCpp.jsn": {
+  "size": 2057,
+  "patches": 2
+ },
+ "mp-Antique.jsn": {
+  "size": 3133,
+  "patches": 2
+ },
+ "mp-BBeats.jsn": {
+  "size": 4651,
+  "patches": 3
+ },
+ "mp-BCSR.jsn": {
+  "size": 1906,
+  "patches": 1
+ },
+ "mp-Bjorklund.jsn": {
+  "size": 23650,
+  "patches": 6
+ },
+ "mp-CDelay.jsn": {
+  "size": 2017,
+  "patches": 2
+ },
+ "mp-CStrip.jsn": {
+  "size": 511,
+  "patches": 1
+ },
+ "mp-CStripM.jsn": {
+  "size": 511,
+  "patches": 1
+ },
+ "mp-Claude.jsn": {
+  "size": 3338,
+  "patches": 6
+ },
+ "mp-DLoop.jsn": {
+  "size": 567,
+  "patches": 1
+ },
+ "mp-Dust.jsn": {
+  "size": 357,
+  "patches": 1
+ },
+ "mp-EChorus.jsn": {
+  "size": 613,
+  "patches": 2
+ },
+ "mp-Elements.jsn": {
+  "size": 5066,
+  "patches": 4
+ },
+ "mp-EveryTrim.jsn": {
+  "size": 246,
+  "patches": 1
+ },
+ "mp-FBDlyLine.jsn": {
+  "size": 256,
+  "patches": 1
+ },
+ "mp-FVerb.jsn": {
+  "size": 310,
+  "patches": 1
+ },
+ "mp-Formantor.jsn": {
+  "size": 4312,
+  "patches": 2
+ },
+ "mp-Freakwaves.jsn": {
+  "size": 15578,
+  "patches": 3
+ },
+ "mp-GDVerb.jsn": {
+  "size": 785,
+  "patches": 1
+ },
+ "mp-GDVerb2.jsn": {
+  "size": 3439,
+  "patches": 3
+ },
+ "mp-GVerb.jsn": {
+  "size": 359,
+  "patches": 1
+ },
+ "mp-Hihat1.jsn": {
+  "size": 549,
+  "patches": 1
+ },
+ "mp-Karpuskl.jsn": {
+  "size": 1092,
+  "patches": 1
+ },
+ "mp-MIChorus.jsn": {
+  "size": 289,
+  "patches": 1
+ },
+ "mp-MIDifu.jsn": {
+  "size": 288,
+  "patches": 1
+ },
+ "mp-MIEnsemble.jsn": {
+  "size": 289,
+  "patches": 1
+ },
+ "mp-MIPShft.jsn": {
+  "size": 287,
+  "patches": 1
+ },
+ "mp-MISVF.jsn": {
+  "size": 409,
+  "patches": 1
+ },
+ "mp-MIVerb.jsn": {
+  "size": 753,
+  "patches": 1
+ },
+ "mp-MIVerb2.jsn": {
+  "size": 854,
+  "patches": 1
+ },
+ "mp-MSxxNoise.jsn": {
+  "size": 2039,
+  "patches": 2
+ },
+ "mp-MacOsc.jsn": {
+  "size": 1646,
+  "patches": 1
+ },
+ "mp-MacOscDuo.jsn": {
+  "size": 7134,
+  "patches": 3
+ },
+ "mp-MonoDelay.jsn": {
+  "size": 364,
+  "patches": 1
+ },
+ "mp-MoogFilt.jsn": {
+  "size": 386,
+  "patches": 1
+ },
+ "mp-PNoise.jsn": {
+  "size": 250,
+  "patches": 2
+ },
+ "mp-PolyPad.jsn": {
+  "size": 2004,
+  "patches": 2
+ },
+ "mp-RecNPlay.jsn": {
+  "size": 3011,
+  "patches": 2
+ },
+ "mp-Retroactor.jsn": {
+  "size": 5343,
+  "patches": 5
+ },
+ "mp-Rompler.jsn": {
+  "size": 1282,
+  "patches": 1
+ },
+ "mp-SimpleVCA.jsn": {
+  "size": 199,
+  "patches": 1
+ },
+ "mp-SineSrc.jsn": {
+  "size": 475,
+  "patches": 1
+ },
+ "mp-SpaceFX.jsn": {
+  "size": 30134,
+  "patches": 7
+ },
+ "mp-StrampDly.jsn": {
+  "size": 399,
+  "patches": 1
+ },
+ "mp-SubSynth.jsn": {
+  "size": 3514,
+  "patches": 1
+ },
+ "mp-Subbotnik.jsn": {
+  "size": 20700,
+  "patches": 5
+ },
+ "mp-TBD03.jsn": {
+  "size": 2614,
+  "patches": 3
+ },
+ "mp-TBDaits.jsn": {
+  "size": 534,
+  "patches": 1
+ },
+ "mp-TBDeep.jsn": {
+  "size": 892,
+  "patches": 1
+ },
+ "mp-TBDings.jsn": {
+  "size": 6127,
+  "patches": 7
+ },
+ "mp-TBPalette.jsn": {
+  "size": 649,
+  "patches": 1
+ },
+ "mp-TDelay.jsn": {
+  "size": 323,
+  "patches": 1
+ },
+ "mp-Talkbox.jsn": {
+  "size": 1159,
+  "patches": 1
+ },
+ "mp-VctrSnt.jsn": {
+  "size": 5356,
+  "patches": 1
+ },
+ "mp-Void.jsn": {
+  "size": 96,
+  "patches": 1
+ },
+ "mp-WTOsc.jsn": {
+  "size": 1771,
+  "patches": 1
+ },
+ "mp-WTOscDuo.jsn": {
+  "size": 9326,
+  "patches": 3
+ }
+}
