@@ -35,26 +35,26 @@ def main():
 
             for pat in ch_data.get("patches", []):
                 num, name = pat["number"], pat["name"]
-                spec = pat.get("pluginSpec", {})
-                leaves = [p for p in spec.get("params", [])
-                          if isinstance(p, dict) and "current" in p]
+                # new format: params = flat {id: {current, cv, trig}};
+                # old-format pluginSpec (nested, incomplete) is not restored.
+                params = pat.get("params", {})
                 applied = 0
-                for p in leaves:
+                for pid, p in params.items():
                     r = request(s, {"cmd": "/debug/setPluginParam",
-                                    "ch": ch, "id": p["id"],
+                                    "ch": ch, "id": pid,
                                     "key": "current",
                                     "value": p["current"]}, timeout=5.0)
                     if not r.get("ok"):
-                        print(f"  WARN: {p['id']} current rejected")
+                        print(f"  WARN: {pid} current rejected")
                     cv = p.get("cv")
-                    if cv is not None and cv != -1 and p.get("canCv"):
+                    if cv is not None and cv != -1:
                         request(s, {"cmd": "/debug/setPluginParam",
-                                    "ch": ch, "id": p["id"], "key": "cv",
+                                    "ch": ch, "id": pid, "key": "cv",
                                     "value": cv}, timeout=5.0)
                     trig = p.get("trig")
-                    if trig is not None and trig != -1 and p.get("canTrig"):
+                    if trig is not None and trig != -1:
                         request(s, {"cmd": "/debug/setPluginParam",
-                                    "ch": ch, "id": p["id"], "key": "trig",
+                                    "ch": ch, "id": pid, "key": "trig",
                                     "value": trig}, timeout=5.0)
                     applied += 1
                 # settle before the store (the params flush runs at 5 s)

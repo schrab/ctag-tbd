@@ -17,6 +17,20 @@ sys.path.insert(0, "/home/ubuntu/ctag-tbd/uimcu/tools")
 from screenshot import open_port, request, wait_ready  # noqa: E402
 
 
+def flatten_params(items, out):
+    """Collect leaf params recursively — grouped params (e.g. TBDings' 'eg'
+    and 'mod' groups) nest inside group objects and a flat scan misses 9 of
+    TBDings' 21 params."""
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        if "current" in it:
+            out.append(it)
+        for k in ("params", "children", "items"):
+            if k in it:
+                flatten_params(it[k], out)
+
+
 def main():
     out_path = sys.argv[1] if len(sys.argv) > 1 else "presets_full_backup.json"
     dump = {"channels": {}}
@@ -45,15 +59,22 @@ def main():
                             "num": num}, timeout=6.0)
                 time.sleep(0.35)  # SPIFFS storeJSON + params settle
                 # ONE call returns the full param spec with LIVE current/cv
-                # values (verified: a set round-trips into it).
+                # values (verified: a set round-trips into it). Flatten the
+                # group nesting — grouped params carry live values too.
                 r = request(s, {"cmd": "/debug/getPluginParams", "ch": ch},
                             timeout=8.0)
                 spec = r.get("params", {})
+                leaves = []
+                if isinstance(spec, dict):
+                    flatten_params(spec.get("params", []), leaves)
                 entry = {"name": name, "number": num,
-                         "pluginSpec": spec if isinstance(spec, dict) else {}}
+                         "plugin": spec.get("id") if isinstance(spec, dict) else None,
+                         "params": {p["id"]: {"current": p["current"],
+                                              "cv": p.get("cv"),
+                                              "trig": p.get("trig")}
+                                    for p in leaves}}
                 ch_data["patches"].append(entry)
-                n = len(spec.get("params", [])) if isinstance(spec, dict) else 0
-                print(f"  #{num} {name}: {n} params")
+                print(f"  #{num} {name}: {len(entry['params'])} params")
             dump["channels"][ch] = ch_data
             # restore the patch that was active before the dump
             request(s, {"cmd": "/debug/presetLoad", "ch": ch,
