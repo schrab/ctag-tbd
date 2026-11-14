@@ -322,6 +322,10 @@ namespace CTAG {
                            + ",\"root\":" + to_string(DspProxy::GetSeqRoot())
                            + ",\"scale\":" + to_string(DspProxy::GetSeqScale())
                            + "}"
+                           // LIVE 25 Hz stream word: gates/acc/slide bits,
+                           // arp steps and notes (SeqEngine bit map) — the
+                           // bench timelines gate activity against audio.
+                           + ",\"sq\":" + to_string((unsigned long long)DspProxy::GetSeqSnapshot())
                            + ",\"proto\":" + to_string(kProtoMajor) + "." + to_string(kProtoMinor)
                            + "}";
                 return true;
