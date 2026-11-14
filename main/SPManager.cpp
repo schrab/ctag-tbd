@@ -783,10 +783,18 @@ void SoundProcessorManager::updateConfiguration() {
     ESP_LOGI("SPM", "inSrc='%s' -> %d", inSrc.c_str(), inSrcIdx);
     if (inSrcIdx >= 0) DRIVERS::Codec::SetInputSource(inSrcIdx);
 
-    // input gain
-    string inGain = model->GetConfigurationData("input_gain");
-    ESP_LOGI("SPM", "inGain='%s'", inGain.c_str());
-    if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
+    // input gain: native scale ("input_gain_lvl", io-caps "inlvlmax"
+    // contract — ES8388 0..8, WM8978 0..63 direct PGA). Legacy configs
+    // carry the old 0..8 UI steps under "input_gain"; SetInputGain keeps
+    // that mapping so old devices boot unchanged.
+    string inLvl = model->GetConfigurationData("input_gain_lvl");
+    if (!inLvl.empty()) {
+        DRIVERS::Codec::SetInputGainNative(std::stoi(inLvl));
+    } else {
+        string inGain = model->GetConfigurationData("input_gain");
+        ESP_LOGI("SPM", "inGain='%s' (legacy 0..8)", inGain.c_str());
+        if (!inGain.empty()) DRIVERS::Codec::SetInputGain(std::stoi(inGain));
+    }
 
     // tape playback level (MIX TAPE fader; 0..100 %)
     string tapeGain = model->GetConfigurationData("tape_gain");

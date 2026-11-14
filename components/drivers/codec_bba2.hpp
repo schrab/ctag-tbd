@@ -29,6 +29,7 @@ namespace CTAG {
             static void SetMixerMode(int mode);
             static void SetAnalogBypass(bool on);
             static void SetInputGain(int gain);
+            static void SetInputGainNative(int gain); // 0..63 direct PGA
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
             // Bench register write (mic-routing sweeps): shadowed write +

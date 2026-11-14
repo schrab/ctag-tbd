@@ -55,6 +55,21 @@ namespace CTAG {
             static constexpr int DEFAULT_OUTPUT_LEVEL = 58; // 0 dB on the AIC3254
 #endif
 
+            // Input gain scales, same io-caps contract as the output faders:
+            // the ES8388's mic amp IS 0..8 (the legacy UI range verbatim);
+            // the WM8978 PGA takes 0..63 (-12..+35.25 dB, 0.75 dB steps) with
+            // 40 (+18 dB) as the mic default the driver seeds on mic select.
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+            static constexpr int MAX_INPUT_GAIN = 8;
+            static constexpr int DEFAULT_INPUT_GAIN = 8;
+#elif defined(CONFIG_TBD_PLATFORM_BBA2)
+            static constexpr int MAX_INPUT_GAIN = 63;
+            static constexpr int DEFAULT_INPUT_GAIN = 40;
+#else
+            static constexpr int MAX_INPUT_GAIN = 8;
+            static constexpr int DEFAULT_INPUT_GAIN = 8;
+#endif
+
             Codec() = delete;
             static void InitCodec();
 
@@ -78,6 +93,11 @@ namespace CTAG {
             static void SetMixerMode(int mode);
             static void SetAnalogBypass(bool on);
             static void SetInputGain(int gain);
+            // NATIVE-scale input gain (io-caps "inlvlmax" contract):
+            // ES8388 0..8, WM8978 0..63 direct PGA register value. The
+            // legacy SetInputGain(int) keeps its 0..8 UI-step mapping for
+            // configs that predate input_gain_lvl.
+            static void SetInputGainNative(int gain);
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
             // Bench register write (mic-routing sweeps): writes via the
@@ -97,6 +117,7 @@ namespace CTAG {
             static void SetMixerMode(int mode) {}
             static void SetAnalogBypass(bool on) {}
             static void SetInputGain(int gain) {}
+            static void SetInputGainNative(int gain) {}
             static const uint8_t *DebugReadAllRegs() { return nullptr; }
             static bool DebugReadReg(uint8_t reg, uint8_t &val) { return false; }
 #endif

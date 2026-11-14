@@ -119,6 +119,10 @@ namespace CTAG {
             // the legacy A1S 0..33 scale until the first push lands.
             int codecMaxLevel = 33;
             int codecDefaultLevel = 33;
+            // Input gain scale (io-caps "inlvlmax"/"inlvldef"); fallback =
+            // the legacy 0..8 UI steps until the first push lands.
+            int inputMaxGain = 8;
+            int inputDefGain = 8;
             int sdRoute = 0; // 0 = main out, 1 = plugin input (last set)
             int sdGain = 100;
             int32_t activeFav = -1;
@@ -697,6 +701,10 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     codecMaxLevel = d["lvlmax"].GetInt();
                 if (d.HasMember("lvldef") && d["lvldef"].IsInt())
                     codecDefaultLevel = d["lvldef"].GetInt();
+                if (d.HasMember("inlvlmax") && d["inlvlmax"].IsInt())
+                    inputMaxGain = d["inlvlmax"].GetInt();
+                if (d.HasMember("inlvldef") && d["inlvldef"].IsInt())
+                    inputDefGain = d["inlvldef"].GetInt();
             } else if (strcmp(cmd, kMsgStream) == 0) {
                 if (d.HasMember("vu") && d["vu"].IsArray()) {
                     const Value &a = d["vu"];
@@ -932,10 +940,11 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         void DspProxy::SetInputGain(int gain) {
             // Live preview only, no config commit (the pages commit the
             // persisted value through SetConfigurationFromJSON at edit end —
-            // same split as the A1S-local MIX page).
+            // same split as the A1S-local MIX page). NATIVE scale clamped to
+            // the advertised input range (ES8388 0..8, WM8978 0..63).
             char buf[80];
             snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/codecGain\",\"g\":%d}",
-                     clampI(gain, 0, 8));
+                     clampI(gain, 0, inputMaxGain));
             sendCmd(buf);
         }
 
@@ -1041,6 +1050,10 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         int DspProxy::GetMaxOutputLevel() { return codecMaxLevel; }
+
+        int DspProxy::GetMaxInputGain() { return inputMaxGain; }
+
+        int DspProxy::GetDefaultInputGain() { return inputDefGain; }
         int DspProxy::GetDefaultOutputLevel() { return codecDefaultLevel; }
 
         bool DspProxy::IsSDMounted() { return sdMounted; }

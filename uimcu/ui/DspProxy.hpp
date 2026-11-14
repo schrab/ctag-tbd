@@ -148,6 +148,10 @@ namespace CTAG {
             // so an old DSP still faders sanely. No rescaling anywhere.
             static int GetMaxOutputLevel();
             static int GetDefaultOutputLevel();
+            // Same contract for the input gain ("inlvlmax"/"inlvldef";
+            // ES8388 0..8 mic amp, WM8978 0..63 direct PGA).
+            static int GetMaxInputGain();
+            static int GetDefaultInputGain();
             static void SetInputGain(int gain);
             static void SetOutputLevels(int left, int right);
 

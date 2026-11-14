@@ -234,6 +234,14 @@ void Codec::SetInputGain(int gain) {
     codec.setInputGain((uint8_t)(16 + 4 * gain));
 }
 
+void Codec::SetInputGainNative(int gain) {
+    // NATIVE WM8978 PGA scale 0..63 (-12..+35.25 dB, 0 dB at 16) — the
+    // io-caps "inlvlmax" contract; the MIX fader steps this directly.
+    if (gain < 0) gain = 0;
+    if (gain > 63) gain = 63;
+    codec.setInputGain((uint8_t)gain);
+}
+
 const uint8_t *Codec::DebugReadAllRegs() {
     // WM8978 registers are 9-bit and the interface is write-only; the ES8388
     // 53-byte dump layout does not apply. Per-register reads work:

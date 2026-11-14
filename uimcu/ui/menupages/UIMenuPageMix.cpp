@@ -47,18 +47,21 @@ namespace CTAG {
         // the tape signal meter beside it (routing on OK, shown as its
         // value line).
         const UIMenuPageMix::Strip UIMenuPageMix::STRIP_TABLE[] = {
-                {"IN",   "input_gain",      0, 8,   false, METER_IN,    2},
+                {"IN",   "input_gain_lvl",  0, 8,   false, METER_IN,    2},
                 {"TAPE", "tape_gain",       0, 100, false, METER_NONE,  0},
                 {"LOUT", "ch0_codecLvlOut", 0, 63,  false, METER_OUT_L, 1},
                 {"ROUT", "ch1_codecLvlOut", 0, 63,  false, METER_OUT_R, 1},
         };
 
-        // Live clamp for the OUT strips: the codec's NATIVE scale, pushed by
-        // the DSP in io-caps (WM8978 0..63 with 57 = 0 dB, ES8388 0..33) —
-        // no rescaling anywhere.
+        // Live clamp for the OUT strips and the IN fader: the codec's NATIVE
+        // scale, pushed by the DSP in io-caps (WM8978 0..63 with 57 = 0 dB /
+        // 0..63 input PGA, ES8388 0..33 / 0..8) — no rescaling anywhere.
         int UIMenuPageMix::StripMax(int i) const {
-            return (i == OUT_L_STRIP || i == OUT_R_STRIP) ? DspProxy::GetMaxOutputLevel()
-                                                          : STRIP_TABLE[i].max;
+            if (i == OUT_L_STRIP || i == OUT_R_STRIP)
+                return DspProxy::GetMaxOutputLevel();
+            if (i == GAIN_STRIP)
+                return DspProxy::GetMaxInputGain();
+            return STRIP_TABLE[i].max;
         }
 
         // With a stereo plugin on ch0 the output image is one instrument —
@@ -113,8 +116,12 @@ namespace CTAG {
 
         void UIMenuPageMix::parseConfig() {
             for (int i = 0; i < STRIPS; i++) {
-                // TAPE defaults to unity when no config carries it yet.
-                value[i] = (i == TAP_STRIP) ? 100 : STRIP_TABLE[i].min;
+                // TAPE defaults to unity when no config carries it yet; the
+                // IN strip seeds at the codec's default input gain (mic
+                // usable on first boot).
+                value[i] = (i == TAP_STRIP) ? 100
+                         : (i == GAIN_STRIP) ? DspProxy::GetDefaultInputGain()
+                         : STRIP_TABLE[i].min;
             }
             source = 0;
 
@@ -127,7 +134,23 @@ namespace CTAG {
 
             for (int i = 0; i < STRIPS; i++) {
                 const Strip &st = STRIP_TABLE[i];
-                if (!doc.HasMember(st.id) || !doc[st.id].IsString()) continue;
+                if (!doc.HasMember(st.id) || !doc[st.id].IsString()) {
+                    // Legacy configs carried the 0..8 UI steps under
+                    // "input_gain" — convert to the native scale the DSP
+                    // actually applied (old mapping: ES8388-native = g,
+                    // BBA2 = 16 + 4*g = 0..+24 dB). Discriminate by the
+                    // advertised input max instead of hardcoding a codec.
+                    if (i == GAIN_STRIP && doc.HasMember("input_gain") &&
+                        doc["input_gain"].IsString()) {
+                        int g = atoi(doc["input_gain"].GetString());
+                        int maxIn = DspProxy::GetMaxInputGain();
+                        int v = (maxIn > 8) ? (16 + 4 * g) : g;
+                        if (v > maxIn) v = maxIn;
+                        if (v < st.min) v = st.min;
+                        value[i] = v;
+                    }
+                    continue;
+                }
                 int v = atoi(doc[st.id].GetString());
                 if (v < st.min) v = st.min;
                 if (v > StripMax(i)) v = StripMax(i);

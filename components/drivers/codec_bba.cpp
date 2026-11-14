@@ -267,6 +267,15 @@ void Codec::SetInputGain(int gain) {
     s_lastInputGain = gain;
 }
 
+void Codec::SetInputGainNative(int gain) {
+    // The ES8388's native mic-amp scale IS the legacy 0..8 UI range, so the
+    // native entry point is the same register write.
+#ifdef CONFIG_TBD_BBA_CODEC_ES8388
+    codec.setInputGain(gain);
+#endif
+    s_lastInputGain = gain;
+}
+
 void Codec::SetOutputLevels(const uint32_t left, const uint32_t right) {
     codec.setOutputVolume(static_cast<uint8_t>(left), static_cast<uint8_t>(right));
     s_lastLevelL = left;

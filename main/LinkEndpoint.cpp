@@ -390,6 +390,10 @@ namespace CTAG {
                 // panel clamps its faders to this (no rescaling anywhere).
                 s += ",\"lvlmax\":" + to_string(Codec::MAX_OUTPUT_LEVEL);
                 s += ",\"lvldef\":" + to_string(Codec::DEFAULT_OUTPUT_LEVEL);
+                // Same contract for the input gain (ES8388 0..8 mic amp,
+                // WM8978 0..63 direct PGA).
+                s += ",\"inlvlmax\":" + to_string(Codec::MAX_INPUT_GAIN);
+                s += ",\"inlvldef\":" + to_string(Codec::DEFAULT_INPUT_GAIN);
                 s += "}";
                 sendStr(s);
             }
@@ -1115,7 +1119,10 @@ namespace CTAG {
                 // UI, which never persists per encoder step).
                 if (cmdName == "/link/codecGain") {
                     if (d.HasMember("g") && d["g"].IsInt()) {
-                        DRIVERS::Codec::SetInputGain(d["g"].GetInt());
+                        // NATIVE input scale (io-caps "inlvlmax": ES8388
+                        // 0..8, WM8978 0..63 direct PGA) — the MIX fader
+                        // steps the advertised range directly.
+                        DRIVERS::Codec::SetInputGainNative(d["g"].GetInt());
                         response = "{\"ok\":1}";
                     } else {
                         response = "{\"error\":\"bad g\"}";
