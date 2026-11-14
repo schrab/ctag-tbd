@@ -208,6 +208,14 @@ namespace CTAG {
                 // trade resolution against reply size while hunting the
                 // link's reply-size ceiling. Written continuously by the
                 // audio task — the read may straddle a block overwrite.
+                // Reply-path trace: this command's reply never reached the
+                // C3 relay (getAudioStats/getPluginParams do) — entry/exit
+                // logs on the DSP console bisect where it dies.
+                ESP_LOGI("DBG", "capture: entry blocks=%d", [&] {
+                    return d.HasMember("blocks") && d["blocks"].IsInt()
+                               ? d["blocks"].GetInt()
+                               : AUDIO::SoundProcessorManager::kCaptureBlocks;
+                }());
                 int blocks = AUDIO::SoundProcessorManager::kCaptureBlocks;
                 float scale = 8192.f;
                 bool withVuHist = true;
@@ -275,6 +283,7 @@ namespace CTAG {
                     response += "]";
                 }
                 response += "}";
+                ESP_LOGI("DBG", "capture: reply built, %u B", (unsigned)response.size());
                 return true;
             }
 

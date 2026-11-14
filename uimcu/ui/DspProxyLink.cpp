@@ -745,6 +745,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 // LinkClient::RequestDebug. Hand over the raw frame text;
                 // dropped silently when nothing is pending (these can also
                 // arrive unsolicited).
+                ESP_LOGI("DBG", "relay /debug reply %u B cmd=%.28s",
+                         (unsigned)len, cmd);
                 extern void LinkClient_NotifyDebug(const char *payload, size_t len);
                 LinkClient_NotifyDebug(payload, len);
             }
