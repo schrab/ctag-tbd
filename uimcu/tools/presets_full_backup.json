@@ -1,0 +1,1466 @@
+{
+ "channels": {
+  "0": {
+   "plugin": "TBDings",
+   "activePresetNumber": 3,
+   "patches": [
+    {
+     "name": "Default",
+     "number": 0,
+     "pluginSpec": {
+      "id": "TBDings",
+      "isStereo": true,
+      "name": "TBDings",
+      "hint": "Mutable Instruments Rings Port",
+      "params": [
+       {
+        "id": "reson_model",
+        "name": "Model",
+        "type": "int",
+        "min": 0,
+        "max": 5,
+        "texts": [
+         "Modal",
+         "Sympathetic",
+         "Inharmonic",
+         "2-Op FM",
+         "Quantized",
+         "String+Verb"
+        ],
+        "current": 5,
+        "cv": -1
+       },
+       {
+        "id": "frequency",
+        "name": "Frequency",
+        "type": "int",
+        "min": 0,
+        "max": 4032,
+        "current": 1512,
+        "cv": 104
+       },
+       {
+        "id": "polyphony",
+        "name": "Polyphony",
+        "type": "int",
+        "min": 0,
+        "max": 2,
+        "current": 2
+       },
+       {
+        "id": "structure",
+        "name": "Structure",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1593,
+        "cv": -1
+       },
+       {
+        "id": "brightness",
+        "name": "Brightness",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3250,
+        "cv": -1
+       },
+       {
+        "id": "damping",
+        "name": "Damping",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3358,
+        "cv": -1
+       },
+       {
+        "id": "position",
+        "name": "Position",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1771,
+        "cv": -1
+       },
+       {
+        "id": "chords",
+        "name": "Chords",
+        "type": "int",
+        "min": 0,
+        "max": 10,
+        "current": 3,
+        "cv": -1
+       },
+       {
+        "id": "easter",
+        "type": "bool",
+        "name": "Easter Egg",
+        "current": 0,
+        "trig": -1
+       },
+       {
+        "id": "ex_int",
+        "type": "bool",
+        "name": "Internal Exciter",
+        "current": 1
+       },
+       {
+        "id": "strum_int",
+        "type": "bool",
+        "name": "Internal Strum",
+        "current": 0,
+        "trig": 0
+       },
+       {
+        "id": "note_int",
+        "type": "bool",
+        "name": "Internal Note",
+        "current": 1
+       },
+       {
+        "id": "eg",
+        "type": "group",
+        "name": "EG",
+        "params": [
+         {
+          "id": "eg_trigger",
+          "type": "bool",
+          "name": "Trigger",
+          "current": 1,
+          "trig": 45
+         },
+         {
+          "id": "eg_loop",
+          "type": "bool",
+          "name": "Loop",
+          "current": 0,
+          "trig": -1
+         },
+         {
+          "id": "eg_attack",
+          "type": "int",
+          "name": "Attack",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         },
+         {
+          "id": "eg_decay",
+          "type": "int",
+          "name": "Decay",
+          "min": 0,
+          "max": 4095,
+          "current": 3245,
+          "cv": -1
+         }
+        ]
+       },
+       {
+        "id": "mod",
+        "type": "group",
+        "name": "Modulation",
+        "params": [
+         {
+          "id": "mod_brightness",
+          "type": "int",
+          "name": "Brightness mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 116,
+          "cv": -1
+         },
+         {
+          "id": "mod_frequency",
+          "type": "int",
+          "name": "Frequency mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 21,
+          "cv": -1
+         },
+         {
+          "id": "mod_damping",
+          "type": "int",
+          "name": "Damping mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_structure",
+          "type": "int",
+          "name": "Structure mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 667,
+          "cv": -1
+         },
+         {
+          "id": "mod_position",
+          "type": "int",
+          "name": "Position mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 485,
+          "cv": -1
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Hajewuna Bahenores",
+     "number": 1,
+     "pluginSpec": {
+      "id": "TBDings",
+      "isStereo": true,
+      "name": "TBDings",
+      "hint": "Mutable Instruments Rings Port",
+      "params": [
+       {
+        "id": "reson_model",
+        "name": "Model",
+        "type": "int",
+        "min": 0,
+        "max": 5,
+        "texts": [
+         "Modal",
+         "Sympathetic",
+         "Inharmonic",
+         "2-Op FM",
+         "Quantized",
+         "String+Verb"
+        ],
+        "current": 1,
+        "cv": -1
+       },
+       {
+        "id": "frequency",
+        "name": "Frequency",
+        "type": "int",
+        "min": 0,
+        "max": 4032,
+        "current": 3299,
+        "cv": 0
+       },
+       {
+        "id": "polyphony",
+        "name": "Polyphony",
+        "type": "int",
+        "min": 0,
+        "max": 2,
+        "current": 1
+       },
+       {
+        "id": "structure",
+        "name": "Structure",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1918,
+        "cv": -1
+       },
+       {
+        "id": "brightness",
+        "name": "Brightness",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 2047,
+        "cv": -1
+       },
+       {
+        "id": "damping",
+        "name": "Damping",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 2424,
+        "cv": -1
+       },
+       {
+        "id": "position",
+        "name": "Position",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 2047,
+        "cv": -1
+       },
+       {
+        "id": "chords",
+        "name": "Chords",
+        "type": "int",
+        "min": 0,
+        "max": 10,
+        "current": 1,
+        "cv": -1
+       },
+       {
+        "id": "easter",
+        "type": "bool",
+        "name": "Easter Egg",
+        "current": 0,
+        "trig": -1
+       },
+       {
+        "id": "ex_int",
+        "type": "bool",
+        "name": "Internal Exciter",
+        "current": 1
+       },
+       {
+        "id": "strum_int",
+        "type": "bool",
+        "name": "Internal Strum",
+        "current": 1,
+        "trig": 0
+       },
+       {
+        "id": "note_int",
+        "type": "bool",
+        "name": "Internal Note",
+        "current": 1
+       },
+       {
+        "id": "eg",
+        "type": "group",
+        "name": "EG",
+        "params": [
+         {
+          "id": "eg_trigger",
+          "type": "bool",
+          "name": "Trigger",
+          "current": 0,
+          "trig": 0
+         },
+         {
+          "id": "eg_loop",
+          "type": "bool",
+          "name": "Loop",
+          "current": 0,
+          "trig": -1
+         },
+         {
+          "id": "eg_attack",
+          "type": "int",
+          "name": "Attack",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         },
+         {
+          "id": "eg_decay",
+          "type": "int",
+          "name": "Decay",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         }
+        ]
+       },
+       {
+        "id": "mod",
+        "type": "group",
+        "name": "Modulation",
+        "params": [
+         {
+          "id": "mod_brightness",
+          "type": "int",
+          "name": "Brightness mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 116,
+          "cv": -1
+         },
+         {
+          "id": "mod_frequency",
+          "type": "int",
+          "name": "Frequency mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_damping",
+          "type": "int",
+          "name": "Damping mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_structure",
+          "type": "int",
+          "name": "Structure mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_position",
+          "type": "int",
+          "name": "Position mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Reba Zicedaga",
+     "number": 2,
+     "pluginSpec": {
+      "id": "TBDings",
+      "isStereo": true,
+      "name": "TBDings",
+      "hint": "Mutable Instruments Rings Port",
+      "params": [
+       {
+        "id": "reson_model",
+        "name": "Model",
+        "type": "int",
+        "min": 0,
+        "max": 5,
+        "texts": [
+         "Modal",
+         "Sympathetic",
+         "Inharmonic",
+         "2-Op FM",
+         "Quantized",
+         "String+Verb"
+        ],
+        "current": 1,
+        "cv": -1
+       },
+       {
+        "id": "frequency",
+        "name": "Frequency",
+        "type": "int",
+        "min": 0,
+        "max": 4032,
+        "current": 2047,
+        "cv": 104
+       },
+       {
+        "id": "polyphony",
+        "name": "Polyphony",
+        "type": "int",
+        "min": 0,
+        "max": 2,
+        "current": 1
+       },
+       {
+        "id": "structure",
+        "name": "Structure",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 2316,
+        "cv": -1
+       },
+       {
+        "id": "brightness",
+        "name": "Brightness",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 2860,
+        "cv": -1
+       },
+       {
+        "id": "damping",
+        "name": "Damping",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3112,
+        "cv": -1
+       },
+       {
+        "id": "position",
+        "name": "Position",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 2047,
+        "cv": -1
+       },
+       {
+        "id": "chords",
+        "name": "Chords",
+        "type": "int",
+        "min": 0,
+        "max": 10,
+        "current": 1,
+        "cv": -1
+       },
+       {
+        "id": "easter",
+        "type": "bool",
+        "name": "Easter Egg",
+        "current": 0,
+        "trig": -1
+       },
+       {
+        "id": "ex_int",
+        "type": "bool",
+        "name": "Internal Exciter",
+        "current": 1
+       },
+       {
+        "id": "strum_int",
+        "type": "bool",
+        "name": "Internal Strum",
+        "current": 1,
+        "trig": 0
+       },
+       {
+        "id": "note_int",
+        "type": "bool",
+        "name": "Internal Note",
+        "current": 1
+       },
+       {
+        "id": "eg",
+        "type": "group",
+        "name": "EG",
+        "params": [
+         {
+          "id": "eg_trigger",
+          "type": "bool",
+          "name": "Trigger",
+          "current": 0,
+          "trig": 45
+         },
+         {
+          "id": "eg_loop",
+          "type": "bool",
+          "name": "Loop",
+          "current": 0,
+          "trig": -1
+         },
+         {
+          "id": "eg_attack",
+          "type": "int",
+          "name": "Attack",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         },
+         {
+          "id": "eg_decay",
+          "type": "int",
+          "name": "Decay",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         }
+        ]
+       },
+       {
+        "id": "mod",
+        "type": "group",
+        "name": "Modulation",
+        "params": [
+         {
+          "id": "mod_brightness",
+          "type": "int",
+          "name": "Brightness mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 116,
+          "cv": -1
+         },
+         {
+          "id": "mod_frequency",
+          "type": "int",
+          "name": "Frequency mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_damping",
+          "type": "int",
+          "name": "Damping mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_structure",
+          "type": "int",
+          "name": "Structure mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_position",
+          "type": "int",
+          "name": "Position mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Jasudodu Farir",
+     "number": 3,
+     "pluginSpec": {
+      "id": "TBDings",
+      "isStereo": true,
+      "name": "TBDings",
+      "hint": "Mutable Instruments Rings Port",
+      "params": [
+       {
+        "id": "reson_model",
+        "name": "Model",
+        "type": "int",
+        "min": 0,
+        "max": 5,
+        "texts": [
+         "Modal",
+         "Sympathetic",
+         "Inharmonic",
+         "2-Op FM",
+         "Quantized",
+         "String+Verb"
+        ],
+        "current": 5,
+        "cv": -1
+       },
+       {
+        "id": "frequency",
+        "name": "Frequency",
+        "type": "int",
+        "min": 0,
+        "max": 4032,
+        "current": 1049,
+        "cv": 104
+       },
+       {
+        "id": "polyphony",
+        "name": "Polyphony",
+        "type": "int",
+        "min": 0,
+        "max": 2,
+        "current": 2
+       },
+       {
+        "id": "structure",
+        "name": "Structure",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 715,
+        "cv": -1
+       },
+       {
+        "id": "brightness",
+        "name": "Brightness",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3553,
+        "cv": -1
+       },
+       {
+        "id": "damping",
+        "name": "Damping",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 4090,
+        "cv": -1
+       },
+       {
+        "id": "position",
+        "name": "Position",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1892,
+        "cv": -1
+       },
+       {
+        "id": "chords",
+        "name": "Chords",
+        "type": "int",
+        "min": 0,
+        "max": 10,
+        "current": 3,
+        "cv": -1
+       },
+       {
+        "id": "easter",
+        "type": "bool",
+        "name": "Easter Egg",
+        "current": 0,
+        "trig": -1
+       },
+       {
+        "id": "ex_int",
+        "type": "bool",
+        "name": "Internal Exciter",
+        "current": 1
+       },
+       {
+        "id": "strum_int",
+        "type": "bool",
+        "name": "Internal Strum",
+        "current": 0,
+        "trig": 0
+       },
+       {
+        "id": "note_int",
+        "type": "bool",
+        "name": "Internal Note",
+        "current": 1
+       },
+       {
+        "id": "eg",
+        "type": "group",
+        "name": "EG",
+        "params": [
+         {
+          "id": "eg_trigger",
+          "type": "bool",
+          "name": "Trigger",
+          "current": 1,
+          "trig": 45
+         },
+         {
+          "id": "eg_loop",
+          "type": "bool",
+          "name": "Loop",
+          "current": 0,
+          "trig": -1
+         },
+         {
+          "id": "eg_attack",
+          "type": "int",
+          "name": "Attack",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         },
+         {
+          "id": "eg_decay",
+          "type": "int",
+          "name": "Decay",
+          "min": 0,
+          "max": 4095,
+          "current": 2840,
+          "cv": -1
+         }
+        ]
+       },
+       {
+        "id": "mod",
+        "type": "group",
+        "name": "Modulation",
+        "params": [
+         {
+          "id": "mod_brightness",
+          "type": "int",
+          "name": "Brightness mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 116,
+          "cv": -1
+         },
+         {
+          "id": "mod_frequency",
+          "type": "int",
+          "name": "Frequency mod",
+          "min": -4095,
+          "max": 4095,
+          "current": -6,
+          "cv": -1
+         },
+         {
+          "id": "mod_damping",
+          "type": "int",
+          "name": "Damping mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_structure",
+          "type": "int",
+          "name": "Structure mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 467,
+          "cv": -1
+         },
+         {
+          "id": "mod_position",
+          "type": "int",
+          "name": "Position mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 229,
+          "cv": -1
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Hatuluri Gamuwilas",
+     "number": 4,
+     "pluginSpec": {
+      "id": "TBDings",
+      "isStereo": true,
+      "name": "TBDings",
+      "hint": "Mutable Instruments Rings Port",
+      "params": [
+       {
+        "id": "reson_model",
+        "name": "Model",
+        "type": "int",
+        "min": 0,
+        "max": 5,
+        "texts": [
+         "Modal",
+         "Sympathetic",
+         "Inharmonic",
+         "2-Op FM",
+         "Quantized",
+         "String+Verb"
+        ],
+        "current": 5,
+        "cv": -1
+       },
+       {
+        "id": "frequency",
+        "name": "Frequency",
+        "type": "int",
+        "min": 0,
+        "max": 4032,
+        "current": 1465,
+        "cv": 104
+       },
+       {
+        "id": "polyphony",
+        "name": "Polyphony",
+        "type": "int",
+        "min": 0,
+        "max": 2,
+        "current": 2
+       },
+       {
+        "id": "structure",
+        "name": "Structure",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1205,
+        "cv": -1
+       },
+       {
+        "id": "brightness",
+        "name": "Brightness",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3553,
+        "cv": -1
+       },
+       {
+        "id": "damping",
+        "name": "Damping",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3797,
+        "cv": -1
+       },
+       {
+        "id": "position",
+        "name": "Position",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1885,
+        "cv": -1
+       },
+       {
+        "id": "chords",
+        "name": "Chords",
+        "type": "int",
+        "min": 0,
+        "max": 10,
+        "current": 2,
+        "cv": -1
+       },
+       {
+        "id": "easter",
+        "type": "bool",
+        "name": "Easter Egg",
+        "current": 0,
+        "trig": -1
+       },
+       {
+        "id": "ex_int",
+        "type": "bool",
+        "name": "Internal Exciter",
+        "current": 1
+       },
+       {
+        "id": "strum_int",
+        "type": "bool",
+        "name": "Internal Strum",
+        "current": 0,
+        "trig": 0
+       },
+       {
+        "id": "note_int",
+        "type": "bool",
+        "name": "Internal Note",
+        "current": 1
+       },
+       {
+        "id": "eg",
+        "type": "group",
+        "name": "EG",
+        "params": [
+         {
+          "id": "eg_trigger",
+          "type": "bool",
+          "name": "Trigger",
+          "current": 1,
+          "trig": 45
+         },
+         {
+          "id": "eg_loop",
+          "type": "bool",
+          "name": "Loop",
+          "current": 0,
+          "trig": -1
+         },
+         {
+          "id": "eg_attack",
+          "type": "int",
+          "name": "Attack",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         },
+         {
+          "id": "eg_decay",
+          "type": "int",
+          "name": "Decay",
+          "min": 0,
+          "max": 4095,
+          "current": 2840,
+          "cv": -1
+         }
+        ]
+       },
+       {
+        "id": "mod",
+        "type": "group",
+        "name": "Modulation",
+        "params": [
+         {
+          "id": "mod_brightness",
+          "type": "int",
+          "name": "Brightness mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 116,
+          "cv": -1
+         },
+         {
+          "id": "mod_frequency",
+          "type": "int",
+          "name": "Frequency mod",
+          "min": -4095,
+          "max": 4095,
+          "current": -6,
+          "cv": -1
+         },
+         {
+          "id": "mod_damping",
+          "type": "int",
+          "name": "Damping mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_structure",
+          "type": "int",
+          "name": "Structure mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 467,
+          "cv": -1
+         },
+         {
+          "id": "mod_position",
+          "type": "int",
+          "name": "Position mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 229,
+          "cv": -1
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Yejegahet Balore",
+     "number": 5,
+     "pluginSpec": {
+      "id": "TBDings",
+      "isStereo": true,
+      "name": "TBDings",
+      "hint": "Mutable Instruments Rings Port",
+      "params": [
+       {
+        "id": "reson_model",
+        "name": "Model",
+        "type": "int",
+        "min": 0,
+        "max": 5,
+        "texts": [
+         "Modal",
+         "Sympathetic",
+         "Inharmonic",
+         "2-Op FM",
+         "Quantized",
+         "String+Verb"
+        ],
+        "current": 5,
+        "cv": -1
+       },
+       {
+        "id": "frequency",
+        "name": "Frequency",
+        "type": "int",
+        "min": 0,
+        "max": 4032,
+        "current": 1370,
+        "cv": 104
+       },
+       {
+        "id": "polyphony",
+        "name": "Polyphony",
+        "type": "int",
+        "min": 0,
+        "max": 2,
+        "current": 2
+       },
+       {
+        "id": "structure",
+        "name": "Structure",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1252,
+        "cv": -1
+       },
+       {
+        "id": "brightness",
+        "name": "Brightness",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3182,
+        "cv": -1
+       },
+       {
+        "id": "damping",
+        "name": "Damping",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3797,
+        "cv": -1
+       },
+       {
+        "id": "position",
+        "name": "Position",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1885,
+        "cv": -1
+       },
+       {
+        "id": "chords",
+        "name": "Chords",
+        "type": "int",
+        "min": 0,
+        "max": 10,
+        "current": 4,
+        "cv": -1
+       },
+       {
+        "id": "easter",
+        "type": "bool",
+        "name": "Easter Egg",
+        "current": 0,
+        "trig": -1
+       },
+       {
+        "id": "ex_int",
+        "type": "bool",
+        "name": "Internal Exciter",
+        "current": 1
+       },
+       {
+        "id": "strum_int",
+        "type": "bool",
+        "name": "Internal Strum",
+        "current": 0,
+        "trig": 0
+       },
+       {
+        "id": "note_int",
+        "type": "bool",
+        "name": "Internal Note",
+        "current": 1
+       },
+       {
+        "id": "eg",
+        "type": "group",
+        "name": "EG",
+        "params": [
+         {
+          "id": "eg_trigger",
+          "type": "bool",
+          "name": "Trigger",
+          "current": 1,
+          "trig": 45
+         },
+         {
+          "id": "eg_loop",
+          "type": "bool",
+          "name": "Loop",
+          "current": 0,
+          "trig": -1
+         },
+         {
+          "id": "eg_attack",
+          "type": "int",
+          "name": "Attack",
+          "min": 0,
+          "max": 4095,
+          "current": 2047,
+          "cv": -1
+         },
+         {
+          "id": "eg_decay",
+          "type": "int",
+          "name": "Decay",
+          "min": 0,
+          "max": 4095,
+          "current": 3245,
+          "cv": -1
+         }
+        ]
+       },
+       {
+        "id": "mod",
+        "type": "group",
+        "name": "Modulation",
+        "params": [
+         {
+          "id": "mod_brightness",
+          "type": "int",
+          "name": "Brightness mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 116,
+          "cv": -1
+         },
+         {
+          "id": "mod_frequency",
+          "type": "int",
+          "name": "Frequency mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 21,
+          "cv": -1
+         },
+         {
+          "id": "mod_damping",
+          "type": "int",
+          "name": "Damping mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_structure",
+          "type": "int",
+          "name": "Structure mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 667,
+          "cv": -1
+         },
+         {
+          "id": "mod_position",
+          "type": "int",
+          "name": "Position mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 485,
+          "cv": -1
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Moyamo Feve",
+     "number": 6,
+     "pluginSpec": {
+      "id": "TBDings",
+      "isStereo": true,
+      "name": "TBDings",
+      "hint": "Mutable Instruments Rings Port",
+      "params": [
+       {
+        "id": "reson_model",
+        "name": "Model",
+        "type": "int",
+        "min": 0,
+        "max": 5,
+        "texts": [
+         "Modal",
+         "Sympathetic",
+         "Inharmonic",
+         "2-Op FM",
+         "Quantized",
+         "String+Verb"
+        ],
+        "current": 1,
+        "cv": -1
+       },
+       {
+        "id": "frequency",
+        "name": "Frequency",
+        "type": "int",
+        "min": 0,
+        "max": 4032,
+        "current": 2016,
+        "cv": 0
+       },
+       {
+        "id": "polyphony",
+        "name": "Polyphony",
+        "type": "int",
+        "min": 0,
+        "max": 2,
+        "current": 2
+       },
+       {
+        "id": "structure",
+        "name": "Structure",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1644,
+        "cv": -1
+       },
+       {
+        "id": "brightness",
+        "name": "Brightness",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3250,
+        "cv": -1
+       },
+       {
+        "id": "damping",
+        "name": "Damping",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 3357,
+        "cv": -1
+       },
+       {
+        "id": "position",
+        "name": "Position",
+        "type": "int",
+        "min": 0,
+        "max": 4095,
+        "current": 1771,
+        "cv": -1
+       },
+       {
+        "id": "chords",
+        "name": "Chords",
+        "type": "int",
+        "min": 0,
+        "max": 10,
+        "current": 2,
+        "cv": -1
+       },
+       {
+        "id": "easter",
+        "type": "bool",
+        "name": "Easter Egg",
+        "current": 0,
+        "trig": -1
+       },
+       {
+        "id": "ex_int",
+        "type": "bool",
+        "name": "Internal Exciter",
+        "current": 1
+       },
+       {
+        "id": "strum_int",
+        "type": "bool",
+        "name": "Internal Strum",
+        "current": 1,
+        "trig": 0
+       },
+       {
+        "id": "note_int",
+        "type": "bool",
+        "name": "Internal Note",
+        "current": 1
+       },
+       {
+        "id": "eg",
+        "type": "group",
+        "name": "EG",
+        "params": [
+         {
+          "id": "eg_trigger",
+          "type": "bool",
+          "name": "Trigger",
+          "current": 1,
+          "trig": 0
+         },
+         {
+          "id": "eg_loop",
+          "type": "bool",
+          "name": "Loop",
+          "current": 0,
+          "trig": -1
+         },
+         {
+          "id": "eg_attack",
+          "type": "int",
+          "name": "Attack",
+          "min": 0,
+          "max": 4095,
+          "current": 1177,
+          "cv": -1
+         },
+         {
+          "id": "eg_decay",
+          "type": "int",
+          "name": "Decay",
+          "min": 0,
+          "max": 4095,
+          "current": 3245,
+          "cv": -1
+         }
+        ]
+       },
+       {
+        "id": "mod",
+        "type": "group",
+        "name": "Modulation",
+        "params": [
+         {
+          "id": "mod_brightness",
+          "type": "int",
+          "name": "Brightness mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 116,
+          "cv": -1
+         },
+         {
+          "id": "mod_frequency",
+          "type": "int",
+          "name": "Frequency mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 7,
+          "cv": -1
+         },
+         {
+          "id": "mod_damping",
+          "type": "int",
+          "name": "Damping mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 0,
+          "cv": -1
+         },
+         {
+          "id": "mod_structure",
+          "type": "int",
+          "name": "Structure mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 171,
+          "cv": -1
+         },
+         {
+          "id": "mod_position",
+          "type": "int",
+          "name": "Position mod",
+          "min": -4095,
+          "max": 4095,
+          "current": 89,
+          "cv": -1
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

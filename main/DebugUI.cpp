@@ -433,6 +433,80 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/getPresets") {
+                // Patch list for a channel (names + numbers — the same JSON
+                // the panel PRESETS menu parses). Small reply, relay-safe.
+                int ch = 0;
+                if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
+                if (ch < 0 || ch > 1) {
+                    response = cmdEcho + ",\"error\":\"bad channel\"}";
+                    return true;
+                }
+                const char *list = AUDIO::SoundProcessorManager::GetCStrJSONGetPresets(ch);
+                response = cmdEcho + ",\"ch\":" + to_string(ch) +
+                           ",\"presets\":" + (list ? list : "{}");
+                return true;
+            }
+
+            if (s == "/debug/getPresetData") {
+                // CURRENT patch's full params for a channel (the model
+                // serialises the active patch). For a non-active patch,
+                // /link/presetLoad it first, then read. Reply ~1.5 KB per
+                // patch — the bench relay ceiling is ~2 KB, keep patches lean.
+                int ch = 0;
+                if (d.HasMember("ch") && d["ch"].IsInt()) ch = d["ch"].GetInt();
+                if (ch < 0 || ch > 1) {
+                    response = cmdEcho + ",\"error\":\"bad channel\"}";
+                    return true;
+                }
+                const char *data = AUDIO::SoundProcessorManager::GetCStrJSONAllPresetData(ch);
+                response = cmdEcho + ",\"ch\":" + to_string(ch) +
+                           ",\"presetData\":" + (data ? data : "{}");
+                return true;
+            }
+
+            if (s == "/debug/presetLoad") {
+                // Bench preset switch: load a stored patch so its params
+                // become readable via /debug/getPluginParams (the preset
+                // dump flow). Persists activePatch (storeJSON) like the UI.
+                if (!d.HasMember("ch") || !d["ch"].IsInt() ||
+                    !d.HasMember("num") || !d["num"].IsInt()) {
+                    response = cmdEcho + ",\"error\":\"missing ch/num\"}";
+                    return true;
+                }
+                int ch = d["ch"].GetInt();
+                int num = d["num"].GetInt();
+                if (ch < 0 || ch > 1 || num < 0) {
+                    response = cmdEcho + ",\"error\":\"bad ch/num\"}";
+                    return true;
+                }
+                AUDIO::SoundProcessorManager::ChannelLoadPreset(ch, num);
+                response = cmdEcho + ",\"ok\":1}";
+                return true;
+            }
+
+            if (s == "/debug/presetSave") {
+                // Bench preset store: append/overwrite a patch with the
+                // CURRENT param state under the given name/number (the
+                // restore half of the preset dump flow).
+                if (!d.HasMember("ch") || !d["ch"].IsInt() ||
+                    !d.HasMember("num") || !d["num"].IsInt() ||
+                    !d.HasMember("name") || !d["name"].IsString()) {
+                    response = cmdEcho + ",\"error\":\"missing ch/num/name\"}";
+                    return true;
+                }
+                int ch = d["ch"].GetInt();
+                int num = d["num"].GetInt();
+                if (ch < 0 || ch > 1 || num < 0) {
+                    response = cmdEcho + ",\"error\":\"bad ch/num\"}";
+                    return true;
+                }
+                AUDIO::SoundProcessorManager::ChannelSavePreset(
+                    ch, d["name"].GetString(), num);
+                response = cmdEcho + ",\"ok\":1}";
+                return true;
+            }
+
             if (s == "/debug/getCodecReg") {
                 // Single-register read: fast enough for a live diagnostic even
                 // when the I2C bus is busy (unlike the 53-register dump).
