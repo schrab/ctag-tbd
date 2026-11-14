@@ -144,6 +144,37 @@ namespace CTAG {
                 return true;
             }
 
+            if (s == "/debug/getParamTable") {
+                // C3-LOCAL: serialize the cached param table for a channel
+                // (leaves only — static storage, NO heap allocation, NO DSP
+                // round trip). The preset backup reads this instead of the
+                // ~2.4 KB forwarded spec reply whose dbgResult.assign kept
+                // hitting the C3 heap ceiling and aborting the panel.
+                int ch = 0;
+                d.Parse(doc);
+                if (!d.HasParseError() && d.HasMember("ch") && d["ch"].IsInt())
+                    ch = d["ch"].GetInt();
+                if (ch < 0 || ch > 1) {
+                    response = "{\"error\":\"bad channel\"}";
+                    return true;
+                }
+                int n = DspProxy::GetParamEntryCount(ch);
+                response = string("{\"ch\":") + to_string(ch) + ",\"params\":[";
+                bool first = true;
+                for (int i = 0; i < n; i++) {
+                    const DspProxy::DspParamEntry *e = DspProxy::GetParamEntry(ch, i);
+                    if (e == nullptr || e->isGroup) continue;
+                    if (!first) response += ",";
+                    response += "{\"id\":\"" + string(e->id) + "\""
+                                + ",\"current\":" + to_string(e->current)
+                                + ",\"cv\":" + to_string(e->cv)
+                                + ",\"trig\":" + to_string(e->trig) + "}";
+                    first = false;
+                }
+                response += "]}";
+                return true;
+            }
+
             if (s == "/debug/getPresetsCached") {
                 // C3-LOCAL: the presets list the DSP pushed for a channel
                 // (kMsgPushPresets cache). Reliable — no DSP round trip; the
@@ -345,6 +376,11 @@ namespace CTAG {
                            // arp steps and notes (SeqEngine bit map) — the
                            // bench timelines gate activity against audio.
                            + ",\"sq\":" + to_string((unsigned long long)DspProxy::GetSeqSnapshot())
+                           // NOTE: do NOT add bulky fields here — this reply
+                           // is polled by wait_ready every second, and a
+                           // ~2 KB response string aborts the C3 at its heap
+                           // ceiling (the plugins-list field caused exactly
+                           // that: a poll-driven crash/reboot cycle).
                            + ",\"proto\":" + to_string(kProtoMajor) + "." + to_string(kProtoMinor)
                            + "}";
                 return true;
@@ -360,7 +396,7 @@ namespace CTAG {
                 return true;
             }
             string reply;
-            if (LinkClient::RequestDebug(doc, reply)) {
+            if (LinkClient::RequestDebug(doc, reply, 10000)) {
                 response = reply;
             } else {
                 response = string("{\"cmd\":\"") + s + "\",\"error\":\"timeout\"}";

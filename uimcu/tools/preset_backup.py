@@ -35,7 +35,11 @@ def main():
     out_path = sys.argv[1] if len(sys.argv) > 1 else "presets_full_backup.json"
     dump = {"channels": {}}
 
-    with open_port("/dev/ttyACM1") as s:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--port", default="/dev/ttyACM1")
+    args, _ = ap.parse_known_args()
+    with open_port(args.port) as s:
         assert wait_ready(s, 25), "no DSP link"
         st = request(s, {"cmd": "/debug/getProxyState"}, timeout=8.0)
         for ch in (0, 1):
@@ -57,24 +61,18 @@ def main():
                 num, name = pat["number"], pat["name"]
                 request(s, {"cmd": "/debug/presetLoad", "ch": ch,
                             "num": num}, timeout=6.0)
-                time.sleep(0.35)  # SPIFFS storeJSON + params settle
-                # ONE call returns the full param spec with LIVE current/cv
-                # values (verified: a set round-trips into it). Flatten the
-                # group nesting — grouped params carry live values too.
-                r = request(s, {"cmd": "/debug/getPluginParams", "ch": ch},
-                            timeout=8.0)
-                spec = r.get("params", {})
-                leaves = []
-                if isinstance(spec, dict):
-                    flatten_params(spec.get("params", []), leaves)
-                entry = {"name": name, "number": num,
-                         "plugin": spec.get("id") if isinstance(spec, dict) else None,
-                         "params": {p["id"]: {"current": p["current"],
-                                              "cv": p.get("cv"),
-                                              "trig": p.get("trig")}
-                                    for p in leaves}}
+                time.sleep(0.6)  # SPIFFS storeJSON + the params push landing
+                # C3-LOCAL read of the chunked-push param table — static
+                # buffers, no heap, no big forwarded reply (the 2.4 KB spec
+                # assign was aborting the C3 at its heap ceiling).
+                r = request(s, {"cmd": "/debug/getParamTable", "ch": ch},
+                            timeout=6.0)
+                params = {p["id"]: {"current": p["current"], "cv": p["cv"],
+                                    "trig": p["trig"]}
+                          for p in r.get("params", [])}
+                entry = {"name": name, "number": num, "params": params}
                 ch_data["patches"].append(entry)
-                print(f"  #{num} {name}: {len(entry['params'])} params")
+                print(f"  #{num} {name}: {len(params)} params")
             dump["channels"][ch] = ch_data
             # restore the patch that was active before the dump
             request(s, {"cmd": "/debug/presetLoad", "ch": ch,

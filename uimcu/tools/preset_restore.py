@@ -21,7 +21,11 @@ def main():
     src = sys.argv[1] if len(sys.argv) > 1 else "presets_full_backup.json"
     dump = json.load(open(src))
 
-    with open_port("/dev/ttyACM1") as s:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--port", default="/dev/ttyACM1")
+    args, _ = ap.parse_known_args()
+    with open_port(args.port) as s:
         assert wait_ready(s, 25), "no DSP link"
         for ch_s, ch_data in dump.get("channels", {}).items():
             ch = int(ch_s)
