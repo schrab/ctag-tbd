@@ -59,11 +59,20 @@ namespace CTAG {
             static void SetMixerMode(int mode);
             static void SetAnalogBypass(bool on);
             static void SetInputGain(int gain);
+            // NATIVE-scale input gain (io-caps "inlvlmax" contract): the
+            // ES8388's mic-amp scale IS the legacy 0..8 UI range, so the
+            // write is the same as SetInputGain — configs carrying
+            // input_gain_lvl route here. Facade rule: this header is the
+            // twin of codec.hpp/codec_bba2.hpp — keep all three in sync.
+            static void SetInputGainNative(int gain);
 
             // Debug/diagnostic: current ES8388 register file (53 bytes) and
             // single-register reads (the full dump can be slow on a busy bus).
             static const uint8_t *DebugReadAllRegs();
             static bool DebugReadReg(uint8_t reg, uint8_t &val);
+            // Bench register write (mic-routing sweeps); the ES8388 is
+            // readable, so the readback is a live I2C read.
+            static bool DebugWriteReg(uint8_t reg, uint16_t val, uint16_t &readback);
 
             // Dropped/failed block transfers: the v6.1 i2s driver timeout is
             // in MILLISECONDS — the pdMS_TO_TICKS(100) argument collapsed to

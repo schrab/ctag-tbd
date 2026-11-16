@@ -60,6 +60,12 @@ public:
     bool identify();
     uint8_t* readAllReg();
     bool debugReadReg(uint8_t reg, uint8_t &val) { return read_reg(reg, val); }
+    // Bench write with live readback (ES8388 registers ARE readable, unlike
+    // the WM8978 shadow); keeps write_reg private.
+    bool debugWriteReg(uint8_t reg, uint8_t val, uint8_t &readback) {
+        if (!write_reg(reg, val)) return false;
+        return read_reg(reg, readback);
+    }
     bool outputSelect(outsel_t sel);
     bool inputSelect(insel_t sel);
     bool DACmute(bool mute);
