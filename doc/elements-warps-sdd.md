@@ -1,9 +1,16 @@
 # Elements × Warps: internal signal-hybridization stage (implementation plan)
 
-Status: PLANNED (2026-11-16). Executor: next session. Owner decisions already
-made: **modulator source = raw exciter**; **vocoder included, CPU-gated by
-measurement**; reverb stays after the Warps stage ("after resonator, before
-reverb").
+Status: EXECUTED (2026-11-17, eurorack dadd66c) with two data-driven
+deviations from the text below, both recorded in AGENTS.md: (1) the engine
+scalings — `modulation_algorithm` is normalized 0..1 (not 0..5) and
+`channel_drive` is the engine's own gain pot (not a 0..4 pre-gain); (2) the
+stage is **BBA2-only at runtime** — on the A1S even the xmod zone saturates
+core 0 while playing (helper > 1 ms share → link starvation; the whole
+Modulator in PSRAM also produced 39 ms blocks). sizeof(Modulator) measured
+72,660 B on-target (vocoder 65,760 B is split into a separate PSRAM-tolerant
+allocation; the 7.4 kB core is internal-first). A1S storage updated via
+writeFileChunk (user presets preserved by merge); BBA2 verification pending
+its bench session.
 
 ## 1. Objective
 

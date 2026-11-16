@@ -144,7 +144,68 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
              reverb_buffer != nullptr &&
                      esp_ptr_internal(reverb_buffer) ? "internal DRAM" : "PSRAM");
 
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    // Warps cross-modulator, split into two heap allocations OUTSIDE the
+    // plugin arena (which is exactly full at 111,616 B). Vocoder first
+    // (sizeof 65,760 B — two 20-band filter banks; only touched in the
+    // vocoder algorithm zone), then the ~7.4 kB xmod core.
+    // MEASURED (2026-11-17, A1S bench): the whole 72,660 B Modulator in
+    // PSRAM is unusable — helper avg 363 -> 1002 us and isolated 39 ms
+    // blocks (task_wdt on core 0, "DSP link lost"). With the core in
+    // internal DRAM the xmod zone STILL saturates core 0 while playing:
+    // the 6x-oversampled xmod + the SaturatingAmplifiers' SoftClip software-
+    // float divisions cost ~150-270 us/block on top of a 146k-cycle playing
+    // baseline — over the helper's 1 ms core-0 share, so the link task
+    // starves. Per the SDD's data-driven exclusion rule the stage is
+    // BBA2-only at runtime (the S3 renders single-core with DMA-ring slack
+    // and its PSRAM is ~4x faster); the A1S params stay in the model/UI so
+    // presets stay portable, but nothing allocates or renders here.
+    auto alloc_int_first = [&](std::size_t sz, std::size_t min_largest_after)
+            -> void * {
+        void *p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (p != nullptr &&
+            heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL |
+                                             MALLOC_CAP_8BIT) <
+                min_largest_after) {
+            heap_caps_free(p);
+            p = nullptr;
+        }
+        if (p == nullptr) {
+            p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
+        }
+        return p;
+    };
+    warps_vocoder_ = alloc_int_first(sizeof(warps::Vocoder), 28 * 1024);
+    assert(warps_vocoder_ != nullptr);
+    memset(warps_vocoder_, 0, sizeof(warps::Vocoder));
+
+    warps_mod_ = static_cast<warps::Modulator *>(
+        alloc_int_first(sizeof(warps::Modulator), 28 * 1024));
+    assert(warps_mod_ != nullptr);
+    if (warps_mod_ != nullptr) {
+        // Trivial ctor; every state the render reads is set by Modulator::Init
+        // just below or written per block from the patch.
+        new (warps_mod_) warps::Modulator();
+    }
+    ESP_LOGI("Elements", "warps core (%u B) in %s, vocoder (%u B) in %s",
+             static_cast<unsigned>(sizeof(warps::Modulator)),
+             warps_mod_ != nullptr &&
+                     esp_ptr_internal(warps_mod_) ? "internal DRAM" : "PSRAM",
+             static_cast<unsigned>(sizeof(warps::Vocoder)),
+             warps_vocoder_ != nullptr &&
+                     esp_ptr_internal(warps_vocoder_) ? "internal DRAM" : "PSRAM");
+
+    if (warps_mod_ != nullptr) {
+        warps_mod_->Init(elements::kSampleRate,
+                         static_cast<warps::Vocoder *>(warps_vocoder_));
+    }
+#endif
+
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
+    part.Init(reverb_buffer, warps_mod_);
+#else
     part.Init(reverb_buffer);
+#endif
 
 #ifndef TBD_SIM
     // Handoff state is copied every block in both directions and its atomics
@@ -346,6 +407,40 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     if (cv_modulation_frequency != -1)
         p->modulation_frequency = fabsf(data.cv[cv_modulation_frequency]) * 0.5f;
     CONSTRAIN(p->modulation_frequency, 0.f, 0.5f);
+
+    // Warps stage. The engine's modulation_algorithm is normalized 0..1
+    // (xmod table indexes min(algo*8, 6): 6 cross-mod algorithms spread over
+    // 0..0.7, the 20-band vocoder engages above 0.725 with a release-time
+    // sweep to 1.0) — the UI param maps straight onto it, so scanning 0..4095
+    // sweeps xfade -> fold -> diode -> digital -> xor -> comparator ->
+    // vocoder, blending adjacent algorithms like the module's knob.
+    p->warps_algorithm = warps_algorithm / 4095.f;
+    if (cv_warps_algorithm != -1)
+        p->warps_algorithm = fabsf(data.cv[cv_warps_algorithm]);
+    CONSTRAIN(p->warps_algorithm, 0.f, 1.f);
+
+    p->warps_timbre = warps_timbre / 4095.f;
+    if (cv_warps_timbre != -1)
+        p->warps_timbre = fabsf(data.cv[cv_warps_timbre]);
+    CONSTRAIN(p->warps_timbre, 0.f, 1.f);
+
+    // Levels feed the engine's channel_drive gain pots (its own float
+    // saturator — NOT a pre-gain on the int16 inputs): 0 = gain off, 0.5
+    // near-unity with gentle compression, 1.0 heavy saturation.
+    p->warps_mod_level = warps_mod_level / 4095.f;
+    if (cv_warps_mod_level != -1)
+        p->warps_mod_level = fabsf(data.cv[cv_warps_mod_level]);
+    CONSTRAIN(p->warps_mod_level, 0.f, 1.f);
+
+    p->warps_carrier_level = warps_carrier_level / 4095.f;
+    if (cv_warps_carrier_level != -1)
+        p->warps_carrier_level = fabsf(data.cv[cv_warps_carrier_level]);
+    CONSTRAIN(p->warps_carrier_level, 0.f, 1.f);
+
+    p->warps_mix = warps_mix / 4095.f;
+    if (cv_warps_mix != -1)
+        p->warps_mix = fabsf(data.cv[cv_warps_mix]);
+    CONSTRAIN(p->warps_mix, 0.f, 1.f);
 
     // PerformanceState
     bool gateVal = (gate != 0);
@@ -638,6 +733,16 @@ ctagSoundProcessorElements::~ctagSoundProcessorElements() {
     gElementsDebugHelperStack.store(-1);
     gElementsDebugHelperResolution.store(0);
 #endif
+    // The helper is stopped, so nothing renders through the modulator any
+    // more. Trivial destructors — plain frees are enough.
+    if (warps_mod_ != nullptr) {
+        heap_caps_free(warps_mod_);
+        warps_mod_ = nullptr;
+    }
+    if (warps_vocoder_ != nullptr) {
+        heap_caps_free(warps_vocoder_);
+        warps_vocoder_ = nullptr;
+    }
     if (reverb_buffer != nullptr) {
         heap_caps_free(reverb_buffer);
         reverb_buffer = nullptr;
@@ -847,6 +952,16 @@ void ctagSoundProcessorElements::knowYourself() {
     pMapCv.emplace("space", [&](const int val) { cv_space = val; });
     pMapPar.emplace("modulation_frequency", [&](const int val) { modulation_frequency = val; });
     pMapCv.emplace("modulation_frequency", [&](const int val) { cv_modulation_frequency = val; });
+    pMapPar.emplace("warps_algorithm", [&](const int val) { warps_algorithm = val; });
+    pMapCv.emplace("warps_algorithm", [&](const int val) { cv_warps_algorithm = val; });
+    pMapPar.emplace("warps_timbre", [&](const int val) { warps_timbre = val; });
+    pMapCv.emplace("warps_timbre", [&](const int val) { cv_warps_timbre = val; });
+    pMapPar.emplace("warps_mod_level", [&](const int val) { warps_mod_level = val; });
+    pMapCv.emplace("warps_mod_level", [&](const int val) { cv_warps_mod_level = val; });
+    pMapPar.emplace("warps_carrier_level", [&](const int val) { warps_carrier_level = val; });
+    pMapCv.emplace("warps_carrier_level", [&](const int val) { cv_warps_carrier_level = val; });
+    pMapPar.emplace("warps_mix", [&](const int val) { warps_mix = val; });
+    pMapCv.emplace("warps_mix", [&](const int val) { cv_warps_mix = val; });
     pMapPar.emplace("strength", [&](const int val) { strength = val; });
     pMapCv.emplace("strength", [&](const int val) { cv_strength = val; });
     pMapPar.emplace("play", [&](const int val) {

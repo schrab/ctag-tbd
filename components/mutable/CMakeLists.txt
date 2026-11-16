@@ -121,6 +121,16 @@ file(GLOB SRCS_FILES
         eurorack/elements/dsp/tube.cc
         eurorack/elements/dsp/multistage_envelope.cc
         eurorack/elements/dsp/ominous_voice.cc
+        eurorack/warps/dsp/modulator.cc
+        eurorack/warps/dsp/modulator.h
+        eurorack/warps/dsp/vocoder.cc
+        eurorack/warps/dsp/vocoder.h
+        eurorack/warps/dsp/filter_bank.cc
+        eurorack/warps/dsp/filter_bank.h
+        eurorack/warps/dsp/oscillator.cc
+        eurorack/warps/dsp/oscillator.h
+        eurorack/warps/resources.cc
+        eurorack/warps/resources.h
         eurorack/marbles/resources.cc
         eurorack/marbles/resources.h
         eurorack/marbles/random/t_generator.cc
@@ -179,6 +189,10 @@ else()
             eurorack/elements/dsp/tube.cc
             eurorack/elements/dsp/multistage_envelope.cc
             eurorack/elements/dsp/ominous_voice.cc
+            eurorack/warps/dsp/modulator.cc
+            eurorack/warps/dsp/vocoder.cc
+            eurorack/warps/dsp/filter_bank.cc
+            eurorack/warps/dsp/oscillator.cc
             PROPERTIES COMPILE_OPTIONS "-O2")
 endif()
 
@@ -198,5 +212,9 @@ if(CONFIG_TBD_PLATFORM_BBA2)
             eurorack/elements/dsp/tube.cc
             eurorack/elements/dsp/multistage_envelope.cc
             eurorack/elements/dsp/ominous_voice.cc
+            eurorack/warps/dsp/modulator.cc
+            eurorack/warps/dsp/vocoder.cc
+            eurorack/warps/dsp/filter_bank.cc
+            eurorack/warps/dsp/oscillator.cc
             PROPERTIES COMPILE_OPTIONS "-O3")
 endif()
