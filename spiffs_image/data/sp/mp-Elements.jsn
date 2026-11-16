@@ -6,22 +6,22 @@
    "params": [
     {
      "id": "resonator_model",
-     "current": 0,
+     "current": 1,
      "cv": -1
     },
     {
      "id": "frequency",
      "current": 2016,
-     "cv": -1
+     "cv": 104
     },
     {
      "id": "exciter_envelope_shape",
-     "current": 2047,
+     "current": 1747,
      "cv": -1
     },
     {
      "id": "exciter_bow_level",
-     "current": 0,
+     "current": 1186,
      "cv": -1
     },
     {
@@ -31,7 +31,7 @@
     },
     {
      "id": "exciter_blow_level",
-     "current": 0,
+     "current": 1823,
      "cv": -1
     },
     {
@@ -66,7 +66,7 @@
     },
     {
      "id": "resonator_geometry",
-     "current": 819,
+     "current": 1064,
      "cv": -1
     },
     {
@@ -76,7 +76,7 @@
     },
     {
      "id": "resonator_damping",
-     "current": 1024,
+     "current": 2460,
      "cv": -1
     },
     {
@@ -106,7 +106,7 @@
     },
     {
      "id": "space",
-     "current": 2047,
+     "current": 2538,
      "cv": -1
     },
     {
@@ -141,16 +141,21 @@
     },
     {
      "id": "dist_type",
-     "current": 0,
+     "current": 2,
      "cv": -1
     },
     {
      "id": "dist_drive",
-     "current": 0,
+     "current": 4054,
      "cv": -1
     },
     {
      "id": "dist_bias",
+     "current": 0,
+     "cv": -1
+    },
+    {
+     "id": "dist_sustain",
      "current": 0,
      "cv": -1
     },
@@ -166,13 +171,13 @@
     },
     {
      "id": "strength",
-     "current": 2048,
+     "current": 2652,
      "cv": -1
     },
     {
      "id": "play",
      "current": 0,
-     "trig": -1
+     "trig": 45
     },
     {
      "id": "gate",

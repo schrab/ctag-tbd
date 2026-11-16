@@ -246,6 +246,13 @@
      "max": 4095
     },
     {
+     "id": "dist_sustain",
+     "name": "Sustain",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
      "id": "dist_tone",
      "name": "Tone",
      "type": "int",

@@ -87,6 +87,7 @@ namespace CTAG {
             atomic<int32_t> dist_type{0}, cv_dist_type{-1};
             atomic<int32_t> dist_drive{0}, cv_dist_drive{-1};
             atomic<int32_t> dist_bias{0}, cv_dist_bias{-1};
+            atomic<int32_t> dist_sustain{0}, cv_dist_sustain{-1};
             atomic<int32_t> dist_tone{4095}, cv_dist_tone{-1};
             atomic<int32_t> dist_mix{4095}, cv_dist_mix{-1};
             // sectionHpp

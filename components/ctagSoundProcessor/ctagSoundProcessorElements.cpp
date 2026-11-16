@@ -460,6 +460,11 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         p->dist_bias = fabsf(data.cv[cv_dist_bias]);
     CONSTRAIN(p->dist_bias, 0.f, 1.f);
 
+    p->dist_sustain = dist_sustain / 4095.f;
+    if (cv_dist_sustain != -1)
+        p->dist_sustain = fabsf(data.cv[cv_dist_sustain]);
+    CONSTRAIN(p->dist_sustain, 0.f, 1.f);
+
     p->dist_tone = dist_tone / 4095.f;
     if (cv_dist_tone != -1)
         p->dist_tone = fabsf(data.cv[cv_dist_tone]);
@@ -996,6 +1001,8 @@ void ctagSoundProcessorElements::knowYourself() {
     pMapCv.emplace("dist_drive", [&](const int val) { cv_dist_drive = val; });
     pMapPar.emplace("dist_bias", [&](const int val) { dist_bias = val; });
     pMapCv.emplace("dist_bias", [&](const int val) { cv_dist_bias = val; });
+    pMapPar.emplace("dist_sustain", [&](const int val) { dist_sustain = val; });
+    pMapCv.emplace("dist_sustain", [&](const int val) { cv_dist_sustain = val; });
     pMapPar.emplace("dist_tone", [&](const int val) { dist_tone = val; });
     pMapCv.emplace("dist_tone", [&](const int val) { cv_dist_tone = val; });
     pMapPar.emplace("dist_mix", [&](const int val) { dist_mix = val; });
