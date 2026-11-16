@@ -180,6 +180,34 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     }
     CONSTRAIN(patch.structure, 0.f, 1.f);
 
+    // Distortion stage (see rings/dsp/part.cc): the same four characters
+    // as the Elements stage, cv-capable; Bias acts only in the fuzz mode.
+    int dType = dist_type;
+    if (cv_dist_type != -1)
+        dType = (int)(floorf(data.cv[cv_dist_type] * 4.f)) % 4;
+    CONSTRAIN(dType, 0, 3);
+    patch.dist_type = static_cast<float>(dType);
+
+    patch.dist_drive = dist_drive / 4095.f;
+    if (cv_dist_drive != -1)
+        patch.dist_drive = fabsf(data.cv[cv_dist_drive]);
+    CONSTRAIN(patch.dist_drive, 0.f, 1.f);
+
+    patch.dist_bias = dist_bias / 4095.f;
+    if (cv_dist_bias != -1)
+        patch.dist_bias = fabsf(data.cv[cv_dist_bias]);
+    CONSTRAIN(patch.dist_bias, 0.f, 1.f);
+
+    patch.dist_tone = dist_tone / 4095.f;
+    if (cv_dist_tone != -1)
+        patch.dist_tone = fabsf(data.cv[cv_dist_tone]);
+    CONSTRAIN(patch.dist_tone, 0.f, 1.f);
+
+    patch.dist_mix = dist_mix / 4095.f;
+    if (cv_dist_mix != -1)
+        patch.dist_mix = fabsf(data.cv[cv_dist_mix]);
+    CONSTRAIN(patch.dist_mix, 0.f, 1.f);
+
     performance_state.note = frequency / 4032.f * 96.f;
     performance_state.internal_note = !note_int;
     if (cv_frequency != -1) {
@@ -273,6 +301,16 @@ void ctagSoundProcessorTBDings::knowYourself() {
     pMapCv.emplace("mod_structure", [&](const int val) { cv_mod_structure = val; });
     pMapPar.emplace("mod_position", [&](const int val) { mod_position = val; });
     pMapCv.emplace("mod_position", [&](const int val) { cv_mod_position = val; });
+    pMapPar.emplace("dist_type", [&](const int val) { dist_type = val; });
+    pMapCv.emplace("dist_type", [&](const int val) { cv_dist_type = val; });
+    pMapPar.emplace("dist_drive", [&](const int val) { dist_drive = val; });
+    pMapCv.emplace("dist_drive", [&](const int val) { cv_dist_drive = val; });
+    pMapPar.emplace("dist_bias", [&](const int val) { dist_bias = val; });
+    pMapCv.emplace("dist_bias", [&](const int val) { cv_dist_bias = val; });
+    pMapPar.emplace("dist_tone", [&](const int val) { dist_tone = val; });
+    pMapCv.emplace("dist_tone", [&](const int val) { cv_dist_tone = val; });
+    pMapPar.emplace("dist_mix", [&](const int val) { dist_mix = val; });
+    pMapCv.emplace("dist_mix", [&](const int val) { cv_dist_mix = val; });
     isStereo = true;
     id = "TBDings";
     // sectionCpp0

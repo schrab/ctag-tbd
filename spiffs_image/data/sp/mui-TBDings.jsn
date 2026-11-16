@@ -10,7 +10,14 @@
    "type": "int",
    "min": 0,
    "max": 5,
-   "texts": ["Modal", "Sympathetic", "Inharmonic", "2-Op FM", "Quantized", "String+Verb"]
+   "texts": [
+    "Modal",
+    "Sympathetic",
+    "Inharmonic",
+    "2-Op FM",
+    "Quantized",
+    "String+Verb"
+   ]
   },
   {
    "id": "frequency",
@@ -150,6 +157,48 @@
      "type": "int",
      "name": "Position mod",
      "min": -4095,
+     "max": 4095
+    }
+   ]
+  },
+  {
+   "id": "gr_dist",
+   "type": "group",
+   "name": "Distortion",
+   "params": [
+    {
+     "id": "dist_type",
+     "name": "Type",
+     "type": "int",
+     "min": 0,
+     "max": 3
+    },
+    {
+     "id": "dist_drive",
+     "name": "Drive",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "dist_bias",
+     "name": "Bias",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "dist_tone",
+     "name": "Tone",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "dist_mix",
+     "name": "Mix",
+     "type": "int",
+     "min": 0,
      "max": 4095
     }
    ]

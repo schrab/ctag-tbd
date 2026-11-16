@@ -81,6 +81,14 @@ namespace CTAG {
             atomic<int32_t> mod_damping{0}, cv_mod_damping{-1};
             atomic<int32_t> mod_structure{0}, cv_mod_structure{-1};
             atomic<int32_t> mod_position{0}, cv_mod_position{-1};
+            // Distortion stage (same four characters as the Elements stage;
+            // renders on the audio core — TBDings has no helper). drive 0 =
+            // zero-cost bypass.
+            atomic<int32_t> dist_type{0}, cv_dist_type{-1};
+            atomic<int32_t> dist_drive{0}, cv_dist_drive{-1};
+            atomic<int32_t> dist_bias{0}, cv_dist_bias{-1};
+            atomic<int32_t> dist_tone{4095}, cv_dist_tone{-1};
+            atomic<int32_t> dist_mix{4095}, cv_dist_mix{-1};
             // sectionHpp
 
         };
