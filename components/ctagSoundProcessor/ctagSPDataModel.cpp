@@ -77,6 +77,44 @@ void ctagSPDataModel::mergeModels() {
     }
 }
 
+void ctagSPDataModel::PreFillMissingParams(rapidjson::Value &params,
+                                           const rapidjson::Value &specs,
+                                           rapidjson::Document::AllocatorType &alloc) {
+    if (!params.IsArray() || !specs.IsArray()) return;
+    for (const auto &spec : specs.GetArray()) {
+        if (!spec.HasMember("id") || !spec["id"].IsString()) continue;
+        if (spec.HasMember("type") && spec["type"] == "group") {
+            if (spec.HasMember("params")) {
+                PreFillMissingParams(params, spec["params"], alloc);
+            }
+            continue;
+        }
+        const char *id = spec["id"].GetString();
+        bool found = false;
+        for (const auto &p : params.GetArray()) {
+            if (p.HasMember("id") && p["id"].IsString() && p["id"] == id) {
+                found = true;
+                break;
+            }
+        }
+        if (found) continue;
+        int def = 0;
+        if (spec.HasMember("def") && spec["def"].IsInt()) {
+            def = spec["def"].GetInt();
+        }
+        const bool isBool = spec.HasMember("type") && spec["type"] == "bool";
+        Value entry(kObjectType);
+        entry.AddMember(Value("id", alloc), Value(id, alloc), alloc);
+        entry.AddMember(Value("current", alloc), Value(def), alloc);
+        if (isBool) {
+            entry.AddMember(Value("trig", alloc), Value(-1), alloc);
+        } else {
+            entry.AddMember(Value("cv", alloc), Value(-1), alloc);
+        }
+        params.PushBack(entry, alloc);
+    }
+}
+
 void ctagSPDataModel::SetParamValue(const string &id, const string &key, const int val) {
     // NO logging here: SetParamValue runs on the link task for EVERY
     // parameter change from the panel. On the BBA2 the console is the
@@ -87,11 +125,13 @@ void ctagSPDataModel::SetParamValue(const string &id, const string &key, const i
     if (!activePreset.HasMember("params")) return;
     Value &patchParams = activePreset["params"];
     if (!patchParams.IsArray()) return;
+    bool found = false;
     for (auto &v : patchParams.GetArray()) {
         //printf("Searching for %s in ui model", v["id"].GetString());
         if (!v.HasMember("id")) return;
         if (!v["id"].IsString()) return;
         if (v["id"] == id) {
+            found = true;
             if (!v.HasMember(key)) {
                 // Params whose factory-patch entry lacks the cv/trig member
                 // would silently drop EVERY mapping made from the panel:
@@ -108,6 +148,26 @@ void ctagSPDataModel::SetParamValue(const string &id, const string &key, const i
             paramsDirty = true;
             BumpGeneration();
         }
+    }
+    if (!found) {
+        // The loaded preset predates this parameter entirely (e.g. the
+        // 2026-11-17 report: an old user preset + the new dist/warps
+        // params) — a missing entry would silently drop the edit: the
+        // engine got it (setParamValueInternal fired first) but the model
+        // never records it, so the next re-push / flush / reload reverts
+        // it. Append a complete entry.
+        Value entry(kObjectType);
+        Value idv(id, mui.GetAllocator());
+        entry.AddMember(Value("id", mui.GetAllocator()), idv, mui.GetAllocator());
+        Value cur("current", mui.GetAllocator());
+        entry.AddMember(cur, Value(key == "current" ? val : 0), mui.GetAllocator());
+        Value cvk("cv", mui.GetAllocator());
+        entry.AddMember(cvk, Value(key == "cv" ? val : -1), mui.GetAllocator());
+        Value trk("trig", mui.GetAllocator());
+        entry.AddMember(trk, Value(key == "trig" ? val : -1), mui.GetAllocator());
+        patchParams.PushBack(entry, mui.GetAllocator());
+        paramsDirty = true;
+        BumpGeneration();
     }
 }
 
@@ -182,6 +242,19 @@ void ctagSPDataModel::LoadPreset(const int num) {
     }
     activePreset.GetAllocator().Clear();
     activePreset.CopyFrom(mp["patches"].GetArray()[patchNum], activePreset.GetAllocator());
+    // Pre-fill: presets saved before a parameter existed carry no entry for
+    // it — SetParamValue matches by id and would silently drop EVERY edit
+    // of that param, and the next params re-push would show it at 0 (the
+    // 2026-11-17 dist/warps report). Seed missing params from the mui
+    // spec's "def" member (factory default, 0 when absent) so the loaded
+    // preset is complete: the engine gets real defaults via
+    // loadPresetInternal, the panel displays them, edits record, the flush
+    // persists.
+    if (mui.HasMember("params") && activePreset.HasMember("params") &&
+        activePreset["params"].IsArray()) {
+        PreFillMissingParams(activePreset["params"], mui["params"],
+                             activePreset.GetAllocator());
+    }
     ESP_LOGD("Model", "Preset Name is %s number %d", activePreset["name"].GetString(), patchNum);
     // save currently loaded preset to model
     if (!mp.HasMember("activePatch")) return;

@@ -70,6 +70,14 @@ namespace CTAG {
         private:
             void recursiveFindAndInsert(const Value &paramF, Value &paramI);
 
+            // Append default entries (from the mui spec's "def" member, 0
+            // when absent) for registered params the loaded preset does not
+            // carry — presets saved before a parameter existed would
+            // otherwise silently drop every edit of it.
+            void PreFillMissingParams(rapidjson::Value &params,
+                                      const rapidjson::Value &specs,
+                                      rapidjson::Document::AllocatorType &alloc);
+
             // merge ui and preset models
             void mergeModels();
 
