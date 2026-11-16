@@ -442,12 +442,12 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         p->warps_mix = fabsf(data.cv[cv_warps_mix]);
     CONSTRAIN(p->warps_mix, 0.f, 1.f);
 
-    // Distortion stage (see part.cc): three characters on Type, shared
+    // Distortion stage (see part.cc): four characters on Type, shared
     // Drive/Tone/Mix; Bias acts only in the fuzz mode.
     int dType = dist_type;
     if (cv_dist_type != -1)
-        dType = (int)(floorf(data.cv[cv_dist_type] * 3.f)) % 3;
-    CONSTRAIN(dType, 0, 2);
+        dType = (int)(floorf(data.cv[cv_dist_type] * 4.f)) % 4;
+    CONSTRAIN(dType, 0, 3);
     p->dist_type = static_cast<float>(dType);
 
     p->dist_drive = dist_drive / 4095.f;

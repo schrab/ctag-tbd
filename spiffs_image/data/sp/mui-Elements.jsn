@@ -229,7 +229,7 @@
      "name": "Type",
      "type": "int",
      "min": 0,
-     "max": 2
+     "max": 3
     },
     {
      "id": "dist_drive",
