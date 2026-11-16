@@ -117,12 +117,23 @@ void ctagSoundProcessorElements::Init(std::size_t blockSize, void *blockPtr) {
     reverb_buffer = (uint16_t *) heap_caps_malloc(
         32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
 #else
-    // Radio-free builds free enough internal DRAM that the 64 KB reverb
-    // buffer fits there; PSRAM access through the cache was a suspected
-    // contributor to the ~140k-cycle fixed Part render cost. Prefer
-    // internal, fall back to PSRAM (original behavior) when tight.
+    // Radio-free builds: prefer internal DRAM — PSRAM taps measurably slow
+    // the reverb — BUT only when taking 64 KB leaves the system enough
+    // contiguous internal DRAM. LinkEndpoint::Start installs the link UART
+    // rings AFTER plugin init, and on the v6.1.1 heap layout with Elements
+    // as the persisted boot plugin the internal-first alloc once starved
+    // that install: uart_driver_install failed and ESP_ERROR_CHECK
+    // boot-looped the device on every boot (2026-11-16, captured live).
+    // Threshold: the largest remaining internal block must cover the UART
+    // rings + the audio/helper task stacks (~48 KB) after the reverb buffer.
     reverb_buffer = (uint16_t *) heap_caps_malloc(
         32768 * sizeof(uint16_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (reverb_buffer != nullptr &&
+        heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) <
+            48 * 1024) {
+        heap_caps_free(reverb_buffer);
+        reverb_buffer = nullptr;
+    }
     if (reverb_buffer == nullptr) {
         reverb_buffer = (uint16_t *) heap_caps_malloc(
             32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);

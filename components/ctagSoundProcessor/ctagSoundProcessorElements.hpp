@@ -65,8 +65,17 @@ namespace CTAG {
             static constexpr std::size_t kResolutionFull = 24;
             static constexpr std::size_t kResolutionFallback = 16;
 #else
-            // Modal resonator bands: 24 = dual-core target @ 32kHz, 16 = floor.
-            static constexpr std::size_t kResolutionFull = 24;
+            // Modal resonator bands: 52 = dual-core target @ 32kHz
+            // (2026-11-16 hardware-measured at pinned 52: steady 352-388 µs
+            // avg across decay/noise/strikes/the full param matrix; worst
+            // combo — modal model, damping 0 — 529 µs avg with isolated
+            // 1520 µs blocks that the helper's one-block latency + DMA ring
+            // absorb; the overload flag is per-block and the ladder needs 16
+            // CONSECUTIVE over-budget blocks, so spikes never trigger it).
+            // 24 = the proven-safe 2026-11-05 operating point, kept as the
+            // ladder's first fallback step; 16 = floor before the V9 helper
+            // retire.
+            static constexpr std::size_t kResolutionFull = 52;
             static constexpr std::size_t kResolutionFallback = 16;
 #endif
 
@@ -97,8 +106,14 @@ namespace CTAG {
             // burst can pin a lower count until the plugin is reloaded, so
             // Task 3 must not read the settled count as a hardware limit.
             static constexpr int kFallbackStreak = 16;
+#if defined(CONFIG_TBD_PLATFORM_BBA2)
             static constexpr std::size_t kResolutionSteps[] = {
                 kResolutionFull, 20, kResolutionFallback};
+#else
+            // A1S: 52 -> 24 (the proven-safe 2026-11-05 point) -> 16.
+            static constexpr std::size_t kResolutionSteps[] = {
+                kResolutionFull, 24, kResolutionFallback};
+#endif
             static constexpr std::size_t kNumResolutionSteps =
                 sizeof(kResolutionSteps) / sizeof(kResolutionSteps[0]);
 
