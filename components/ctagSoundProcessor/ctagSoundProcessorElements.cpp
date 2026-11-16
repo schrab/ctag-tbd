@@ -442,6 +442,34 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
         p->warps_mix = fabsf(data.cv[cv_warps_mix]);
     CONSTRAIN(p->warps_mix, 0.f, 1.f);
 
+    // Distortion stage (see part.cc): three characters on Type, shared
+    // Drive/Tone/Mix; Bias acts only in the fuzz mode.
+    int dType = dist_type;
+    if (cv_dist_type != -1)
+        dType = (int)(floorf(data.cv[cv_dist_type] * 3.f)) % 3;
+    CONSTRAIN(dType, 0, 2);
+    p->dist_type = static_cast<float>(dType);
+
+    p->dist_drive = dist_drive / 4095.f;
+    if (cv_dist_drive != -1)
+        p->dist_drive = fabsf(data.cv[cv_dist_drive]);
+    CONSTRAIN(p->dist_drive, 0.f, 1.f);
+
+    p->dist_bias = dist_bias / 4095.f;
+    if (cv_dist_bias != -1)
+        p->dist_bias = fabsf(data.cv[cv_dist_bias]);
+    CONSTRAIN(p->dist_bias, 0.f, 1.f);
+
+    p->dist_tone = dist_tone / 4095.f;
+    if (cv_dist_tone != -1)
+        p->dist_tone = fabsf(data.cv[cv_dist_tone]);
+    CONSTRAIN(p->dist_tone, 0.f, 1.f);
+
+    p->dist_mix = dist_mix / 4095.f;
+    if (cv_dist_mix != -1)
+        p->dist_mix = fabsf(data.cv[cv_dist_mix]);
+    CONSTRAIN(p->dist_mix, 0.f, 1.f);
+
     // PerformanceState
     bool gateVal = (gate != 0);
     if (trig_gate != -1)
@@ -962,6 +990,16 @@ void ctagSoundProcessorElements::knowYourself() {
     pMapCv.emplace("warps_carrier_level", [&](const int val) { cv_warps_carrier_level = val; });
     pMapPar.emplace("warps_mix", [&](const int val) { warps_mix = val; });
     pMapCv.emplace("warps_mix", [&](const int val) { cv_warps_mix = val; });
+    pMapPar.emplace("dist_type", [&](const int val) { dist_type = val; });
+    pMapCv.emplace("dist_type", [&](const int val) { cv_dist_type = val; });
+    pMapPar.emplace("dist_drive", [&](const int val) { dist_drive = val; });
+    pMapCv.emplace("dist_drive", [&](const int val) { cv_dist_drive = val; });
+    pMapPar.emplace("dist_bias", [&](const int val) { dist_bias = val; });
+    pMapCv.emplace("dist_bias", [&](const int val) { cv_dist_bias = val; });
+    pMapPar.emplace("dist_tone", [&](const int val) { dist_tone = val; });
+    pMapCv.emplace("dist_tone", [&](const int val) { cv_dist_tone = val; });
+    pMapPar.emplace("dist_mix", [&](const int val) { dist_mix = val; });
+    pMapCv.emplace("dist_mix", [&](const int val) { cv_dist_mix = val; });
     pMapPar.emplace("strength", [&](const int val) { strength = val; });
     pMapCv.emplace("strength", [&](const int val) { cv_strength = val; });
     pMapPar.emplace("play", [&](const int val) {

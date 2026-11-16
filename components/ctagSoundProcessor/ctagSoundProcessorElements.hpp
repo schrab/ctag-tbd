@@ -217,6 +217,13 @@ namespace CTAG {
             atomic<int32_t> warps_mod_level{2048}, cv_warps_mod_level{-1};
             atomic<int32_t> warps_carrier_level{2048}, cv_warps_carrier_level{-1};
             atomic<int32_t> warps_mix{2047}, cv_warps_mix{-1};
+            // Distortion stage (cheap — runs on BOTH boards, unlike the
+            // BBA2-only Warps stage). drive 0 = zero-cost bypass.
+            atomic<int32_t> dist_type{0}, cv_dist_type{-1};
+            atomic<int32_t> dist_drive{0}, cv_dist_drive{-1};
+            atomic<int32_t> dist_bias{0}, cv_dist_bias{-1};
+            atomic<int32_t> dist_tone{4095}, cv_dist_tone{-1};
+            atomic<int32_t> dist_mix{4095}, cv_dist_mix{-1};
             atomic<int32_t> strength{2048}, cv_strength{-1};
             atomic<int32_t> play{0}, trig_play{-1};
             std::atomic<bool> play_pulse{false};

@@ -220,6 +220,48 @@
    ]
   },
   {
+   "id": "gr_dist",
+   "type": "group",
+   "name": "Distortion",
+   "params": [
+    {
+     "id": "dist_type",
+     "name": "Type",
+     "type": "int",
+     "min": 0,
+     "max": 2
+    },
+    {
+     "id": "dist_drive",
+     "name": "Drive",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "dist_bias",
+     "name": "Bias",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "dist_tone",
+     "name": "Tone",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "id": "dist_mix",
+     "name": "Mix",
+     "type": "int",
+     "min": 0,
+     "max": 4095
+    }
+   ]
+  },
+  {
    "id": "strength",
    "name": "Strength",
    "type": "int",

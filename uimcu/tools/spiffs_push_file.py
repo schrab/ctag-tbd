@@ -55,6 +55,8 @@ def read_device_file(s, path):
         if "error" in r:
             return None, r["error"]
         fsize = r.get("size")
+        if fsize is None:
+            return None, f"reply missing size: {r}"
         data += bytes.fromhex(r.get("hex", ""))
         got = r.get("got", 0)
         off += got
@@ -68,13 +70,49 @@ def write_device_file(s, path, data):
     off = 0
     while off < len(data):
         chunk = data[off:off + CHUNK]
-        r = robust_request(s, {"cmd": "/debug/writeFileChunk", "path": path,
-                               "offset": off, "hex": chunk.hex()})
-        if not r.get("ok") or r.get("written") != len(chunk):
+        ok = False
+        for attempt in range(3):
+            # Writes are idempotent (fixed offset) — a lost or cross-matched
+            # reply just means re-send the same chunk.
+            r = robust_request(s, {"cmd": "/debug/writeFileChunk", "path": path,
+                                   "offset": off, "hex": chunk.hex()})
+            if r.get("ok") and r.get("written") == len(chunk):
+                ok = True
+                break
+            print(f"    write @{off} attempt {attempt + 1}/3: {r.get('error', r)}",
+                  flush=True)
+            time.sleep(1.0)
+        if not ok:
             raise RuntimeError(f"write mismatch @{off}: {r}")
         off += len(chunk)
         time.sleep(0.15)
     return len(data)
+
+
+def load_and_confirm(s, plugin, tries=60):
+    """Load a plugin and VERIFY it actually landed — the load burst wedges
+    the bench relay for ~1-3 min and the request/reply can be lost outright;
+    a lost Void load leaves the previous plugin (and its auto-flush) running
+    over the pushed files."""
+    robust_request(s, {"cmd": "/debug/setActivePlugin", "ch": 0,
+                       "id": plugin}, timeout=15.0)
+    for i in range(tries):
+        try:
+            st = request(s, {"cmd": "/debug/getProxyState"}, timeout=1.5,
+                         retries=0)
+            if st.get("active0") == plugin:
+                return True
+        except Exception:
+            pass
+        time.sleep(3.0)
+        if i % 8 == 7:
+            # re-send the load in case the first one never dispatched
+            try:
+                request(s, {"cmd": "/debug/setActivePlugin", "ch": 0,
+                            "id": plugin}, timeout=15.0, retries=0)
+            except Exception:
+                pass
+    return False
 
 
 def main():
@@ -99,6 +137,20 @@ def main():
                 open(bpath, "wb").write(old)
                 backups[dev] = (bpath, old)
                 print(f"backup: {dev} -> {bpath} ({len(old)} B)", flush=True)
+                # mp preset files carry user patches on-device; a repo
+                # (factory) copy has fewer. Guard: this bit the bench TWICE
+                # on 2026-11-17 — each push of the repo mp clobbered the 4
+                # user Elements presets (recovered from the backup both
+                # times). Merge instead of overwrite.
+                try:
+                    if old and len(json.loads(old).get("patches", [])) > \
+                            len(json.loads(open(local, "rb").read()).get("patches", [])):
+                        print(f"  WARNING: device {dev} holds MORE patches "
+                              f"than {local} — merge user patches into the "
+                              f"pushed file or they will be lost",
+                              flush=True)
+                except Exception:
+                    pass
             else:
                 print(f"backup FAILED for {dev} ({err}) — aborting, nothing written",
                       flush=True)
@@ -110,18 +162,11 @@ def main():
         else:
             print("loading Void on ch0 (park the model auto-flush)...",
                   flush=True)
-            robust_request(s, {"cmd": "/debug/setActivePlugin", "ch": 0,
-                               "id": "Void"}, timeout=15.0)
-            # The load burst wedges the bench relay for ~1-3 min; poll until
-            # it recovers instead of burning the retry budget.
-            for i in range(60):
-                try:
-                    request(s, {"cmd": "/debug/getProxyState"}, timeout=1.0,
-                            retries=0)
-                    break
-                except Exception:
-                    time.sleep(3.0)
-            time.sleep(1.0)
+            if not load_and_confirm(s, "Void"):
+                print("VOID LOAD NEVER CONFIRMED — aborting (auto-flush "
+                      "would eat the push)", flush=True)
+                return 1
+            print("ch0 = Void confirmed", flush=True)
 
         for local, dev in pairs:
             data = open(local, "rb").read()
@@ -140,22 +185,9 @@ def main():
             time.sleep(0.3)
 
         print(f"loading {plugin} on ch0...", flush=True)
-        robust_request(s, {"cmd": "/debug/setActivePlugin", "ch": 0,
-                           "id": plugin}, timeout=15.0)
-        # The load burst wedges the bench relay for ~1-3 min (the reply is
-        # lost but the load completes DSP-side) — wait it out and confirm.
-        active = None
-        for i in range(60):
-            try:
-                st = request(s, {"cmd": "/debug/getProxyState"}, timeout=1.0,
-                             retries=0)
-                active = st.get("active0")
-                if active == plugin:
-                    break
-            except Exception:
-                pass
-            time.sleep(3.0)
-        print("active0 =", active, flush=True)
+        confirmed = load_and_confirm(s, plugin)
+        print("active0 =", plugin if confirmed else "LOAD UNCONFIRMED",
+              flush=True)
     return 0
 
 

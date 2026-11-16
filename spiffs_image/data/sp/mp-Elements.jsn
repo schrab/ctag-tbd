@@ -140,6 +140,31 @@
      "cv": -1
     },
     {
+     "id": "dist_type",
+     "current": 0,
+     "cv": -1
+    },
+    {
+     "id": "dist_drive",
+     "current": 0,
+     "cv": -1
+    },
+    {
+     "id": "dist_bias",
+     "current": 0,
+     "cv": -1
+    },
+    {
+     "id": "dist_tone",
+     "current": 4095,
+     "cv": -1
+    },
+    {
+     "id": "dist_mix",
+     "current": 4095,
+     "cv": -1
+    },
+    {
      "id": "strength",
      "current": 2048,
      "cv": -1
