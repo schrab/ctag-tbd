@@ -87,9 +87,21 @@ namespace CTAG {
                 // write could interleave between the UI, midi and link tasks
                 // and silently corrupt frames (a lost marblesSet learn=1 made
                 // CC learn flaky with no trace on either console).
+                // 2048 B: the 768 B buffer used to SILENTLY DROP bigger
+                // requests (return, no log) — bench writeFileChunk calls at
+                // 512 B hex (~1.2 kB frames) never dispatched and every
+                // retry timed out with no trace on either console
+                // (2026-11-17, threshold-measured: 256 B payload OK, 384 B
+                // dead). The DSP RX accepts 4 kB frames (kMaxDoc), so 2 kB
+                // TX covers every forwarded bench command.
                 static SemaphoreHandle_t txMux = xSemaphoreCreateMutex();
-                static char frame[768];
-                if (len > sizeof(frame) - 2) return;
+                static char frame[2048];
+                if (len > sizeof(frame) - 2) {
+                    ESP_LOGE("LinkCli", "sendFrame: %u B exceeds %u B frame "
+                             "buffer — DROPPED", (unsigned)len,
+                             (unsigned)(sizeof(frame) - 2));
+                    return;
+                }
                 if (xSemaphoreTake(txMux, pdMS_TO_TICKS(50)) != pdTRUE) return;
                 frame[0] = 0x02;
                 memcpy(frame + 1, p, len);
