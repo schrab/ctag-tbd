@@ -251,6 +251,9 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     int poly = 1 << polyphony;
     CONSTRAIN(poly, 1, 4)
     if (poly != part.polyphony()) part.set_polyphony(poly);
+    // the easter-egg chord engine has its own voice-group count — apply the
+    // same polyphony (it was never wired: 1/2/4 overlapping chord groups)
+    if (poly != string_synth->polyphony()) string_synth->set_polyphony(poly);
 }
 
 ctagSoundProcessorTBDings::~ctagSoundProcessorTBDings() {
