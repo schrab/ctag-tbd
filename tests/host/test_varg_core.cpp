@@ -8,6 +8,7 @@
 #include "test_framework.hpp"
 
 #include "helpers/ctagSlotBounds.hpp"
+#include "helpers/varg_chord.h"
 
 TEST(varg_slot_space_unchanged) {
     // VARG adds NO slots: the SEQ extension frontier is unchanged
@@ -294,6 +295,121 @@ TEST(varg_shell_algo_encoding) {
         CTAG::DRIVERS::SeqEngine::SetArpAlgo(1, v);
         CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(1) == v);
     }
-    CTAG::DRIVERS::SeqEngine::SetArpAlgo(1, 99);   // clamped to 17
-    CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(1) == 17);
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(1, 99);   // clamped to 20
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(1) == 20);
+}
+
+// ---- VARG BLOCK: polyphonic block chords (algo 6) ----
+
+TEST(varg_chord_index_roundtrip) {
+    for (uint8_t off = 0; off < 12; ++off)
+        for (uint8_t q = 0; q < VQ_COUNT; ++q) {
+            const uint16_t idx = EncodeChord(off, q);
+            CHECK(idx == off * 9u + q);
+            CHECK(idx < kVargChordSlotCount);
+            uint8_t dOff = 0xFF, dQual = 0xFF;
+            DecodeChord(idx, dOff, dQual);
+            CHECK(dOff == off);
+            CHECK(dQual == q);
+        }
+}
+
+TEST(varg_chord_cv_float_roundtrip) {
+    // The DSP writes cv = index/108.0f as a float; TBDings decodes with
+    // lround(cv*108). Every index must survive that exact path.
+    for (uint16_t idx = 0; idx < kVargChordSlotCount; ++idx) {
+        const float cv = (float)idx / 108.0f;
+        CHECK((uint16_t)lroundf(cv * 108.0f) == idx);
+    }
+}
+
+TEST(varg_voicing_map_covers_every_quality) {
+    CHECK(kVargToVoicing[VQ_P5]   == 1);   // existing "5"
+    CHECK(kVargToVoicing[VQ_MAJ]  == 10);  // existing "M"
+    CHECK(kVargToVoicing[VQ_MIN]  == 3);   // existing "m"
+    for (uint8_t q = 0; q < VQ_COUNT; ++q)
+        CHECK(kVargToVoicing[q] < 17);
+    for (uint8_t a = 0; a < VQ_COUNT; ++a)
+        for (uint8_t b = (uint8_t)(a + 1); b < VQ_COUNT; ++b)
+            CHECK(kVargToVoicing[a] != kVargToVoicing[b]);
+}
+
+TEST(varg_block_algo_encoding) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    for (int v = 18; v <= 20; ++v) {
+        CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, v);
+        CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(0) == v);
+    }
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 99);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(0) == 20);
+}
+
+TEST(varg_block_cv_carries_packed_chord) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);   // VARG BLOCK, range 1
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 0, 10);   // i-bVII
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 50);   // TRIAD
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);    // no mutation
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+    for (int b = 0; b < 64; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        if (trig[45] == 0) break;
+    }
+    const float expected = (float)EncodeChord(0, VQ_MIN) / 108.0f;
+    CHECK(fabsf(cv[104] - expected) < 1e-5f);
+}
+
+TEST(varg_block_gates_follow_mask) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 15);   // DBL 0xF000
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
+    int gated = 0;
+    for (int b = 0; b < 2100; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        if (trig[45] == 0) ++gated;
+    }
+    CHECK(gated > 0);
+}
+
+TEST(varg_block_decode_applies_root_and_voicing) {
+    for (uint8_t off = 0; off < 12; ++off)
+        for (uint8_t q = 0; q < VQ_COUNT; ++q) {
+            const uint16_t idx = EncodeChord(off, q);
+            const float cv = (float)idx / 108.0f;
+            const int decoded = std::min(107, std::max(0, (int)lroundf(cv * 108.0f)));
+            uint8_t dOff = 0, dQual = 0;
+            DecodeChord((uint16_t)decoded, dOff, dQual);
+            CHECK(dOff == off);
+            CHECK(dQual == q);
+            CHECK(kVargToVoicing[dQual] < 17);
+        }
+}
+
+#include "rings/dsp/string_synth_part.h"
+
+TEST(varg_block_voicings_keep_quality_identity) {
+    using namespace rings;
+    CHECK(kNumChords == 17);
+    const uint8_t aug = kVargToVoicing[VQ_AUG];
+    const uint8_t mb9 = kVargToVoicing[VQ_MB9];
+    const float *a = ChordVoicing(4, aug);
+    const float *m = ChordVoicing(4, mb9);
+    CHECK(fabsf(a[0]) < 0.01f && fabsf(a[1] - 4.f) < 0.01f && fabsf(a[2] - 8.f) < 0.01f);
+    CHECK(fabsf(m[0]) < 0.01f && fabsf(m[1] - 1.f) < 0.01f && fabsf(m[2] - 7.f) < 0.01f);
+    const uint8_t dim7 = kVargToVoicing[VQ_DIM7];
+    const uint8_t m7b5 = kVargToVoicing[VQ_M7B5];
+    const uint8_t add9 = kVargToVoicing[VQ_ADD9];
+    CHECK(fabsf(ChordVoicing(4, dim7)[2] - 6.f) < 0.01f);
+    CHECK(fabsf(ChordVoicing(4, m7b5)[2] - 6.f) < 0.01f);
+    CHECK(fabsf(ChordVoicing(4, add9)[2] - 7.f) < 0.01f);
+    CHECK(ChordSize(1) == 8); CHECK(ChordSize(2) == 6); CHECK(ChordSize(4) == 3);
+    for (int p = 1; p <= 4; ++p)
+        for (uint8_t q = 0; q < VQ_COUNT; ++q)
+            CHECK(ChordVoicing(p, kVargToVoicing[q]) != nullptr);
 }

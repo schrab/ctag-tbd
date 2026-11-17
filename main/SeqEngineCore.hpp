@@ -38,6 +38,7 @@ the upstream project.
 
 #include <cstdint>
 #include <cstring>
+#include "helpers/varg_chord.h"
 
 namespace CTAG {
 namespace SEQ {
@@ -512,7 +513,8 @@ enum {
     kArpAlgoMetro  = 3,   // Metropolix 8-Stage Accumulator & Ratchets
     kArpAlgoDejavu = 4,   // Marbles 3-Zone Deja-Vu Shift Register + Salience
     kArpAlgoVarg   = 5,   // VARG black-metal chord ostinato + tremolo engine
-    kArpAlgoCount  = 6,
+    kArpAlgoVargBlock = 6,// VARG block chords: full chord per gated strum
+    kArpAlgoCount  = 7,
 };
 
 // Compact 16-step pattern + harmony state (~112 B per instance)
@@ -1011,32 +1013,9 @@ inline void ArpBuildDejavu(ArpSource &s, ArpExt &ext) {
 // quality's chord tones (step.off carries SEMITONES for this algo — see
 // ArpCalcNote).
 
-enum VargQuality {
-    VQ_P5 = 0,   // power chord  1-5
-    VQ_MAJ,      // major triad  1-3-5
-    VQ_MIN,      // minor triad  1-b3-5
-    VQ_5B5,      // tritone power 1-b5
-    VQ_DIM7,     // dim7         1-b3-b5-bb7
-    VQ_M7B5,     // half-dim     1-b3-b5-b7
-    VQ_AUG,      // augmented    1-3-#5
-    VQ_ADD9,     // minor add9   1-b3-5-9
-    VQ_MB9,      // minor + b9 pedal friction
-    VQ_COUNT
-};
-
-// Chord-tone sets (semitones above the chord root, ascent order)
-struct VargToneSet { uint8_t n; uint8_t st[5]; };
-inline constexpr VargToneSet kVargTones[VQ_COUNT] = {
-    { 2, { 0, 7 } },          // P5
-    { 3, { 0, 4, 7 } },       // MAJ
-    { 3, { 0, 3, 7 } },       // MIN
-    { 2, { 0, 6 } },          // 5b5
-    { 4, { 0, 3, 6, 9 } },    // dim7
-    { 4, { 0, 3, 6, 10 } },   // m7b5
-    { 3, { 0, 4, 8 } },       // AUG
-    { 4, { 0, 3, 7, 14 } },   // add9
-    { 3, { 0, 1, 7 } },       // m+b9
-};
+// VargQuality, kVargTones and the chord-index codec live in the shared
+// header (helpers/varg_chord.h), included above — the TBDings wrapper uses
+// the same vocabulary to decode the block-chord CV.
 
 struct VargChord {
     uint8_t off;
@@ -1238,7 +1217,10 @@ inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext, bool advanceChord = tru
             ArpBuildDejavu(s, ext);
             break;
         case kArpAlgoVarg:
+        case kArpAlgoVargBlock:
         default:
+            // Same progression/quality/mask/mutation state machine; only the
+            // CV consumer differs (single note vs packed block chord).
             ArpBuildVarg(s, ext, advanceChord);
             break;
     }
@@ -1282,7 +1264,7 @@ inline void ArpApplyTurnaround(ArpSource &s, ArpExt &ext, uint8_t st, ArpStep &i
 // not go through the scale-degree folding.
 inline uint8_t ArpCalcNote(const ArpSource &s, const ArpExt &ext,
                            const ArpStep &step) {
-    if (s.algo == kArpAlgoVarg) {
+    if (s.algo == kArpAlgoVarg || s.algo == kArpAlgoVargBlock) {
         int16_t midi = (int16_t)(48 + s.root + ext.st.varg.curOff + step.off)
                        + (int16_t)(12 * step.oct);
         while (midi > 96) midi -= 12;

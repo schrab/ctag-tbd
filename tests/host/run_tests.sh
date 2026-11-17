@@ -56,6 +56,10 @@ echo "==> Building host tests"
     "$EURORACK/marbles/random/lag_processor.cc" \
     "$EURORACK/marbles/ramp/ramp_extractor.cc" \
     "$EURORACK/stmlib/dsp/units.cc" \
+    "$EURORACK/rings/dsp/string_synth_part.cc" \
+    "$EURORACK/rings/resources.cc" \
+    "$EURORACK/braids/resources.cc" \
+    "$ROOT/components/ctagSoundProcessor/vult/vult_formantor.cpp" \
     -o "$OUT/host_tests"
 
 echo "==> Running"

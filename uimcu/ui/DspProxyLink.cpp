@@ -1323,7 +1323,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
 
         int DspProxy::GetSeqArpAlgo(int i) { return seq.arpAlgo[i]; }
         void DspProxy::SetSeqArpAlgo(int i, int v) {
-            seq.arpAlgo[i] = clampI(v, 0, 17);   // 6 algos x 3 ranges
+            seq.arpAlgo[i] = clampI(v, 0, 20);   // 7 algos x 3 ranges
             char k[32]; snprintf(k, sizeof(k), "a%dalgo", i + 1);
             sendSeqSet(k, seq.arpAlgo[i]);
         }

@@ -25,13 +25,14 @@ namespace CTAG {
             "8/1", "4/1", "2/1", "1/1", "1/2", "1/4", "1/8", "1/16",
             "1/32", "1/4T", "1/8T", "1/16T", "1/32T"
         };
-        static const char* arpAlgoNames[18] = {
+        static const char* arpAlgoNames[21] = {
             "Acid 303 1-OCT", "Acid 303 2-OCT", "Acid 303 3-OCT",
             "Phrase Motif 1", "Phrase Motif 2", "Phrase Motif 3",
             "Markov Walker 1", "Markov Walker 2", "Markov Walker 3",
             "Metropolix 1", "Metropolix 2", "Metropolix 3",
             "Deja-Vu 1", "Deja-Vu 2", "Deja-Vu 3",
-            "VARG 1-OCT", "VARG 2-OCT", "VARG 3-OCT"
+            "VARG 1-OCT", "VARG 2-OCT", "VARG 3-OCT",
+            "VARG BLOCK 1-OCT", "VARG BLOCK 2-OCT", "VARG BLOCK 3-OCT"
         };
         static const char* rootNames[14] = {
             "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -48,16 +49,17 @@ namespace CTAG {
             "In Sen", "Double Harmonic", "Acid Pool"
         };
         // per-algo P1..P4 labels (the rack's per-algo mapping + VARG)
-        static const char* arpParamNames[6][4] = {
+        static const char* arpParamNames[7][4] = {
             {"Density", "Slide", "Accent", "Mutate"},              // Acid 303
             {"Density", "Form", "Transform", "Mutate"},            // Phrase Motif
             {"Density", "Contour", "Pedal", "Gravity"},            // Markov Walker
             {"Probability", "Pulses", "Ratchet", "Accumulator"},   // Metropolix
             {"Density", "Deja-Vu", "Steps", "Spread"},             // Deja-Vu
-            {"Progression", "Rhythm", "Quality", "Mutate"}         // VARG
+            {"Progression", "Rhythm", "Quality", "Mutate"},         // VARG
+            {"Progression", "Rhythm", "Quality", "Mutate"}          // VARG BLOCK
         };
         // enumerated P values where the row is a choice, nullptr = 0..100
-        static const char* const arpParamChoices[6][4] = {
+        static const char* const arpParamChoices[7][4] = {
             {nullptr, nullptr, nullptr, nullptr},                                   // Acid 303
             {nullptr, "ABAC/AABC/ABBC/AABA", "Inversion/Retrograde/Transpose/Displace", nullptr},
             {nullptr, nullptr, "Off/Root/Fifth/Bounce", nullptr},                   // Markov Walker
@@ -66,16 +68,21 @@ namespace CTAG {
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
              "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL",
              "Raw/Triad/Diss", nullptr},                                            // VARG
+            {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
+             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL",
+             "Raw/Triad/Diss", nullptr},                                            // VARG BLOCK
         };
-        static const uint8_t arpParamMax[6][4] = {
+        static const uint8_t arpParamMax[7][4] = {
             {100, 100, 100, 100},
             {100, 3, 3, 100},
             {100, 15, 3, 100},
             {100, 7, 3, 3},
             {100, 100, 3, 100},
             {10, 15, 2, 100},                                                       // VARG
+            {10, 15, 2, 100},                                                       // VARG BLOCK
         };
-        static const uint8_t arpParamStep[6][4] = {
+        static const uint8_t arpParamStep[7][4] = {
+            {1, 1, 1, 1},
             {1, 1, 1, 1},
             {1, 1, 1, 1},
             {1, 1, 1, 1},

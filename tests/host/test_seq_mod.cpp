@@ -377,7 +377,7 @@ TEST(engine_config_clamps_hostile_input) {
     CHECK(CTAG::DRIVERS::SeqEngine::GetGateDiv(0) == 12);
     CHECK(CTAG::DRIVERS::SeqEngine::GetGateTrigSlot(0) == -1);
     CHECK(CTAG::DRIVERS::SeqEngine::GetGateCvSlot(0) == -1);
-    CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(0) == 17);   // algo 5, range 3
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(0) == 20);   // algo 6, range 3
     CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 0) == 100);
     CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 1) == 0);
     CHECK(CTAG::DRIVERS::SeqEngine::GetArpGlide(0) == 0);

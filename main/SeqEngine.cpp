@@ -197,10 +197,12 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 const uint8_t driftBars = (s.p[3] >= 60) ? 4 : 8;
                 if (e.bar_count >= driftBars) {
                     e.bar_count = 0;
-                    if (s.algo != SEQ::kArpAlgoVarg &&
+                    const bool isVargAlgo = (s.algo == SEQ::kArpAlgoVarg ||
+                                             s.algo == SEQ::kArpAlgoVargBlock);
+                    if (!isVargAlgo &&
                         (s.p[3] > 15 || s.root_mode >= 1))
                         SEQ::ArpNextChord(s, e, gNeoOp);
-                    if (s.algo != SEQ::kArpAlgoVarg) {
+                    if (!isVargAlgo) {
                         // rack shared-harmony lock: mirror the drift to the
                         // sibling so both ARPs stay chord-locked
                         SEQ::ArpSource &so = gArp[i ^ 1];
@@ -272,7 +274,20 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         // notes.
         const float pitchCv =
             (float)((int32_t)(e.current_pitch_q16 >> 16) - 48) / 12.0f * 0.2f;
-        if (arpPitchSlot[i] >= 0) cv[arpPitchSlot[i]] = pitchCv;
+        if (arpPitchSlot[i] >= 0) {
+            if (s.algo == SEQ::kArpAlgoVargBlock) {
+                // Block chords put (root offset, quality) on the pitch CV;
+                // write the exact float, never through the 8-bit cur_note or
+                // the glide accumulator (both would quantize into a wrong
+                // chord). s.cur_note still carries the audible root for the
+                // panel's SEQ note display.
+                cv[arpPitchSlot[i]] =
+                    (float)SEQ::EncodeChord(e.st.varg.curOff, e.st.varg.curQual)
+                    / (float)SEQ::kVargChordSlotCount;
+            } else {
+                cv[arpPitchSlot[i]] = pitchCv;
+            }
+        }
         const float gWin = s.cur_hold ? 1.0f : 0.55f;
         const bool gateOpen = (s.level != 0) && (aPhase[i] < gWin);
         if (arpGateSlot[i] >= 0) trig[arpGateSlot[i]] = gateOpen ? 0 : 1;
@@ -341,11 +356,13 @@ int SeqEngine::GetGateStep(int i) { return gGate[i].step; }
 // ---- arp setters ----
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {
-    v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 6 algos x 3 ranges
+    v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 7 algos x 3 ranges
     const uint8_t oldAlgo = gArp[i].algo;
     gArp[i].algo = (uint8_t)(v / 3);
     gArp[i].range = (uint8_t)(1 + v % 3);
-    if (gArp[i].algo == SEQ::kArpAlgoVarg && oldAlgo != SEQ::kArpAlgoVarg)
+    const bool wasVarg = (oldAlgo == SEQ::kArpAlgoVarg || oldAlgo == SEQ::kArpAlgoVargBlock);
+    const bool isVarg = (gArp[i].algo == SEQ::kArpAlgoVarg || gArp[i].algo == SEQ::kArpAlgoVargBlock);
+    if (isVarg && !wasVarg)
         gArpExt[i].st.varg.chordIdx = 0xFF;   // fresh switch: start on the tonic
     SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }

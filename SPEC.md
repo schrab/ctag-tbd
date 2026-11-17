@@ -36,7 +36,7 @@ V11: Elements second-core reverb — reverb stays inside Part::Process on core 0
 |---|---|---|---|
 | T1 | x | Elements second-core offload (designs/elements-second-core.md) | - |
 | T2 | x | Elements second-core: implement helper task, snapshot, debug endpoints, hardware gates | - |
-| T3 | . | VARG block chords: algo 6 + packed chord CV + Rings voicings + TBDings decode (design docs/superpowers/specs/2026-11-17-varg-block-chords-design.md) | V1 |
+| T3 | x | VARG block chords: algo 6 + packed chord CV + Rings voicings + TBDings decode (design docs/superpowers/specs/2026-11-17-varg-block-chords-design.md) | V1 |
 
 ## B BUGS
 

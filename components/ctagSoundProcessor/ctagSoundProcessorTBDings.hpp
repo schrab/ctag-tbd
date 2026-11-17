@@ -90,6 +90,10 @@ namespace CTAG {
             atomic<int32_t> dist_sustain{0}, cv_dist_sustain{-1};
             atomic<int32_t> dist_tone{4095}, cv_dist_tone{-1};
             atomic<int32_t> dist_mix{4095}, cv_dist_mix{-1};
+            // VARG block chords: this param is a CV carrier. The ARP writes
+            // (root offset, quality) packed into its CV; decoding happens in
+            // updateParams. Default 0 = no effect until a CV is mapped.
+            atomic<int32_t> vargChord{0}, cv_vargChord{-1};
             // sectionHpp
 
         };

@@ -23,6 +23,7 @@ respective component folders / files if different from this license.
 #include <iostream>
 #include <cmath>
 #include "stmlib/stmlib.h"
+#include "helpers/varg_chord.h"
 
 
 using namespace CTAG::SP;
@@ -246,7 +247,20 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     if (cv_chords != -1) {
         performance_state.chord = (int) floorf(data.cv[cv_chords] * 11.f);
     }
-    CONSTRAIN(performance_state.chord, 0, 10);
+    if (cv_vargChord != -1) {
+        // VARG block chords: the ARP pitch CV carries index/108, never a
+        // 0.2 V/oct pitch. Decode to (root offset, quality) with integer
+        // math only — this runs in the audio block (V1 budget).
+        int idx = (int) lroundf(fabsf(data.cv[cv_vargChord]) * 108.f);
+        if (idx < 0) idx = 0;
+        if (idx >= SEQ::kVargChordSlotCount) idx = SEQ::kVargChordSlotCount - 1;
+        uint8_t vOff = 0, vQual = 0;
+        SEQ::DecodeChord((uint16_t) idx, vOff, vQual);
+        performance_state.note += vOff;
+        performance_state.chord = SEQ::kVargToVoicing[vQual];
+        CONSTRAIN(performance_state.note, 0.f, 96.f);
+    }
+    CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
 
     int poly = 1 << polyphony;
     CONSTRAIN(poly, 1, 4)
@@ -283,6 +297,8 @@ void ctagSoundProcessorTBDings::knowYourself() {
     pMapCv.emplace("position", [&](const int val) { cv_position = val; });
     pMapPar.emplace("chords", [&](const int val) { chords = val; });
     pMapCv.emplace("chords", [&](const int val) { cv_chords = val; });
+    pMapPar.emplace("vargChord", [&](const int val) { vargChord = val; });
+    pMapCv.emplace("vargChord", [&](const int val) { cv_vargChord = val; });
     pMapPar.emplace("easter", [&](const int val) { easter = val; });
     pMapTrig.emplace("easter", [&](const int val) { trig_easter = val; });
     pMapPar.emplace("ex_int", [&](const int val) { ex_int = val; });
