@@ -125,6 +125,16 @@ namespace CTAG {
                            to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0) +
                            ",\"audioCycles\":" +
                            to_string(AUDIO::SoundProcessorManager::GetLastAudioTaskCycles()) +
+                           // Tape-forensics diagnostics: the live codec rate
+                           // (Elements switches it to 32 kHz) and the SD
+                           // recording dropout count (blocks discarded whole
+                           // because the worker could not drain the ring).
+                           ",\"rate\":" +
+                           to_string(DRIVERS::Codec::GetSampleRate()) +
+                           ",\"recDrops\":" +
+                           to_string(AUDIO::SDAudio::GetRecDrops()) +
+                           ",\"muteBlocks\":" +
+                           to_string(AUDIO::SoundProcessorManager::GetMuteBlocks()) +
                            // Peak metering (0..1000 per block). Only live
                            // while /link/metering armed the peak pass —
                            // bench diagnostics read the same atomics the
@@ -567,6 +577,63 @@ namespace CTAG {
                 string hex;
                 hex.reserve(got * 2);
                 for (size_t i = 0; i < got; i++) {
+                    hex += hexd[(buf[i] >> 4) & 0xF];
+                    hex += hexd[buf[i] & 0xF];
+                }
+                response = cmdEcho + ",\"size\":" + to_string(fsize) +
+                           ",\"offset\":" + to_string(off) +
+                           ",\"got\":" + to_string(got) +
+                           ",\"hex\":\"" + hex + "\"}";
+                return true;
+            }
+
+            if (s == "/debug/sdReadChunk") {
+                // Diagnostic read of SD files (the SPIFFS-only guard on
+                // readFileChunk cannot reach /sd). Same path discipline as
+                // sdInfo, and refused while the transport owns the card.
+                if (AUDIO::SDAudio::IsPlaying() || AUDIO::SDAudio::IsRecording()) {
+                    response = cmdEcho + ",\"error\":\"transport busy\"}";
+                    return true;
+                }
+                if (!d.HasMember("path") || !d["path"].IsString() ||
+                    !d.HasMember("offset") || !d["offset"].IsInt() ||
+                    !d.HasMember("len") || !d["len"].IsInt()) {
+                    response = cmdEcho + ",\"error\":\"missing path/offset/len\"}";
+                    return true;
+                }
+                const string path = d["path"].GetString();
+                if (path.find("/sd/") != 0 || path.find("..") != string::npos) {
+                    response = cmdEcho + ",\"error\":\"bad path\"}";
+                    return true;
+                }
+                long off = d["offset"].GetInt();
+                int len = d["len"].GetInt();
+                if (len <= 0 || len > 256) {
+                    response = cmdEcho + ",\"error\":\"bad len (1..256)\"}";
+                    return true;
+                }
+                FILE *fp = fopen(path.c_str(), "rb");
+                if (!fp) {
+                    response = cmdEcho + ",\"error\":\"open failed\"}";
+                    return true;
+                }
+                fseek(fp, 0, SEEK_END);
+                long fsize = ftell(fp);
+                if (off >= fsize) {
+                    fclose(fp);
+                    response = cmdEcho + ",\"size\":" + to_string(fsize) +
+                               ",\"hex\":\"\"}";
+                    return true;
+                }
+                if (off + len > fsize) len = static_cast<int>(fsize - off);
+                fseek(fp, off, SEEK_SET);
+                vector<char> buf(len);
+                size_t got = fread(buf.data(), 1, len, fp);
+                fclose(fp);
+                static const char *hexd = "0123456789abcdef";
+                string hex;
+                hex.reserve(got * 2);
+                for (size_t i = 0; i < got; ++i) {
                     hex += hexd[(buf[i] >> 4) & 0xF];
                     hex += hexd[buf[i] & 0xF];
                 }

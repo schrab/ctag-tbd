@@ -20,6 +20,7 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "SDAudio.hpp"
+#include "codec.hpp"
 #include "fs.hpp"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
@@ -52,6 +53,9 @@ FILE *SDAudio::file = nullptr;
 int SDAudio::numChannels = 2;
 uint32_t SDAudio::totalFrames = 0;
 uint32_t SDAudio::bytePos = 0;
+// Rate in force when recording STARTED — Elements switches the codec to
+// 32 kHz, and the WAV header must describe the samples actually written.
+static uint32_t s_recordSampleRate = 44100;
 bool SDAudio::wavHeaderWritten = false;
 uint32_t SDAudio::recordedBytes = 0;
 long SDAudio::dataStart = 0;
@@ -107,6 +111,7 @@ void SDAudio::StartRecording(const char *path) {
     bytePos = 0;
     recDrops = 0;
     numChannels = 2; // recordings are always 2ch (GetPositionFrames divides by it)
+    s_recordSampleRate = DRIVERS::Codec::GetSampleRate();
     wavHeaderWritten = false;
     recording = true;
     stopRequested = false;
@@ -300,8 +305,12 @@ void SDAudio::workerTask(void *param) {
                                       // made the chunk walker skip the fields
         *(uint16_t *)(hdr + 20) = 1;
         *(uint16_t *)(hdr + 22) = 2;  // 2 channels
-        *(uint32_t *)(hdr + 24) = 44100;
-        *(uint32_t *)(hdr + 28) = 176400;
+        // The codec rate at record start, not a hardcoded 44100: loading
+        // Elements switches the A1S to 32 kHz, and a file labelled 44.1 kHz
+        // plays back too fast / with broken seek (a DAW uses byte-rate to
+        // compute timestamps), which sounds like skips in the recording.
+        *(uint32_t *)(hdr + 24) = s_recordSampleRate;
+        *(uint32_t *)(hdr + 28) = s_recordSampleRate * 4; // 2ch * 16-bit
         *(uint16_t *)(hdr + 32) = 4;
         *(uint16_t *)(hdr + 34) = 16;
         memcpy(hdr + 36, "data", 4);
