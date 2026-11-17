@@ -234,7 +234,7 @@
      "name": "Type",
      "type": "int",
      "min": 0,
-     "max": 3,
+     "max": 4,
      "def": 0
     },
     {

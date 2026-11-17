@@ -185,7 +185,7 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     // as the Elements stage, cv-capable; Bias acts only in the fuzz mode.
     int dType = dist_type;
     if (cv_dist_type != -1)
-        dType = (int)(floorf(data.cv[cv_dist_type] * 4.f)) % 4;
+        dType = (int)(floorf(data.cv[cv_dist_type] * 5.f)) % 5;
     CONSTRAIN(dType, 0, 3);
     patch.dist_type = static_cast<float>(dType);
 

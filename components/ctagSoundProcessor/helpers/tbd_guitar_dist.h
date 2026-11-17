@@ -45,6 +45,7 @@ respective component folders / files if different from this license.
 
 #include "stmlib/dsp/dsp.h"     // stmlib::SoftClip
 #include "stmlib/utils/dsp.h"   // stmlib::Mix
+#include "helpers/tbd_chainsaw_dist.h"
 
 // Retroactor's Vult-generated Befaco wavefolder (vult_formantor.cpp in the
 // ctagSoundProcessor component).
@@ -62,6 +63,7 @@ class GuitarDist {
   void Init() {
     lp_[0] = lp_[1] = 0.0f;
     env_[0] = env_[1] = 0.0f;
+    chainsaw_.Init(32000.0f);
   }
 
   // type 0..3, all other amounts 0..1 (0 drive = zero-cost bypass).
@@ -71,8 +73,13 @@ class GuitarDist {
     if (drive > 0.0f) {
       const float d = drive;
       const float mix = mix_amt;
+      const int t = type % 5;
+      if (t == 4) {
+        ChainsawStage(out, aux, size, chainsaw_, d, bias_amt, tone, mix,
+                      sustain, lp_, env_);
+        return;
+      }
       const float lp_k = 0.04f + 0.96f * tone;
-      const int t = type % 4;
       float k = 0.0f, k_norm = 1.0f;
       float bias = 0.0f, bias_sub = 0.0f, bias_norm = 1.0f;
       float ws_gain = 1.0f;
@@ -176,6 +183,7 @@ class GuitarDist {
 
   float lp_[2];
   float env_[2];
+  ChainsawDist chainsaw_;
 };
 
 }  // namespace tbd

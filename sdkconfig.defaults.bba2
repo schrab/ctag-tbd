@@ -55,7 +55,7 @@ CONFIG_FATFS_LFN_HEAP=y
 # need — the 106,496 clamp starved it by 3,712 B and asserted at load), CH
 # slices 55,488 B, and ~120 KB contiguous SRAM1 remains for the Elements
 # object (115,844 B). Kconfig range 104448..118784.
-CONFIG_SP_FIXED_MEM_ALLOC_SZ=111616
+CONFIG_SP_FIXED_MEM_ALLOC_SZ=112128
 
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 CONFIG_ESP_INT_WDT_TIMEOUT_MS=5000

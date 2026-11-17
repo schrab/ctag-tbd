@@ -44,6 +44,7 @@ echo "==> Building host tests"
     "$HERE/test_render_ladder.cpp" \
     "$HERE/test_seq_mod.cpp" \
     "$HERE/test_varg_core.cpp" \
+    "$HERE/test_chainsaw_dist.cpp" \
     "$ROOT/main/ModTransport.cpp" \
     "$ROOT/main/SeqEngine.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
