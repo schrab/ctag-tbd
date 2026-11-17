@@ -495,7 +495,9 @@ float Fold_do(float signal, float level){
    float amp;
    amp = (fabsf(signal) * (1.f + (8.f * level)));
    float base;
-   base = floorf(amp);
+   // amp = fabs(signal) * (1 + 8*level) >= 0, so truncation == floorf,
+   // without libm's software floor call on the divider-less ESP32.
+   base = (float)(int)amp;
    float delta;
    delta = (amp + (- base));
    float out;

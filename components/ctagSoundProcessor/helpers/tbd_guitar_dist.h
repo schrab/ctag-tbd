@@ -43,9 +43,10 @@ respective component folders / files if different from this license.
 #include <cstdint>
 #include <cstdlib>
 
-#include "stmlib/dsp/dsp.h"     // stmlib::SoftClip
+#include "stmlib/dsp/dsp.h"     // stmlib::Mix (SoftClip replaced by LUT)
 #include "stmlib/utils/dsp.h"   // stmlib::Mix
 #include "helpers/tbd_chainsaw_dist.h"
+#include "helpers/tbd_dist_fast.h"
 
 // Retroactor's Vult-generated Befaco wavefolder (vult_formantor.cpp in the
 // ctagSoundProcessor component).
@@ -85,11 +86,11 @@ class GuitarDist {
       float ws_gain = 1.0f;
       if (t == 0) {
         k = 1.0f + 9.0f * d * d;
-        k_norm = 1.0f / stmlib::SoftClip(k);
+        k_norm = distfast::FastRecip(distfast::FastSoftClip(k));
       } else if (t == 2) {
         k = 1.0f + 9.0f * d * d;
         bias = bias_amt;
-        const float s_b = stmlib::SoftClip(bias);
+        const float s_b = distfast::FastSoftClip(bias);
         bias_sub = s_b;
         bias_norm = 1.0f / (1.0f + s_b);
       } else if (t == 3) {
@@ -111,7 +112,7 @@ class GuitarDist {
           if (t == 1) {
             wet = Fold_do(dry, d);
           } else if (t == 2) {
-            wet = (stmlib::SoftClip(k * dry + bias) - bias_sub) * bias_norm;
+            wet = (distfast::FastSoftClip(k * dry + bias) - bias_sub) * bias_norm;
           } else if (t == 3) {
             float xg = dry * ws_gain;
             if (xg > 1.0f) xg = 1.0f; else if (xg < -1.0f) xg = -1.0f;
@@ -122,12 +123,12 @@ class GuitarDist {
             wet = static_cast<float>(a + ((b - a) * (idx & 0xff) >> 8)) *
                 (1.0f / 32768.0f);
           } else {
-            wet = stmlib::SoftClip(k * dry) * k_norm;
+            wet = distfast::FastSoftClip(k * dry) * k_norm;
           }
           if (sustain_on) {
             const float x = fabsf(wet);
             env += (x > env ? 0.5f : 0.000125f) * (x - env);
-            float g = 0.5f / (env > 0.002f ? env : 0.002f);
+            float g = 0.5f * distfast::FastRecip(env > 0.002f ? env : 0.002f);
             if (g > sus_max) g = sus_max;
             wet *= g;
           }

@@ -9,6 +9,7 @@ Ported from SwedishChainsaw, Copyright (C) 2019 Barabas Raffai, GPL-3.0.
 ***************/
 
 #include "helpers/tbd_chainsaw_dist.h"
+#include "helpers/tbd_dist_fast.h"
 
 #include <cmath>
 
@@ -85,10 +86,8 @@ FmvCoeffs DesignFmv(float l, float m, float t, float Fs) {
 
 // Fast tanh-compatible saturator (unity small-signal slope, +/-1 asymptote).
 float ChainsawTanh(float x) {
-    const float a = fabsf(x);
-    if (a > 8.0f) return x > 0.0f ? 1.0f : -1.0f;
-    const float x2 = x * x;
-    return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+    // LUT of the identical rational curve — no per-sample divide (V1 budget).
+    return distfast::FastSoftLimit(x);
 }
 
 void ChainsawDist::Init(float sample_rate) {
@@ -175,7 +174,7 @@ void ChainsawStage(float *out, float *aux, size_t size,
             if (sustain_on) {
                 const float x = fabsf(wet);
                 f_env += (x > f_env ? 0.5f : 0.000125f) * (x - f_env);
-                float g = 0.5f / (f_env > 0.002f ? f_env : 0.002f);
+                float g = 0.5f * distfast::FastRecip(f_env > 0.002f ? f_env : 0.002f);
                 if (g > sus_max) g = sus_max;
                 wet *= g;
             }
