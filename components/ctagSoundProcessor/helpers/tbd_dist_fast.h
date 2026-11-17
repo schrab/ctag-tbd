@@ -26,6 +26,21 @@ Pure C++, no ESP-IDF, so host tests compile it directly.
 namespace tbd {
 namespace distfast {
 
+// Per-model distortion input trim. The string-based resonator models
+// (sympathetic/quantized/string+reverb) excite with a full-scale white-noise
+// burst (plucker.h), ~5-10x hotter than the modal model's single impulse.
+// At high Drive that burst hard-clips into an audible click on every note.
+// Trim the signal entering the distortion stage for those models; the dry
+// path is restored by the existing wet/dry blend, so clean sound is unchanged.
+// Indexed by rings::ResonatorModel.
+inline float ModelDistTrim(int model) {
+    // 0 Modal, 1 Sympathetic, 2 String, 3 FM, 4 Quantized, 5 String+Reverb
+    switch (model) {
+        case 1: case 4: case 5: return 0.16f;   // string-noise excitation
+        default:                 return 1.0f;   // modal / string / FM impulse
+    }
+}
+
 // Exact stmlib rational: x*(27+x^2)/(27+9*x^2).
 inline float SoftLimitRef(float x) {
     return x * (27.0f + x * x) / (27.0f + 9.0f * x * x);
