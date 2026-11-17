@@ -12,6 +12,23 @@ TEST(dist_fast_softclip_matches_reference) {
         const float got = tbd::distfast::FastSoftLimit(x);
         CHECK(fabsf(got - ref) < 0.002f);
     }
+    // FastSoftClip uses a smooth polynomial (no LUT derivative kinks that
+    // crackle in high-gain fuzz). Same accuracy on its [-3,3] domain.
+    for (float x = -3.0f; x <= 3.0f; x += 0.011f) {
+        const float ref = tbd::distfast::SoftLimitRef(x);
+        CHECK(fabsf(tbd::distfast::FastSoftClip(x) - ref) < 0.001f);
+    }
+    // Smoothness: no derivative jumps -> second difference stays small.
+    // A piecewise-linear LUT would spike here, a polynomial does not.
+    float maxD2 = 0.0f;
+    for (float x = -3.0f; x < 2.99f; x += 0.01f) {
+        const float a = tbd::distfast::FastSoftClip(x);
+        const float b = tbd::distfast::FastSoftClip(x + 0.01f);
+        const float c = tbd::distfast::FastSoftClip(x + 0.02f);
+        const float d2 = fabsf(a - 2.0f * b + c);
+        if (d2 > maxD2) maxD2 = d2;
+    }
+    CHECK(maxD2 < 0.002f);
     // Outside the table it clamps to the endpoint values.
     CHECK(fabsf(tbd::distfast::FastSoftLimit(-20.0f) -
                 tbd::distfast::SoftLimitRef(-8.0f)) < 1e-6f);

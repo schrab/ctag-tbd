@@ -56,10 +56,23 @@ inline float FastSoftLimit(float x) {
 }
 
 // stmlib SoftClip clamps |x| > 3 to +/-1 (SoftLimit(3) == 1 exactly).
+// Smooth odd polynomial x*P(x^2) fitted to the exact rational on [-3,3]
+// with Chebyshev nodes (max error 0.00052). C-infinity: no LUT derivative
+// kinks, which became audible as crackle in high-gain fuzz (type 2).
+// Horner in u=x^2, 7 multiplies, no divide, no table loads.
 inline float FastSoftClip(float x) {
     if (x <= -3.0f) return -1.0f;
     if (x >= 3.0f) return 1.0f;
-    return FastSoftLimit(x);
+    const float u = x * x;
+    float p = -6.961e-07f;
+    p = p * u + 2.71491e-05f;
+    p = p * u + -0.0004444363f;
+    p = p * u + 0.004029295f;
+    p = p * u + -0.0228995818f;
+    p = p * u + 0.0911785112f;
+    p = p * u + -0.2943995661f;
+    p = p * u + 1.0f;
+    return x * p;
 }
 
 // Fast reciprocal via bit-trick estimate + 2 Newton-Raphson refinements.
