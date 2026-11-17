@@ -61,6 +61,7 @@ echo "==> Building host tests"
     "$EURORACK/rings/resources.cc" \
     "$EURORACK/braids/resources.cc" \
     "$ROOT/components/ctagSoundProcessor/vult/vult_formantor.cpp" \
+    "$ROOT/components/ctagSoundProcessor/tbd_chainsaw_dist.cpp" \
     -o "$OUT/host_tests"
 
 echo "==> Running"
