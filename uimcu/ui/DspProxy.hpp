@@ -296,6 +296,36 @@ namespace CTAG {
             static int GetSeqScale();    static void SetSeqScale(int v);
             static float GetSeqBPM();
             static int GetSeqGlobalExt(); static void SetSeqGlobalExt(int v);
+
+            // ---- VARG chord/riff sequencer surface (same pattern as SEQ:
+            // optimistic local update + /link/vargSet; the DSP push confirms
+            // within one stream tick and bumps GetVargVersion()) ----
+            // Live strip word from the stream "vgw" field:
+            //   bit 0 trem, bit 1 chord-onset, bits 2-5 riff step,
+            //   bits 6-9 chord offset, bits 10-13 quality, bits 14-17 tonic
+            //   pc, bits 18-21 pair interval, bits 22-25 chord index.
+            static uint32_t GetVargSnapshot();
+            // Bumps on every link/pushVarg receipt — pages compare it to
+            // re-render DSP-confirmed values.
+            static uint32_t GetVargVersion();
+            static void VargSaveConfig();
+            // Length rides 0..100 % on the UI surface (the link key carries
+            // the engine's 0..1 fraction; converted here).
+            static int GetVargProg();    static void SetVargProg(int v);   // 0..10
+            static int GetVargBias();    static void SetVargBias(int v);   // 0..100
+            static int GetVargHold();    static void SetVargHold(int v);   // 0..2 (bars 1/2/4)
+            static int GetVargRhythm();  static void SetVargRhythm(int v); // 0..16
+            static int GetVargDens();    static void SetVargDens(int v);   // 1..16
+            static int GetVargSync();    static void SetVargSync(int v);   // 0..100 %
+            static int GetVargLen();     static void SetVargLen(int v);    // 0..100 %
+            static int GetVargRoot();    static void SetVargRoot(int v);   // tonic pc 0..11
+            static int GetVargClk();     static void SetVargClk(int v);    // 0 global 1 int 2 midi
+            static int GetVargDiv();     static void SetVargDiv(int v);    // kDivisions idx
+            static int GetVargRootSlot();  static void SetVargRootSlot(int s);
+            static int GetVargPairSlot();  static void SetVargPairSlot(int s);
+            static int GetVargTremSlot();  static void SetVargTremSlot(int s);
+            static int GetVargChgSlot();   static void SetVargChgSlot(int s);
+            static uint32_t GetVargMask();   // riff pattern preview
         };
     }
 }

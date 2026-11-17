@@ -43,8 +43,10 @@ echo "==> Building host tests"
     "$HERE/test_chain_budget.cpp" \
     "$HERE/test_render_ladder.cpp" \
     "$HERE/test_seq_mod.cpp" \
+    "$HERE/test_varg_core.cpp" \
     "$ROOT/main/ModTransport.cpp" \
     "$ROOT/main/SeqEngine.cpp" \
+    "$ROOT/main/VargEngine.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
     "$EURORACK/marbles/resources.cc" \
     "$EURORACK/marbles/random/t_generator.cc" \

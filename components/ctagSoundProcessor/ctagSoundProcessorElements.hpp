@@ -26,6 +26,9 @@ respective component folders / files if different from this license.
 #include "esp_heap_caps.h"
 #include "render_ladder.hpp"
 #include "ctagSoundProcessor.hpp"
+// GCC 15 -Werror: the Warps stage makes part.h pull warps/resources.h, whose
+// LUT_* macros collide with elements/resources.h (see the prelude header).
+#include "elements_warps_lut_isolation.h"
 #include "elements/dsp/part.h"
 
 #ifndef TBD_SIM

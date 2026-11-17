@@ -25,6 +25,7 @@ respective component folders / files if different from this license.
 #include "MarblesEngine.hpp"
 #include "ModTransport.hpp"
 #include "SeqEngine.hpp"
+#include "VargEngine.hpp"
 #include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
 #include "BtMidiReceiver.hpp"
@@ -835,6 +836,7 @@ void Midi::Init() {
     // CTAG::DRIVERS::tusbmidi::Init();
     CTAG::DRIVERS::MarblesEngine::Init();   // also Inits ModTransport (transport owner)
     CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::VargEngine::Init();
     CTAG::AUDIO::SDAudio::Init();
 }
 

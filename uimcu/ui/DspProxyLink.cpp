@@ -53,11 +53,11 @@ namespace CTAG {
     namespace CTRL {
 
         namespace {
-            // Slot bounds mirror the BBA DSP slot space (N_CVS=102, N_TRIGS=43).
-            // Slot bounds mirror the DSP (N_CVS=106, N_TRIGS=51 since the
-            // SEQ slot extension; must track CMakeLists + ctagSlotBounds).
-            constexpr int kNCvs = 106;
-            constexpr int kNTrigs = 51;
+            // Slot bounds mirror the DSP (N_CVS=108, N_TRIGS=53 since the
+            // SEQ + VARG slot extensions; must track CMakeLists +
+            // ctagSlotBounds).
+            constexpr int kNCvs = 108;
+            constexpr int kNTrigs = 53;
 
             int clampI(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
             float clampF(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -187,6 +187,19 @@ namespace CTAG {
             SeqState seq = {};
             uint32_t seqVersion = 0;
 
+            // VARG chord/riff sequencer mirror (flat, same discipline).
+            struct VargState {
+                int prog; int bias; int hold; int rhythm;
+                int dens; int sync; float len; int root;
+                int clk; int div;
+                int rootSlot; int pairSlot; int tremSlot; int chgSlot;
+                uint32_t mask;
+                // live strip word from the stream "vgw" field
+                uint32_t snapshot;
+            };
+            VargState varg = {};
+            uint32_t vargVersion = 0;
+
             // --- command senders ---
             void sendCmd(const string &payload) {
                 LinkClient::SendCommand(payload);
@@ -203,6 +216,13 @@ namespace CTAG {
             void sendSeqSet(const char *key, double v) {
                 char buf[96];
                 snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/seqSet\",\"k\":\"%s\",\"v\":%g}",
+                         key, v);
+                sendCmd(buf);
+            }
+
+            void sendVargSet(const char *key, double v) {
+                char buf[96];
+                snprintf(buf, sizeof(buf), "{\"cmd\":\"/link/vargSet\",\"k\":\"%s\",\"v\":%g}",
                          key, v);
                 sendCmd(buf);
             }
@@ -283,6 +303,26 @@ namespace CTAG {
                 else if (!strcmp(key, "shmneoop")) seq.neoOp = clampI(iv, 0, 7);
                 else if (!strcmp(key, "shmscale")) seq.scale = clampI(iv, 0, 19);
                 else if (!strcmp(key, "globalext")) seq.globalExt = iv != 0 ? 1 : 0;
+            }
+
+            void applyVargLocal(const char *key, double v) {
+                // Optimistic cache for /link/vargSet keys; same clamps as
+                // the engine setters. Keys shared with pushVarg().
+                int iv = (int)v;
+                if (!strcmp(key, "prog")) varg.prog = clampI(iv, 0, 10);
+                else if (!strcmp(key, "bias")) varg.bias = clampI(iv, 0, 100);
+                else if (!strcmp(key, "hold")) varg.hold = clampI(iv, 0, 2);
+                else if (!strcmp(key, "rhythm")) varg.rhythm = clampI(iv, 0, 16);
+                else if (!strcmp(key, "dens")) varg.dens = clampI(iv, 1, 16);
+                else if (!strcmp(key, "sync")) varg.sync = clampI(iv, 0, 100);
+                else if (!strcmp(key, "glen")) varg.len = clampF((float)v, 0.0f, 1.0f);
+                else if (!strcmp(key, "root")) varg.root = clampI(iv, 0, 11);
+                else if (!strcmp(key, "clk")) varg.clk = clampI(iv, 0, 2);
+                else if (!strcmp(key, "div")) varg.div = clampI(iv, 0, 12);
+                else if (!strcmp(key, "rs")) varg.rootSlot = clampI(iv, -1, kNCvs - 1);
+                else if (!strcmp(key, "ps")) varg.pairSlot = clampI(iv, -1, kNCvs - 1);
+                else if (!strcmp(key, "ts")) varg.tremSlot = clampI(iv, -1, kNTrigs - 1);
+                else if (!strcmp(key, "cs")) varg.chgSlot = clampI(iv, -1, kNTrigs - 1);
             }
 
             // --- push parsing ---
@@ -416,6 +456,38 @@ namespace CTAG {
                 seq.bpm = gf("bpm", seq.bpm);
                 seq.globalExt = gi("ext", seq.globalExt);
                 seqVersion++;   // pages compare this to re-render confirmed values
+            }
+
+            void parsePushVarg(const Document &d) {
+                if (!d.HasMember("st") || !d["st"].IsObject()) return;
+                const Value &s = d["st"];
+                auto gi = [&](const char *k, int def) {
+                    return s.HasMember(k) && s[k].IsInt() ? s[k].GetInt() : def;
+                };
+                auto gf = [&](const char *k, float def) {
+                    return s.HasMember(k) && s[k].IsNumber() ? (float)s[k].GetDouble() : def;
+                };
+                auto gs = [&](const char *k, uint32_t def) {
+                    // riff mask rides as a "0x%04x" string
+                    if (!s.HasMember(k) || !s[k].IsString()) return def;
+                    return (uint32_t)strtoul(s[k].GetString(), nullptr, 16);
+                };
+                varg.prog = gi("prog", varg.prog);
+                varg.bias = gi("bias", varg.bias);
+                varg.hold = gi("hold", varg.hold);
+                varg.rhythm = gi("rhythm", varg.rhythm);
+                varg.dens = gi("dens", varg.dens);
+                varg.sync = gi("sync", varg.sync);
+                varg.len = gf("glen", varg.len);
+                varg.root = gi("root", varg.root);
+                varg.clk = gi("clk", varg.clk);
+                varg.div = gi("div", varg.div);
+                varg.rootSlot = gi("rs", varg.rootSlot);
+                varg.pairSlot = gi("ps", varg.pairSlot);
+                varg.tremSlot = gi("ts", varg.tremSlot);
+                varg.chgSlot = gi("cs", varg.chgSlot);
+                varg.mask = gs("mask", varg.mask);
+                vargVersion++;   // pages compare this to re-render confirmed values
             }
         }
 
@@ -739,6 +811,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 parsePushMarbles(d);
             } else if (strcmp(cmd, kMsgPushSeq) == 0) {
                 parsePushSeq(d);
+            } else if (strcmp(cmd, kMsgPushVarg) == 0) {
+                parsePushVarg(d);
             } else if (strcmp(cmd, kMsgPushIoCaps) == 0) {
                 if (d.HasMember("sd") && d["sd"].IsInt()) sdMounted = d["sd"].GetInt() != 0;
                 if (d.HasMember("cd") && d["cd"].IsInt()) sdCardPresent = d["cd"].GetInt() != 0;
@@ -779,6 +853,8 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     seq.gateStep[0] = w & 0xF;
                     seq.gateStep[1] = (w >> 4) & 0xF;
                 }
+                p = strstr(payload, "\"vgw\":");
+                if (p) varg.snapshot = (uint32_t)strtoul(p + 6, nullptr, 10);
                 p = strstr(payload, "\"ov\":");
                 if (p) cpuOverload = strtoul(p + 5, nullptr, 10) != 0;
                 p = strstr(payload, "\"tl\":");
@@ -1404,5 +1480,84 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             seq.globalExt = v != 0 ? 1 : 0;
             sendSeqSet("globalext", seq.globalExt);
         }
+
+        // ---- VARG chord/riff sequencer surface ----
+        uint32_t DspProxy::GetVargSnapshot() { return varg.snapshot; }
+        uint32_t DspProxy::GetVargVersion() { return vargVersion; }
+        void DspProxy::VargSaveConfig() { sendVargSet("_save", 0); }
+
+        int DspProxy::GetVargProg() { return varg.prog; }
+        void DspProxy::SetVargProg(int v) {
+            varg.prog = clampI(v, 0, 10);
+            sendVargSet("prog", varg.prog);
+        }
+        int DspProxy::GetVargBias() { return varg.bias; }
+        void DspProxy::SetVargBias(int v) {
+            varg.bias = clampI(v, 0, 100);
+            sendVargSet("bias", varg.bias);
+        }
+        int DspProxy::GetVargHold() { return varg.hold; }
+        void DspProxy::SetVargHold(int v) {
+            varg.hold = clampI(v, 0, 2);
+            sendVargSet("hold", varg.hold);
+        }
+        int DspProxy::GetVargRhythm() { return varg.rhythm; }
+        void DspProxy::SetVargRhythm(int v) {
+            varg.rhythm = clampI(v, 0, 16);
+            sendVargSet("rhythm", varg.rhythm);
+        }
+        int DspProxy::GetVargDens() { return varg.dens; }
+        void DspProxy::SetVargDens(int v) {
+            varg.dens = clampI(v, 1, 16);
+            sendVargSet("dens", varg.dens);
+        }
+        int DspProxy::GetVargSync() { return varg.sync; }
+        void DspProxy::SetVargSync(int v) {
+            varg.sync = clampI(v, 0, 100);
+            sendVargSet("sync", varg.sync);
+        }
+        // Length: UI percent 0..100 <-> engine fraction 0..1
+        int DspProxy::GetVargLen() { return (int)(varg.len * 100.0f + 0.5f); }
+        void DspProxy::SetVargLen(int v) {
+            v = clampI(v, 0, 100);
+            varg.len = v / 100.0f;
+            sendVargSet("glen", varg.len);
+        }
+        int DspProxy::GetVargRoot() { return varg.root; }
+        void DspProxy::SetVargRoot(int v) {
+            varg.root = clampI(v, 0, 11);
+            sendVargSet("root", varg.root);
+        }
+        int DspProxy::GetVargClk() { return varg.clk; }
+        void DspProxy::SetVargClk(int v) {
+            varg.clk = clampI(v, 0, 2);
+            sendVargSet("clk", varg.clk);
+        }
+        int DspProxy::GetVargDiv() { return varg.div; }
+        void DspProxy::SetVargDiv(int v) {
+            varg.div = clampI(v, 0, 12);
+            sendVargSet("div", varg.div);
+        }
+        int DspProxy::GetVargRootSlot() { return varg.rootSlot; }
+        void DspProxy::SetVargRootSlot(int s) {
+            varg.rootSlot = clampI(s, -1, kNCvs - 1);
+            sendVargSet("rs", varg.rootSlot);
+        }
+        int DspProxy::GetVargPairSlot() { return varg.pairSlot; }
+        void DspProxy::SetVargPairSlot(int s) {
+            varg.pairSlot = clampI(s, -1, kNCvs - 1);
+            sendVargSet("ps", varg.pairSlot);
+        }
+        int DspProxy::GetVargTremSlot() { return varg.tremSlot; }
+        void DspProxy::SetVargTremSlot(int s) {
+            varg.tremSlot = clampI(s, -1, kNTrigs - 1);
+            sendVargSet("ts", varg.tremSlot);
+        }
+        int DspProxy::GetVargChgSlot() { return varg.chgSlot; }
+        void DspProxy::SetVargChgSlot(int s) {
+            varg.chgSlot = clampI(s, -1, kNTrigs - 1);
+            sendVargSet("cs", varg.chgSlot);
+        }
+        uint32_t DspProxy::GetVargMask() { return varg.mask; }
     }
 }

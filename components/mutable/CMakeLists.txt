@@ -149,7 +149,6 @@ file(GLOB SRCS_FILES
         eurorack/marbles/ramp/ramp_extractor.h
         )
 
-
 if(TBD_SIM)
     add_library(mutable STATIC ${SRCS_FILES})
     target_include_directories(mutable PRIVATE "eurorack" "rubato" "${CMAKE_SOURCE_DIR}/../components/ctagSoundProcessor")
@@ -178,9 +177,20 @@ else()
             -DTEST=
             )
 
-    # The grain renderer is inlined into processor.cc; -O2 is required to
-    # stay inside the 174,150-cycle audio budget. Keep this after -Os.
-    set_source_files_properties(
+    # Per-source options: exactly ONE set_source_files_properties call for
+    # these files — the property is SET, not appended, so a second call
+    # overwrites the first (the old post-register -O2 call was silently
+    # replaced by the BBA2 -O3 one; the -include prelude must ride along
+    # with the optimization flag).
+    #
+    # The elements TUs pull BOTH elements/resources.h and (via part.h's
+    # Warps stage) warps/resources.h; both reuse the same LUT_* macro names
+    # with different values, which GCC >= 15 rejects under -Werror. The
+    # prelude expands warps/resources.h first and drops its two colliding
+    # names, so each module keeps its own values (same technique as the
+    # generated plugin aggregator in components/ctagSoundProcessor/
+    # CMakeLists.txt).
+    set(MUTABLE_HOT_SRCS
             eurorack/elements/dsp/part.cc
             eurorack/elements/dsp/voice.cc
             eurorack/elements/dsp/resonator.cc
@@ -192,29 +202,24 @@ else()
             eurorack/warps/dsp/modulator.cc
             eurorack/warps/dsp/vocoder.cc
             eurorack/warps/dsp/filter_bank.cc
-            eurorack/warps/dsp/oscillator.cc
-            PROPERTIES COMPILE_OPTIONS "-O2")
+            eurorack/warps/dsp/oscillator.cc)
+    set(MUTABLE_LUT_PRELUDE
+            "${CMAKE_SOURCE_DIR}/components/ctagSoundProcessor/helpers/elements_warps_lut_isolation.h")
+    if(CONFIG_TBD_PLATFORM_BBA2)
+        # BBA2 (ESP32-S3) compute headroom: -O3 on the hot render files
+        # (doc/esp32s3-porting-guide.md §4).
+        set_source_files_properties(${MUTABLE_HOT_SRCS} PROPERTIES
+                COMPILE_OPTIONS "-O3;-include;${MUTABLE_LUT_PRELUDE}")
+    else()
+        # The grain renderer is inlined into processor.cc; -O2 is required
+        # to stay inside the 174,150-cycle audio budget.
+        set_source_files_properties(${MUTABLE_HOT_SRCS} PROPERTIES
+                COMPILE_OPTIONS "-O2;-include;${MUTABLE_LUT_PRELUDE}")
+    endif()
 endif()
 
 if(CONFIG_TBD_PLATFORM_BBA2)
-    # BBA2 (ESP32-S3) compute headroom: single-cycle madd.s, software
-    # pipelining, inlined helpers (doc/esp32s3-porting-guide.md §4).
-    # -ffast-math is already on above; add -O3/-funroll-loops and keep the
-    # legacy per-file -O2 override (below) from capping the hot files back
-    # down. BBA2-only; legacy targets keep their existing flags.
+    # BBA2 adds -O3/-funroll-loops component-wide; the per-source -O3 above
+    # keeps the hot files from being capped back down.
     target_compile_options(${COMPONENT_LIB} PRIVATE -O3 -funroll-loops)
-    set_source_files_properties(
-            eurorack/elements/dsp/part.cc
-            eurorack/elements/dsp/voice.cc
-            eurorack/elements/dsp/resonator.cc
-            eurorack/elements/dsp/string.cc
-            eurorack/elements/dsp/exciter.cc
-            eurorack/elements/dsp/tube.cc
-            eurorack/elements/dsp/multistage_envelope.cc
-            eurorack/elements/dsp/ominous_voice.cc
-            eurorack/warps/dsp/modulator.cc
-            eurorack/warps/dsp/vocoder.cc
-            eurorack/warps/dsp/filter_bank.cc
-            eurorack/warps/dsp/oscillator.cc
-            PROPERTIES COMPILE_OPTIONS "-O3")
 endif()

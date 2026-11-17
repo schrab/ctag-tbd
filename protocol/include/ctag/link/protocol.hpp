@@ -133,6 +133,7 @@ constexpr const char *kMsgPushPresets      = "link/pushPresets";
 constexpr const char *kMsgPushFavorites    = "link/pushFavorites";
 constexpr const char *kMsgPushMarbles      = "link/pushMarbles";
 constexpr const char *kMsgPushSeq          = "link/pushSeq";
+constexpr const char *kMsgPushVarg         = "link/pushVarg";
 constexpr const char *kMsgPushIoCaps       = "link/pushIoCaps";
 
 // Streaming @10 Hz (SDD §4.2): VU peaks, Marbles output snapshot bitfield,
@@ -167,6 +168,7 @@ constexpr const char *kMsgCmdSdStop           = "/link/sdStop";
 constexpr const char *kMsgCmdMarblesGet       = "/link/marblesGet";
 constexpr const char *kMsgCmdMarblesSet       = "/link/marblesSet";
 constexpr const char *kMsgCmdSeqSet           = "/link/seqSet";
+constexpr const char *kMsgCmdVargSet          = "/link/vargSet";
 constexpr const char *kMsgCmdMidiFlags        = "/link/midiFlags";
 
 // True for any message a DSP dispatcher should execute: the bench set

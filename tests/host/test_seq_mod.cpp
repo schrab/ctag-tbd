@@ -9,6 +9,7 @@
 
 TEST(seq_clamp_new_bounds_valid) {
     // cv 102..105 and trig 43..50 must be valid after the extension
+    // (106-107 / 51-52 belong to VARG, see test_varg_core.cpp)
     CHECK(CTAG::SP::HELPERS::ClampCVSlot(102) == 102);
     CHECK(CTAG::SP::HELPERS::ClampCVSlot(105) == 105);
     CHECK(CTAG::SP::HELPERS::ClampTrigSlot(43) == 43);
@@ -16,9 +17,12 @@ TEST(seq_clamp_new_bounds_valid) {
 }
 
 TEST(seq_clamp_at_new_bounds_invalid) {
-    // first index past each range clamps to unassigned (stack-safety rule)
-    CHECK(CTAG::SP::HELPERS::ClampCVSlot(106) == -1);
-    CHECK(CTAG::SP::HELPERS::ClampTrigSlot(51) == -1);
+    // first index past the SEQ range belongs to VARG; the frontier moved
+    // with that extension
+    CHECK(CTAG::SP::HELPERS::ClampCVSlot(106) == 106);
+    CHECK(CTAG::SP::HELPERS::ClampTrigSlot(51) == 51);
+    CHECK(CTAG::SP::HELPERS::ClampCVSlot(108) == -1);
+    CHECK(CTAG::SP::HELPERS::ClampTrigSlot(53) == -1);
 }
 
 // ---- ModTransport (hoisted transport) ----
