@@ -135,6 +135,16 @@ namespace CTAG {
                            to_string(AUDIO::SDAudio::GetRecDrops()) +
                            ",\"muteBlocks\":" +
                            to_string(AUDIO::SoundProcessorManager::GetMuteBlocks()) +
+                           ",\"playUnderruns\":" +
+                           to_string(AUDIO::SDAudio::GetUnderruns()) +
+                           ",\"sdPos\":" +
+                           to_string(AUDIO::SDAudio::GetPositionFrames()) +
+                           ",\"sdPlaying\":" +
+                           to_string(AUDIO::SDAudio::IsPlaying() ? 1 : 0) +
+                           ",\"freadUs\":" +
+                           to_string((unsigned long long)AUDIO::SDAudio::GetPlayFreadUs()) +
+                           ",\"freadCalls\":" +
+                           to_string(AUDIO::SDAudio::GetPlayFreadCalls()) +
                            // Peak metering (0..1000 per block). Only live
                            // while /link/metering armed the peak pass —
                            // bench diagnostics read the same atomics the

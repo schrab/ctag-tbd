@@ -81,6 +81,8 @@ public:
     // Monotonic bench counters (see the field comments above); the 25 Hz
     // link stream embeds them so clicks can be attributed live.
     static uint32_t GetUnderruns();
+    static uint64_t GetPlayFreadUs();
+    static uint32_t GetPlayFreadCalls();
     static uint32_t GetRecDrops();
 
     // Header parse only (no streaming): chunk walk tolerating LIST/bext

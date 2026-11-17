@@ -24,6 +24,7 @@ respective component folders / files if different from this license.
 #include "fs.hpp"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <cstring>
@@ -56,6 +57,11 @@ uint32_t SDAudio::bytePos = 0;
 // Rate in force when recording STARTED — Elements switches the codec to
 // 32 kHz, and the WAV header must describe the samples actually written.
 static uint32_t s_recordSampleRate = 44100;
+// Playback forensics: total time spent in fread and number of calls.
+static uint64_t s_playFreadUs = 0;
+static uint32_t s_playFreadCalls = 0;
+uint64_t SDAudio::GetPlayFreadUs() { return s_playFreadUs; }
+uint32_t SDAudio::GetPlayFreadCalls() { return s_playFreadCalls; }
 bool SDAudio::wavHeaderWritten = false;
 uint32_t SDAudio::recordedBytes = 0;
 long SDAudio::dataStart = 0;
@@ -405,7 +411,10 @@ void SDAudio::workerTask(void *param) {
             vTaskDelete(nullptr);
             return;
         }
-        setvbuf(file, nullptr, _IONBF, 0); // 4 KB chunked reads, no Newlib copy
+        // Buffered file: with _IONBF, Newlib's fread loops per element and
+        // issues thousands of tiny _read syscalls per 4 KB chunk (~67 ms).
+        static char s_playBuf[8192];
+        setvbuf(file, s_playBuf, _IOFBF, sizeof(s_playBuf));
         if (fseek(file, dataStart, SEEK_SET) != 0) {
             fclose(file);
             file = nullptr;
@@ -427,7 +436,14 @@ void SDAudio::workerTask(void *param) {
                 continue;
             }
             uint32_t toWrite = free > CHUNK_MAX ? CHUNK_MAX : free;
-            size_t framesRead = fread(tmp, bytesPerFrame, toWrite, file);
+            const int64_t t_fread = esp_timer_get_time();
+            // With _IONBF, fread(size=4, count=N) issues N separate 4-byte
+            // _read syscalls (~67 ms per 4 KB chunk). One bulk read of
+            // size=1 is a single ~4 KB syscall.
+            size_t framesRead = fread(tmp, 1, toWrite * bytesPerFrame, file)
+                                / (size_t)bytesPerFrame;
+            s_playFreadUs += (uint64_t)(esp_timer_get_time() - t_fread);
+            ++s_playFreadCalls;
             if (framesRead == 0) {
                 // End of file: loop until stopped.
                 if (playing && !stopRequested && fseek(file, dataStart, SEEK_SET) == 0) {
