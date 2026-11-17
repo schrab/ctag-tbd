@@ -41,9 +41,9 @@ namespace CTAG {
 
         namespace {
             // Slot bounds mirror the BBA DSP slot space (top-level CMakeLists:
-            // N_CVS=108, N_TRIGS=53). The link protocol keeps these in sync.
-            constexpr int kNCvs = 108;
-            constexpr int kNTrigs = 53;
+            // N_CVS=106, N_TRIGS=51). The link protocol keeps these in sync.
+            constexpr int kNCvs = 106;
+            constexpr int kNTrigs = 51;
 
             int clampI(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
             float clampF(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }

@@ -24,13 +24,13 @@ respective component folders / files if different from this license.
 #include <cstdint>
 
 // N_CVS / N_TRIGS are supplied by the top-level CMakeLists per platform
-// (BBA: N_CVS=108, N_TRIGS=53). Host builds define them here so the
+// (BBA: N_CVS=106, N_TRIGS=51). Host builds define them here so the
 // modulation helpers can be unit-tested without ESP-IDF.
 #ifndef N_CVS
-#define N_CVS 108
+#define N_CVS 106
 #endif
 #ifndef N_TRIGS
-#define N_TRIGS 53
+#define N_TRIGS 51
 #endif
 
 namespace CTAG {

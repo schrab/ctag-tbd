@@ -80,6 +80,9 @@ void SeqEngine::InitDefaults() {
         arpAccSlot[i] = 47 + i;
         arpSlideSlot[i] = 49 + i;
         gArpExt[i] = SEQ::ArpExt{};
+        // VARG's "unloaded" marker: the first rebuilt bar plays the
+        // progression's tonic chord instead of advancing past it.
+        gArpExt[i].st.varg.chordIdx = 0xFF;
     }
     gNeoOp = 0;
     intPhase = 0.0f;
@@ -90,7 +93,7 @@ void SeqEngine::InitDefaults() {
     outSnapshot.store(0, std::memory_order_relaxed);
 
     for (int i = 0; i < 2; ++i) {
-        SEQ::ArpRebuildPattern(gArp[i], gArpExt[i]);
+        SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
         // Start at the root note — a pitch CV that starts at 0 would yank a
         // mapped plugin down ~2.4 V on load.
         gArpExt[i].current_pitch_q16 = gArpExt[i].target_pitch_q16 =
@@ -187,20 +190,26 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
             s.ticks += aWraps;
             const uint8_t st = s.step;
             if (st < prevSt || (s.ticks & 0x0Fu) == 0u) {
-                // bar boundary: chord drift cadence + fill bar + rebuild
+                // bar boundary: chord drift cadence + fill bar + rebuild.
+                // VARG advances its own progression inside ArpBuildVarg (one
+                // chord per bar) — skip the shared W7/Neo drift for it.
                 e.bar_count++;
                 const uint8_t driftBars = (s.p[3] >= 60) ? 4 : 8;
                 if (e.bar_count >= driftBars) {
                     e.bar_count = 0;
-                    if (s.p[3] > 15 || s.root_mode >= 1) SEQ::ArpNextChord(s, e, gNeoOp);
-                    // rack shared-harmony lock: mirror the drift to the
-                    // sibling so both ARPs stay chord-locked
-                    SEQ::ArpSource &so = gArp[i ^ 1];
-                    SEQ::ArpExt &eo = gArpExt[i ^ 1];
-                    so.root = s.root;
-                    eo.is_minor_triad = e.is_minor_triad;
-                    eo.deg = e.deg;
-                    SEQ::ArpRebuildScale(so, eo);
+                    if (s.algo != SEQ::kArpAlgoVarg &&
+                        (s.p[3] > 15 || s.root_mode >= 1))
+                        SEQ::ArpNextChord(s, e, gNeoOp);
+                    if (s.algo != SEQ::kArpAlgoVarg) {
+                        // rack shared-harmony lock: mirror the drift to the
+                        // sibling so both ARPs stay chord-locked
+                        SEQ::ArpSource &so = gArp[i ^ 1];
+                        SEQ::ArpExt &eo = gArpExt[i ^ 1];
+                        so.root = s.root;
+                        eo.is_minor_triad = e.is_minor_triad;
+                        eo.deg = e.deg;
+                        SEQ::ArpRebuildScale(so, eo);
+                    }
                     e.dd_fill = 0;
                     e.turn_type = (uint8_t)((s.ticks >> 4) & 3u);
                 } else if (e.bar_count == driftBars - 1 && s.p[3] >= 40) {
@@ -332,16 +341,21 @@ int SeqEngine::GetGateStep(int i) { return gGate[i].step; }
 // ---- arp setters ----
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {
-    v = ClampInt(v, 0, 14);
+    v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 6 algos x 3 ranges
+    const uint8_t oldAlgo = gArp[i].algo;
     gArp[i].algo = (uint8_t)(v / 3);
     gArp[i].range = (uint8_t)(1 + v % 3);
-    SEQ::ArpRebuildPattern(gArp[i], gArpExt[i]);
+    if (gArp[i].algo == SEQ::kArpAlgoVarg && oldAlgo != SEQ::kArpAlgoVarg)
+        gArpExt[i].st.varg.chordIdx = 0xFF;   // fresh switch: start on the tonic
+    SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }
 int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 3) ? 0 : gArp[i].p[k]; }
 void SeqEngine::SetArpP(int i, int k, int v) {
     if (k < 0 || k > 3) return;
     gArp[i].p[k] = (uint8_t)ClampInt(v, 0, 100);
-    SEQ::ArpRebuildPattern(gArp[i], gArpExt[i]);
+    // setter-side rebuild: re-voice the CURRENT chord, never step the
+    // progression (a knob turn must not jump the chord sequence)
+    SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }
 int SeqEngine::GetArpGlide(int i) { return arpGlideMs[i]; }
 void SeqEngine::SetArpGlide(int i, int v) { arpGlideMs[i] = ClampInt(v, 0, 100); }
@@ -370,7 +384,7 @@ void SeqEngine::SetRootMode(int v) {
     gArp[0].root_mode = gArp[1].root_mode = m;
     for (int i = 0; i < 2; ++i) {
         SEQ::ArpRebuildScale(gArp[i], gArpExt[i]);
-        SEQ::ArpRebuildPattern(gArp[i], gArpExt[i]);
+        SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
     }
 }
 int SeqEngine::GetNeoOp() { return gNeoOp; }
@@ -381,7 +395,7 @@ void SeqEngine::SetScale(int v) {
     gArp[0].scale_idx = gArp[1].scale_idx = sc;
     for (int i = 0; i < 2; ++i) {
         SEQ::ArpRebuildScale(gArp[i], gArpExt[i]);
-        SEQ::ArpRebuildPattern(gArp[i], gArpExt[i]);
+        SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
     }
 }
 
@@ -457,7 +471,7 @@ bool SeqEngine::DeserializeConfig(const char *json) {
         for (SizeType i = 0; i < arr.Size() && i < 2; i++) {
             const Value &a = arr[i];
             if (!a.IsObject()) continue;
-            if (a.HasMember("algo") && a["algo"].IsInt()) gArp[i].algo = (uint8_t)ClampInt(a["algo"].GetInt(), 0, 4);
+            if (a.HasMember("algo") && a["algo"].IsInt()) gArp[i].algo = (uint8_t)ClampInt(a["algo"].GetInt(), 0, SEQ::kArpAlgoCount - 1);
             if (a.HasMember("range") && a["range"].IsInt()) gArp[i].range = (uint8_t)ClampInt(a["range"].GetInt(), 1, 3);
             if (a.HasMember("p") && a["p"].IsArray()) {
                 const Value &p = a["p"];
@@ -493,7 +507,7 @@ bool SeqEngine::DeserializeConfig(const char *json) {
     // derived state: gate masks from (mode, dens, sync), arp scale tables +
     // patterns from (algo, range, p, shared)
     for (int i = 0; i < 2; ++i) SEQ::GateRecompute(gGate[i]);
-    for (int i = 0; i < 2; ++i) SEQ::ArpRebuildPattern(gArp[i], gArpExt[i]);
+    for (int i = 0; i < 2; ++i) SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
     return true;
 }
 

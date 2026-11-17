@@ -46,7 +46,6 @@ echo "==> Building host tests"
     "$HERE/test_varg_core.cpp" \
     "$ROOT/main/ModTransport.cpp" \
     "$ROOT/main/SeqEngine.cpp" \
-    "$ROOT/main/VargEngine.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
     "$EURORACK/marbles/resources.cc" \
     "$EURORACK/marbles/random/t_generator.cc" \

@@ -45,7 +45,6 @@ respective component folders / files if different from this license.
 #include "MarblesEngine.hpp"
 #include "ModTransport.hpp"
 #include "SeqEngine.hpp"
-#include "VargEngine.hpp"
 #include "SDAudio.hpp"
 #if CONFIG_BT_ENABLED && !defined(TBD_RADIO_FREE)
 #include "BtMidiReceiver.hpp"
@@ -169,13 +168,12 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             DRIVERS::Codec::SetSampleRate(req_rate);
         }
 
-        // Shared transport -> Seq modulators -> VARG -> Marbles random
-        // modulation. Seq/VARG write first so plugins read coherent slots;
-        // order vs Marbles is irrelevant (disjoint slots).
+        // Shared transport -> Seq modulators -> Marbles random modulation.
+        // Seq writes first so plugins read coherent slots; order vs Marbles
+        // is irrelevant (disjoint slots).
         const float modDt = (float)BUF_SZ / (float)DRIVERS::Codec::GetSampleRate();
         DRIVERS::ModTransport::Process(modDt);
         DRIVERS::SeqEngine::Process(pd.cv, pd.trig, modDt);
-        DRIVERS::VargEngine::Process(pd.cv, pd.trig, modDt);
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
         // get normalized raw data from CODEC

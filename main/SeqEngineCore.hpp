@@ -504,13 +504,15 @@ inline uint8_t degree_to_midi_folded(uint8_t root_pc,
     return (uint8_t)midi_note;
 }
 
-// Arp algorithm ids (rack ModArpAlgo)
+// Arp algorithm ids (rack ModArpAlgo + the VARG black-metal algorithm)
 enum {
     kArpAlgoHyp1   = 0,   // HYP-1 Acid / 303 W7 Chord-Drift + Mutate + Turnarounds
     kArpAlgoMotif  = 1,   // Phrase-Grammar Motif Transformer (ABAC/AABC)
     kArpAlgoMarkov = 2,   // Tonal-Gravity Markov Walker + 16 Melodic Contours
     kArpAlgoMetro  = 3,   // Metropolix 8-Stage Accumulator & Ratchets
     kArpAlgoDejavu = 4,   // Marbles 3-Zone Deja-Vu Shift Register + Salience
+    kArpAlgoVarg   = 5,   // VARG black-metal chord ostinato + tremolo engine
+    kArpAlgoCount  = 6,
 };
 
 // Compact 16-step pattern + harmony state (~112 B per instance)
@@ -554,6 +556,12 @@ struct ArpExt {
             uint8_t u_pitch[16];
             uint8_t u_gate[16];
         } dejavu;
+        struct {
+            uint8_t chordIdx;   // index into the active progression / pool
+            uint8_t curOff;     // current chord root offset above the tonic
+            uint8_t curQual;    // current chord's sounding quality (post-bias)
+            uint8_t genIdx;     // generative mode: last pool index
+        } varg;
     } st;
 
     // 303 DSP Articulator state (Q16.16)
@@ -987,8 +995,230 @@ inline void ArpBuildDejavu(ArpSource &s, ArpExt &ext) {
     }
 }
 
-// Rebuild all 16 steps for the currently selected algorithm (0..4)
-inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext) {
+// ===================== VARG: black-metal chord algorithm =====================
+// Algorithm 5. Harmonic content from docs/Black Metal Chords, Scales,
+// Harmonies, and Progressions.md. Runs inside the ARP modulators (no extra
+// slots/page): the ARP's pitch CV carries the arpeggiated chord tones, the
+// gate/accent trigs carry the riff rhythm. Per-algo params:
+//   p[0] PROG    — 11 progression modes (10 documented archetypes +
+//                  generative chord Markov)
+//   p[1] RHYTHM  — 16 picking/riff masks (tremolo 1/16, 1/8, gallop, 6/8,
+//                  stabs, ...)
+//   p[2] QUALITY — bias band: RAW (power chords) / TRIAD / DISS (altered)
+//   p[3] MUTATE  — per-bar mask variation probability (0..100)
+// One chord per bar (ArpBuildVarg runs at every bar boundary); the chord
+// root is semitone-exact above the arp's shared root, the tones are the
+// quality's chord tones (step.off carries SEMITONES for this algo — see
+// ArpCalcNote).
+
+enum VargQuality {
+    VQ_P5 = 0,   // power chord  1-5
+    VQ_MAJ,      // major triad  1-3-5
+    VQ_MIN,      // minor triad  1-b3-5
+    VQ_5B5,      // tritone power 1-b5
+    VQ_DIM7,     // dim7         1-b3-b5-bb7
+    VQ_M7B5,     // half-dim     1-b3-b5-b7
+    VQ_AUG,      // augmented    1-3-#5
+    VQ_ADD9,     // minor add9   1-b3-5-9
+    VQ_MB9,      // minor + b9 pedal friction
+    VQ_COUNT
+};
+
+// Chord-tone sets (semitones above the chord root, ascent order)
+struct VargToneSet { uint8_t n; uint8_t st[5]; };
+inline constexpr VargToneSet kVargTones[VQ_COUNT] = {
+    { 2, { 0, 7 } },          // P5
+    { 3, { 0, 4, 7 } },       // MAJ
+    { 3, { 0, 3, 7 } },       // MIN
+    { 2, { 0, 6 } },          // 5b5
+    { 4, { 0, 3, 6, 9 } },    // dim7
+    { 4, { 0, 3, 6, 10 } },   // m7b5
+    { 3, { 0, 4, 8 } },       // AUG
+    { 4, { 0, 3, 7, 14 } },   // add9
+    { 3, { 0, 1, 7 } },       // m+b9
+};
+
+struct VargChord {
+    uint8_t off;
+    uint8_t qual;
+};
+struct VargProgression {
+    const char *name;
+    uint8_t len;
+    VargChord chords[6];
+};
+// Tonic-relative offsets + the archetype's own quality law (BIAS re-voices)
+inline constexpr VargProgression kVargProgressions[11] = {
+    /* 0  */ { "Generative", 0, {} },
+    /* 1  */ { "i-bVII", 2, { { 0, VQ_MIN }, { 10, VQ_MAJ } } },
+    /* 2  */ { "i-bVI-bVII", 3, { { 0, VQ_MIN }, { 8, VQ_MAJ }, { 10, VQ_MAJ } } },
+    /* 3  */ { "i-bIII-bVI-bVII", 4, { { 0, VQ_MIN }, { 3, VQ_MAJ }, { 8, VQ_MAJ }, { 10, VQ_MAJ } } },
+    /* 4  */ { "Weitzmann", 4, { { 0, VQ_MIN }, { 8, VQ_MIN }, { 3, VQ_MIN }, { 7, VQ_MAJ } } },
+    /* 5  */ { "add9-dim7", 4, { { 0, VQ_ADD9 }, { 6, VQ_DIM7 }, { 11, VQ_MIN }, { 0, VQ_MAJ } } },
+    /* 6  */ { "Mediant", 2, { { 0, VQ_MIN }, { 8, VQ_MIN } } },
+    /* 7  */ { "i-bII-v", 3, { { 0, VQ_MIN }, { 1, VQ_MIN }, { 7, VQ_MIN } } },
+    /* 8  */ { "Pool 5", 6, { { 0, VQ_P5 }, { 5, VQ_P5 }, { 6, VQ_P5 }, { 3, VQ_P5 }, { 1, VQ_P5 }, { 11, VQ_P5 } } },
+    /* 9  */ { "Planing", 4, { { 0, VQ_MIN }, { 1, VQ_MIN }, { 3, VQ_MIN }, { 4, VQ_MIN } } },
+    /* 10 */ { "i-I+", 2, { { 0, VQ_MIN }, { 0, VQ_AUG } } },
+};
+inline constexpr uint8_t kVargProgCount = 11;
+
+// Generative chord pool (progression 0): the corpus-significant BM chord set
+inline constexpr VargChord kVargGenPool[9] = {
+    {  0, VQ_MIN  },   // i
+    {  4, VQ_MIN  },   // #iii
+    {  8, VQ_MIN  },   // vi (minor M3 below)
+    { 11, VQ_MIN  },   // #vii
+    { 10, VQ_MAJ  },   // bVII
+    {  8, VQ_MAJ  },   // bVI
+    {  3, VQ_MAJ  },   // bIII
+    {  7, VQ_MIN  },   // v
+    {  6, VQ_DIM7 },   // #iv dim7
+};
+inline constexpr uint8_t kVargGenCount = 9;
+inline constexpr uint8_t kVargGenMarkov[9][9] = {
+    /*         to:  i #iii  vi #vii bVII  bVI bIII   v dim7 */
+    /* i    */ {   0,  30,  25,  15,  45,  35,  15,  10,   5 },
+    /* #iii */ {  35,   0,  20,  10,  15,  10,  10,  40,   5 },
+    /* vi   */ {  30,  10,   0,  15,  25,  20,  10,  10,   5 },
+    /* #vii */ {  60,  10,  10,   0,  15,  10,   5,  10,   5 },
+    /* bVII */ {  80,  10,  15,  10,   0,  20,  10,   5,   5 },
+    /* bVI  */ {  25,  10,  10,  10,  45,   0,  10,   5,   5 },
+    /* bIII */ {  30,  15,  20,  10,  20,  20,   0,  10,   5 },
+    /* v    */ {  55,  10,  10,  10,  15,  10,   5,   0,   5 },
+    /* dim7 */ {  45,  15,  10,  10,  10,  10,   5,   5,   0 },
+};
+
+// 16 riff masks (MSB = step 1): the genre's picking beds and figures
+inline constexpr uint16_t kVargMasks[16] = {
+    0xFFFF, // 0  TRM16  straight 1/16 tremolo
+    0xAAAA, // 1  TRM8   straight 1/8 tremolo
+    0x8888, // 2  QRT    quarter-note vamp
+    0x8000, // 3  HALF   one hit per bar (sustained bed)
+    0xFF00, // 4  BURST  half-bar tremolo burst + rest
+    0xBBBB, // 5  GAL    gallop x.xx
+    0xDDDD, // 6  RGAL   reverse gallop xx.x
+    0x9249, // 7  68L    6/8 lilt / 3-3-2 timeline
+    0xC0C2, // 8  STAB   punctuated stabs
+    0x9999, // 9  SKIP   dotted-8th skip x..x
+    0xF7F7, // 10 CHAR   charge x.xxx (8ths with a 16th pickup)
+    0xCC66, // 11 RESP   call & response blocks
+    0xFFFE, // 12 TURN   relentless + one-step breath
+    0xC000, // 13 DIRGE  half-bar dirge stab
+    0xF555, // 14 CHOP   16th run into offbeat chops
+    0xF000, // 15 DBL    four-hit double stop
+};
+
+// BIAS re-voicing: 0..33 RAW (power chords), 34..66 TRIAD (own law),
+// 67..100 DISS (probabilistic altered remap; intensity scales with bias)
+inline uint8_t VargBiasQuality(ArpSource &s, uint8_t base, uint8_t bias) {
+    if (bias <= 33) return VQ_P5;
+    if (bias <= 66) return base;
+    uint32_t p = (uint32_t)(bias - 66) * 3u;
+    if (p > 100u) p = 100u;
+    if ((ArpU32Rand(s) % 100u) >= p) return base;
+    switch (base) {
+        case VQ_P5:  return (ArpU32Rand(s) & 1u) ? VQ_5B5 : VQ_AUG;
+        case VQ_MAJ: return VQ_AUG;
+        case VQ_MIN: {
+            const uint8_t r = (uint8_t)(ArpU32Rand(s) % 3u);
+            return (r == 0) ? VQ_M7B5 : (r == 1) ? VQ_DIM7 : VQ_MB9;
+        }
+        default:     return base;   // already altered
+    }
+}
+
+// Advance to the next chord of the active progression (generative mode walks
+// the weighted markov; never repeats the current pool chord). chordIdx 0xFF
+// is the "unloaded" marker (set at InitDefaults): the first bar plays the
+// progression's tonic instead of advancing past it.
+inline void VargNextChord(ArpSource &s, ArpExt &ext) {
+    auto &v = ext.st.varg;
+    const uint8_t prog = (uint8_t)((s.p[0] * 11) / 101);
+    if (prog == 0) {
+        uint32_t sum = 0;
+        const uint8_t cur = (v.genIdx < kVargGenCount) ? v.genIdx : 0;
+        for (uint8_t j = 0; j < kVargGenCount; ++j) sum += kVargGenMarkov[cur][j];
+        uint32_t r = ArpU32Rand(s) % (sum ? sum : 1u);
+        uint8_t next = cur;
+        for (uint8_t j = 0; j < kVargGenCount; ++j) {
+            if (r < kVargGenMarkov[cur][j] && kVargGenMarkov[cur][j] > 0) { next = j; break; }
+            r -= kVargGenMarkov[cur][j];
+        }
+        if (next == cur) next = (uint8_t)((cur + 1) % kVargGenCount);
+        v.genIdx = next;
+        v.chordIdx = next;
+        v.curOff = kVargGenPool[next].off;
+        v.curQual = VargBiasQuality(s, kVargGenPool[next].qual, s.p[2]);
+        return;
+    }
+    const VargProgression &pr = kVargProgressions[prog];
+    if (v.chordIdx == 0xFF) v.chordIdx = 0;                      // first bar: tonic
+    else v.chordIdx = (uint8_t)((v.chordIdx + 1) % pr.len);
+    v.curOff = pr.chords[v.chordIdx].off;
+    v.curQual = VargBiasQuality(s, pr.chords[v.chordIdx].qual, s.p[2]);
+}
+
+// Load the chord at idx of the active progression WITHOUT advancing (used
+// by setter-side rebuilds: knob turns re-voice the current chord, they must
+// not step the progression).
+inline void VargLoadChord(ArpSource &s, ArpExt &ext, uint8_t idx) {
+    auto &v = ext.st.varg;
+    const uint8_t prog = (uint8_t)((s.p[0] * 11) / 101);
+    if (prog == 0) {
+        idx %= kVargGenCount;
+        v.genIdx = idx;
+        v.chordIdx = idx;
+        v.curOff = kVargGenPool[idx].off;
+        v.curQual = VargBiasQuality(s, kVargGenPool[idx].qual, s.p[2]);
+        return;
+    }
+    const VargProgression &pr = kVargProgressions[prog];
+    idx %= pr.len;
+    v.chordIdx = idx;
+    v.curOff = pr.chords[idx].off;
+    v.curQual = VargBiasQuality(s, pr.chords[idx].qual, s.p[2]);
+}
+
+// Build one bar: advance the chord (bar boundary) or re-voice the current
+// one (setter-side, advance=false), then compile the riff mask into gate /
+// accent flags with the quality's chord tones spread over the gated steps
+// (octave climbs through the ARP's range on repeated tone cycles).
+inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
+    auto &v = ext.st.varg;
+    if (advance) VargNextChord(s, ext);
+    else VargLoadChord(s, ext, (v.chordIdx == 0xFF) ? 0 : v.chordIdx);
+    const VargToneSet &ts = kVargTones[v.curQual % VQ_COUNT];
+    uint16_t mask = kVargMasks[(s.p[1] * 16) / 101];
+
+    // MUTATE: flip the weak (low-Barlow) steps of the mask per bar
+    if (s.p[3] > 0) {
+        const uint32_t prob = (uint32_t)s.p[3] * 255u / 100u;
+        for (uint8_t st = 0; st < 16; ++st) {
+            const uint16_t sens = METRIC_MUTATE_SENSITIVITY[st];
+            const uint32_t bit_prob = (prob * sens) >> 8;
+            if (ArpRand(s, 255) < bit_prob) mask ^= (1u << (15 - st));
+        }
+    }
+
+    uint8_t k = 0;   // gated-step counter drives the chord-tone walk
+    for (uint8_t st = 0; st < 16; ++st) {
+        const bool gate = ((mask >> (15 - st)) & 1u) != 0;
+        const uint8_t tone = (uint8_t)(k % ts.n);
+        const int8_t oct = (s.range > 1)
+                               ? (int8_t)((k / ts.n) % s.range) : (int8_t)0;
+        ext.steps[st].off = (int8_t)ts.st[tone];   // SEMITONES (see ArpCalcNote)
+        ext.steps[st].oct = oct;
+        ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u)
+                                        | (gate && (st & 3u) == 0u ? 2u : 0u));
+        if (gate) ++k;
+    }
+}
+
+// Rebuild all 16 steps for the currently selected algorithm. advanceChord
+// only matters for VARG: the bar-boundary call in SeqEngine::Process passes
+// true (one chord per bar), every setter passes false (re-voice in place).
+inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext, bool advanceChord = true) {
     ArpRebuildScale(s, ext);
 
     switch (s.algo) {
@@ -1005,8 +1235,11 @@ inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext) {
             ArpBuildMetro(s, ext);
             break;
         case kArpAlgoDejavu:
-        default:
             ArpBuildDejavu(s, ext);
+            break;
+        case kArpAlgoVarg:
+        default:
+            ArpBuildVarg(s, ext, advanceChord);
             break;
     }
 }
@@ -1044,8 +1277,18 @@ inline void ArpApplyTurnaround(ArpSource &s, ArpExt &ext, uint8_t st, ArpStep &i
 // Compute MIDI note (28..96) for a step. The rack branched on root_param for
 // the base note; this port always bases on 48 + root pitch class (drift
 // modes mutate s.root itself, W7 leaves it — spec §4.2 fixed base).
+// VARG is the exception: its step.off carries SEMITONES above the current
+// progression chord root (semitone-exact black-metal harmony), so it does
+// not go through the scale-degree folding.
 inline uint8_t ArpCalcNote(const ArpSource &s, const ArpExt &ext,
                            const ArpStep &step) {
+    if (s.algo == kArpAlgoVarg) {
+        int16_t midi = (int16_t)(48 + s.root + ext.st.varg.curOff + step.off)
+                       + (int16_t)(12 * step.oct);
+        while (midi > 96) midi -= 12;
+        while (midi < 28) midi += 12;
+        return (uint8_t)midi;
+    }
     const uint8_t base_root = (uint8_t)(48u + s.root);
     return degree_to_midi_folded(base_root, ext.deg, step.off, step.oct, ext.scale_st, ext.nsteps);
 }

@@ -25,7 +25,6 @@ respective component folders / files if different from this license.
 #include "MarblesEngine.hpp"
 #include "ModTransport.hpp"
 #include "SeqEngine.hpp"
-#include "VargEngine.hpp"
 #include "SDAudio.hpp"
 #include "Favorites.hpp"
 #include "fs.hpp"
@@ -107,7 +106,6 @@ namespace CTAG {
             uint32_t heartbeatSeq = 0;
             volatile bool marblesPushPending = false;
             volatile bool seqPushPending = false;
-            volatile bool vargPushPending = false;
 
             // Scratch for building push payloads. The model's JSON buffers
             // can be regenerated concurrently, so every push copies its
@@ -509,41 +507,6 @@ namespace CTAG {
                 sendStr(s);
             }
 
-            // Full VARG state push; keys are shared with the /link/vargSet
-            // key table in applyVargKey() and the C3 DspProxy VargState.
-            // Same flat-string discipline as pushSeq() (no DOM, C3 heap
-            // ceiling); the riff mask rides as a "0x%04x" string.
-            void pushVarg() {
-                char tmp[16];
-                bool first = true;
-                auto key = [&](const string &name) -> string {
-                    string r = first ? "\"" : ",\"";
-                    first = false;
-                    return r + name + "\":";
-                };
-                string s = "{\"cmd\":\"";
-                s += kMsgPushVarg;
-                s += "\",\"st\":{";
-                s += key("prog") + to_string(VargEngine::GetProg());
-                s += key("bias") + to_string(VargEngine::GetBias());
-                s += key("hold") + to_string(VargEngine::GetHold());
-                s += key("rhythm") + to_string(VargEngine::GetRhythm());
-                s += key("dens") + to_string(VargEngine::GetDens());
-                s += key("sync") + to_string(VargEngine::GetSync());
-                s += key("glen") + to_string(VargEngine::GetLen());
-                s += key("root") + to_string(VargEngine::GetRoot());
-                s += key("clk") + to_string(VargEngine::GetClk());
-                s += key("div") + to_string(VargEngine::GetDiv());
-                s += key("rs") + to_string(VargEngine::GetRootSlot());
-                s += key("ps") + to_string(VargEngine::GetPairSlot());
-                s += key("ts") + to_string(VargEngine::GetTremSlot());
-                s += key("cs") + to_string(VargEngine::GetChgSlot());
-                snprintf(tmp, sizeof(tmp), "0x%04x", (unsigned)VargEngine::GetMask());
-                s += key("mask") + "\"" + tmp + "\"";
-                s += "}}";
-                sendStr(s);
-            }
-
             void pushBootMetadata() {
                 pushPluginList();
                 pushActivePlugin();
@@ -555,7 +518,6 @@ namespace CTAG {
                 pushFavorites();
                 pushMarbles();
                 pushSeq();
-                pushVarg();
                 pushIoCaps();
                 seedLastPushed();
                 ESP_LOGI(TAG, "boot metadata pushed");
@@ -641,22 +603,6 @@ namespace CTAG {
                 return h;
             }
 
-            uint32_t hashVarg() {
-                uint32_t h = 2166136261u;
-                auto mix = [&h](uint32_t v) { h ^= v; h *= 16777619u; };
-                union { float f; uint32_t u; } bit;
-                mix(VargEngine::GetProg()); mix(VargEngine::GetBias());
-                mix(VargEngine::GetHold()); mix(VargEngine::GetRhythm());
-                mix(VargEngine::GetDens()); mix(VargEngine::GetSync());
-                bit.f = VargEngine::GetLen(); mix(bit.u);
-                mix(VargEngine::GetRoot());
-                mix(VargEngine::GetClk()); mix(VargEngine::GetDiv());
-                mix(VargEngine::GetRootSlot()); mix(VargEngine::GetPairSlot());
-                mix(VargEngine::GetTremSlot()); mix(VargEngine::GetChgSlot());
-                mix(VargEngine::GetMask());   // TMR mutates the mask live
-                return h;
-            }
-
             struct LastPushed {
                 uint32_t modelGen = 0;
                 uint32_t pluginList = 0, params0 = 0, params1 = 0, config = 0;
@@ -664,7 +610,6 @@ namespace CTAG {
                 string id0, id1;
                 uint32_t marbles = 0;
                 uint32_t seq = 0;
-                uint32_t varg = 0;
                 int sdMounted = -1;
                 int sdCd = -1;
                 uint32_t editSeq = 0;
@@ -687,7 +632,6 @@ namespace CTAG {
                 lastPushed.modelGen = CTAG::SP::ctagDataModelBase::GetGeneration();
                 lastPushed.marbles = hashMarbles();
                 lastPushed.seq = hashSeq();
-                lastPushed.varg = hashVarg();
                 lastPushed.sdMounted = FileSystem::IsSDMounted() ? 1 : 0;
                 lastPushed.sdCd = FileSystem::IsSDPresent() ? 1 : 0;
             }
@@ -766,12 +710,6 @@ namespace CTAG {
                     seqPushPending = false;
                     pushSeq();
                 }
-                h = hashVarg();
-                if (h != lastPushed.varg || vargPushPending) {
-                    lastPushed.varg = h;
-                    vargPushPending = false;
-                    pushVarg();
-                }
                 int mounted = FileSystem::IsSDMounted() ? 1 : 0;
                 if (mounted != lastPushed.sdMounted) {
                     lastPushed.sdMounted = mounted;
@@ -799,8 +737,6 @@ namespace CTAG {
                 // gate playheads for the SEQ strip: g1step | g2step << 4
                 s += ",\"sqg\":" + to_string((SeqEngine::GetGateStep(0) & 0xF)
                                              | ((SeqEngine::GetGateStep(1) & 0xF) << 4));
-                // VARG chord word for the panel strip (GetOutputSnapshot)
-                s += ",\"vgw\":" + to_string(VargEngine::GetOutputSnapshot());
                 s += ",\"ov\":" + to_string(AUDIO::SoundProcessorManager::GetCPUOverload() ? 1 : 0);
                 s += ",\"tl\":" + to_string(AUDIO::SDAudio::GetLevelPeak());
                 s += ",\"sd\":{\"p\":" + to_string(AUDIO::SDAudio::IsPlaying() ? 1 : 0);
@@ -928,30 +864,6 @@ namespace CTAG {
                     ModTransport::SetGlobalClockMidi(bv);
                     ModTransport::SaveConfig();   // one scalar, persist now
                 }
-                else return false;
-                return true;
-            }
-
-            // One VARG key -> engine setter. Key names shared with
-            // pushVarg() and the C3 DspProxy VargState. "glen" rides the
-            // engine's 0..1 fraction on both directions (the panel renders
-            // % and divides by 100 before sending).
-            bool applyVargKey(const string &k, double v) {
-                int iv = (int)v;
-                if (k == "prog") VargEngine::SetProg(iv);
-                else if (k == "bias") VargEngine::SetBias(iv);
-                else if (k == "hold") VargEngine::SetHold(iv);
-                else if (k == "rhythm") VargEngine::SetRhythm(iv);
-                else if (k == "dens") VargEngine::SetDens(iv);
-                else if (k == "sync") VargEngine::SetSync(iv);
-                else if (k == "glen") VargEngine::SetLen((float)v);
-                else if (k == "root") VargEngine::SetRoot(iv);
-                else if (k == "clk") VargEngine::SetClk(iv);
-                else if (k == "div") VargEngine::SetDiv(iv);
-                else if (k == "rs") VargEngine::SetRootSlot(iv);
-                else if (k == "ps") VargEngine::SetPairSlot(iv);
-                else if (k == "ts") VargEngine::SetTremSlot(iv);
-                else if (k == "cs") VargEngine::SetChgSlot(iv);
                 else return false;
                 return true;
             }
@@ -1285,26 +1197,6 @@ namespace CTAG {
                         }
                     } else {
                         response = "{\"error\":\"bad seqSet\"}";
-                    }
-                    return true;
-                }
-                if (cmdName == kMsgCmdVargSet) {
-                    if (d.HasMember("k") && d["k"].IsString() && d.HasMember("v") &&
-                        (d["v"].IsNumber())) {
-                        string k(d["k"].GetString());
-                        ESP_LOGI(TAG, "vargSet %s=%g", k.c_str(), d["v"].GetDouble());
-                        if (k == "_save") {
-                            VargEngine::SaveConfig();
-                            response = "{\"ok\":1}";
-                        } else if (applyVargKey(k, d["v"].GetDouble())) {
-                            vargPushPending = true;   // panel re-syncs within one tick
-                            response = "{\"ok\":1}";
-                        } else {
-                            response = "{\"cmd\":\"" + cmdName +
-                                       "\",\"error\":\"unknown key\"}";
-                        }
-                    } else {
-                        response = "{\"error\":\"bad vargSet\"}";
                     }
                     return true;
                 }

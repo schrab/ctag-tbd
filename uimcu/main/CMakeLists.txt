@@ -26,7 +26,6 @@ idf_component_register(
             "${UI}/menupages/UIMenuPageMix.cpp"
             "${UI}/menupages/UIMenuPageMod.cpp"
             "${UI}/menupages/UIMenuPageSeq.cpp"
-            "${UI}/menupages/UIMenuPageVarg.cpp"
             "${UI}/menupages/UIMenuPageParams.cpp"
             "${UI}/menupages/UIMenuPageSystem.cpp"
             "${UI}/menupages/UIMenuPageTape.cpp"

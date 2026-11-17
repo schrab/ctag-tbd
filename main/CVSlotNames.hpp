@@ -5,8 +5,8 @@
 // Display names for CV slots. 0-89 mirror the MIDI-mapped
 // sources, 90-97 are the MIDI-learn dynamic CC slots, 98-101 are the
 // Marbles random CV outputs (X1..X3, Y), 102-105 are the SEQ modulator
-// outputs (GATE x2 level, ARP x2 pitch), 106-107 the VARG dyad pair.
-static const char* cvSlotDisplayNames[108] = {
+// outputs (GATE x2 level, ARP x2 pitch — VARG runs as an ARP algorithm).
+static const char* cvSlotDisplayNames[106] = {
     // Slots 0-39: Voice A/B/C/D note/velocity/control params
     "A.Note", "A.Velo", "A.Bank", "A.SBnk", "A.Prog",
     "A.PB",   "A.PBLg", "A.AT",   "A.MW1",  "A.BC2",
@@ -36,21 +36,17 @@ static const char* cvSlotDisplayNames[108] = {
     // Slots 98-101: Marbles random CV outputs
     "MB.X1", "MB.X2", "MB.X3", "MB.Y",
     // Slots 102-105: SEQ modulators (GAT = rhythmic gate level, SEQ = arp pitch)
-    "GAT.1Level", "GAT.2Level", "SEQ.1Note", "SEQ.2Note",
-    // Slots 106-107: VARG black-metal chord dyad (root + quality pair tone)
-    "VRG.Root", "VRG.Pair"
+    "GAT.1Level", "GAT.2Level", "SEQ.1Note", "SEQ.2Note"
 };
 
 // Display names for trigger outputs: Marbles T1-T3 at trig slots 40-42,
 // SEQ modulator trig outputs at trig slots 43-50 (GAT = rhythmic-gate
 // window, SEQ = arp step gate/accent/slide). SEQ.1Gate is the ARP step
-// gate — the TBD03 trigger target. Trig slots 51-52 are the VARG riff
-// gate and chord-onset pulse.
-static const char* trigSlotNames[13] = {
+// gate — the TBD03 trigger target.
+static const char* trigSlotNames[11] = {
     "MB.T1", "MB.T2", "MB.T3",
     "GAT.1Trig", "GAT.2Trig", "SEQ.1Gate", "SEQ.2Gate",
-    "SEQ.1Acc", "SEQ.2Acc", "SEQ.1Slide", "SEQ.2Slide",
-    "VRG.Trem", "VRG.Chg"
+    "SEQ.1Acc", "SEQ.2Acc", "SEQ.1Slide", "SEQ.2Slide"
 };
 
 // Render a trig slot for the UI: marbles slots by name, MIDI-mapped slots
@@ -64,7 +60,7 @@ char *b = buf[rot];
 rot = (rot + 1) % 3;
 if (slot < 0) {
     b[0] = '-'; b[1] = 0;
-    } else if (slot >= 40 && slot < 53) {
+    } else if (slot >= 40 && slot < 51) {
     const char *s = trigSlotNames[slot - 40];
     uint8_t i = 0;
     while (s[i] && i < 11) { b[i] = s[i]; ++i; }
