@@ -172,7 +172,7 @@ namespace CTAG {
                 int gateMode[2]; int gateDens[2]; int gateSync[2]; float gateLen[2];
                 int gateClk[2]; int gateDiv[2]; int gateTrigSlot[2]; int gateCvSlot[2];
                 uint32_t gateMask[2];
-                int arpAlgo[2]; int arpP[2][4]; int arpGlide[2]; int arpClk[2]; int arpDiv[2];
+                int arpAlgo[2]; int arpP[2][4]; int arpGlide[2]; int arpOct[2]; int arpClk[2]; int arpDiv[2];
                 int arpPitchSlot[2]; int arpGateSlot[2]; int arpAccSlot[2]; int arpSlideSlot[2];
                 int root; int rootMode; int neoOp; int scale; float bpm; int globalExt;
                 uint32_t snapshot;
@@ -267,10 +267,11 @@ namespace CTAG {
                 } else if (key[0] == 'a' && (key[1] == '1' || key[1] == '2')) {
                     int i = key[1] - '1';
                     const char *f = key + 2;
-                    if (!strcmp(f, "algo")) seq.arpAlgo[i] = clampI(iv, 0, 17);
+                    if (!strcmp(f, "algo")) seq.arpAlgo[i] = clampI(iv, 0, 20);
                     else if (f[0] == 'p' && f[1] >= '1' && f[1] <= '4' && f[2] == 0)
                         seq.arpP[i][f[1] - '1'] = clampI(iv, 0, 100);
                     else if (!strcmp(f, "glide")) seq.arpGlide[i] = clampI(iv, 0, 100);
+                    else if (!strcmp(f, "oct")) seq.arpOct[i] = clampI(iv, -2, 2);
                     else if (!strcmp(f, "clk")) seq.arpClk[i] = clampI(iv, 0, 2);
                     else if (!strcmp(f, "div")) seq.arpDiv[i] = clampI(iv, 0, 12);
                     else if (!strcmp(f, "pslot")) seq.arpPitchSlot[i] = clampI(iv, -1, kNCvs - 1);
@@ -395,6 +396,8 @@ namespace CTAG {
                     }
                     snprintf(k, sizeof(k), "a%dglide", i + 1);
                     seq.arpGlide[i] = gi(k, seq.arpGlide[i]);
+                    snprintf(k, sizeof(k), "a%doct", i + 1);
+                    seq.arpOct[i] = gi(k, seq.arpOct[i]);
                     snprintf(k, sizeof(k), "a%dclk", i + 1);
                     seq.arpClk[i] = gi(k, seq.arpClk[i]);
                     snprintf(k, sizeof(k), "a%ddiv", i + 1);
@@ -1333,6 +1336,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             seq.arpP[i][j] = clampI(v, 0, 100);
             char k[32]; snprintf(k, sizeof(k), "a%dp%d", i + 1, j + 1);
             sendSeqSet(k, seq.arpP[i][j]);
+        }
+        int DspProxy::GetSeqArpOct(int i) { return seq.arpOct[i]; }
+        void DspProxy::SetSeqArpOct(int i, int v) {
+            seq.arpOct[i] = clampI(v, -2, 2);
+            char k[32]; snprintf(k, sizeof(k), "a%doct", i + 1);
+            sendSeqSet(k, seq.arpOct[i]);
         }
         int DspProxy::GetSeqArpGlide(int i) { return seq.arpGlide[i]; }
         void DspProxy::SetSeqArpGlide(int i, int v) {

@@ -361,6 +361,8 @@ namespace CTAG {
                            + ",\"seqstate\":{\"g1mode\":" + to_string(DspProxy::GetSeqGateMode(0))
                            + ",\"g1dens\":" + to_string(DspProxy::GetSeqGateDens(0))
                            + ",\"a1algo\":" + to_string(DspProxy::GetSeqArpAlgo(0))
+                           + ",\"a1oct\":" + to_string(DspProxy::GetSeqArpOct(0))
+                           + ",\"a2oct\":" + to_string(DspProxy::GetSeqArpOct(1))
                            + ",\"a1p\":[" + to_string(DspProxy::GetSeqArpP(0, 0))
                            + "," + to_string(DspProxy::GetSeqArpP(0, 1))
                            + "," + to_string(DspProxy::GetSeqArpP(0, 2))

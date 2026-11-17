@@ -490,6 +490,7 @@ namespace CTAG {
                     for (int k = 0; k < 4; k++)
                         s += key("a" + p + "p" + to_string(k + 1)) + to_string(SeqEngine::GetArpP(i, k));
                     s += key("a" + p + "glide") + to_string(SeqEngine::GetArpGlide(i));
+                    s += key("a" + p + "oct") + to_string(SeqEngine::GetArpOct(i));
                     s += key("a" + p + "clk") + to_string(SeqEngine::GetArpClk(i));
                     s += key("a" + p + "div") + to_string(SeqEngine::GetArpDiv(i));
                     s += key("a" + p + "pslot") + to_string(SeqEngine::GetArpPitchSlot(i));
@@ -846,6 +847,7 @@ namespace CTAG {
                     else if (f.size() == 2 && f[0] == 'p' && f[1] >= '1' && f[1] <= '4')
                         SeqEngine::SetArpP(i, f[1] - '1', iv);
                     else if (f == "glide") SeqEngine::SetArpGlide(i, iv);
+                    else if (f == "oct") SeqEngine::SetArpOct(i, iv);
                     else if (f == "clk") SeqEngine::SetArpClk(i, iv);
                     else if (f == "div") SeqEngine::SetArpDiv(i, iv);
                     else if (f == "pslot") SeqEngine::SetArpPitchSlot(i, iv);

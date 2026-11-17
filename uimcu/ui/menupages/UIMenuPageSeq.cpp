@@ -211,7 +211,7 @@ namespace CTAG {
                 case SP_GATE1:
                 case SP_GATE2: return 9;   // Mode,Density,Sync,Len,Clock,Div,Trig,Level,Pattern
                 case SP_ARP1:
-                case SP_ARP2:  return 15;  // Algo,P1..P4,Root,NeoOp,Scale,Glide,Clock,Div,4 slots
+                case SP_ARP2:  return 16;  // Algo,P1..P4,Root,NeoOp,Scale,Glide,Oct,Clock,Div,4 slots
                 default:       return 1;
             }
         }
@@ -280,12 +280,13 @@ namespace CTAG {
                     case 6: DspProxy::SetSeqNeoOp(DspProxy::GetSeqNeoOp() + delta); break;
                     case 7: DspProxy::SetSeqScale(DspProxy::GetSeqScale() + delta); break;
                     case 8: DspProxy::SetSeqArpGlide(i, DspProxy::GetSeqArpGlide(i) + delta); break;
-                    case 9: DspProxy::SetSeqArpClk(i, DspProxy::GetSeqArpClk(i) + delta); break;
-                    case 10: DspProxy::SetSeqArpDiv(i, DspProxy::GetSeqArpDiv(i) + delta); break;
-                    case 11: DspProxy::SetSeqArpPitchSlot(i, DspProxy::GetSeqArpPitchSlot(i) + delta); break;
-                    case 12: DspProxy::SetSeqArpGateSlot(i, DspProxy::GetSeqArpGateSlot(i) + delta); break;
-                    case 13: DspProxy::SetSeqArpAccSlot(i, DspProxy::GetSeqArpAccSlot(i) + delta); break;
-                    case 14: DspProxy::SetSeqArpSlideSlot(i, DspProxy::GetSeqArpSlideSlot(i) + delta); break;
+                    case 9: DspProxy::SetSeqArpOct(i, DspProxy::GetSeqArpOct(i) + delta); break;
+                    case 10: DspProxy::SetSeqArpClk(i, DspProxy::GetSeqArpClk(i) + delta); break;
+                    case 11: DspProxy::SetSeqArpDiv(i, DspProxy::GetSeqArpDiv(i) + delta); break;
+                    case 12: DspProxy::SetSeqArpPitchSlot(i, DspProxy::GetSeqArpPitchSlot(i) + delta); break;
+                    case 13: DspProxy::SetSeqArpGateSlot(i, DspProxy::GetSeqArpGateSlot(i) + delta); break;
+                    case 14: DspProxy::SetSeqArpAccSlot(i, DspProxy::GetSeqArpAccSlot(i) + delta); break;
+                    case 15: DspProxy::SetSeqArpSlideSlot(i, DspProxy::GetSeqArpSlideSlot(i) + delta); break;
                 }
             }
             dirty = true;
@@ -382,13 +383,18 @@ namespace CTAG {
                             snprintf(buf, buflen, " Glide:%d ms", g);
                         break;
                     }
-                    case 9:
+                    case 9: {
+                        int oct = DspProxy::GetSeqArpOct(i);
+                        snprintf(buf, buflen, " Octave:%+d", oct);
+                        break;
+                    }
+                    case 10:
                         snprintf(buf, buflen, " Clock:%s", seqClockNames[DspProxy::GetSeqArpClk(i)]);
                         break;
-                    case 10:
+                    case 11:
                         snprintf(buf, buflen, " Division:%s", seqDivNames[DspProxy::GetSeqArpDiv(i)]);
                         break;
-                    case 11: {
+                    case 12: {
                         int s = DspProxy::GetSeqArpPitchSlot(i);
                         if (s >= 0 && s < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0])))
                             snprintf(buf, buflen, " Pitch Slot:%s", cvSlotDisplayNames[s]);
@@ -396,13 +402,13 @@ namespace CTAG {
                             snprintf(buf, buflen, " Pitch Slot:%d", s);
                         break;
                     }
-                    case 12:
+                    case 13:
                         snprintf(buf, buflen, " Gate Slot:%s", TrigSlotName(DspProxy::GetSeqArpGateSlot(i)));
                         break;
-                    case 13:
+                    case 14:
                         snprintf(buf, buflen, " Accent Slot:%s", TrigSlotName(DspProxy::GetSeqArpAccSlot(i)));
                         break;
-                    case 14:
+                    case 15:
                         snprintf(buf, buflen, " Slide Slot:%s", TrigSlotName(DspProxy::GetSeqArpSlideSlot(i)));
                         break;
                 }

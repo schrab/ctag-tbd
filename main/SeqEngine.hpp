@@ -72,6 +72,7 @@ public:
     static int GetArpAlgo(int i);      static void SetArpAlgo(int i, int v);
     static int GetArpP(int i, int k);  static void SetArpP(int i, int k, int v); // 0..100
     static int GetArpGlide(int i);     static void SetArpGlide(int i, int v);   // 0..100 ms
+    static int GetArpOct(int i);       static void SetArpOct(int i, int v);     // -2..+2 octaves
     static int GetArpClk(int i);       static void SetArpClk(int i, int v);
     static int GetArpDiv(int i);       static void SetArpDiv(int i, int v);
     static int GetArpPitchSlot(int i); static void SetArpPitchSlot(int i, int s);

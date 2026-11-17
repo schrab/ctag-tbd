@@ -251,12 +251,13 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
         // VARG block chords: the ARP pitch CV carries index/108, never a
         // 0.2 V/oct pitch. Decode to (root offset, quality) with integer
         // math only — this runs in the audio block (V1 budget).
-        int idx = (int) lroundf(fabsf(data.cv[cv_vargChord]) * 108.f);
+        int idx = (int) lroundf(fabsf(data.cv[cv_vargChord])
+                                * (float) SEQ::kVargChordSlotCount);
         if (idx < 0) idx = 0;
         if (idx >= SEQ::kVargChordSlotCount) idx = SEQ::kVargChordSlotCount - 1;
-        uint8_t vOff = 0, vQual = 0;
-        SEQ::DecodeChord((uint16_t) idx, vOff, vQual);
-        performance_state.note += vOff;
+        uint8_t vOff = 0, vQual = 0; int8_t vOct = 0;
+        SEQ::DecodeChord((uint16_t) idx, vOff, vQual, vOct);
+        performance_state.note += vOff + 12.f * (float) vOct;
         performance_state.chord = SEQ::kVargToVoicing[vQual];
         CONSTRAIN(performance_state.note, 0.f, 96.f);
     }

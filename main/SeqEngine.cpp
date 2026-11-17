@@ -31,6 +31,7 @@ static int gateDiv[2] = {7, 7};        // kDivisions index
 static int arpClk[2] = {0, 0};
 static int arpDiv[2] = {7, 7};
 static int arpGlideMs[2] = {0, 0};
+static int arpOct[2] = {0, 0};   // -2..+2 octaves, applied at the pitch CV
 
 // slot assignment (already clamped; -1 = unassigned)
 static int gateTrigSlot[2] = {43, 44};
@@ -73,6 +74,7 @@ void SeqEngine::InitDefaults() {
         gArp[i].cur_note = (uint8_t)(48u + gArp[i].root);
         gArp[i].rng = 0x1fff7a10u + (uint32_t)i * 2654435761u;
         arpGlideMs[i] = 0;
+        arpOct[i] = 0;
         arpClk[i] = 0;
         arpDiv[i] = 7;
         arpPitchSlot[i] = 104 + i;
@@ -272,8 +274,12 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         // root here transposed the sounding key with every root change
         // (manual or W7/Neo drift) — the plugins never played the actual
         // notes.
+        // Octave transpose lives at the CV level (one octave = 0.2 V) so it
+        // applies identically to every generator and the MIDI-note fold in
+        // ArpCalcNote cannot swallow it.
         const float pitchCv =
-            (float)((int32_t)(e.current_pitch_q16 >> 16) - 48) / 12.0f * 0.2f;
+            ((float)((int32_t)(e.current_pitch_q16 >> 16) - 48) / 12.0f
+             + (float)arpOct[i]) * 0.2f;
         if (arpPitchSlot[i] >= 0) {
             if (s.algo == SEQ::kArpAlgoVargBlock) {
                 // Block chords put (root offset, quality) on the pitch CV;
@@ -282,7 +288,8 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 // chord). s.cur_note still carries the audible root for the
                 // panel's SEQ note display.
                 cv[arpPitchSlot[i]] =
-                    (float)SEQ::EncodeChord(e.st.varg.curOff, e.st.varg.curQual)
+                    (float)SEQ::EncodeChord(e.st.varg.curOff, e.st.varg.curQual,
+                                            (int8_t)arpOct[i])
                     / (float)SEQ::kVargChordSlotCount;
             } else {
                 cv[arpPitchSlot[i]] = pitchCv;
@@ -376,6 +383,8 @@ void SeqEngine::SetArpP(int i, int k, int v) {
 }
 int SeqEngine::GetArpGlide(int i) { return arpGlideMs[i]; }
 void SeqEngine::SetArpGlide(int i, int v) { arpGlideMs[i] = ClampInt(v, 0, 100); }
+int SeqEngine::GetArpOct(int i) { return arpOct[i]; }
+void SeqEngine::SetArpOct(int i, int v) { arpOct[i] = ClampInt(v, -2, 2); }
 int SeqEngine::GetArpClk(int i) { return arpClk[i]; }
 void SeqEngine::SetArpClk(int i, int v) { arpClk[i] = ClampInt(v, 0, 2); }
 int SeqEngine::GetArpDiv(int i) { return arpDiv[i]; }
@@ -436,10 +445,10 @@ void SeqEngine::SerializeConfig(char *dst, int cap) {
     for (int i = 0; i < 2; ++i) {
         char buf[200];
         snprintf(buf, sizeof(buf),
-                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d],\"glide\":%d,\"clk\":%d,"
+                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d],\"glide\":%d,\"oct\":%d,\"clk\":%d,"
                  "\"div\":%d,\"pitchSlot\":%d,\"gateSlot\":%d,\"accSlot\":%d,\"slideSlot\":%d}",
                  gArp[i].algo, gArp[i].range, gArp[i].p[0], gArp[i].p[1], gArp[i].p[2],
-                 gArp[i].p[3], arpGlideMs[i], arpClk[i], arpDiv[i],
+                 gArp[i].p[3], arpGlideMs[i], arpOct[i], arpClk[i], arpDiv[i],
                  arpPitchSlot[i], arpGateSlot[i], arpAccSlot[i], arpSlideSlot[i]);
         if (i) j += ",";
         j += buf;
@@ -496,6 +505,7 @@ bool SeqEngine::DeserializeConfig(const char *json) {
                     if (p[k].IsInt()) gArp[i].p[k] = (uint8_t)ClampInt(p[k].GetInt(), 0, 100);
             }
             if (a.HasMember("glide") && a["glide"].IsInt()) arpGlideMs[i] = ClampInt(a["glide"].GetInt(), 0, 100);
+            if (a.HasMember("oct") && a["oct"].IsInt()) arpOct[i] = ClampInt(a["oct"].GetInt(), -2, 2);
             if (a.HasMember("clk") && a["clk"].IsInt()) arpClk[i] = ClampInt(a["clk"].GetInt(), 0, 2);
             if (a.HasMember("div") && a["div"].IsInt()) arpDiv[i] = ClampInt(a["div"].GetInt(), 0, SEQ::kDivCount - 1);
             if (a.HasMember("pitchSlot") && a["pitchSlot"].IsInt()) arpPitchSlot[i] = ClampCVSlot(a["pitchSlot"].GetInt());
