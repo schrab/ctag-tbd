@@ -28,6 +28,7 @@ respective component folders / files if different from this license.
 #include "DebugUI.hpp"
 #include "SPManager.hpp"
 #include "LinkEndpoint.hpp"
+#include "Midi.hpp" // getTrigSlots: raw MIDI CV/trig buffer ground truth
 #include "esp_system.h" // esp_reset_reason — crash classification over the bench
 #include "codec.hpp"
 #include "SDAudio.hpp"
@@ -206,6 +207,52 @@ namespace CTAG {
                            to_string(DRIVERS::Codec::DebugI2sWriteErrors()) +
 #endif
                            "}";
+                return true;
+            }
+
+            if (s == "/debug/getTrigSlots") {
+                // Raw MIDI CV/trig buffer ground truth (the arrays the
+                // audio task exposes as pd.cv/pd.trig on BBA). Triggers
+                // are active-low gates (TRIG_ON = 0): slot 0 = the MIDI
+                // note gate (T_A_NOTE), slots 40-42 = MB.T1-3, 43-50 =
+                // SEQ outputs. cv0 = the A_NOTE CV (0..1). Bench probe
+                // for "plugin mapped to MIDI/SEQ does not trigger".
+                float *cv = nullptr;
+                uint8_t *trig = nullptr;
+                CTRL::Midi::GetCVTrig(&cv, &trig);
+                string out = "[";
+                if (trig != nullptr) {
+                    for (int k = 0; k < 53; ++k) {
+                        out += to_string(static_cast<int>(trig[k]));
+                        if (k < 52) out += ",";
+                    }
+                }
+                out += "]";
+                response = cmdEcho + ",\"trig\":" + out +
+                           ",\"cv0\":" + (cv != nullptr ?
+                           to_string(cv[0]) : string("-1")) + "}";
+                return true;
+            }
+
+            if (s == "/debug/injectMidi") {
+                // Bench MIDI injection: feeds raw bytes through the SAME
+                // entry point the panel relay uses (Midi::FeedLinkBytes →
+                // FIFO → Update → noteOn/noteOff). Bisection probe for
+                // "controller → C3 → DSP" MIDI-chain faults: if injection
+                // moves the getTrigSlots buffers, the DSP side is healthy
+                // and the break is upstream (C3 BLE/DIN relay).
+                if (d.HasMember("d") && d["d"].IsArray()) {
+                    const Value &arr = d["d"];
+                    uint8_t bytes[128];
+                    size_t n = 0;
+                    for (size_t i = 0; i < arr.Size() && n < sizeof(bytes); i++)
+                        if (arr[i].IsInt())
+                            bytes[n++] = (uint8_t) (arr[i].GetInt() & 0xFF);
+                    if (n) CTRL::Midi::FeedLinkBytes(bytes, n);
+                    response = cmdEcho + ",\"ok\":1,\"n\":" + to_string(n) + "}";
+                } else {
+                    response = cmdEcho + ",\"error\":\"missing d\"}";
+                }
                 return true;
             }
 

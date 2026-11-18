@@ -27,3 +27,10 @@ CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 CONFIG_BT_NIMBLE_MAX_BONDS=3
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
 
+
+# 2026-11-19: BLE-MIDI receive-path bisection showed notifyRx=0 with the pad
+# connected+subscribed — the crash-era pool trims were too tight for the
+# incoming notification stream (NimBLE drops silently on exhaustion).
+CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT=32
+CONFIG_BT_NIMBLE_MSYS_2_BLOCK_COUNT=40
+CONFIG_BT_NIMBLE_TRANSPORT_ACL_FROM_LL_COUNT=40

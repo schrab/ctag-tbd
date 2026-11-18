@@ -47,6 +47,16 @@ public:
     static bool IsScanning();
     static void StartScan();
     static void StopScan();
+    // Bench receive-path counters (2026-11-19 MIDI-chain bisection):
+    // notifications delivered by NimBLE, BLE-MIDI payload bytes parsed,
+    // bytes handed out by Read. If connected is true but notifyRx stays
+    // 0 while the pad plays, the pad is not sending notifications.
+    static uint32_t GetNotifyRxCount();
+    static uint32_t GetParsedByteCount();
+    static uint32_t GetReadByteCount();
+    static uint32_t GetKeepaliveOk();
+    static uint32_t GetKeepaliveFail();
+    static uint32_t GetKeepaliveSkip();
 };
 
 }

@@ -201,9 +201,21 @@ static inline int midi_status_data_len(uint8_t status) {
 //   - Explicit status [Status: 0b1xxxxxxx] + [Data...]
 //   - Running status [Data 1] + [Data 2] ...
 // System Real-Time bytes (0xF8..0xFF) can be interleaved anywhere.
+// Bench receive-path counters (2026-11-19 MIDI-chain bisection): see the
+// getters in the header. Written from the NimBLE host callback context,
+// read from the debug task — plain reads of incrementing counters are
+// diagnostic-grade, not a synchronization contract.
+static uint32_t s_notify_rx_count = 0;
+static uint32_t s_parsed_byte_count = 0;
+static uint32_t s_read_byte_count = 0;
+static uint32_t s_keepalive_ok = 0;
+static uint32_t s_keepalive_fail = 0;
+static uint32_t s_keepalive_skip = 0;
+
 static void parse_ble_midi_notify(const uint8_t *data, int len) {
     if (len < 3) return;
     if ((data[0] & 0x80) == 0) return; // Header must have bit 7 set
+    s_parsed_byte_count += (uint32_t) len;
 
     int i = 1; // data[0] is Header; data[1] is the first Timestamp Low
     uint8_t running_status = 0;
@@ -584,6 +596,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     case BLE_GAP_EVENT_NOTIFY_RX: {
         const struct os_mbuf *om = event->notify_rx.om;
         if (om && om->om_len > 0) {
+            s_notify_rx_count++;
             parse_ble_midi_notify(om->om_data, om->om_len);
         }
         return 0;
@@ -691,7 +704,15 @@ void BtMidiReceiver::Init() {
 
 void BtMidiReceiver::Read(uint8_t *buf, uint32_t *len) {
     *len = (uint32_t)ring_read(buf, BT_MIDI_RING_SZ);
+    s_read_byte_count += *len;
 }
+
+uint32_t BtMidiReceiver::GetNotifyRxCount() { return s_notify_rx_count; }
+uint32_t BtMidiReceiver::GetParsedByteCount() { return s_parsed_byte_count; }
+uint32_t BtMidiReceiver::GetReadByteCount() { return s_read_byte_count; }
+uint32_t BtMidiReceiver::GetKeepaliveOk() { return s_keepalive_ok; }
+uint32_t BtMidiReceiver::GetKeepaliveFail() { return s_keepalive_fail; }
+uint32_t BtMidiReceiver::GetKeepaliveSkip() { return s_keepalive_skip; }
 
 // Called from the midi relay task (~10 ms cadence): every 3 s, run a
 // bounded 2 s advertisement probe for the stored peer. The pad only
@@ -728,9 +749,13 @@ void BtMidiReceiver::TickReconnect() {
 // Client → pad write-without-response on the MIDI characteristic
 // (props=0x16 supports WRITE_NO_RSP, not WRITE).
 void BtMidiReceiver::SendKeepalive(const uint8_t *data, uint32_t len) {
-    if (!bt_connected || !midi_cccd_written || midi_val_handle == 0) return;
-    ble_gattc_write_no_rsp_flat(conn_handle, midi_val_handle, data,
-                                (uint16_t) len);
+    if (!bt_connected || !midi_cccd_written || midi_val_handle == 0) {
+        s_keepalive_skip++;
+        return;
+    }
+    int rc = ble_gattc_write_no_rsp_flat(conn_handle, midi_val_handle, data,
+                                         (uint16_t) len);
+    if (rc == 0) s_keepalive_ok++; else s_keepalive_fail++;
 }
 
 bool BtMidiReceiver::IsConnected() { return bt_connected; }

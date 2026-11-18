@@ -50,6 +50,7 @@ respective component folders / files if different from this license.
 #include "UIMenu.hpp"
 #include "input/UserInput.hpp"
 #include "DspProxy.hpp"
+#include "BtMidiReceiver.hpp" // getBleStatus: pad link state
 #include "LinkClient.hpp"
 #include "ctag/link/protocol.hpp"
 #include "driver/usb_serial_jtag.h"
@@ -132,6 +133,33 @@ namespace CTAG {
 
             string s(d["cmd"].GetString());
             if (s.rfind("/debug/", 0) != 0) return false;
+
+            if (s == "/debug/getBleStatus") {
+                // C3-LOCAL (never forwarded): BLE-MIDI link state. The pad
+                // bytes only reach the DSP when this reports connected and
+                // the midiFlags gate is on — bench probe for "controller
+                // plays but the DSP sees nothing".
+                response = "{\"cmd\":\"/debug/getBleStatus\",\"connected\":"
+                           + string(CTAG::DRIVERS::BtMidiReceiver::IsConnected() ? "true"
+                                                                  : "false")
+                           + ",\"midiBleEnabled\":"
+                           + string(DspProxy::IsMidiBleEnabled() ? "true"
+                                                                 : "false")
+                           + ",\"notifyRx\":"
+                           + to_string(CTAG::DRIVERS::BtMidiReceiver::GetNotifyRxCount())
+                           + ",\"parsedBytes\":"
+                           + to_string(CTAG::DRIVERS::BtMidiReceiver::GetParsedByteCount())
+                           + ",\"readBytes\":"
+                           + to_string(CTAG::DRIVERS::BtMidiReceiver::GetReadByteCount())
+                           + ",\"kaOk\":"
+                           + to_string(CTAG::DRIVERS::BtMidiReceiver::GetKeepaliveOk())
+                           + ",\"kaFail\":"
+                           + to_string(CTAG::DRIVERS::BtMidiReceiver::GetKeepaliveFail())
+                           + ",\"kaSkip\":"
+                           + to_string(CTAG::DRIVERS::BtMidiReceiver::GetKeepaliveSkip())
+                           + "}";
+                return true;
+            }
 
             if (s == "/debug/getUiState") {
                 int nav = 0, panel = 0;
