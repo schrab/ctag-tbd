@@ -17,7 +17,7 @@ namespace CTAG {
 namespace SEQ {
 
 enum VargQuality {
-    VQ_P5 = 0,   // power chord  1-5
+    VQ_P5 = 0,   // power chord  1-5-1 (octave-fifth-octave)
     VQ_MAJ,      // major triad  1-3-5
     VQ_MIN,      // minor triad  1-b3-5
     VQ_5B5,      // tritone power 1-b5
@@ -45,14 +45,15 @@ inline constexpr VargToneSet kVargTones[VQ_COUNT] = {
 };
 
 // Quality -> rings::chords row. 0..10 are the original 11 guitar voicings;
-// 11..16 are the doc's added shapes (5b5, dim7, m7b5, aug, add9, m+b9).
+// 11..16 are the doc's added shapes (5b5, dim7, m7b5, aug, add9, m+b9);
+// 17 is the explicit 1-5-1 power chord used by RAW (black-metal tremolo beds).
 inline constexpr uint8_t kVargToVoicing[VQ_COUNT] = {
-    1, 10, 3, 11, 12, 13, 14, 15, 16
+    17, 10, 3, 11, 12, 13, 14, 15, 16
 };
 
-// Number of guitar voicings (11 original + 6 doc shapes). The wrapper reads
-// the voicing row directly from the internal companion (0..kVargVoicingCount-1).
-inline constexpr int kVargVoicingCount = 17;
+// Number of guitar voicings (11 original + 6 doc shapes + 1-5-1 power). The
+// wrapper reads the voicing row directly from the internal companion.
+inline constexpr int kVargVoicingCount = 18;
 
 } // namespace SEQ
 } // namespace CTAG

@@ -68,7 +68,7 @@ void ctagSoundProcessorTBDings::Process(const ProcessData &data) {
     if (trig_easter != -1) {
         isEaster = data.trig[trig_easter] != 1;
     }
-    // VARG Chord needs the 17-voicing string-synth engine: the classic Part
+    // VARG Chord needs the 18-voicing string-synth engine: the classic Part
     // only has 11 rows and would index past its table on the added doc voicings.
     if (vargChord != 0 &&
         (data.vargVoicing[0] >= 0 || data.vargVoicing[1] >= 0)) {

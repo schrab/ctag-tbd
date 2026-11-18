@@ -311,11 +311,11 @@ TEST(varg_voicing_cv_roundtrip) {
 }
 
 TEST(varg_voicing_map_covers_every_quality) {
-    CHECK(kVargToVoicing[VQ_P5]   == 1);   // existing "5"
+    CHECK(kVargToVoicing[VQ_P5]   == 17);  // explicit 1-5-1 power chord
     CHECK(kVargToVoicing[VQ_MAJ]  == 10);  // existing "M"
     CHECK(kVargToVoicing[VQ_MIN]  == 3);   // existing "m"
     for (uint8_t q = 0; q < VQ_COUNT; ++q)
-        CHECK(kVargToVoicing[q] < 17);
+        CHECK(kVargToVoicing[q] < 18);
     for (uint8_t a = 0; a < VQ_COUNT; ++a)
         for (uint8_t b = (uint8_t)(a + 1); b < VQ_COUNT; ++b)
             CHECK(kVargToVoicing[a] != kVargToVoicing[b]);
@@ -450,7 +450,7 @@ TEST(arp_octave_config_roundtrip) {
 
 TEST(varg_chord_voicings_keep_quality_identity) {
     using namespace rings;
-    CHECK(kNumChords == 17);
+    CHECK(kNumChords == 18);
     const uint8_t aug = kVargToVoicing[VQ_AUG];
     const uint8_t mb9 = kVargToVoicing[VQ_MB9];
     const float *a = ChordVoicing(4, aug);
@@ -463,8 +463,43 @@ TEST(varg_chord_voicings_keep_quality_identity) {
     CHECK(fabsf(ChordVoicing(4, dim7)[2] - 6.f) < 0.01f);
     CHECK(fabsf(ChordVoicing(4, m7b5)[2] - 6.f) < 0.01f);
     CHECK(fabsf(ChordVoicing(4, add9)[2] - 7.f) < 0.01f);
+    // RAW quality is the explicit 1-5-1 power chord (root / fifth / octave).
+    const uint8_t p5 = kVargToVoicing[VQ_P5];
+    CHECK(p5 == 17);
+    const float *pw = ChordVoicing(4, p5);
+    CHECK(fabsf(pw[0]) < 0.01f && fabsf(pw[1] - 7.f) < 0.01f && fabsf(pw[2] - 12.f) < 0.01f);
     CHECK(ChordSize(1) == 8); CHECK(ChordSize(2) == 6); CHECK(ChordSize(4) == 3);
     for (int p = 1; p <= 4; ++p)
         for (uint8_t q = 0; q < VQ_COUNT; ++q)
             CHECK(ChordVoicing(p, kVargToVoicing[q]) != nullptr);
+}
+
+TEST(varg_chord_restrum_ducks_previous_group) {
+    using namespace rings;
+    // With set_ad() sustain_point_ is 0, so FALLING_EDGE alone cannot cut a
+    // tail. ForceRelease() must move the previous group into its decay segment
+    // so the 25 ms rate actually ducks it before the next chord is struck.
+    const float longTail = 0.00005f;             // damping ~0.72 envelope
+    StringSynthEnvelope held;
+    held.Init();
+    held.set_ad(0.1f, longTail);
+    held.Process(ENVELOPE_FLAG_RISING_EDGE);
+    float peak = 0.f;
+    for (int i = 0; i < 20; ++i) peak = held.Process(0);
+    CHECK(peak > 0.5f);
+
+    StringSynthEnvelope control;
+    control.Init();
+    control.set_ad(0.1f, longTail);
+    control.Process(ENVELOPE_FLAG_RISING_EDGE);
+    for (int i = 0; i < 20; ++i) control.Process(0);
+    float control_after = 0.f;
+    for (int i = 0; i < 32; ++i) control_after = control.Process(0);
+
+    held.ForceRelease();
+    held.set_ad(0.1f, 1.0f / (0.025f * (44100.f / 32.f)));
+    float ducked = 0.f;
+    for (int i = 0; i < 32; ++i) ducked = held.Process(0);
+    CHECK(control_after > 0.8f);
+    CHECK(ducked < control_after * 0.2f);
 }
