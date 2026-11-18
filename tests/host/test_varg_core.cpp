@@ -301,25 +301,12 @@ TEST(varg_shell_algo_encoding) {
 
 // ---- VARG BLOCK: polyphonic block chords (algo 6) ----
 
-TEST(varg_chord_index_roundtrip) {
-    for (uint8_t off = 0; off < 12; ++off)
-        for (uint8_t q = 0; q < VQ_COUNT; ++q) {
-            const uint16_t idx = EncodeChord(off, q);
-            CHECK(idx == (2u * kVargChordPerOctave) + off * 9u + q);
-            CHECK(idx < kVargChordSlotCount);
-            uint8_t dOff = 0xFF, dQual = 0xFF;
-            DecodeChord(idx, dOff, dQual);
-            CHECK(dOff == off);
-            CHECK(dQual == q);
-        }
-}
-
-TEST(varg_chord_cv_float_roundtrip) {
-    // The DSP writes cv = index/108.0f as a float; TBDings decodes with
-    // lround(cv*108). Every index must survive that exact path.
-    for (uint16_t idx = 0; idx < kVargChordSlotCount; ++idx) {
-        const float cv = (float)idx / (float)kVargChordSlotCount;
-        CHECK((uint16_t)lroundf(cv * (float)kVargChordSlotCount) == idx);
+TEST(varg_voicing_cv_roundtrip) {
+    // VARG BLOCK writes voicing/(N-1) on the sibling CV; the wrapper decodes
+    // with lround(cv*(N-1)). Every voicing index must survive that path.
+    for (int v = 0; v < kVargVoicingCount; ++v) {
+        const float cv = (float)v / (float)(kVargVoicingCount - 1);
+        CHECK(lroundf(cv * (float)(kVargVoicingCount - 1)) == v);
     }
 }
 
@@ -358,9 +345,12 @@ TEST(varg_block_cv_carries_packed_chord) {
         CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
         if (trig[45] == 0) break;
     }
-    const float expected = (float)EncodeChord(0, VQ_MIN)
-                           / (float)kVargChordSlotCount;
-    CHECK(fabsf(cv[104] - expected) < 1e-5f);
+    // Chord root is a normal 0.2 V/oct pitch: at the default root (0) and
+    // first-bar tonic (off 0) the CV must be 0 V, not a packed index.
+    CHECK(fabsf(cv[104]) < 1e-5f);
+    // Voicing index travels on the sibling CV (105), normalized by 17.
+    const float voicing = (float)kVargToVoicing[VQ_MIN] / 16.0f;
+    CHECK(fabsf(cv[105] - voicing) < 1e-5f);
 }
 
 TEST(varg_block_gates_follow_mask) {
@@ -376,21 +366,6 @@ TEST(varg_block_gates_follow_mask) {
         if (trig[45] == 0) ++gated;
     }
     CHECK(gated > 0);
-}
-
-TEST(varg_block_decode_applies_root_and_voicing) {
-    for (uint8_t off = 0; off < 12; ++off)
-        for (uint8_t q = 0; q < VQ_COUNT; ++q) {
-            const uint16_t idx = EncodeChord(off, q);
-            const float cv = (float)idx / (float)kVargChordSlotCount;
-            const int decoded = std::min(kVargChordSlotCount - 1,
-                                         std::max(0, (int)lroundf(cv * (float)kVargChordSlotCount)));
-            uint8_t dOff = 0, dQual = 0;
-            DecodeChord((uint16_t)decoded, dOff, dQual);
-            CHECK(dOff == off);
-            CHECK(dQual == q);
-            CHECK(kVargToVoicing[dQual] < 17);
-        }
 }
 
 // ---- OCTAVE TRANSPOSE (all note-generating ARP algorithms) ----
@@ -434,20 +409,6 @@ TEST(arp_octave_transposes_every_generator) {
         CHECK(fabsf(up1 - (base + 0.2f)) < 1e-5f);
         CHECK(fabsf(down2 - (base - 0.4f)) < 1e-5f);
     }
-}
-
-TEST(varg_block_octave_index_roundtrip) {
-    for (int8_t oct = -2; oct <= 2; ++oct)
-        for (uint8_t off = 0; off < 12; ++off)
-            for (uint8_t q = 0; q < VQ_COUNT; ++q) {
-                const uint16_t idx = EncodeChord(off, q, oct);
-                CHECK(idx < kVargChordSlotCount);
-                uint8_t dOff = 0, dQual = 0; int8_t dOct = 99;
-                DecodeChord(idx, dOff, dQual, dOct);
-                CHECK(dOff == off);
-                CHECK(dQual == q);
-                CHECK(dOct == oct);
-            }
 }
 
 TEST(arp_octave_config_roundtrip) {

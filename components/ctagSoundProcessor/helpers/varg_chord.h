@@ -3,9 +3,9 @@
 // wrapper). Pure C++11 constexpr, no ESP-IDF dependency: the host unit tests
 // compile this file directly.
 //
-// The block-chord algorithm packs (root offset, quality) into one ARP pitch
-// CV slot: index = off * 9 + qual, cv = index / 108.0f. Decode is the exact
-// inverse and must stay cheap (it runs in the audio block).
+// VARG BLOCK sends chords the same way as notes: the chord ROOT is a normal
+// 0.2 V/oct pitch on the ARP pitch CV, and the voicing index is a small
+// normalized value on the sibling pitch CV. No custom packed encoding.
 
 #pragma once
 
@@ -48,29 +48,9 @@ inline constexpr uint8_t kVargToVoicing[VQ_COUNT] = {
     1, 10, 3, 11, 12, 13, 14, 15, 16
 };
 
-inline constexpr int kVargChordSlotCount = 540;   // 5 octaves (-2..+2) * 12 roots * 9 qualities
-inline constexpr int kVargChordPerOctave = 108;
-
-inline uint16_t EncodeChord(uint8_t off, uint8_t qual, int8_t octave) {
-    int8_t oct = octave < -2 ? -2 : (octave > 2 ? 2 : octave);
-    return (uint16_t)((oct + 2) * kVargChordPerOctave
-                      + off * 9u + (uint16_t)(qual % VQ_COUNT));
-}
-// Two-arg form stays for callers that do not carry an octave (default 0).
-inline uint16_t EncodeChord(uint8_t off, uint8_t qual) {
-    return EncodeChord(off, qual, 0);
-}
-inline void DecodeChord(uint16_t idx, uint8_t &off, uint8_t &qual, int8_t &octave) {
-    if (idx >= (uint16_t)kVargChordSlotCount) idx = kVargChordSlotCount - 1;
-    octave = (int8_t)((int)idx / kVargChordPerOctave - 2);
-    const uint16_t within = (uint16_t)(idx % kVargChordPerOctave);
-    off = (uint8_t)(within / 9u);
-    qual = (uint8_t)(within % 9u);
-}
-inline void DecodeChord(uint16_t idx, uint8_t &off, uint8_t &qual) {
-    int8_t oct = 0;
-    DecodeChord(idx, off, qual, oct);
-}
+// Number of guitar voicings (11 original + 6 doc shapes). The voicing CV is
+// normalized as voicing / kVargVoicingCount and decoded by the wrapper.
+inline constexpr int kVargVoicingCount = 17;
 
 } // namespace SEQ
 } // namespace CTAG

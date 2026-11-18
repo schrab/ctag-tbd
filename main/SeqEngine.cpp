@@ -109,6 +109,10 @@ void SeqEngine::Init() {
 }
 
 void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
+    // VARG BLOCK voicing is written after the ARP loop so ARP2's idle pitch
+    // CV cannot overwrite it on the sibling slot (104 <-> 105).
+    int vargVoicingSlot = -1;
+    float vargVoicingCv = 0.0f;
     // 1) clock bus (rack §2): one fractional PPQ accumulator at the global
     //    BPM; MIDI sources advance by integer ticks. The increment IS the
     //    delta — intPhase only wraps cosmetically so the float never loses
@@ -282,15 +286,25 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
              + (float)arpOct[i]) * 0.2f;
         if (arpPitchSlot[i] >= 0) {
             if (s.algo == SEQ::kArpAlgoVargBlock) {
-                // Block chords put (root offset, quality) on the pitch CV;
-                // write the exact float, never through the 8-bit cur_note or
-                // the glide accumulator (both would quantize into a wrong
-                // chord). s.cur_note still carries the audible root for the
-                // panel's SEQ note display.
-                cv[arpPitchSlot[i]] =
-                    (float)SEQ::EncodeChord(e.st.varg.curOff, e.st.varg.curQual,
-                                            (int8_t)arpOct[i])
-                    / (float)SEQ::kVargChordSlotCount;
+                // Block chords send the SAME way as notes: the chord root is
+                // a normal 0.2 V/oct pitch on the ARP's pitch CV (slot 104),
+                // and the voicing index is a small normalized value on the
+                // sibling pitch CV (slot 105). No packed custom encoding —
+                // `frequency` consumes 104 as pitch, `vargChord` decodes 105.
+                // Root = 48 + shared root + progression chord offset.
+                const float rootCv =
+                    (float)(s.root + e.st.varg.curOff) / 12.0f * 0.2f
+                    + (float)arpOct[i] * 0.2f;
+                cv[arpPitchSlot[i]] = rootCv;
+                // The sibling pitch CV belongs to the other ARP instance;
+                // when that ARP is idle, its slot is free for the voicing.
+                // Deferred to after the loop (see vargVoicingSlot above).
+                const int otherSlot = arpPitchSlot[i ^ 1];
+                if (otherSlot >= 0 && otherSlot < N_CVS) {
+                    vargVoicingSlot = otherSlot;
+                    vargVoicingCv = (float)SEQ::kVargToVoicing[
+                        e.st.varg.curQual % SEQ::VQ_COUNT] / 16.0f;
+                }
             } else {
                 cv[arpPitchSlot[i]] = pitchCv;
             }
@@ -303,6 +317,7 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         const float aTarget = gateOpen ? (s.cur_acc ? 1.0f : 0.72f) : 0.0f;
         arpOut[i] += (aTarget - arpOut[i]) * 0.5f;
     }
+    if (vargVoicingSlot >= 0) cv[vargVoicingSlot] = vargVoicingCv;
 
     // snapshot: [g1 g2 a1g a2g a1a a2a a1s a2s | a1step a2step | a1note a2note]
     uint32_t snap = (uint32_t)gGate[0].level | ((uint32_t)gGate[1].level << 1)

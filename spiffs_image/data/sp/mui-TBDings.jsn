@@ -69,6 +69,14 @@
    "max": 10
   },
   {
+   "id": "vargChord",
+   "name": "VARG Voicing",
+   "type": "int",
+   "min": 0,
+   "max": 1,
+   "def": 0
+  },
+  {
    "id": "easter",
    "type": "bool",
    "name": "Easter Egg"
@@ -213,14 +221,6 @@
      "min": 0,
      "max": 4095,
      "def": 4095
-    },
-    {
-     "id": "vargChord",
-     "name": "VARG Chord",
-     "type": "int",
-     "min": 0,
-     "max": 1,
-     "def": 0
     }
    ]
   }

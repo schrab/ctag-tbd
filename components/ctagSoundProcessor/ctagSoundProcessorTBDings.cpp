@@ -248,18 +248,15 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
         performance_state.chord = (int) floorf(data.cv[cv_chords] * 11.f);
     }
     if (cv_vargChord != -1) {
-        // VARG block chords: the ARP pitch CV carries index/108, never a
-        // 0.2 V/oct pitch. Decode to (root offset, quality) with integer
-        // math only — this runs in the audio block (V1 budget).
-        int idx = (int) lroundf(fabsf(data.cv[cv_vargChord])
-                                * (float) SEQ::kVargChordSlotCount);
-        if (idx < 0) idx = 0;
-        if (idx >= SEQ::kVargChordSlotCount) idx = SEQ::kVargChordSlotCount - 1;
-        uint8_t vOff = 0, vQual = 0; int8_t vOct = 0;
-        SEQ::DecodeChord((uint16_t) idx, vOff, vQual, vOct);
-        performance_state.note += vOff + 12.f * (float) vOct;
-        performance_state.chord = SEQ::kVargToVoicing[vQual];
-        CONSTRAIN(performance_state.note, 0.f, 96.f);
+        // VARG BLOCK sends chords like notes: the chord ROOT is a normal
+        // 0.2 V/oct pitch on cv_frequency (handled above), and the voicing
+        // index is a normalized value (voicing / 17) on this CV. Decode it
+        // with integer math only — this runs in the audio block (V1 budget).
+        int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
+                                    * (float)(SEQ::kVargVoicingCount - 1));
+        if (voicing < 0) voicing = 0;
+        if (voicing >= SEQ::kVargVoicingCount) voicing = SEQ::kVargVoicingCount - 1;
+        performance_state.chord = voicing;
     }
     CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
 
