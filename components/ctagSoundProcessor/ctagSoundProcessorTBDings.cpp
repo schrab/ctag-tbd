@@ -68,6 +68,12 @@ void ctagSoundProcessorTBDings::Process(const ProcessData &data) {
     if (trig_easter != -1) {
         isEaster = data.trig[trig_easter] != 1;
     }
+    // VARG Chord needs the 17-voicing string-synth engine: the classic Part
+    // only has 11 rows and would index past its table on the added doc voicings.
+    if (vargChord != 0 &&
+        (data.vargVoicing[0] >= 0 || data.vargVoicing[1] >= 0)) {
+        isEaster = true;
+    }
 
     if (isEaster)
         string_synth->set_fx((rings::FxType) resonatorModel);
@@ -215,10 +221,23 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
         patch.dist_mix = fabsf(data.cv[cv_dist_mix]);
     CONSTRAIN(patch.dist_mix, 0.f, 1.f);
 
+    // VARG Chord ON is an explicit auto-routing mode: pitch, gate and chord
+    // quality all come from whichever ARP is currently running VARG Chord,
+    // using that ARP's configured CV/trig slots. With the toggle OFF, FREQ and
+    // TRIG stay fully independent manual mappings (no source is ever stolen).
+    int vargArp = -1;
+    if (vargChord != 0) {
+        if (data.vargVoicing[0] >= 0) vargArp = 0;
+        else if (data.vargVoicing[1] >= 0) vargArp = 1;
+    }
+    const bool vargAuto = (vargArp >= 0);
+    const int pitchSlot = vargAuto ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
+    const int strumTrigSlot = vargAuto ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
+
     performance_state.note = frequency / 4032.f * 96.f;
-    performance_state.internal_note = !note_int;
-    if (cv_frequency != -1) {
-        performance_state.note += data.cv[cv_frequency] * 5.f * 12.f;
+    performance_state.internal_note = vargAuto ? false : !note_int;
+    if (pitchSlot >= 0) {
+        performance_state.note += data.cv[pitchSlot] * 5.f * 12.f;
     }
     CONSTRAIN(performance_state.note, 0.f, 96.f);
 
@@ -233,10 +252,12 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     CONSTRAIN(performance_state.tonic, 0.f, 60.f);
 
     performance_state.internal_exciter = ex_int;
-    performance_state.internal_strum = !strum_int;
+    // In VARG Chord mode the ARP gate must own plucking; the strummer's
+    // internal note-change/onset auto-strum would otherwise override it.
+    performance_state.internal_strum = vargAuto ? false : !strum_int;
 
-    if (trig_strum_int != -1) {
-        if (!strum) strum = data.trig[trig_strum_int] != 1;
+    if (strumTrigSlot >= 0) {
+        if (!strum) strum = data.trig[strumTrigSlot] != 1;
     } else {
         if (!strum) strum = 1;
     }
@@ -248,27 +269,17 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     if (cv_chords != -1) {
         performance_state.chord = (int) floorf(data.cv[cv_chords] * 11.f);
     }
-    // VARG Chord internal companion: when FREQ is fed by a VARG Chord ARP's
-    // pitch CV (104 -> ARP0, 105 -> ARP1), the progression's exact chord
-    // quality arrives via ProcessData rather than a user modulation source.
-    // This keeps the voicing identical to VARG's generated chord without
-    // stealing a second source, and works with independent FREQ/TRIG mapping.
-    int vargArp = -1;
-    if (cv_frequency == 104) vargArp = 0;
-    else if (cv_frequency == 105) vargArp = 1;
-    if (vargArp >= 0 && data.vargVoicing[vargArp] >= 0) {
+    if (vargAuto) {
+        // Exact progression quality from VARG's internal companion — the
+        // whole point of the mode. Manual chord/voicing sources are ignored.
         performance_state.chord = data.vargVoicing[vargArp];
-    }
-    if (cv_vargChord != -1) {
-        // Manual/other-source voicing override, only used when FREQ is not
-        // driven by a VARG Chord ARP (else the exact quality above wins).
-        if (vargArp < 0 || data.vargVoicing[vargArp] < 0) {
-            int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
-                                        * (float)(SEQ::kVargVoicingCount - 1));
-            if (voicing < 0) voicing = 0;
-            if (voicing >= SEQ::kVargVoicingCount) voicing = SEQ::kVargVoicingCount - 1;
-            performance_state.chord = voicing;
-        }
+    } else if (cv_vargChord != -1) {
+        // Optional manual voicing override (VARG Chord toggle OFF).
+        int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
+                                    * (float)(SEQ::kVargVoicingCount - 1));
+        if (voicing < 0) voicing = 0;
+        if (voicing >= SEQ::kVargVoicingCount) voicing = SEQ::kVargVoicingCount - 1;
+        performance_state.chord = voicing;
     }
     CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
 

@@ -80,11 +80,14 @@ namespace CTAG {
             float *cv;
             uint8_t *trig;
             // Internal companion outputs from the ARP modulators (NOT user
-            // modulation sources). VARG Chord writes the exact progression
-            // chord's voicing index here; a plugin whose pitch CV is fed by
-            // that ARP reads it so chord quality always matches VARG without
-            // consuming a user-visible CV slot. -1 = no VARG Chord on that ARP.
+            // modulation sources). When an ARP runs VARG Chord, TBDings reads
+            // the exact progression voicing row here along with that ARP's
+            // ACTUAL pitch-CV and gate-trig slots, so the VARG Chord ON toggle
+            // can auto-route root/gate/quality without consuming a user source.
+            // -1 = that ARP is not running VARG Chord.
             int8_t vargVoicing[2];
+            int8_t vargPitchSlot[2];
+            int8_t vargGateSlot[2];
         };
 
 #if defined(CONFIG_TBD_PLATFORM_BBA2)

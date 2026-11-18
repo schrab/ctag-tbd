@@ -116,7 +116,11 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
 
     SP::ProcessData pd;
     pd.buf = fbuf;
-    pd.vargVoicing[0] = pd.vargVoicing[1] = -1;
+    for (int a = 0; a < 2; ++a) {
+        pd.vargVoicing[a] = -1;
+        pd.vargPitchSlot[a] = -1;
+        pd.vargGateSlot[a] = -1;
+    }
 #if defined(CONFIG_TBD_PLATFORM_BBA)
     // P4: MIDI CV/trig buffers, filled by the link task's Midi::Update();
     // Marbles writes its slots into the same arrays (disjoint ranges).
@@ -175,10 +179,19 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         const float modDt = (float)BUF_SZ / (float)DRIVERS::Codec::GetSampleRate();
         DRIVERS::ModTransport::Process(modDt);
         DRIVERS::SeqEngine::Process(pd.cv, pd.trig, modDt);
-        // Internal companion: VARG Chord progression voicing per ARP. Plugins
-        // whose pitch CV is fed by one of these ARPs read the matching value.
-        for (int a = 0; a < 2; ++a)
+        // Internal companion: VARG Chord progression voicing per ARP plus the
+        // ARP's actual pitch/gate slots (they are user-configurable). Plugins
+        // that opt into VARG Chord auto-routing read all three.
+        for (int a = 0; a < 2; ++a) {
             pd.vargVoicing[a] = (int8_t)DRIVERS::SeqEngine::GetVargVoicing(a);
+            if (pd.vargVoicing[a] >= 0) {
+                pd.vargPitchSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpPitchSlot(a);
+                pd.vargGateSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpGateSlot(a);
+            } else {
+                pd.vargPitchSlot[a] = -1;
+                pd.vargGateSlot[a] = -1;
+            }
+        }
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 
         // get normalized raw data from CODEC
