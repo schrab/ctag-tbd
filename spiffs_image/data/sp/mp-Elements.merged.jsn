@@ -12,7 +12,7 @@
     {
      "id": "frequency",
      "current": 2016,
-     "cv": 104
+     "cv": -1
     },
     {
      "id": "exciter_envelope_shape",
@@ -177,7 +177,7 @@
     {
      "id": "play",
      "current": 0,
-     "trig": 45
+     "trig": -1
     },
     {
      "id": "gate",
@@ -201,7 +201,7 @@
     {
      "id": "frequency",
      "current": 1234,
-     "cv": 104
+     "cv": -1
     },
     {
      "id": "exciter_envelope_shape",
@@ -316,7 +316,7 @@
     {
      "id": "gate",
      "current": 0,
-     "trig": 45
+     "trig": -1
     },
     {
      "id": "easter_egg",
@@ -335,7 +335,7 @@
     {
      "id": "frequency",
      "current": 1234,
-     "cv": 104
+     "cv": -1
     },
     {
      "id": "exciter_envelope_shape",
@@ -450,7 +450,7 @@
     {
      "id": "gate",
      "current": 0,
-     "trig": 45
+     "trig": -1
     },
     {
      "id": "easter_egg",
@@ -469,7 +469,7 @@
     {
      "id": "frequency",
      "current": 2047,
-     "cv": 104
+     "cv": -1
     },
     {
      "id": "exciter_envelope_shape",
@@ -584,7 +584,7 @@
     {
      "id": "gate",
      "current": 1,
-     "trig": 45
+     "trig": -1
     },
     {
      "id": "easter_egg",
@@ -603,7 +603,7 @@
     {
      "id": "frequency",
      "current": 1355,
-     "cv": 104
+     "cv": -1
     },
     {
      "id": "exciter_envelope_shape",
@@ -718,7 +718,7 @@
     {
      "id": "gate",
      "current": 1,
-     "trig": 45
+     "trig": -1
     },
     {
      "id": "easter_egg",

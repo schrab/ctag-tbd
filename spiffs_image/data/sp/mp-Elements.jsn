@@ -12,7 +12,7 @@
     {
      "id": "frequency",
      "current": 2016,
-     "cv": 104
+     "cv": -1
     },
     {
      "id": "exciter_envelope_shape",
@@ -177,7 +177,7 @@
     {
      "id": "play",
      "current": 0,
-     "trig": 45
+     "trig": -1
     },
     {
      "id": "gate",
