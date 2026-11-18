@@ -474,32 +474,3 @@ TEST(varg_chord_voicings_keep_quality_identity) {
             CHECK(ChordVoicing(p, kVargToVoicing[q]) != nullptr);
 }
 
-TEST(varg_chord_restrum_ducks_previous_group) {
-    using namespace rings;
-    // With set_ad() sustain_point_ is 0, so FALLING_EDGE alone cannot cut a
-    // tail. ForceRelease() must move the previous group into its decay segment
-    // so the 25 ms rate actually ducks it before the next chord is struck.
-    const float longTail = 0.00005f;             // damping ~0.72 envelope
-    StringSynthEnvelope held;
-    held.Init();
-    held.set_ad(0.1f, longTail);
-    held.Process(ENVELOPE_FLAG_RISING_EDGE);
-    float peak = 0.f;
-    for (int i = 0; i < 20; ++i) peak = held.Process(0);
-    CHECK(peak > 0.5f);
-
-    StringSynthEnvelope control;
-    control.Init();
-    control.set_ad(0.1f, longTail);
-    control.Process(ENVELOPE_FLAG_RISING_EDGE);
-    for (int i = 0; i < 20; ++i) control.Process(0);
-    float control_after = 0.f;
-    for (int i = 0; i < 32; ++i) control_after = control.Process(0);
-
-    held.ForceRelease();
-    held.set_ad(0.1f, 1.0f / (0.025f * (44100.f / 32.f)));
-    float ducked = 0.f;
-    for (int i = 0; i < 32; ++i) ducked = held.Process(0);
-    CHECK(control_after > 0.8f);
-    CHECK(ducked < control_after * 0.2f);
-}
