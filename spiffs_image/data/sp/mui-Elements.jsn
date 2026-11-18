@@ -178,53 +178,6 @@
    ]
   },
   {
-   "id": "gr_warps",
-   "type": "group",
-   "name": "Warps",
-   "params": [
-    {
-     "id": "warps_algorithm",
-     "name": "Algorithm",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 0
-    },
-    {
-     "id": "warps_carrier_level",
-     "name": "Carrier Level",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 2048
-    },
-    {
-     "id": "warps_mod_level",
-     "name": "Mod Level",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 2048
-    },
-    {
-     "id": "warps_timbre",
-     "name": "Timbre",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 2047
-    },
-    {
-     "id": "warps_mix",
-     "name": "Mix",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 2047
-    }
-   ]
-  },
-  {
    "id": "gr_dist",
    "type": "group",
    "name": "Distortion",

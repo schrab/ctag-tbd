@@ -115,31 +115,6 @@
      "cv": -1
     },
     {
-     "id": "warps_algorithm",
-     "current": 0,
-     "cv": -1
-    },
-    {
-     "id": "warps_carrier_level",
-     "current": 2048,
-     "cv": -1
-    },
-    {
-     "id": "warps_mod_level",
-     "current": 2048,
-     "cv": -1
-    },
-    {
-     "id": "warps_timbre",
-     "current": 2047,
-     "cv": -1
-    },
-    {
-     "id": "warps_mix",
-     "current": 2047,
-     "cv": -1
-    },
-    {
      "id": "dist_type",
      "current": 2,
      "cv": -1

@@ -26,9 +26,6 @@ respective component folders / files if different from this license.
 #include "esp_heap_caps.h"
 #include "render_ladder.hpp"
 #include "ctagSoundProcessor.hpp"
-// GCC 15 -Werror: the Warps stage makes part.h pull warps/resources.h, whose
-// LUT_* macros collide with elements/resources.h (see the prelude header).
-#include "elements_warps_lut_isolation.h"
 #include "elements/dsp/part.h"
 
 #ifndef TBD_SIM
@@ -164,15 +161,6 @@ namespace CTAG {
 #endif
 
             uint16_t *reverb_buffer = nullptr;
-            // Warps cross-modulator, heap-allocated OUTSIDE the arena (the
-            // arena is exactly full). The ~7.4 kB core (xmod algorithms) is
-            // internal-first — per-sample PSRAM state measured unusable on
-            // the A1S (~640 us/block of SPI-stall for ~42 us of math, plus
-            // 39 ms pathological blocks). The 65.8 kB vocoder is a separate
-            // allocation, PSRAM-acceptable (only runs in the vocoder zone,
-            // the CPU-heaviest algorithm). Both freed after the helper stops.
-            warps::Modulator *warps_mod_ = nullptr;
-            void *warps_vocoder_ = nullptr;
             elements::Part part;
             elements::Patch patch;
             elements::PerformanceState perfState;
@@ -210,18 +198,7 @@ namespace CTAG {
             atomic<int32_t> reverb_lp{2867}, cv_reverb_lp{-1};
             atomic<int32_t> space{2047}, cv_space{-1};
             atomic<int32_t> modulation_frequency{0}, cv_modulation_frequency{-1};
-            // Warps stage (0..4095 UI scale). algorithm 0 = bypass (zero
-            // cost); the two levels map onto the engine's channel_drive
-            // gain pots (0.5 = near-unity, saturator provides overdrive).
-            // Non-zero level defaults so raising the algorithm on an old
-            // preset (which carries no warps members) is immediately audible.
-            atomic<int32_t> warps_algorithm{0}, cv_warps_algorithm{-1};
-            atomic<int32_t> warps_timbre{2047}, cv_warps_timbre{-1};
-            atomic<int32_t> warps_mod_level{2048}, cv_warps_mod_level{-1};
-            atomic<int32_t> warps_carrier_level{2048}, cv_warps_carrier_level{-1};
-            atomic<int32_t> warps_mix{2047}, cv_warps_mix{-1};
-            // Distortion stage (cheap — runs on BOTH boards, unlike the
-            // BBA2-only Warps stage). drive 0 = zero-cost bypass.
+            // Distortion stage (cheap — runs on BOTH boards). drive 0 = zero-cost bypass.
             atomic<int32_t> dist_type{0}, cv_dist_type{-1};
             atomic<int32_t> dist_drive{0}, cv_dist_drive{-1};
             atomic<int32_t> dist_bias{0}, cv_dist_bias{-1};
