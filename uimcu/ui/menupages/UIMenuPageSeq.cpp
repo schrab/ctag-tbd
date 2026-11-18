@@ -32,7 +32,7 @@ namespace CTAG {
             "Metropolix 1", "Metropolix 2", "Metropolix 3",
             "Deja-Vu 1", "Deja-Vu 2", "Deja-Vu 3",
             "VARG 1-OCT", "VARG 2-OCT", "VARG 3-OCT",
-            "VARG BLOCK 1-OCT", "VARG BLOCK 2-OCT", "VARG BLOCK 3-OCT"
+            "VARG Chord 1-OCT", "VARG Chord 2-OCT", "VARG Chord 3-OCT"
         };
         static const char* rootNames[14] = {
             "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -56,7 +56,7 @@ namespace CTAG {
             {"Probability", "Pulses", "Ratchet", "Accumulator"},   // Metropolix
             {"Density", "Deja-Vu", "Steps", "Spread"},             // Deja-Vu
             {"Progression", "Rhythm", "Quality", "Mutate"},         // VARG
-            {"Progression", "Rhythm", "Quality", "Mutate"}          // VARG BLOCK
+            {"Progression", "Rhythm", "Quality", "Mutate"}          // VARG Chord
         };
         // enumerated P values where the row is a choice, nullptr = 0..100
         static const char* const arpParamChoices[7][4] = {
@@ -70,7 +70,7 @@ namespace CTAG {
              "Raw/Triad/Diss", nullptr},                                            // VARG
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
              "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL",
-             "Raw/Triad/Diss", nullptr},                                            // VARG BLOCK
+             "Raw/Triad/Diss", nullptr},                                            // VARG Chord
         };
         static const uint8_t arpParamMax[7][4] = {
             {100, 100, 100, 100},
@@ -79,7 +79,7 @@ namespace CTAG {
             {100, 7, 3, 3},
             {100, 100, 3, 100},
             {10, 15, 2, 100},                                                       // VARG
-            {10, 15, 2, 100},                                                       // VARG BLOCK
+            {10, 15, 2, 100},                                                       // VARG Chord
         };
         static const uint8_t arpParamStep[7][4] = {
             {1, 1, 1, 1},

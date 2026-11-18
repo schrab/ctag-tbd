@@ -69,6 +69,9 @@ public:
     // --- arps (i = 0/1) ---
     // Algo getter/setter use the panel encoding: v = algo*3 + (range-1),
     // algo 0..4, range 1..3 -> v 0..14.
+    // Internal companion output: VARG Chord progression voicing (0..16) for
+    // ARP i, or -1 if that ARP is not running a VARG Chord algorithm.
+    static int GetVargVoicing(int i);
     static int GetArpAlgo(int i);      static void SetArpAlgo(int i, int v);
     static int GetArpP(int i, int k);  static void SetArpP(int i, int k, int v); // 0..100
     static int GetArpGlide(int i);     static void SetArpGlide(int i, int v);   // 0..100 ms

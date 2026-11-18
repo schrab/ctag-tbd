@@ -234,8 +234,9 @@
      "name": "Type",
      "type": "int",
      "min": 0,
-     "max": 4,
-     "def": 0
+     "max": 5,
+     "def": 0,
+     "texts": ["Off", "Tube", "Fold", "Fuzz", "Shape", "Chainsaw"]
     },
     {
      "id": "dist_drive",

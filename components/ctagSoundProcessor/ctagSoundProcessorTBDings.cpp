@@ -181,12 +181,13 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     }
     CONSTRAIN(patch.structure, 0.f, 1.f);
 
-    // Distortion stage (see rings/dsp/part.cc): the same four characters
-    // as the Elements stage, cv-capable; Bias acts only in the fuzz mode.
+    // Distortion stage (see rings/dsp/part.cc). Type 0 = OFF (true bypass);
+    // 1 Tube, 2 Fold, 3 Fuzz, 4 Shape, 5 VARG Chainsaw. The DSP guard checks
+    // dist_type > 0, so drive/mix have no effect at Type 0.
     int dType = dist_type;
     if (cv_dist_type != -1)
-        dType = (int)(floorf(data.cv[cv_dist_type] * 5.f)) % 5;
-    CONSTRAIN(dType, 0, 3);
+        dType = (int)(floorf(data.cv[cv_dist_type] * 6.f)) % 6;
+    CONSTRAIN(dType, 0, 5);
     patch.dist_type = static_cast<float>(dType);
 
     patch.dist_drive = dist_drive / 4095.f;
@@ -247,16 +248,27 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     if (cv_chords != -1) {
         performance_state.chord = (int) floorf(data.cv[cv_chords] * 11.f);
     }
+    // VARG Chord internal companion: when FREQ is fed by a VARG Chord ARP's
+    // pitch CV (104 -> ARP0, 105 -> ARP1), the progression's exact chord
+    // quality arrives via ProcessData rather than a user modulation source.
+    // This keeps the voicing identical to VARG's generated chord without
+    // stealing a second source, and works with independent FREQ/TRIG mapping.
+    int vargArp = -1;
+    if (cv_frequency == 104) vargArp = 0;
+    else if (cv_frequency == 105) vargArp = 1;
+    if (vargArp >= 0 && data.vargVoicing[vargArp] >= 0) {
+        performance_state.chord = data.vargVoicing[vargArp];
+    }
     if (cv_vargChord != -1) {
-        // VARG BLOCK sends chords like notes: the chord ROOT is a normal
-        // 0.2 V/oct pitch on cv_frequency (handled above), and the voicing
-        // index is a normalized value (voicing / 17) on this CV. Decode it
-        // with integer math only — this runs in the audio block (V1 budget).
-        int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
-                                    * (float)(SEQ::kVargVoicingCount - 1));
-        if (voicing < 0) voicing = 0;
-        if (voicing >= SEQ::kVargVoicingCount) voicing = SEQ::kVargVoicingCount - 1;
-        performance_state.chord = voicing;
+        // Manual/other-source voicing override, only used when FREQ is not
+        // driven by a VARG Chord ARP (else the exact quality above wins).
+        if (vargArp < 0 || data.vargVoicing[vargArp] < 0) {
+            int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
+                                        * (float)(SEQ::kVargVoicingCount - 1));
+            if (voicing < 0) voicing = 0;
+            if (voicing >= SEQ::kVargVoicingCount) voicing = SEQ::kVargVoicingCount - 1;
+            performance_state.chord = voicing;
+        }
     }
     CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
 

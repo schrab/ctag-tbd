@@ -3,9 +3,11 @@
 // wrapper). Pure C++11 constexpr, no ESP-IDF dependency: the host unit tests
 // compile this file directly.
 //
-// VARG BLOCK sends chords the same way as notes: the chord ROOT is a normal
-// 0.2 V/oct pitch on the ARP pitch CV, and the voicing index is a small
-// normalized value on the sibling pitch CV. No custom packed encoding.
+// VARG Chord sends chords the same way as notes: the chord ROOT is a normal
+// 0.2 V/oct pitch on the ARP pitch CV. The chord QUALITY (voicing row) is NOT
+// a modulation source — it travels as an internal companion in ProcessData
+// (SeqEngine::GetVargVoicing -> pd.vargVoicing[]), so it follows VARG's exact
+// progression without consuming a user-visible CV slot. No packed encoding.
 
 #pragma once
 
@@ -48,8 +50,8 @@ inline constexpr uint8_t kVargToVoicing[VQ_COUNT] = {
     1, 10, 3, 11, 12, 13, 14, 15, 16
 };
 
-// Number of guitar voicings (11 original + 6 doc shapes). The voicing CV is
-// normalized as voicing / kVargVoicingCount and decoded by the wrapper.
+// Number of guitar voicings (11 original + 6 doc shapes). The wrapper reads
+// the voicing row directly from the internal companion (0..kVargVoicingCount-1).
 inline constexpr int kVargVoicingCount = 17;
 
 } // namespace SEQ

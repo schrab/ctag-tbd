@@ -513,7 +513,7 @@ enum {
     kArpAlgoMetro  = 3,   // Metropolix 8-Stage Accumulator & Ratchets
     kArpAlgoDejavu = 4,   // Marbles 3-Zone Deja-Vu Shift Register + Salience
     kArpAlgoVarg   = 5,   // VARG black-metal chord ostinato + tremolo engine
-    kArpAlgoVargBlock = 6,// VARG block chords: full chord per gated strum
+    kArpAlgoVargChord = 6,// VARG chord engine: full chord per gated strum
     kArpAlgoCount  = 7,
 };
 
@@ -1217,7 +1217,7 @@ inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext, bool advanceChord = tru
             ArpBuildDejavu(s, ext);
             break;
         case kArpAlgoVarg:
-        case kArpAlgoVargBlock:
+        case kArpAlgoVargChord:
         default:
             // Same progression/quality/mask/mutation state machine; only the
             // CV consumer differs (single note vs packed block chord).
@@ -1264,7 +1264,7 @@ inline void ArpApplyTurnaround(ArpSource &s, ArpExt &ext, uint8_t st, ArpStep &i
 // not go through the scale-degree folding.
 inline uint8_t ArpCalcNote(const ArpSource &s, const ArpExt &ext,
                            const ArpStep &step) {
-    if (s.algo == kArpAlgoVarg || s.algo == kArpAlgoVargBlock) {
+    if (s.algo == kArpAlgoVarg || s.algo == kArpAlgoVargChord) {
         int16_t midi = (int16_t)(48 + s.root + ext.st.varg.curOff + step.off)
                        + (int16_t)(12 * step.oct);
         while (midi > 96) midi -= 12;

@@ -446,8 +446,8 @@ void ctagSoundProcessorElements::Process(const ProcessData &data) {
     // Drive/Tone/Mix; Bias acts only in the fuzz mode.
     int dType = dist_type;
     if (cv_dist_type != -1)
-        dType = (int)(floorf(data.cv[cv_dist_type] * 5.f)) % 5;
-    CONSTRAIN(dType, 0, 3);
+        dType = (int)(floorf(data.cv[cv_dist_type] * 6.f)) % 6;
+    CONSTRAIN(dType, 0, 5);
     p->dist_type = static_cast<float>(dType);
 
     p->dist_drive = dist_drive / 4095.f;

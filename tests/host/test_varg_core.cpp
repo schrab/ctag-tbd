@@ -299,11 +299,11 @@ TEST(varg_shell_algo_encoding) {
     CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(1) == 20);
 }
 
-// ---- VARG BLOCK: polyphonic block chords (algo 6) ----
+// ---- VARG Chord: polyphonic block chords (algo 6) ----
 
 TEST(varg_voicing_cv_roundtrip) {
-    // VARG BLOCK writes voicing/(N-1) on the sibling CV; the wrapper decodes
-    // with lround(cv*(N-1)). Every voicing index must survive that path.
+    // The optional `vargChord` CV override carries voicing/(N-1); the wrapper
+    // decodes with lround(cv*(N-1)). Every voicing index must survive that path.
     for (int v = 0; v < kVargVoicingCount; ++v) {
         const float cv = (float)v / (float)(kVargVoicingCount - 1);
         CHECK(lroundf(cv * (float)(kVargVoicingCount - 1)) == v);
@@ -321,7 +321,7 @@ TEST(varg_voicing_map_covers_every_quality) {
             CHECK(kVargToVoicing[a] != kVargToVoicing[b]);
 }
 
-TEST(varg_block_algo_encoding) {
+TEST(varg_chord_algo_encoding) {
     CTAG::DRIVERS::SeqEngine::Init();
     for (int v = 18; v <= 20; ++v) {
         CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, v);
@@ -331,9 +331,9 @@ TEST(varg_block_algo_encoding) {
     CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(0) == 20);
 }
 
-TEST(varg_block_cv_carries_packed_chord) {
+TEST(varg_chord_cv_carries_packed_chord) {
     CTAG::DRIVERS::SeqEngine::Init();
-    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);   // VARG BLOCK, range 1
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);   // VARG Chord, range 1
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 0, 10);   // i-bVII
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 50);   // TRIAD
@@ -346,14 +346,36 @@ TEST(varg_block_cv_carries_packed_chord) {
         if (trig[45] == 0) break;
     }
     // Chord root is a normal 0.2 V/oct pitch: at the default root (0) and
-    // first-bar tonic (off 0) the CV must be 0 V, not a packed index.
+    // first-bar tonic (off 0) the CV must be 0 V. Voicing is NOT on a CV
+    // slot — it travels as an internal companion (GetVargVoicing).
     CHECK(fabsf(cv[104]) < 1e-5f);
-    // Voicing index travels on the sibling CV (105), normalized by 17.
-    const float voicing = (float)kVargToVoicing[VQ_MIN] / 16.0f;
-    CHECK(fabsf(cv[105] - voicing) < 1e-5f);
+    // The companion carries the Rings VOICING ROW, not the raw quality, so
+    // TBDings plays the exact progression chord (i-bVII tonic = minor -> row 3).
+    CHECK(CTAG::DRIVERS::SeqEngine::GetVargVoicing(0) == kVargToVoicing[VQ_MIN]);
 }
 
-TEST(varg_block_gates_follow_mask) {
+TEST(varg_chord_companion_is_voicing_row_not_quality) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);   // VARG Chord range 1
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 0, 10);   // i-bVII
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 0);    // RAW bias -> VQ_P5 (quality 0)
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);    // no mutation
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+    for (int b = 0; b < 64; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        if (trig[45] == 0) break;
+    }
+    // RAW bias forces chord quality VQ_P5 (0). The companion must carry the
+    // mapped Rings voicing ROW 1 ("5" power chord), not the raw quality 0
+    // ("OCT"). A regression to returning curQual would play the wrong chord.
+    CHECK(kVargToVoicing[VQ_P5] != (uint8_t)VQ_P5);   // test is meaningful
+    CHECK(CTAG::DRIVERS::SeqEngine::GetVargVoicing(0) == kVargToVoicing[VQ_P5]);
+}
+
+TEST(varg_chord_gates_follow_mask) {
     CTAG::DRIVERS::SeqEngine::Init();
     CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 15);   // DBL 0xF000
@@ -398,7 +420,7 @@ TEST(arp_octave_setter_clamps) {
 
 TEST(arp_octave_transposes_every_generator) {
     // one encoded value per algorithm: Acid, Motif, Markov, Metro,
-    // Deja-Vu, VARG, VARG BLOCK
+    // Deja-Vu, VARG, VARG Chord
     const int algos[7] = {0, 3, 6, 9, 12, 15, 18};
     for (int a = 0; a < 7; ++a) {
         const float base = arpFirstGateCv(algos[a], 0);
@@ -426,7 +448,7 @@ TEST(arp_octave_config_roundtrip) {
 
 #include "rings/dsp/string_synth_part.h"
 
-TEST(varg_block_voicings_keep_quality_identity) {
+TEST(varg_chord_voicings_keep_quality_identity) {
     using namespace rings;
     CHECK(kNumChords == 17);
     const uint8_t aug = kVargToVoicing[VQ_AUG];

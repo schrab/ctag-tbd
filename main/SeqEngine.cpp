@@ -109,10 +109,6 @@ void SeqEngine::Init() {
 }
 
 void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
-    // VARG BLOCK voicing is written after the ARP loop so ARP2's idle pitch
-    // CV cannot overwrite it on the sibling slot (104 <-> 105).
-    int vargVoicingSlot = -1;
-    float vargVoicingCv = 0.0f;
     // 1) clock bus (rack §2): one fractional PPQ accumulator at the global
     //    BPM; MIDI sources advance by integer ticks. The increment IS the
     //    delta — intPhase only wraps cosmetically so the float never loses
@@ -204,7 +200,7 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 if (e.bar_count >= driftBars) {
                     e.bar_count = 0;
                     const bool isVargAlgo = (s.algo == SEQ::kArpAlgoVarg ||
-                                             s.algo == SEQ::kArpAlgoVargBlock);
+                                             s.algo == SEQ::kArpAlgoVargChord);
                     if (!isVargAlgo &&
                         (s.p[3] > 15 || s.root_mode >= 1))
                         SEQ::ArpNextChord(s, e, gNeoOp);
@@ -285,26 +281,19 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
             ((float)((int32_t)(e.current_pitch_q16 >> 16) - 48) / 12.0f
              + (float)arpOct[i]) * 0.2f;
         if (arpPitchSlot[i] >= 0) {
-            if (s.algo == SEQ::kArpAlgoVargBlock) {
-                // Block chords send the SAME way as notes: the chord root is
+            if (s.algo == SEQ::kArpAlgoVargChord) {
+                // VARG Chord sends the SAME way as notes: the chord root is
                 // a normal 0.2 V/oct pitch on the ARP's pitch CV (slot 104),
-                // and the voicing index is a small normalized value on the
-                // sibling pitch CV (slot 105). No packed custom encoding —
-                // `frequency` consumes 104 as pitch, `vargChord` decodes 105.
-                // Root = 48 + shared root + progression chord offset.
+                // consumed by TBDings' `frequency`. The chord QUALITY travels
+                // as an internal companion (GetVargVoicing -> pd.vargVoicing),
+                // not as a user CV slot. Root = shared root + chord offset.
                 const float rootCv =
                     (float)(s.root + e.st.varg.curOff) / 12.0f * 0.2f
                     + (float)arpOct[i] * 0.2f;
                 cv[arpPitchSlot[i]] = rootCv;
-                // The sibling pitch CV belongs to the other ARP instance;
-                // when that ARP is idle, its slot is free for the voicing.
-                // Deferred to after the loop (see vargVoicingSlot above).
-                const int otherSlot = arpPitchSlot[i ^ 1];
-                if (otherSlot >= 0 && otherSlot < N_CVS) {
-                    vargVoicingSlot = otherSlot;
-                    vargVoicingCv = (float)SEQ::kVargToVoicing[
-                        e.st.varg.curQual % SEQ::VQ_COUNT] / 16.0f;
-                }
+                // The chord quality is NOT written to a CV slot — it travels
+                // as an internal companion in ProcessData (GetVargVoicing),
+                // so no user modulation source is consumed.
             } else {
                 cv[arpPitchSlot[i]] = pitchCv;
             }
@@ -317,8 +306,6 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         const float aTarget = gateOpen ? (s.cur_acc ? 1.0f : 0.72f) : 0.0f;
         arpOut[i] += (aTarget - arpOut[i]) * 0.5f;
     }
-    if (vargVoicingSlot >= 0) cv[vargVoicingSlot] = vargVoicingCv;
-
     // snapshot: [g1 g2 a1g a2g a1a a2a a1s a2s | a1step a2step | a1note a2note]
     uint32_t snap = (uint32_t)gGate[0].level | ((uint32_t)gGate[1].level << 1)
         | ((uint32_t)(gArp[0].level) << 2) | ((uint32_t)(gArp[1].level) << 3)
@@ -376,14 +363,22 @@ uint32_t SeqEngine::GetArpSlideMask(int i) {
 int SeqEngine::GetGateStep(int i) { return gGate[i].step; }
 
 // ---- arp setters ----
+int SeqEngine::GetVargVoicing(int i) {
+    if (i < 0 || i > 1) return -1;
+    if (gArp[i].algo != SEQ::kArpAlgoVargChord) return -1;
+    // curQual is the VARG chord QUALITY (0..8); TBDings' performance_state.chord
+    // is a Rings VOICING ROW (0..16). Map through the shared table so the
+    // exact progression quality reaches the string synth (e.g. minor -> row 3).
+    return (int)SEQ::kVargToVoicing[gArpExt[i].st.varg.curQual % SEQ::VQ_COUNT];
+}
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {
     v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 7 algos x 3 ranges
     const uint8_t oldAlgo = gArp[i].algo;
     gArp[i].algo = (uint8_t)(v / 3);
     gArp[i].range = (uint8_t)(1 + v % 3);
-    const bool wasVarg = (oldAlgo == SEQ::kArpAlgoVarg || oldAlgo == SEQ::kArpAlgoVargBlock);
-    const bool isVarg = (gArp[i].algo == SEQ::kArpAlgoVarg || gArp[i].algo == SEQ::kArpAlgoVargBlock);
+    const bool wasVarg = (oldAlgo == SEQ::kArpAlgoVarg || oldAlgo == SEQ::kArpAlgoVargChord);
+    const bool isVarg = (gArp[i].algo == SEQ::kArpAlgoVarg || gArp[i].algo == SEQ::kArpAlgoVargChord);
     if (isVarg && !wasVarg)
         gArpExt[i].st.varg.chordIdx = 0xFF;   // fresh switch: start on the tonic
     SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
