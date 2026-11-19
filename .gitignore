@@ -16,3 +16,12 @@ temp_*.txt
 # namespace-renamed copy at components/mutable/rubato (see its VENDOR_README.md),
 # so the clone itself stays untracked.
 /components/rubato/
+
+# The tinyusb managed components (22 MB vendored) are NOT tracked: the
+# component manager fetches them from the registry on a clean clone using
+# dependencies.lock. BBA2/C3 builds pull them in (user decision 2026-11-20).
+managed_components/espressif__esp_tinyusb/
+managed_components/espressif__tinyusb/
+
+# BBA2 build directory (build/ covers the A1S root build only)
+build-bba2/
