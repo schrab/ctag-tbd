@@ -1,9 +1,27 @@
 # VARG Strum Engine — realistic guitar strumming for TBDings block chords
 
 Date: 2026-11-20
-Status: design (awaiting approval)
+Status: implemented (phases 1+2; A1S flashed & bench-verified 2026-11-20)
 Research: `docs/guitar-strumming-voicing-research.md` (sections 2–4 are the
 requirement source)
+
+Implementation deltas vs. this doc (learned while building):
+
+- Mask hexes corrected during test-writing: CAMP `0x8A2A`, BACK `0x8AA8`
+  (the values below had stray odd bits — an 8th-grid cell must gate only
+  even steps). DBEA `0x9090`, CRST `0x8A28` unchanged.
+- Preset compat keys on `strumStyle == BLOCK` (the def), not on spread 0:
+  with a strum style selected but spread 0, per-note envelopes all fire on
+  the edge — musically the block chord, through the new path.
+- Chord-change detection is ENGINE-side (last planned chord vs. now), so it
+  also damps on manual/MIDI voicing changes; the companion needed only
+  stroke + accent (`vargFlags` bit0), not a chord-change bit.
+- Direction is computed from the POST-mutation mask (mutation may flip
+  steps; the pendulum follows what actually plays).
+- Two bench facts: `/link/seqSet` does NOT forward through the bench relay
+  (DebugLink forwards `/debug/*` only — drive the ARP via the panel UI);
+  and the pluck envelope's trigger block is silent (linear attack from
+  level 0 starts at t=0 — measure from the NEXT block).
 
 ## Intent and why
 
@@ -195,8 +213,8 @@ Grow `kVargMasks` 16 → 20 (`(s.p[1] * 20) / 101`), appending:
 
 | Idx | Name | Mask | Cell (8th grid) | Research source |
 |---|---|---|---|---|
-| 16 | CAMP | `0x8B2B` | D . D U . U D U | campfire (DSBM/blackgaze) |
-| 17 | BACK | `0x8BB8` | D . D U D U D . | backbeat push |
+| 16 | CAMP | `0x8A2A` | D . D U . U D U | campfire (DSBM/blackgaze) |
+| 17 | BACK | `0x8AA8` | D . D U D U D . | backbeat push |
 | 18 | DBEA | `0x9090` | 16th hits 1, a, 2, a (x..x...x..x...) | d-beat |
 | 19 | CRST | `0x8A28` | D - D U - D U (pendulum-read) | crust |
 
