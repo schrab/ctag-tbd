@@ -43,6 +43,7 @@ echo "==> Building host tests"
     "$HERE/test_chain_budget.cpp" \
     "$HERE/test_render_ladder.cpp" \
     "$HERE/test_seq_mod.cpp" \
+    "$HERE/test_strum_plan.cpp" \
     "$HERE/test_varg_core.cpp" \
     "$HERE/test_chainsaw_dist.cpp" \
     "$HERE/test_dist_fast.cpp" \
