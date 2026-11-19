@@ -283,6 +283,32 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     }
     CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
 
+    // TBD strum engine: style/spread feed the chord engine; the stroke/
+    // accent companion rides the VARG Chord route (MIDI strums fall back
+    // to engine-side pendulum alternation via stroke 0). BLOCK style (0,
+    // the preset-compat default) ignores all of it.
+    int strumStyleSel = strumStyle % (int) tbd::STRUM_COUNT;
+    if (cv_strumStyle != -1) {
+        strumStyleSel = ((int) (fabsf(data.cv[cv_strumStyle])
+                                * (float) tbd::STRUM_COUNT))
+                        % (int) tbd::STRUM_COUNT;
+    }
+    if (strumStyleSel < 0) strumStyleSel = 0;
+    string_synth->set_strum_style((uint8_t) strumStyleSel);
+    float strumSpreadMs = strumSpread / 4095.f * 45.f;
+    if (cv_strumSpread != -1) {
+        strumSpreadMs = fabsf(data.cv[cv_strumSpread]) * 45.f;
+    }
+    CONSTRAIN(strumSpreadMs, 0.f, 45.f)
+    string_synth->set_strum_spread(
+        (uint16_t) (strumSpreadMs * 44.1f));   // samples @ rings kSampleRate
+    if (vargAuto) {
+        string_synth->set_strum_companion(data.vargStroke[vargArp],
+                                          (data.vargFlags[vargArp] & 1u) != 0);
+    } else {
+        string_synth->set_strum_companion(0, true);
+    }
+
     int poly = 1 << polyphony;
     CONSTRAIN(poly, 1, 4)
     if (poly != part.polyphony()) part.set_polyphony(poly);
@@ -320,6 +346,10 @@ void ctagSoundProcessorTBDings::knowYourself() {
     pMapCv.emplace("chords", [&](const int val) { cv_chords = val; });
     pMapPar.emplace("vargChord", [&](const int val) { vargChord = val; });
     pMapCv.emplace("vargChord", [&](const int val) { cv_vargChord = val; });
+    pMapPar.emplace("strumStyle", [&](const int val) { strumStyle = val; });
+    pMapCv.emplace("strumStyle", [&](const int val) { cv_strumStyle = val; });
+    pMapPar.emplace("strumSpread", [&](const int val) { strumSpread = val; });
+    pMapCv.emplace("strumSpread", [&](const int val) { cv_strumSpread = val; });
     pMapPar.emplace("easter", [&](const int val) { easter = val; });
     pMapTrig.emplace("easter", [&](const int val) { trig_easter = val; });
     pMapPar.emplace("ex_int", [&](const int val) { ex_int = val; });

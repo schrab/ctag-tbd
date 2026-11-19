@@ -120,6 +120,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         pd.vargVoicing[a] = -1;
         pd.vargPitchSlot[a] = -1;
         pd.vargGateSlot[a] = -1;
+        pd.vargStroke[a] = 0;
+        pd.vargFlags[a] = 0;
     }
 #if defined(CONFIG_TBD_PLATFORM_BBA)
     // P4: MIDI CV/trig buffers, filled by the link task's Midi::Update();
@@ -187,9 +189,13 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             if (pd.vargVoicing[a] >= 0) {
                 pd.vargPitchSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpPitchSlot(a);
                 pd.vargGateSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpGateSlot(a);
+                pd.vargStroke[a] = DRIVERS::SeqEngine::GetVargStroke(a);
+                pd.vargFlags[a] = DRIVERS::SeqEngine::GetVargFlags(a);
             } else {
                 pd.vargPitchSlot[a] = -1;
                 pd.vargGateSlot[a] = -1;
+                pd.vargStroke[a] = 0;
+                pd.vargFlags[a] = 0;
             }
         }
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);

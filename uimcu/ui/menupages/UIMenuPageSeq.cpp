@@ -66,10 +66,10 @@ namespace CTAG {
             {nullptr, nullptr, "Off/2x/3x/4x", "Pendulum/Wrap/Random/Hold"},        // Metropolix
             {nullptr, nullptr, "All/Pentatonic/Triad/Root", nullptr},               // Deja-Vu
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
-             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL",
+             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST",
              "Raw/Triad/Diss", nullptr},                                            // VARG
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
-             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL",
+             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST",
              "Raw/Triad/Diss", nullptr},                                            // VARG Chord
         };
         static const uint8_t arpParamMax[7][4] = {

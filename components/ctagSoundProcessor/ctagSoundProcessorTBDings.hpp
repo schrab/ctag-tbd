@@ -94,6 +94,11 @@ namespace CTAG {
             // (root offset, quality) packed into its CV; decoding happens in
             // updateParams. Default 0 = no effect until a CV is mapped.
             atomic<int32_t> vargChord{0}, cv_vargChord{-1};
+            // TBD strum engine (chord/easter path): style 0 = BLOCK keeps the
+            // legacy group-envelope path bit-exact (preset-compat default);
+            // spread 0..4095 = 0..45 ms total stagger window.
+            atomic<int32_t> strumStyle{0}, cv_strumStyle{-1};
+            atomic<int32_t> strumSpread{0}, cv_strumSpread{-1};
             // sectionHpp
 
         };

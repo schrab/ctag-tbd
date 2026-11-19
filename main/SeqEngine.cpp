@@ -40,6 +40,10 @@ static int arpPitchSlot[2] = {104, 105};
 static int arpGateSlot[2] = {45, 46};
 static int arpAccSlot[2] = {47, 48};
 static int arpSlideSlot[2] = {49, 50};
+// strum companion latch (per ARP): the stroke/flags of the step whose gate
+// just opened — the wrapper sees the trig edge and this in the same block
+static int8_t s_vargStroke[2] = {0, 0};
+static uint8_t s_vargFlags[2] = {0, 0};
 
 // outputs
 static float gateOut[2] = {0.0f, 0.0f};   // slewed gate level
@@ -239,6 +243,10 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 s.cur_acc = (cur.flags & 2u) ? 1u : 0u;
                 s.cur_hold = (cur.flags & 4u) ? 1u : 0u;
                 s.level = 1u; s.held = 1u;
+                // strum companion: this gate edge carries the step's stroke
+                // direction (pendulum, stamped by ArpBuildVarg) and accent
+                s_vargStroke[i] = (cur.flags & 8u) ? -1 : +1;
+                s_vargFlags[i] = (cur.flags & 2u) ? 1u : 0u;
             } else {
                 s.level = 0u; s.retrig_edge = 0u; s.held = 0u;
             }
@@ -370,6 +378,16 @@ int SeqEngine::GetVargVoicing(int i) {
     // is a Rings VOICING ROW (0..16). Map through the shared table so the
     // exact progression quality reaches the string synth (e.g. minor -> row 3).
     return (int)SEQ::kVargToVoicing[gArpExt[i].st.varg.curQual % SEQ::VQ_COUNT];
+}
+int8_t SeqEngine::GetVargStroke(int i) {
+    if (i < 0 || i > 1) return 0;
+    if (gArp[i].algo != SEQ::kArpAlgoVargChord) return 0;
+    return s_vargStroke[i];
+}
+uint8_t SeqEngine::GetVargFlags(int i) {
+    if (i < 0 || i > 1) return 0;
+    if (gArp[i].algo != SEQ::kArpAlgoVargChord) return 0;
+    return s_vargFlags[i];
 }
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {

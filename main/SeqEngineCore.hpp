@@ -39,6 +39,7 @@ the upstream project.
 #include <cstdint>
 #include <cstring>
 #include "helpers/varg_chord.h"
+#include "helpers/strum_plan.h"
 
 namespace CTAG {
 namespace SEQ {
@@ -519,7 +520,7 @@ enum {
 
 // Compact 16-step pattern + harmony state (~112 B per instance)
 struct ArpStep {
-    uint8_t flags;   // bit 0: gate, bit 1: accent, bit 2: slide
+    uint8_t flags;   // bit 0: gate, bit 1: accent, bit 2: slide, bit 3: upstroke
     int8_t  off;     // scale steps above current chord degree
     int8_t  oct;     // octave offset (0..range-1)
 };
@@ -1068,8 +1069,11 @@ inline constexpr uint8_t kVargGenMarkov[9][9] = {
     /* dim7 */ {  45,  15,  10,  10,  10,  10,   5,   5,   0 },
 };
 
-// 16 riff masks (MSB = step 1): the genre's picking beds and figures
-inline constexpr uint16_t kVargMasks[16] = {
+// 20 riff masks (MSB = step 1): the genre's picking beds and figures.
+// 16-19 are the strum cells from docs/guitar-strumming-voicing-research.md
+// §3 (campfire / backbeat push / d-beat / crust); parity direction for the
+// strum engine is derived per mask by tbd::StrumStepIsUp.
+inline constexpr uint16_t kVargMasks[20] = {
     0xFFFF, // 0  TRM16  straight 1/16 tremolo
     0xAAAA, // 1  TRM8   straight 1/8 tremolo
     0x8888, // 2  QRT    quarter-note vamp
@@ -1086,6 +1090,10 @@ inline constexpr uint16_t kVargMasks[16] = {
     0xC000, // 13 DIRGE  half-bar dirge stab
     0xF555, // 14 CHOP   16th run into offbeat chops
     0xF000, // 15 DBL    four-hit double stop
+    0x8A2A, // 16 CAMP   campfire D . D U . U D U (8th grid)
+    0x8AA8, // 17 BACK   backbeat push D . D U D U D .
+    0x9090, // 18 DBEA   d-beat 1 . . a . . 2 . . a
+    0x8A28, // 19 CRST   crust D - D U - D U (pendulum-read)
 };
 
 // BIAS re-voicing: 0..33 RAW (power chords), 34..66 TRIAD (own law),
@@ -1168,7 +1176,7 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     if (advance) VargNextChord(s, ext);
     else VargLoadChord(s, ext, (v.chordIdx == 0xFF) ? 0 : v.chordIdx);
     const VargToneSet &ts = kVargTones[v.curQual % VQ_COUNT];
-    uint16_t mask = kVargMasks[(s.p[1] * 16) / 101];
+    uint16_t mask = kVargMasks[(s.p[1] * 20) / 101];
 
     // MUTATE: flip the weak (low-Barlow) steps of the mask per bar
     if (s.p[3] > 0) {
@@ -1180,16 +1188,24 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
         }
     }
 
+    // Strum direction: grid-locked pendulum over the ABSOLUTE step (research
+    // §2 rule 4) — rests advance the alternation because direction is a
+    // pure function of (mask grid class, st). Bit 3 rides to the TBDings
+    // strum engine via the vargStroke companion.
+    const bool grid16 = tbd::StrumMaskIs16thGrid(mask);
+
     uint8_t k = 0;   // gated-step counter drives the chord-tone walk
     for (uint8_t st = 0; st < 16; ++st) {
         const bool gate = ((mask >> (15 - st)) & 1u) != 0;
         const uint8_t tone = (uint8_t)(k % ts.n);
         const int8_t oct = (s.range > 1)
                                ? (int8_t)((k / ts.n) % s.range) : (int8_t)0;
+        const bool up = gate && (grid16 ? ((st & 1u) != 0u) : ((st & 2u) != 0u));
         ext.steps[st].off = (int8_t)ts.st[tone];   // SEMITONES (see ArpCalcNote)
         ext.steps[st].oct = oct;
         ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u)
-                                        | (gate && (st & 3u) == 0u ? 2u : 0u));
+                                        | (gate && (st & 3u) == 0u ? 2u : 0u)
+                                        | (up ? 8u : 0u));
         if (gate) ++k;
     }
 }

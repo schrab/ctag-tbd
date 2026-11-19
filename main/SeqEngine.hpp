@@ -72,6 +72,11 @@ public:
     // Internal companion output: VARG Chord progression voicing (0..16) for
     // ARP i, or -1 if that ARP is not running a VARG Chord algorithm.
     static int GetVargVoicing(int i);
+    // Strum companion for the TBDings strum engine: stroke of the step whose
+    // gate just opened (+1 down / -1 up; 0 = no VARG Chord companion) and
+    // its flags (bit0 = accent). 0 unless algo == VARG Chord.
+    static int8_t GetVargStroke(int i);
+    static uint8_t GetVargFlags(int i);
     static int GetArpAlgo(int i);      static void SetArpAlgo(int i, int v);
     static int GetArpP(int i, int k);  static void SetArpP(int i, int k, int v); // 0..100
     static int GetArpGlide(int i);     static void SetArpGlide(int i, int v);   // 0..100 ms

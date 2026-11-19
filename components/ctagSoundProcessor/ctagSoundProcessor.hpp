@@ -88,6 +88,12 @@ namespace CTAG {
             int8_t vargVoicing[2];
             int8_t vargPitchSlot[2];
             int8_t vargGateSlot[2];
+            // Strum companion for the TBDings strum engine: stroke of the
+            // step whose gate just opened (+1 down / -1 up; 0 = no VARG
+            // Chord companion — MIDI strums fall back to engine-side
+            // pendulum alternation) and its flags (bit0 = accent/downbeat).
+            int8_t vargStroke[2];
+            uint8_t vargFlags[2];
         };
 
 #if defined(CONFIG_TBD_PLATFORM_BBA2)

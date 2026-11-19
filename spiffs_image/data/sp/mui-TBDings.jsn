@@ -66,7 +66,9 @@
    "name": "Chords",
    "type": "int",
    "min": 0,
-   "max": 10
+   "max": 17,
+   "texts": ["OCT", "5", "sus4", "m", "m7", "m9", "m11", "69", "M9", "M7", "M",
+             "5b5", "dim7", "m7b5", "aug", "add9", "m+b9", "1-5-1"]
   },
   {
    "id": "vargChord",
@@ -76,6 +78,23 @@
    "max": 1,
    "def": 0,
    "texts": ["Off", "On"]
+  },
+  {
+   "id": "strumStyle",
+   "name": "Strum Style",
+   "type": "int",
+   "min": 0,
+   "max": 5,
+   "def": 0,
+   "texts": ["Block", "Pendulum", "Down", "Converge", "Diverge", "Random"]
+  },
+  {
+   "id": "strumSpread",
+   "name": "Strum Spread",
+   "type": "int",
+   "min": 0,
+   "max": 4095,
+   "def": 0
   },
   {
    "id": "easter",

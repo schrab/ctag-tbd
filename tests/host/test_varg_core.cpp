@@ -160,6 +160,42 @@ TEST(varg_range_octave_climb) {
     CHECK(e.steps[6].oct == 0);    // k=6 -> cycle 2 % 2 = 0
 }
 
+TEST(varg_strum_direction_stamped) {
+    // ArpBuildVarg stamps the grid-locked pendulum into ArpStep bit 3 for
+    // the TBDings strum engine (helpers/strum_plan.h rule 4)
+    ArpExt e{};
+    e.st.varg.chordIdx = 0xFF;
+    ArpSource s{};
+    s.p[0] = 10; s.p[1] = 0; s.p[2] = 50; s.p[3] = 0;   // TRM16
+    s.rng = 11;
+    ArpBuildVarg(s, e);
+    for (int st = 0; st < 16; ++st)
+        CHECK(((e.steps[st].flags & 8u) != 0) == ((st & 1u) != 0));
+
+    // TRM8 (8th grid): beats down, & offbeats up
+    ArpExt e8{};
+    e8.st.varg.chordIdx = 0xFF;
+    ArpSource s8{};
+    s8.p[0] = 10; s8.p[1] = 7; s8.p[2] = 50; s8.p[3] = 0;   // (7*20)/101 = 1
+    s8.rng = 11;
+    ArpBuildVarg(s8, e8);
+    for (int st = 0; st < 16; st += 2) {
+        CHECK((e8.steps[st].flags & 1u) != 0);
+        CHECK(((e8.steps[st].flags & 8u) != 0) == ((st & 2u) != 0));
+    }
+}
+
+TEST(varg_strum_cells_present) {
+    // research §3 strum cells appended after the original 16 masks; hexes
+    // pinned here so a stray nibble edit cannot drift (see test_strum_plan)
+    CHECK(kVargMasks[16] == 0x8A2A);   // CAMP  D . D U . U D U
+    CHECK(kVargMasks[17] == 0x8AA8);   // BACK  D . D U D U D .
+    CHECK(kVargMasks[18] == 0x9090);   // DBEA  1 . . a . . 2 . . a
+    CHECK(kVargMasks[19] == 0x8A28);   // CRST  D - D U - D U
+    CHECK((100 * 20) / 101 == 19);     // rhythm mapping reaches the last cell
+    CHECK((70 * 20) / 101 == 13);      // old presets remap within the family
+}
+
 TEST(varg_note_calc_semitone_exact) {
     // ArpCalcNote for VARG: 48 + root + curOff + step.off (semitones)
     ArpSource s{};
