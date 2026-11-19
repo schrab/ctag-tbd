@@ -57,6 +57,11 @@ public:
     static uint32_t GetKeepaliveOk();
     static uint32_t GetKeepaliveFail();
     static uint32_t GetKeepaliveSkip();
+    // Delete the stored peer's bond and drop the connection — the
+    // auto-reconnect then pairs as a brand-new central, which re-arms
+    // pads whose app layer never restarts the stream for a bonded
+    // central reconnect.
+    static void RepairBond();
 };
 
 }

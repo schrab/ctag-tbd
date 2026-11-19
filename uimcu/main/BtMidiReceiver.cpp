@@ -61,6 +61,9 @@ static uint16_t midiSvcStart = 0;      // start handle of the MIDI service
 static uint16_t midiSvcEnd = 0;        // end handle of the MIDI service (dsc scan)
 static uint16_t midi_cccd_handle = 0;  // 0x2902 CCCD handle once discovered
 static bool midi_cccd_written = false; // 0x2902 CCCD write landed
+// Toggle-write state: the disable (0x0000) leg is in flight and the
+// callback must chain the enable (0x0001) leg.
+static bool cccd_disable_inflight = false;
 
 // Persistent peer (last successfully connected device): stored in NVS on
 // connect, restored at host sync, retried from TickReconnect() until the
@@ -211,6 +214,8 @@ static uint32_t s_read_byte_count = 0;
 static uint32_t s_keepalive_ok = 0;
 static uint32_t s_keepalive_fail = 0;
 static uint32_t s_keepalive_skip = 0;
+// notifyRx/parsed/read are PLAY-ACTIVITY counters: the pad streams only
+// while played, so zero counters with an idle pad are healthy, not deaf.
 
 static void parse_ble_midi_notify(const uint8_t *data, int len) {
     if (len < 3) return;
@@ -340,21 +345,51 @@ static int midi_read_cb(uint16_t conn, const struct ble_gatt_error *error,
     return 0;
 }
 
+static void cccd_write_start(uint16_t conn, uint16_t handle, uint8_t enable);
+
 static int cccd_write_cb(uint16_t conn, const struct ble_gatt_error *error,
                          struct ble_gatt_attr *attr, void *arg) {
     if (error && error->status != 0) {
         ESP_LOGE(TAG, "CCCD write REJECTED at ATT level: %d", error->status);
-    } else {
-        midi_cccd_written = true;
-        ESP_LOGI(TAG, "CCCD write accepted — notifications enabled");
-        // Apple BLE-MIDI spec: Central shall read the MIDI I/O characteristic
-        // upon establishing a connection. Chained after CCCD write so only
-        // one GATT procedure is in flight at a time.
-        if (midi_val_handle != 0) {
-            ble_gattc_read(conn, midi_val_handle, midi_read_cb, nullptr);
+        if (cccd_disable_inflight) {
+            // A rejected disable leg must not strand the subscription off —
+            // go straight to the enable anyway.
+            cccd_disable_inflight = false;
+            cccd_write_start(conn, midi_cccd_handle, 1);
         }
+        return 0;
+    }
+    if (cccd_disable_inflight) {
+        // Disable landed: the following 0->1 edge is what lazy pad firmware
+        // waits for on a central reconnect — the pad's bond already holds
+        // CCCD=1, so a plain enable write is ignored as redundant and the
+        // notification stream never starts (the "connected-but-deaf" flap).
+        cccd_disable_inflight = false;
+        cccd_write_start(conn, midi_cccd_handle, 1);
+        return 0;
+    }
+    midi_cccd_written = true;
+    ESP_LOGI(TAG, "CCCD write accepted — notifications enabled");
+    // Apple BLE-MIDI spec: Central shall read the MIDI I/O characteristic
+    // upon establishing a connection. Chained after CCCD write so only
+    // one GATT procedure is in flight at a time.
+    if (midi_val_handle != 0) {
+        ble_gattc_read(conn, midi_val_handle, midi_read_cb, nullptr);
     }
     return 0;
+}
+
+// Toggle write: disable (0x0000) then enable (0x0001), chained in the
+// callback. enable=false starts the disable leg.
+static void cccd_write_start(uint16_t conn, uint16_t handle, uint8_t enable) {
+    if (handle == 0) return;
+    uint8_t val[2] = {enable, 0x00};
+    cccd_disable_inflight = !enable;
+    struct os_mbuf *om = ble_hs_mbuf_from_flat(val, sizeof(val));
+    int rc = om ? ble_gattc_write(conn, handle, om, cccd_write_cb, nullptr)
+                : BLE_HS_ENOMEM;
+    ESP_LOGI(TAG, "CCCD 0x%04x %s write started rc=%d", handle,
+             enable ? "enable" : "disable", rc);
 }
 
 static int on_mtu_exchanged(uint16_t conn,
@@ -444,25 +479,19 @@ static int on_dsc_discovered(uint16_t conn,
         if (dsc->uuid.u.type == BLE_UUID_TYPE_16 &&
             dsc->uuid.u16.value == 0x2902 && midi_cccd_handle == 0) {
             midi_cccd_handle = dsc->handle;
-            uint8_t val[2] = {0x01, 0x00};   // notify enable, little-endian
             // Reliable write WITH response — write-without-response CCCD
             // pokes are silently ignored by some peripherals (M-VAVE).
-            // The callback surfaces the ATT-level status: rc=0 only means
-            // the procedure started.
-            struct os_mbuf *om = ble_hs_mbuf_from_flat(val, sizeof(val));
-            int rc = om ? ble_gattc_write(conn, dsc->handle, om,
-                                          cccd_write_cb, nullptr) : BLE_HS_ENOMEM;
-            ESP_LOGI(TAG, "CCCD 0x%04x write started rc=%d", dsc->handle, rc);
+            // Toggle write (disable -> enable): the 0->1 edge re-arms lazy
+            // pad firmware on a central reconnect; the callback surfaces
+            // the ATT-level status, rc=0 only means the procedure started.
+            cccd_write_start(conn, dsc->handle, 0);
         }
     } else if (error->status == BLE_HS_EDONE) {
         if (midi_cccd_handle == 0 && midi_val_handle != 0) {
             // No 0x2902 found in range — legacy fallback: CCCD at val+1.
             midi_cccd_handle = midi_val_handle + 1;
-            uint8_t val[2] = {0x01, 0x00};
-            struct os_mbuf *om = ble_hs_mbuf_from_flat(val, sizeof(val));
-            int rc = om ? ble_gattc_write(conn, midi_val_handle + 1, om,
-                                          cccd_write_cb, nullptr) : BLE_HS_ENOMEM;
-            ESP_LOGW(TAG, "no 0x2902 dsc; fallback CCCD val+1 write started rc=%d", rc);
+            ESP_LOGW(TAG, "no 0x2902 dsc; fallback CCCD val+1 toggle write");
+            cccd_write_start(conn, midi_val_handle + 1, 0);
         }
         ESP_LOGI(TAG, "Descriptor discovery complete");
     } else {
@@ -624,15 +653,12 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg) {
     }
     case BLE_GAP_EVENT_ENC_CHANGE:
         // Pairing/encryption settled: pairing resets CCCD state, so
-        // re-subscribe once the connection is encrypted.
+        // re-subscribe once the connection is encrypted (toggle write —
+        // the 0->1 edge re-arms lazy pad firmware).
         ESP_LOGI(TAG, "enc change: status=%d", event->enc_change.status);
         if (event->enc_change.status == 0 && midi_val_handle != 0 &&
             midi_cccd_handle != 0) {
-            uint8_t val[2] = {0x01, 0x00};
-            struct os_mbuf *om = ble_hs_mbuf_from_flat(val, sizeof(val));
-            int rc = om ? ble_gattc_write(conn_handle, midi_cccd_handle, om,
-                                          cccd_write_cb, nullptr) : BLE_HS_ENOMEM;
-            ESP_LOGI(TAG, "CCCD re-subscribe after pairing rc=%d", rc);
+            cccd_write_start(conn_handle, midi_cccd_handle, 0);
         }
         return 0;
     case BLE_GAP_EVENT_L2CAP_UPDATE_REQ:
@@ -713,6 +739,20 @@ uint32_t BtMidiReceiver::GetReadByteCount() { return s_read_byte_count; }
 uint32_t BtMidiReceiver::GetKeepaliveOk() { return s_keepalive_ok; }
 uint32_t BtMidiReceiver::GetKeepaliveFail() { return s_keepalive_fail; }
 uint32_t BtMidiReceiver::GetKeepaliveSkip() { return s_keepalive_skip; }
+void BtMidiReceiver::RepairBond() {
+    if (storedValid) {
+        ble_addr_t peer;
+        peer.type = storedType;
+        memcpy(peer.val, storedBda, 6);
+        int rc = ble_store_util_delete_peer(&peer);
+        ESP_LOGW(TAG, "repair: bond deleted for stored peer rc=%d", rc);
+    } else {
+        ESP_LOGW(TAG, "repair: no stored peer bond to delete");
+    }
+    if (bt_connected) {
+        ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+    }
+}
 
 // Called from the midi relay task (~10 ms cadence): every 3 s, run a
 // bounded 2 s advertisement probe for the stored peer. The pad only
@@ -723,6 +763,11 @@ uint32_t BtMidiReceiver::GetKeepaliveSkip() { return s_keepalive_skip; }
 // completes immediately.
 void BtMidiReceiver::TickReconnect() {
     static uint32_t lastTry = 0;
+    // NOTE: the pad streams ONLY while played — notifyRx silence means
+    // nobody is playing, NOT a dead link. No idle-window "self-heal" here:
+    // an earlier watchdog treated play pauses as link faults and churned
+    // CCCD toggles/reconnects mid-pause (reverted 2026-11-20). /debug/bleRepair
+    // exists for manual link repair from the bench.
     // A probe hit deferred its connect but the DISC_COMPLETE event was lost
     // (scan expired in the same instant) — recover here.
     if (bt_probe_connect && !bt_connected && !bt_connecting) {

@@ -134,6 +134,16 @@ namespace CTAG {
             string s(d["cmd"].GetString());
             if (s.rfind("/debug/", 0) != 0) return false;
 
+            if (s == "/debug/bleRepair") {
+                // C3-LOCAL: delete the stored peer's BLE bond and drop the
+                // connection — the auto-reconnect pairs as a brand-new
+                // central. Hypothesis test for the connected-but-deaf flap
+                // (pad app never re-arms the stream for a bonded central).
+                CTAG::DRIVERS::BtMidiReceiver::RepairBond();
+                response = "{\"cmd\":\"/debug/bleRepair\",\"ok\":1}";
+                return true;
+            }
+
             if (s == "/debug/getBleStatus") {
                 // C3-LOCAL (never forwarded): BLE-MIDI link state. The pad
                 // bytes only reach the DSP when this reports connected and
