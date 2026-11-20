@@ -94,6 +94,11 @@ namespace CTAG {
             // pendulum alternation) and its flags (bit0 = accent/downbeat).
             int8_t vargStroke[2];
             uint8_t vargFlags[2];
+            // Guitar-string index (0..3) of the note whose gate just opened,
+            // from either VARG algorithm (5 = note ostinato / arpeggio,
+            // 6 = whole chord, where it is the base string anchor). -1 =
+            // that ARP is not running a VARG algorithm.
+            int8_t vargString[2];
         };
 
 #if defined(CONFIG_TBD_PLATFORM_BBA2)

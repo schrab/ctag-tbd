@@ -57,6 +57,7 @@ file(GLOB SRCS_FILES
         eurorack/rings/dsp/fm_voice.cc
         eurorack/rings/dsp/part.cc
         eurorack/rings/dsp/string_synth_part.cc
+        eurorack/rings/dsp/guitar_string_bank.cc
         eurorack/rings/dsp/string.cc
         eurorack/rings/dsp/resonator.cc
         eurorack/rings/resources.cc

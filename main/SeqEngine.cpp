@@ -44,6 +44,8 @@ static int arpSlideSlot[2] = {49, 50};
 // just opened — the wrapper sees the trig edge and this in the same block
 static int8_t s_vargStroke[2] = {0, 0};
 static uint8_t s_vargFlags[2] = {0, 0};
+// Guitar string index of the note whose gate just opened (either VARG algo).
+static int8_t s_vargString[2] = {-1, -1};
 
 // outputs
 static float gateOut[2] = {0.0f, 0.0f};   // slewed gate level
@@ -247,6 +249,7 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 // direction (pendulum, stamped by ArpBuildVarg) and accent
                 s_vargStroke[i] = (cur.flags & 8u) ? -1 : +1;
                 s_vargFlags[i] = (cur.flags & 2u) ? 1u : 0u;
+                s_vargString[i] = (int8_t)(cur.str & 3u);
             } else {
                 s.level = 0u; s.retrig_edge = 0u; s.held = 0u;
             }
@@ -388,6 +391,15 @@ uint8_t SeqEngine::GetVargFlags(int i) {
     if (i < 0 || i > 1) return 0;
     if (gArp[i].algo != SEQ::kArpAlgoVargChord) return 0;
     return s_vargFlags[i];
+}
+int8_t SeqEngine::GetVargString(int i) {
+    if (i < 0 || i > 1) return -1;
+    // Both VARG algorithms emit per-note string indices: the note ostinato
+    // (algo 5) and the whole-chord engine (algo 6, where it is the base
+    // anchor). Other algos publish nothing.
+    if (gArp[i].algo != SEQ::kArpAlgoVarg &&
+        gArp[i].algo != SEQ::kArpAlgoVargChord) return -1;
+    return s_vargString[i];
 }
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {

@@ -2,42 +2,24 @@
  "id": "TBStrings",
  "isStereo": true,
  "name": "TBStrings",
- "hint": "Guitar string simulation - strums, chords and drive",
+ "hint": "4-string guitar bank - VARG sends notes, strings do the rest",
  "params": [
   {
    "id": "reson_model",
    "name": "Model",
    "type": "int",
    "min": 0,
-   "max": 3,
-   "def": 3,
-   "texts": [
-    "Sympathetic",
-    "Inharmonic",
-    "Quantized",
-    "Guitar Chords"
-   ]
+   "max": 1,
+   "def": 0,
+   "texts": ["Sympathetic", "Inharmonic"]
   },
   {
    "id": "frequency",
    "name": "Frequency",
    "type": "int",
    "min": 0,
-   "max": 4032
-  },
-  {
-   "id": "polyphony",
-   "name": "Polyphony",
-   "type": "int",
-   "min": 0,
-   "max": 2
-  },
-  {
-   "id": "structure",
-   "name": "Structure",
-   "type": "int",
-   "min": 0,
-   "max": 4095
+   "max": 4032,
+   "def": 2016
   },
   {
    "id": "brightness",
@@ -61,26 +43,8 @@
    "max": 4095
   },
   {
-   "id": "chords",
-   "name": "Chords",
-   "type": "int",
-   "min": 0,
-   "max": 17,
-   "texts": ["OCT", "5", "sus4", "m", "m7", "m9", "m11", "69", "M9", "M7", "M",
-             "5b5", "dim7", "m7b5", "aug", "add9", "m+b9", "1-5-1"]
-  },
-  {
-   "id": "strumStyle",
-   "name": "Strum Style",
-   "type": "int",
-   "min": 0,
-   "max": 5,
-   "def": 0,
-   "texts": ["Block", "Pendulum", "Down", "Converge", "Diverge", "Random"]
-  },
-  {
-   "id": "strumSpread",
-   "name": "Strum Spread",
+   "id": "glide",
+   "name": "Glide",
    "type": "int",
    "min": 0,
    "max": 4095,
@@ -89,7 +53,7 @@
   {
    "id": "strum_int",
    "type": "bool",
-   "name": "Strum Gate"
+   "name": "Note Gate"
   },
   {
    "id": "eg",
@@ -145,13 +109,6 @@
      "id": "mod_damping",
      "type": "int",
      "name": "Damping mod",
-     "min": -4095,
-     "max": 4095
-    },
-    {
-     "id": "mod_structure",
-     "type": "int",
-     "name": "Structure mod",
      "min": -4095,
      "max": 4095
     },

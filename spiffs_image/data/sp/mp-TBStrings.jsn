@@ -6,51 +6,32 @@
    "params": [
     {
      "id": "reson_model",
-     "current": 3,
+     "current": 0,
      "cv": -1
     },
     {
      "id": "frequency",
-     "current": 1050,
-     "cv": -1
-    },
-    {
-     "id": "polyphony",
-     "current": 1
-    },
-    {
-     "id": "structure",
-     "current": 1213,
+     "current": 2016,
      "cv": -1
     },
     {
      "id": "brightness",
-     "current": 2047,
+     "current": 2048,
      "cv": -1
     },
     {
      "id": "damping",
-     "current": 3254,
+     "current": 2048,
      "cv": -1
     },
     {
      "id": "position",
-     "current": 1204,
+     "current": 2048,
      "cv": -1
     },
     {
-     "id": "chords",
-     "current": 1,
-     "cv": -1
-    },
-    {
-     "id": "strumStyle",
-     "current": 1,
-     "cv": -1
-    },
-    {
-     "id": "strumSpread",
-     "current": 900,
+     "id": "glide",
+     "current": 400,
      "cv": -1
     },
     {
@@ -70,12 +51,12 @@
     },
     {
      "id": "eg_attack",
-     "current": 2047,
+     "current": 2048,
      "cv": -1
     },
     {
      "id": "eg_decay",
-     "current": 3222,
+     "current": 2048,
      "cv": -1
     },
     {
@@ -90,11 +71,6 @@
     },
     {
      "id": "mod_damping",
-     "current": 0,
-     "cv": -1
-    },
-    {
-     "id": "mod_structure",
      "current": 0,
      "cv": -1
     },

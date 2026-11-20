@@ -48,6 +48,7 @@ echo "==> Building host tests"
     "$HERE/test_chainsaw_dist.cpp" \
     "$HERE/test_dist_fast.cpp" \
     "$HERE/test_plucked_string.cpp" \
+    "$HERE/test_guitar_string_bank.cpp" \
     "$ROOT/main/ModTransport.cpp" \
     "$ROOT/main/SeqEngine.cpp" \
     "$PROTOCOL/src/protocol.cpp" \
@@ -60,7 +61,10 @@ echo "==> Building host tests"
     "$EURORACK/marbles/random/lag_processor.cc" \
     "$EURORACK/marbles/ramp/ramp_extractor.cc" \
     "$EURORACK/stmlib/dsp/units.cc" \
+    "$EURORACK/stmlib/utils/random.cc" \
     "$EURORACK/rings/dsp/string_synth_part.cc" \
+    "$EURORACK/rings/dsp/guitar_string_bank.cc" \
+    "$EURORACK/rings/dsp/string.cc" \
     "$EURORACK/rings/resources.cc" \
     "$EURORACK/braids/resources.cc" \
     "$ROOT/components/ctagSoundProcessor/vult/vult_formantor.cpp" \

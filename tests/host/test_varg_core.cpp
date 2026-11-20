@@ -510,3 +510,61 @@ TEST(varg_chord_voicings_keep_quality_identity) {
             CHECK(ChordVoicing(p, kVargToVoicing[q]) != nullptr);
 }
 
+
+
+// ---- per-note guitar string index companion ----
+
+TEST(varg_string_index_uses_all_four_strings) {
+    // ArpBuildVarg stamps the gated-step ordinal mod 4 into every step.
+    ArpSource src{};
+    ArpExt ext{};
+    src.algo = kArpAlgoVarg;
+    src.range = 1;
+    src.p[0] = 1;   // i-bVII
+    src.p[1] = 0;   // TRM16 (all steps gated)
+    src.p[2] = 50;  // TRIAD
+    src.p[3] = 0;
+    ArpBuildVarg(src, ext, true);
+    bool seen[4] = {false, false, false, false};
+    uint8_t gated = 0;
+    for (uint8_t st = 0; st < 16; ++st) {
+        CHECK(ext.steps[st].str < 4);
+        if (ext.steps[st].flags & 1u) {
+            seen[ext.steps[st].str] = true;
+            ++gated;
+        }
+    }
+    CHECK(gated == 16);
+    for (int s = 0; s < 4; ++s) CHECK(seen[s]);
+    // determinism across rebuilds
+    ArpExt ext2{};
+    ArpBuildVarg(src, ext2, true);
+    for (uint8_t st = 0; st < 16; ++st)
+        CHECK(ext.steps[st].str == ext2.steps[st].str);
+}
+
+TEST(varg_string_companion_for_both_algos) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+    // Non-VARG algo publishes nothing
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 0);
+    CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetVargString(0) == -1);
+
+    for (int enc : {15, 18}) {   // algo 5 (note ostinato), algo 6 (chord)
+        CTAG::DRIVERS::SeqEngine::Init();
+        CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, enc);
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);   // TRM16
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
+        bool seen[4] = {false, false, false, false};
+        for (int b = 0; b < 2600; ++b) {
+            CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+            const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
+            CHECK(s >= 0 && s < 4);
+            if (s >= 0 && s < 4) seen[s] = true;
+        }
+        for (int s = 0; s < 4; ++s) CHECK(seen[s]);
+    }
+}

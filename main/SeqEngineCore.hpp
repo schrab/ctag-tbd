@@ -523,6 +523,7 @@ struct ArpStep {
     uint8_t flags;   // bit 0: gate, bit 1: accent, bit 2: slide, bit 3: upstroke
     int8_t  off;     // scale steps above current chord degree
     int8_t  oct;     // octave offset (0..range-1)
+    uint8_t str;     // VARG: guitar string index (gated-step ordinal & 3)
 };
 
 struct ArpExt {
@@ -1203,6 +1204,10 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
         const bool up = gate && (grid16 ? ((st & 1u) != 0u) : ((st & 2u) != 0u));
         ext.steps[st].off = (int8_t)ts.st[tone];   // SEMITONES (see ArpCalcNote)
         ext.steps[st].oct = oct;
+        // Guitar-string anchor for this note: successive gated steps pick
+        // successive strings (0,1,2,3,0,...). Stored per step so the gate
+        // edge can latch it into the VARG companion for the string bank.
+        ext.steps[st].str = (uint8_t)(k & 3u);
         ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u)
                                         | (gate && (st & 3u) == 0u ? 2u : 0u)
                                         | (up ? 8u : 0u));

@@ -20,62 +20,24 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "ctagSoundProcessorTBStrings.hpp"
-#include <iostream>
 #include <cmath>
-#include "stmlib/stmlib.h"
-
+#include "rings/dsp/string_synth_part.h"  // ChordVoicing() for VARG algo 6
 
 using namespace CTAG::SP;
-
-namespace {
-// Model selector 0..3: Sympathetic / Inharmonic / Quantized (classic
-// single-note string resonators) and the plucked-string guitar chord engine.
-constexpr int kClassicModelCount = 3;
-constexpr int kModelCount = 4;
-constexpr rings::ResonatorModel kClassicModels[kClassicModelCount] = {
-    rings::RESONATOR_MODEL_SYMPATHETIC_STRING,
-    rings::RESONATOR_MODEL_STRING,
-    rings::RESONATOR_MODEL_SYMPATHETIC_STRING_QUANTIZED,
-};
-}  // namespace
-
 
 void ctagSoundProcessorTBStrings::Init(std::size_t blockSize, void *blockPtr) {
     knowYourself();
     model = std::make_unique<ctagSPDataModel>(id, isStereo);
     LoadPreset(0);
 
-    /* this doesn't fit in the available block
-    assert(blockSize >= 32768 * sizeof(uint16_t));
-    reverb_buffer = (uint16_t *) blockPtr;
-     */
-
-    reverb_buffer = (uint16_t *) heap_caps_malloc(32768 * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
-    assert(reverb_buffer != nullptr);
-
-    void *ssMem = heap_caps_malloc(sizeof(rings::StringSynthPart), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (ssMem == nullptr) {
-        ssMem = heap_caps_malloc(sizeof(rings::StringSynthPart), MALLOC_CAP_SPIRAM);
+    void *mem = heap_caps_malloc(sizeof(rings::GuitarStringBank),
+                                 MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (mem == nullptr) {
+        mem = heap_caps_malloc(sizeof(rings::GuitarStringBank), MALLOC_CAP_SPIRAM);
     }
-    assert(ssMem != nullptr);
-    string_synth = new (ssMem) rings::StringSynthPart();
-
-    // 12 Karplus-Strong delay lines for the guitar chord engine. Prefer
-    // internal DRAM; PSRAM fallback has sequential access only (cacheable)
-    // so it is much cheaper than the per-sample-random case that broke the
-    // Elements vocoder.
-    constexpr size_t kPluckBytes = rings::kStringSynthVoices
-                                   * rings::kPluckedStringLength * sizeof(int16_t);
-    pluck_buffer = (int16_t *) heap_caps_malloc(kPluckBytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (pluck_buffer == nullptr) {
-        pluck_buffer = (int16_t *) heap_caps_malloc(kPluckBytes, MALLOC_CAP_SPIRAM);
-    }
-    assert(pluck_buffer != nullptr);
-
-    strummer.Init(0.01f, 44100.0f / bufSz);
-    part.Init(reverb_buffer);
-    string_synth->Init(reverb_buffer, pluck_buffer);
-    string_synth->set_plucked_strings(true);
+    assert(mem != nullptr);
+    bank = new (mem) rings::GuitarStringBank();
+    bank->Init(false);  // default: Sympathetic
 
     paramAD.SetSampleRate(44100.f / 32.f);
     paramAD.SetModeLin();
@@ -84,271 +46,149 @@ void ctagSoundProcessorTBStrings::Init(std::size_t blockSize, void *blockPtr) {
 void ctagSoundProcessorTBStrings::Process(const ProcessData &data) {
     updateParams(data);
 
-    // The engine follows the Model selector (0..2 = classic strings,
-    // 3 = plucked-string guitar chords). VARG Chord forces the chord engine in
-    // updateParams because only that engine owns the 18-voicing table.
-    if (useChordEngine)
-        string_synth->set_fx((rings::FxType) fxSelection);
-    else
-        part.set_model((rings::ResonatorModel) classicModelSelection);
+    rings::GuitarStringBankConfig cfg;
+    cfg.brightness = toneBrightness;
+    cfg.damping = toneDamping;
+    cfg.position = tonePosition;
+    cfg.dist_type = distType;
+    cfg.dist_drive = distDrive;
+    cfg.dist_bias = distBias;
+    cfg.dist_tone = distTone;
+    cfg.dist_mix = distMix;
+    cfg.dist_sustain = distSustain;
 
-    // Internal excitation only — no external audio path is ever handed to
-    // the engines; the Strummer is driven purely by the strum gate flag.
     float in[bufSz], out[bufSz], aux[bufSz];
-    for (int i = 0; i < bufSz; i++) {
-        in[i] = data.buf[i * 2];
-    }
-    strummer.Process(NULL, bufSz, &performance_state);
-    if (useChordEngine) {
-        string_synth->Process(performance_state, patch, in, out, aux, bufSz);
-    } else {
-        part.Process(performance_state, patch, in, out, aux, bufSz);
-    }
-
-    for (int i = 0; i < bufSz; i++) {
+    for (int i = 0; i < bufSz; ++i) in[i] = data.buf[i * 2];
+    bank->Process(cfg, in, out, aux, bufSz);
+    for (int i = 0; i < bufSz; ++i) {
         data.buf[i * 2] = out[i];
         data.buf[i * 2 + 1] = aux[i];
     }
 }
 
-
 void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
-    // --- Model selector: choose engine, resonator model and FX ------------
+    // --- Model: Sympathetic (no dispersion) vs Inharmonic (dispersion) -----
     int modelSel = reson_model;
     if (cv_reson_model != -1) {
-        modelSel = (int) floorf(data.cv[cv_reson_model] * (float) kModelCount);
+        modelSel = (int) floorf(fabsf(data.cv[cv_reson_model]) * 2.f);
     }
-    CONSTRAIN(modelSel, 0, kModelCount - 1)
-    modelSelection = modelSel;
-    if (modelSel < kClassicModelCount) {
-        classicModelSelection = kClassicModels[modelSel];
-        fxSelection = rings::FX_NONE;
-        useChordEngine = false;
-    } else {
-        classicModelSelection = rings::RESONATOR_MODEL_SYMPATHETIC_STRING;
-        // One guitar model: dry plucked strings, no FX of any kind.
-        fxSelection = rings::FX_NONE;
-        useChordEngine = true;
-    }
+    CONSTRAIN(modelSel, 0, 1)
+    bank->SetDispersion(modelSel == 1);
 
-    // --- AD envelope -------------------------------------------------------
+    // --- Fast pitch glide --------------------------------------------------
+    float glideMs = glide / 4095.f * 50.f;
+    if (cv_glide != -1) glideMs = fabsf(data.cv[cv_glide]) * 50.f;
+    CONSTRAIN(glideMs, 0.f, 50.f)
+    bank->SetGlideMs(glideMs);
+
+    // --- AD envelope (modulation source) -----------------------------------
     float fAttack = eg_attack / 4095.f * 5.f;
-    if (cv_eg_attack != -1) {
-        fAttack = fabsf(data.cv[cv_eg_attack]) * 5.f;
-    }
+    if (cv_eg_attack != -1) fAttack = fabsf(data.cv[cv_eg_attack]) * 5.f;
     CONSTRAIN(fAttack, 0.f, 5.f)
     paramAD.SetAttack(fAttack);
-
     float fDecay = eg_decay / 4095.f * 5.f;
-    if (cv_eg_decay != -1) {
-        fDecay = fabsf(data.cv[cv_eg_decay]) * 5.f;
-    }
+    if (cv_eg_decay != -1) fDecay = fabsf(data.cv[cv_eg_decay]) * 5.f;
     CONSTRAIN(fDecay, 0.f, 5.f)
     paramAD.SetDecay(fDecay);
 
     bool triggerAD = eg_trigger;
-    if (trig_eg_trigger != -1) {
-        triggerAD = data.trig[trig_eg_trigger] != 1;
-    }
-    if (triggerAD && !eg_pre_trigger) {
-        paramAD.Trigger();
-    }
+    if (trig_eg_trigger != -1) triggerAD = data.trig[trig_eg_trigger] != 1;
+    if (triggerAD && !eg_pre_trigger) paramAD.Trigger();
     eg_pre_trigger = triggerAD;
-
     bool loopAD = eg_loop;
-    if (trig_eg_loop != -1) {
-        loopAD = data.trig[trig_eg_loop] != 1;
-    }
+    if (trig_eg_loop != -1) loopAD = data.trig[trig_eg_loop] != 1;
     paramAD.SetLoop(loopAD);
-
-    // --- Modulation --------------------------------------------------------
     float fAD = paramAD.Process();
-    if (cv_brightness != -1) {
-        patch.brightness = fabsf(data.cv[cv_brightness]);
-    } else {
-        patch.brightness = brightness / 4095.f;
-    }
-    if (cv_mod_brightness != -1) {
-        patch.brightness += data.cv[cv_mod_brightness] * mod_brightness / 4095.f;
-    } else {
-        patch.brightness += fAD * mod_brightness / 4095.f;
-    }
-    CONSTRAIN(patch.brightness, 0.f, 1.f);
-    if (cv_damping != -1) {
-        patch.damping = fabsf(data.cv[cv_damping]);
-    } else {
-        patch.damping = damping / 4095.f;
-    }
-    if (cv_mod_damping != -1) {
-        patch.damping += data.cv[cv_mod_damping] * mod_damping / 4095.f;
-    } else {
-        patch.damping += fAD * mod_damping / 4095.f;
-    }
-    CONSTRAIN(patch.damping, 0.f, 1.f);
-    if (cv_position != -1) {
-        patch.position = fabsf(data.cv[cv_position]);
-    } else {
-        patch.position = position / 4095.f;
-    }
-    if (cv_mod_position != -1) {
-        patch.position += data.cv[cv_mod_position] * mod_position / 4095.f;
-    } else {
-        patch.position += fAD * mod_position / 4095.f;
-    }
-    CONSTRAIN(patch.position, 0.f, 1.f);
-    if (cv_structure != -1) {
-        patch.structure = fabsf(data.cv[cv_structure]);
-    } else {
-        patch.structure = structure / 4095.f;
-    }
-    if (cv_mod_structure != -1) {
-        patch.structure += data.cv[cv_mod_structure] * mod_structure / 4095.f;
-    } else {
-        patch.structure += fAD * mod_structure / 4095.f;
-    }
-    CONSTRAIN(patch.structure, 0.f, 1.f);
 
-    // --- Distortion stage --------------------------------------------------
-    // Type 0 = Off (true bypass); 1 Tube, 2 Fold, 3 Fuzz, 4 Shape,
-    // 5 Chainsaw. The DSP guards on type > 0, so drive/mix have no effect
-    // at Type 0. Both engines now use the same 0..5 convention.
-    int dType = dist_type;
-    if (cv_dist_type != -1)
-        dType = (int)(floorf(data.cv[cv_dist_type] * 6.f)) % 6;
-    CONSTRAIN(dType, 0, 5);
-    patch.dist_type = static_cast<float>(dType);
+    // --- String tone controls ----------------------------------------------
+    toneBrightness = brightness / 4095.f;
+    if (cv_brightness != -1) toneBrightness = fabsf(data.cv[cv_brightness]);
+    if (cv_mod_brightness != -1) toneBrightness += data.cv[cv_mod_brightness] * mod_brightness / 4095.f;
+    else toneBrightness += fAD * mod_brightness / 4095.f;
+    CONSTRAIN(toneBrightness, 0.f, 1.f)
 
-    patch.dist_drive = dist_drive / 4095.f;
-    if (cv_dist_drive != -1)
-        patch.dist_drive = fabsf(data.cv[cv_dist_drive]);
-    CONSTRAIN(patch.dist_drive, 0.f, 1.f);
+    toneDamping = damping / 4095.f;
+    if (cv_damping != -1) toneDamping = fabsf(data.cv[cv_damping]);
+    if (cv_mod_damping != -1) toneDamping += data.cv[cv_mod_damping] * mod_damping / 4095.f;
+    else toneDamping += fAD * mod_damping / 4095.f;
+    CONSTRAIN(toneDamping, 0.f, 1.f)
 
-    patch.dist_bias = dist_bias / 4095.f;
-    if (cv_dist_bias != -1)
-        patch.dist_bias = fabsf(data.cv[cv_dist_bias]);
-    CONSTRAIN(patch.dist_bias, 0.f, 1.f);
+    tonePosition = position / 4095.f;
+    if (cv_position != -1) tonePosition = fabsf(data.cv[cv_position]);
+    if (cv_mod_position != -1) tonePosition += data.cv[cv_mod_position] * mod_position / 4095.f;
+    else tonePosition += fAD * mod_position / 4095.f;
+    CONSTRAIN(tonePosition, 0.f, 1.f)
 
-    patch.dist_sustain = dist_sustain / 4095.f;
-    if (cv_dist_sustain != -1)
-        patch.dist_sustain = fabsf(data.cv[cv_dist_sustain]);
-    CONSTRAIN(patch.dist_sustain, 0.f, 1.f);
+    // --- Distortion ---------------------------------------------------------
+    distType = dist_type;
+    if (cv_dist_type != -1) distType = ((int) floorf(fabsf(data.cv[cv_dist_type]) * 6.f)) % 6;
+    CONSTRAIN(distType, 0, 5)
+    distDrive = dist_drive / 4095.f;
+    if (cv_dist_drive != -1) distDrive = fabsf(data.cv[cv_dist_drive]);
+    CONSTRAIN(distDrive, 0.f, 1.f)
+    distBias = dist_bias / 4095.f;
+    if (cv_dist_bias != -1) distBias = fabsf(data.cv[cv_dist_bias]);
+    CONSTRAIN(distBias, 0.f, 1.f)
+    distSustain = dist_sustain / 4095.f;
+    if (cv_dist_sustain != -1) distSustain = fabsf(data.cv[cv_dist_sustain]);
+    CONSTRAIN(distSustain, 0.f, 1.f)
+    distTone = dist_tone / 4095.f;
+    if (cv_dist_tone != -1) distTone = fabsf(data.cv[cv_dist_tone]);
+    CONSTRAIN(distTone, 0.f, 1.f)
+    distMix = dist_mix / 4095.f;
+    if (cv_dist_mix != -1) distMix = fabsf(data.cv[cv_dist_mix]);
+    CONSTRAIN(distMix, 0.f, 1.f)
 
-    patch.dist_tone = dist_tone / 4095.f;
-    if (cv_dist_tone != -1)
-        patch.dist_tone = fabsf(data.cv[cv_dist_tone]);
-    CONSTRAIN(patch.dist_tone, 0.f, 1.f);
-
-    patch.dist_mix = dist_mix / 4095.f;
-    if (cv_dist_mix != -1)
-        patch.dist_mix = fabsf(data.cv[cv_dist_mix]);
-    CONSTRAIN(patch.dist_mix, 0.f, 1.f);
-
-    // --- VARG Chord auto-route (no toggle) ---------------------------------
-    // Whenever an ARP is actually running VARG Chord it publishes a voicing
-    // companion. Use that ARP's own configured slots for pitch and gate, and
-    // its voicing/stroke for the chord engine. The Model selector is NEVER
-    // overridden: VARG can drive a classic single-note model too. When no
-    // companion exists, FREQ/TRIG/chords stay fully manual.
+    // --- Note source: VARG companion, or manual CV/trig --------------------
+    // vargString is published by BOTH VARG algorithms; vargVoicing only by
+    // algo 6 (whole chord).
     int vargArp = -1;
-    if (data.vargVoicing[0] >= 0) vargArp = 0;
-    else if (data.vargVoicing[1] >= 0) vargArp = 1;
-    const bool vargAuto = (vargArp >= 0);
-    const int pitchSlot = vargAuto ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
-    const int strumTrigSlot = vargAuto ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
+    if (data.vargString[0] >= 0 && data.vargString[0] < 4) vargArp = 0;
+    else if (data.vargString[1] >= 0 && data.vargString[1] < 4) vargArp = 1;
 
-    performance_state.note = frequency / 4032.f * 96.f;
-    if (pitchSlot >= 0) {
-        performance_state.note += data.cv[pitchSlot] * 5.f * 12.f;
-    }
-    CONSTRAIN(performance_state.note, 0.f, 96.f);
+    const int pitchSlot = vargArp >= 0 ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
+    const int gateSlot = vargArp >= 0 ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
 
-    if (cv_mod_frequency != -1) {
-        performance_state.fm = data.cv[cv_mod_frequency] * mod_frequency / 4095.f * 48.f;
-    } else {
-        performance_state.fm = fAD * mod_frequency / 4095.f * 48.f;
-    }
-    CONSTRAIN(performance_state.fm, -48.f, 48.f);
+    float note = frequency / 4032.f * 96.f;
+    if (pitchSlot >= 0) note += data.cv[pitchSlot] * 5.f * 12.f;
+    if (cv_mod_frequency != -1) note += data.cv[cv_mod_frequency] * mod_frequency / 4095.f * 48.f;
+    else note += fAD * mod_frequency / 4095.f * 48.f;
+    CONSTRAIN(note, 0.f, 96.f)
 
-    performance_state.tonic = 12.f + frequency / 4032.f * 60;
-    CONSTRAIN(performance_state.tonic, 0.f, 60.f);
+    bool gate = strum_int != 0;
+    if (gateSlot >= 0) gate = data.trig[gateSlot] != 1;
+    const bool gateEdge = gate && !lastGate;
+    lastGate = gate;
 
-    // Internal excitation only. With internal_strum = false the Strummer
-    // leaves the gate-derived strum flag untouched, so no note-change or
-    // audio-onset analysis ever fires a pluck.
-    performance_state.internal_exciter = true;
-    performance_state.internal_note = true;
-    performance_state.internal_strum = false;
-
-    const bool strumGateEnabled = vargAuto || strum_int != 0;
-    if (strumGateEnabled) {
-        if (strumTrigSlot >= 0) {
-            if (!strum) strum = data.trig[strumTrigSlot] != 1;
+    if (gateEdge) {
+        if (vargArp >= 0 && data.vargVoicing[vargArp] >= 0) {
+            // VARG algo 6: a whole chord. Lay its tones across the four
+            // physical strings, anchored at the ARP's string index.
+            const int voicing = data.vargVoicing[vargArp];
+            const float *offsets = rings::ChordVoicing(1, voicing);
+            const int n = rings::ChordSize(1);
+            const int base = data.vargString[vargArp];
+            for (int s = 0; s < rings::kGuitarStringCount; ++s) {
+                const int idx = n > 0 ? (s % n) : 0;
+                bank->SetNote((base + s) & 3, note + offsets[idx], true);
+            }
         } else {
-            if (!strum) strum = 1;
+            // One note (VARG arpeggio or manual): the sequencer's string
+            // index when present, otherwise a simple round-robin fallback.
+            int str = vargArp >= 0 ? data.vargString[vargArp] : fallbackString;
+            if (str < 0 || str >= 4) str = fallbackString;
+            bank->SetNote(str, note, true);
+            fallbackString = (fallbackString + 1) & 3;
         }
     }
-    performance_state.strum = strum && !lastStrum;
-    lastStrum = strum;
-    strum = false;
-
-    performance_state.chord = chords;
-    if (cv_chords != -1) {
-        // Full 18-row range — the removed toggle's manual voicing CV is no
-        // longer needed to reach the extended rows.
-        performance_state.chord = (int) floorf(fabsf(data.cv[cv_chords])
-                                        * (float) rings::kNumChords);
-    }
-    if (vargAuto) {
-        // Exact progression quality from VARG's internal companion.
-        performance_state.chord = data.vargVoicing[vargArp];
-    }
-    CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
-    // The classic Part's quantized chord table has only 11 rows. A VARG
-    // companion can publish extended voicings 11..17 intended for the
-    // guitar engine; clamp on the classic path so a VARG ARP driving a
-    // single-note model cannot index past that table.
-    if (!useChordEngine && performance_state.chord > 10) {
-        performance_state.chord = 10;
-    }
-
-    // --- Guitar strum engine -----------------------------------------------
-    int strumStyleSel = strumStyle % (int) tbd::STRUM_COUNT;
-    if (cv_strumStyle != -1) {
-        strumStyleSel = ((int) (fabsf(data.cv[cv_strumStyle])
-                                * (float) tbd::STRUM_COUNT))
-                        % (int) tbd::STRUM_COUNT;
-    }
-    if (strumStyleSel < 0) strumStyleSel = 0;
-    string_synth->set_strum_style((uint8_t) strumStyleSel);
-    float strumSpreadMs = strumSpread / 4095.f * 45.f;
-    if (cv_strumSpread != -1) {
-        strumSpreadMs = fabsf(data.cv[cv_strumSpread]) * 45.f;
-    }
-    CONSTRAIN(strumSpreadMs, 0.f, 45.f)
-    string_synth->set_strum_spread(
-        (uint16_t) (strumSpreadMs * 44.1f));   // samples @ rings kSampleRate
-    if (vargAuto) {
-        string_synth->set_strum_companion(data.vargStroke[vargArp],
-                                          (data.vargFlags[vargArp] & 1u) != 0);
-    } else {
-        string_synth->set_strum_companion(0, true);
-    }
-
-    int poly = 1 << polyphony;
-    CONSTRAIN(poly, 1, 4)
-    if (poly != part.polyphony()) part.set_polyphony(poly);
-    if (poly != string_synth->polyphony()) string_synth->set_polyphony(poly);
 }
 
 ctagSoundProcessorTBStrings::~ctagSoundProcessorTBStrings() {
-    if (string_synth != nullptr) {
-        string_synth->~StringSynthPart();
-        heap_caps_free(string_synth);
-        string_synth = nullptr;
+    if (bank != nullptr) {
+        bank->~GuitarStringBank();
+        heap_caps_free(bank);
+        bank = nullptr;
     }
-    heap_caps_free(pluck_buffer);
-    pluck_buffer = nullptr;
-    heap_caps_free(reverb_buffer);
 }
 
 void ctagSoundProcessorTBStrings::knowYourself() {
@@ -357,21 +197,14 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("reson_model", [&](const int val) { cv_reson_model = val; });
     pMapPar.emplace("frequency", [&](const int val) { frequency = val; });
     pMapCv.emplace("frequency", [&](const int val) { cv_frequency = val; });
-    pMapPar.emplace("polyphony", [&](const int val) { polyphony = val; });
-    pMapPar.emplace("structure", [&](const int val) { structure = val; });
-    pMapCv.emplace("structure", [&](const int val) { cv_structure = val; });
     pMapPar.emplace("brightness", [&](const int val) { brightness = val; });
     pMapCv.emplace("brightness", [&](const int val) { cv_brightness = val; });
     pMapPar.emplace("damping", [&](const int val) { damping = val; });
     pMapCv.emplace("damping", [&](const int val) { cv_damping = val; });
     pMapPar.emplace("position", [&](const int val) { position = val; });
     pMapCv.emplace("position", [&](const int val) { cv_position = val; });
-    pMapPar.emplace("chords", [&](const int val) { chords = val; });
-    pMapCv.emplace("chords", [&](const int val) { cv_chords = val; });
-    pMapPar.emplace("strumStyle", [&](const int val) { strumStyle = val; });
-    pMapCv.emplace("strumStyle", [&](const int val) { cv_strumStyle = val; });
-    pMapPar.emplace("strumSpread", [&](const int val) { strumSpread = val; });
-    pMapCv.emplace("strumSpread", [&](const int val) { cv_strumSpread = val; });
+    pMapPar.emplace("glide", [&](const int val) { glide = val; });
+    pMapCv.emplace("glide", [&](const int val) { cv_glide = val; });
     pMapPar.emplace("strum_int", [&](const int val) { strum_int = val; });
     pMapTrig.emplace("strum_int", [&](const int val) { trig_strum_int = val; });
     pMapPar.emplace("eg_trigger", [&](const int val) { eg_trigger = val; });
@@ -388,8 +221,6 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("mod_frequency", [&](const int val) { cv_mod_frequency = val; });
     pMapPar.emplace("mod_damping", [&](const int val) { mod_damping = val; });
     pMapCv.emplace("mod_damping", [&](const int val) { cv_mod_damping = val; });
-    pMapPar.emplace("mod_structure", [&](const int val) { mod_structure = val; });
-    pMapCv.emplace("mod_structure", [&](const int val) { cv_mod_structure = val; });
     pMapPar.emplace("mod_position", [&](const int val) { mod_position = val; });
     pMapCv.emplace("mod_position", [&](const int val) { cv_mod_position = val; });
     pMapPar.emplace("dist_type", [&](const int val) { dist_type = val; });

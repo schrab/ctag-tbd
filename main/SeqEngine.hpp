@@ -77,6 +77,9 @@ public:
     // its flags (bit0 = accent). 0 unless algo == VARG Chord.
     static int8_t GetVargStroke(int i);
     static uint8_t GetVargFlags(int i);
+    // Guitar string index (0..3) latched at the gate edge, for both VARG
+    // algorithms; -1 when that ARP is not running a VARG algorithm.
+    static int8_t GetVargString(int i);
     static int GetArpAlgo(int i);      static void SetArpAlgo(int i, int v);
     static int GetArpP(int i, int k);  static void SetArpP(int i, int k, int v); // 0..100
     static int GetArpGlide(int i);     static void SetArpGlide(int i, int v);   // 0..100 ms
