@@ -61,10 +61,10 @@ namespace tbd {
 
 class GuitarDist {
  public:
-  void Init() {
+  void Init(float sample_rate) {
     lp_[0] = lp_[1] = 0.0f;
     env_[0] = env_[1] = 0.0f;
-    chainsaw_.Init(32000.0f);
+    chainsaw_.Init(sample_rate);
   }
 
   // type 0..3, all other amounts 0..1 (0 drive = zero-cost bypass).

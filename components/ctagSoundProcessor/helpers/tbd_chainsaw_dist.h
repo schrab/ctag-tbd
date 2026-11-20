@@ -50,6 +50,14 @@ class ChainsawDist {
     float hp_x_[2]{}, hp_y_[2]{}, lp_[2]{}, amp_hp_x_[2]{}, amp_hp_y_[2]{}, amp_lp_[2]{};
     float bx_[2][3][2]{}, by_[2][3][2]{};
     float fx_[2][3]{}, fy_[2][3]{};
+    // The powf pair and the FMV redesign are libm / ~100-flop work per block
+    // from flash, while the knobs move rarely — cache and recompute on change
+    // only (the rack_dist.h last_drive pattern). Gains and coefficients are
+    // pure functions of (drive, bias, tone), so caching is output-identical.
+    // Sentinels live outside the constrained 0..1 range.
+    float last_drive_{-1.0f}, last_bias_{-1.0f}, last_tone_{-1.0f};
+    float pedal_gain_{0.0f}, amp_gain_{0.0f};
+    chainsaw::FmvCoeffs fmv_{};
 };
 
 // Complete chainsaw stage including the shared post-processing (sustainer

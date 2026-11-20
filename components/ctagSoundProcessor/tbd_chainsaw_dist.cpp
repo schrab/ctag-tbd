@@ -92,6 +92,7 @@ float ChainsawTanh(float x) {
 
 void ChainsawDist::Init(float sample_rate) {
     sr_ = sample_rate;
+    last_drive_ = last_bias_ = last_tone_ = -1.0f;
     const float w60 = 6.2831853f * 60.0f / sample_rate;
     hp_a_ = 1.0f / (1.0f + w60);
     const float w7k = 6.2831853f * 7000.0f / sample_rate;
@@ -110,9 +111,21 @@ void ChainsawDist::Init(float sample_rate) {
 void ChainsawDist::Process(float *out, float *aux, size_t size,
                            float drive, float bias_amt, float tone) {
     if (drive <= 0.0f) return;   // zero cost, like the other dist types
-    const float pedal_gain = powf(10.0f, (20.0f + 20.0f * drive) / 20.0f);
-    const float amp_gain = powf(10.0f, (30.0f * bias_amt) / 20.0f);
-    const chainsaw::FmvCoeffs fmv = chainsaw::DesignFmv(0.05f, 0.5f, tone, sr_);
+    if (drive != last_drive_) {
+        pedal_gain_ = powf(10.0f, (20.0f + 20.0f * drive) / 20.0f);
+        last_drive_ = drive;
+    }
+    if (bias_amt != last_bias_) {
+        amp_gain_ = powf(10.0f, (30.0f * bias_amt) / 20.0f);
+        last_bias_ = bias_amt;
+    }
+    if (tone != last_tone_) {
+        fmv_ = chainsaw::DesignFmv(0.05f, 0.5f, tone, sr_);
+        last_tone_ = tone;
+    }
+    const float pedal_gain = pedal_gain_;
+    const float amp_gain = amp_gain_;
+    const chainsaw::FmvCoeffs &fmv = fmv_;
     const chainsaw::BiquadCoeffs *hm2 = chainsaw::Hm2Coeffs();
     float *chans[2] = { out, aux };
     for (int c = 0; c < 2; ++c) {
