@@ -417,9 +417,13 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         if (arpPitchSlot[i] >= 0) {
             if (s_vargPedal[i]) {
                 // Open pedal: fixed drone at the ARP root, one octave down.
+                // Consume the flag here — with a dense mask there are no
+                // silent steps, so it must not survive to the next gate or
+                // the string would be cleared on every arpeggio note.
                 cv[arpPitchSlot[i]] =
                     (float)(s.root - 12) / 12.0f * 0.2f
                     + (float)arpOct[i] * 0.2f;
+                s_vargPedal[i] = 0;
             } else if (s.algo == SEQ::kArpAlgoVargChord && s.p[8] == 0) {
                 // Burst mode: VARG Chord sends the chord ROOT as a normal
                 // pitch CV; the plugin builds the chord locally. In
@@ -590,16 +594,22 @@ uint8_t SeqEngine::GetVargGlide(int i) {
     if (i < 0 || i > 1) return 0;
     return s_vargGlide[i];
 }
-int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
+int SeqEngine::GetArpAlgo(int i) {
+    // VARG has one algo; its range is a separate Chord Range control.
+    if (gArp[i].algo == SEQ::kArpAlgoVarg ||
+        gArp[i].algo == SEQ::kArpAlgoVargChord) return gArp[i].algo * 3;
+    return gArp[i].algo * 3 + (gArp[i].range - 1);
+}
+int SeqEngine::GetArpRange(int i) { return gArp[i].range; }
+void SeqEngine::SetArpRange(int i, int r) {
+    gArp[i].range = (uint8_t)ClampInt(r, 1, 3);
+    SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
+}
 void SeqEngine::SetArpAlgo(int i, int v) {
     v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 7 algos x 3 ranges
     const uint8_t oldAlgo = gArp[i].algo;
     gArp[i].algo = (uint8_t)(v / 3);
-    // VARG has no separate 1/2/3-OCT variants: range is always 1 and the
-    // Octave row handles transposition. Collapse all three encodings.
-    gArp[i].range = (gArp[i].algo == SEQ::kArpAlgoVarg ||
-                     gArp[i].algo == SEQ::kArpAlgoVargChord)
-                        ? 1u : (uint8_t)(1 + v % 3);
+    gArp[i].range = (uint8_t)(1 + v % 3);
     const bool wasVarg = (oldAlgo == SEQ::kArpAlgoVarg || oldAlgo == SEQ::kArpAlgoVargChord);
     const bool isVarg = (gArp[i].algo == SEQ::kArpAlgoVarg || gArp[i].algo == SEQ::kArpAlgoVargChord);
     if (isVarg && !wasVarg)

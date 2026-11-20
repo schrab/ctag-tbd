@@ -88,6 +88,8 @@ public:
     static uint8_t GetVargGhost(int i);
     static uint8_t GetVargGlide(int i);
     static int GetArpAlgo(int i);      static void SetArpAlgo(int i, int v);
+    // VARG Chord Range (1..3 octaves), separate from the Octave transpose.
+    static int GetArpRange(int i);     static void SetArpRange(int i, int r);
     static int GetArpP(int i, int k);  static void SetArpP(int i, int k, int v); // 0..100
     static int GetArpGlide(int i);     static void SetArpGlide(int i, int v);   // 0..100 ms
     static int GetArpOct(int i);       static void SetArpOct(int i, int v);     // -2..+2 octaves
