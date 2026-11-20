@@ -6,13 +6,13 @@
    "params": [
     {
      "id": "reson_model",
-     "current": 1,
+     "current": 5,
      "cv": -1
     },
     {
      "id": "frequency",
      "current": 1050,
-     "cv": 104
+     "cv": -1
     },
     {
      "id": "polyphony",
@@ -44,27 +44,24 @@
      "cv": -1
     },
     {
-     "id": "easter",
-     "current": 0,
-     "trig": -1
+     "id": "strumStyle",
+     "current": 1,
+     "cv": -1
     },
     {
-     "id": "ex_int",
-     "current": 1
+     "id": "strumSpread",
+     "current": 900,
+     "cv": -1
     },
     {
      "id": "strum_int",
-     "current": 0,
+     "current": 1,
      "trig": 0
-    },
-    {
-     "id": "note_int",
-     "current": 1
     },
     {
      "id": "eg_trigger",
      "current": 0,
-     "trig": 45
+     "trig": -1
     },
     {
      "id": "eg_loop",
@@ -108,17 +105,17 @@
     },
     {
      "id": "dist_type",
-     "current": 3,
+     "current": 0,
      "cv": -1
     },
     {
      "id": "dist_drive",
-     "current": 4095,
+     "current": 0,
      "cv": -1
     },
     {
      "id": "dist_bias",
-     "current": 859,
+     "current": 0,
      "cv": -1
     },
     {
@@ -128,7 +125,7 @@
     },
     {
      "id": "dist_tone",
-     "current": 2549,
+     "current": 4095,
      "cv": -1
     },
     {

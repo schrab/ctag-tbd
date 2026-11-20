@@ -2,21 +2,25 @@
  "id": "TBStrings",
  "isStereo": true,
  "name": "TBStrings",
- "hint": "Guitar string simulation (TBDings fork)",
+ "hint": "Guitar string simulation - strums, chords and drive",
  "params": [
   {
    "id": "reson_model",
    "name": "Model",
    "type": "int",
    "min": 0,
-   "max": 5,
+   "max": 8,
+   "def": 5,
    "texts": [
-    "Modal",
     "Sympathetic",
     "Inharmonic",
-    "2-Op FM",
     "Quantized",
-    "String+Verb"
+    "Gtr Formant",
+    "Gtr Chorus",
+    "Gtr Reverb",
+    "Gtr Formant2",
+    "Gtr Ensemble",
+    "Gtr Reverb2"
    ]
   },
   {
@@ -97,24 +101,9 @@
    "def": 0
   },
   {
-   "id": "easter",
-   "type": "bool",
-   "name": "Easter Egg"
-  },
-  {
-   "id": "ex_int",
-   "type": "bool",
-   "name": "Internal Exciter"
-  },
-  {
    "id": "strum_int",
    "type": "bool",
-   "name": "Internal Strum"
-  },
-  {
-   "id": "note_int",
-   "type": "bool",
-   "name": "Internal Note"
+   "name": "Strum Gate"
   },
   {
    "id": "eg",

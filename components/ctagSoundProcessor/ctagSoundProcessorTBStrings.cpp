@@ -28,6 +28,18 @@ respective component folders / files if different from this license.
 
 using namespace CTAG::SP;
 
+namespace {
+// Model selector 0..8. The three classic slots are the single-note string
+// resonators that make sense for a guitar; Modal, 2-Op FM and String+Reverb
+// are deliberately not exposed. The rest select the chord engine's FX.
+constexpr int kClassicModelCount = 3;
+constexpr int kModelCount = 9;
+constexpr rings::ResonatorModel kClassicModels[kClassicModelCount] = {
+    rings::RESONATOR_MODEL_SYMPATHETIC_STRING,
+    rings::RESONATOR_MODEL_STRING,
+    rings::RESONATOR_MODEL_SYMPATHETIC_STRING_QUANTIZED,
+};
+}  // namespace
 
 
 void ctagSoundProcessorTBStrings::Init(std::size_t blockSize, void *blockPtr) {
@@ -54,9 +66,6 @@ void ctagSoundProcessorTBStrings::Init(std::size_t blockSize, void *blockPtr) {
     part.Init(reverb_buffer);
     string_synth->Init(reverb_buffer);
 
-    //memset(&patch, 0, sizeof(patch));
-    //memset(&performance_state, 0, sizeof(performance_state));
-
     paramAD.SetSampleRate(44100.f / 32.f);
     paramAD.SetModeLin();
 }
@@ -64,32 +73,24 @@ void ctagSoundProcessorTBStrings::Init(std::size_t blockSize, void *blockPtr) {
 void ctagSoundProcessorTBStrings::Process(const ProcessData &data) {
     updateParams(data);
 
-    bool isEaster = easter;
-    if (trig_easter != -1) {
-        isEaster = data.trig[trig_easter] != 1;
-    }
-    // VARG Chord needs the 18-voicing string-synth engine: the classic Part
-    // only has 11 rows and would index past its table on the added doc voicings.
-    if (vargChord != 0 &&
-        (data.vargVoicing[0] >= 0 || data.vargVoicing[1] >= 0)) {
-        isEaster = true;
-    }
-
-    if (isEaster)
-        string_synth->set_fx((rings::FxType) resonatorModel);
+    // The engine follows the Model selector (0..2 = classic strings,
+    // 3..8 = guitar chord engine). VARG Chord forces the chord engine in
+    // updateParams because only that engine owns the 18-voicing table.
+    if (useChordEngine)
+        string_synth->set_fx((rings::FxType) fxSelection);
     else
-        part.set_model(resonatorModel);
+        part.set_model((rings::ResonatorModel) classicModelSelection);
 
-    // generate buffers
+    // Internal excitation only — no external audio path is ever handed to
+    // the engines; the Strummer is driven purely by the strum gate flag.
     float in[bufSz], out[bufSz], aux[bufSz];
     for (int i = 0; i < bufSz; i++) {
         in[i] = data.buf[i * 2];
     }
-    if (isEaster) {
-        strummer.Process(NULL, bufSz, &performance_state);
+    strummer.Process(NULL, bufSz, &performance_state);
+    if (useChordEngine) {
         string_synth->Process(performance_state, patch, in, out, aux, bufSz);
     } else {
-        strummer.Process(in, bufSz, &performance_state);
         part.Process(performance_state, patch, in, out, aux, bufSz);
     }
 
@@ -101,16 +102,24 @@ void ctagSoundProcessorTBStrings::Process(const ProcessData &data) {
 
 
 void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
+    // --- Model selector: choose engine, resonator model and FX ------------
+    int modelSel = reson_model;
     if (cv_reson_model != -1) {
-        resonatorModel = (rings::ResonatorModel) ((int) (floorf(data.cv[cv_reson_model] * 7.f)) % 6);
-    } else {
-        resonatorModel = (rings::ResonatorModel) ((reson_model) % 6);
+        modelSel = (int) floorf(data.cv[cv_reson_model] * (float) kModelCount);
     }
-    if(resonatorModel>5) resonatorModel = rings::ResonatorModel(5);
-    if(resonatorModel<0) resonatorModel = rings::ResonatorModel(0);
+    CONSTRAIN(modelSel, 0, kModelCount - 1)
+    modelSelection = modelSel;
+    if (modelSel < kClassicModelCount) {
+        classicModelSelection = kClassicModels[modelSel];
+        fxSelection = 0;
+        useChordEngine = false;
+    } else {
+        classicModelSelection = rings::RESONATOR_MODEL_SYMPATHETIC_STRING;
+        fxSelection = modelSel - kClassicModelCount;
+        useChordEngine = true;
+    }
 
-
-    // ad envelope
+    // --- AD envelope -------------------------------------------------------
     float fAttack = eg_attack / 4095.f * 5.f;
     if (cv_eg_attack != -1) {
         fAttack = fabsf(data.cv[cv_eg_attack]) * 5.f;
@@ -140,7 +149,7 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     }
     paramAD.SetLoop(loopAD);
 
-    // modulation
+    // --- Modulation --------------------------------------------------------
     float fAD = paramAD.Process();
     if (cv_brightness != -1) {
         patch.brightness = fabsf(data.cv[cv_brightness]);
@@ -187,9 +196,10 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     }
     CONSTRAIN(patch.structure, 0.f, 1.f);
 
-    // Distortion stage (see rings/dsp/part.cc). Type 0 = OFF (true bypass);
-    // 1 Tube, 2 Fold, 3 Fuzz, 4 Shape, 5 VARG Chainsaw. The DSP guard checks
-    // dist_type > 0, so drive/mix have no effect at Type 0.
+    // --- Distortion stage --------------------------------------------------
+    // Type 0 = Off (true bypass); 1 Tube, 2 Fold, 3 Fuzz, 4 Shape,
+    // 5 Chainsaw. The DSP guards on type > 0, so drive/mix have no effect
+    // at Type 0. Both engines now use the same 0..5 convention.
     int dType = dist_type;
     if (cv_dist_type != -1)
         dType = (int)(floorf(data.cv[cv_dist_type] * 6.f)) % 6;
@@ -221,21 +231,26 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
         patch.dist_mix = fabsf(data.cv[cv_dist_mix]);
     CONSTRAIN(patch.dist_mix, 0.f, 1.f);
 
-    // VARG Chord ON is an explicit auto-routing mode: pitch, gate and chord
-    // quality all come from whichever ARP is currently running VARG Chord,
-    // using that ARP's configured CV/trig slots. With the toggle OFF, FREQ and
-    // TRIG stay fully independent manual mappings (no source is ever stolen).
+    // --- VARG Chord auto-route ---------------------------------------------
+    // Toggle ON: pitch, gate, voicing and stroke all come from whichever ARP
+    // is running VARG Chord, via that ARP's user-configured slots. With the
+    // toggle OFF, FREQ and TRIG stay fully independent manual mappings.
     int vargArp = -1;
     if (vargChord != 0) {
         if (data.vargVoicing[0] >= 0) vargArp = 0;
         else if (data.vargVoicing[1] >= 0) vargArp = 1;
     }
     const bool vargAuto = (vargArp >= 0);
+    vargAutoActive = vargAuto;
+    if (vargAuto) {
+        // The classic Part only has 11 chord rows; the VARG voicings need
+        // the 18-row table in the guitar engine.
+        useChordEngine = true;
+    }
     const int pitchSlot = vargAuto ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
     const int strumTrigSlot = vargAuto ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
 
     performance_state.note = frequency / 4032.f * 96.f;
-    performance_state.internal_note = vargAuto ? false : !note_int;
     if (pitchSlot >= 0) {
         performance_state.note += data.cv[pitchSlot] * 5.f * 12.f;
     }
@@ -251,30 +266,34 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     performance_state.tonic = 12.f + frequency / 4032.f * 60;
     CONSTRAIN(performance_state.tonic, 0.f, 60.f);
 
-    performance_state.internal_exciter = ex_int;
-    // In VARG Chord mode the ARP gate must own plucking; the strummer's
-    // internal note-change/onset auto-strum would otherwise override it.
-    performance_state.internal_strum = vargAuto ? false : !strum_int;
+    // Internal excitation only. With internal_strum = false the Strummer
+    // leaves the gate-derived strum flag untouched, so no note-change or
+    // audio-onset analysis ever fires a pluck.
+    performance_state.internal_exciter = true;
+    performance_state.internal_note = true;
+    performance_state.internal_strum = false;
 
-    if (strumTrigSlot >= 0) {
-        if (!strum) strum = data.trig[strumTrigSlot] != 1;
-    } else {
-        if (!strum) strum = 1;
+    const bool strumGateEnabled = vargAuto || strum_int != 0;
+    if (strumGateEnabled) {
+        if (strumTrigSlot >= 0) {
+            if (!strum) strum = data.trig[strumTrigSlot] != 1;
+        } else {
+            if (!strum) strum = 1;
+        }
     }
     performance_state.strum = strum && !lastStrum;
     lastStrum = strum;
     strum = false;
 
-    performance_state.chord = chords;//(int) (patch.structure * (rings::kNumChords - 1));
+    performance_state.chord = chords;
     if (cv_chords != -1) {
         performance_state.chord = (int) floorf(data.cv[cv_chords] * 11.f);
     }
     if (vargAuto) {
-        // Exact progression quality from VARG's internal companion — the
-        // whole point of the mode. Manual chord/voicing sources are ignored.
+        // Exact progression quality from VARG's internal companion.
         performance_state.chord = data.vargVoicing[vargArp];
     } else if (cv_vargChord != -1) {
-        // Optional manual voicing override (VARG Chord toggle OFF).
+        // Manual voicing override (VARG Chord toggle OFF).
         int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
                                     * (float)(SEQ::kVargVoicingCount - 1));
         if (voicing < 0) voicing = 0;
@@ -283,10 +302,7 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     }
     CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
 
-    // TBD strum engine: style/spread feed the chord engine; the stroke/
-    // accent companion rides the VARG Chord route (MIDI strums fall back
-    // to engine-side pendulum alternation via stroke 0). BLOCK style (0,
-    // the preset-compat default) ignores all of it.
+    // --- Guitar strum engine -----------------------------------------------
     int strumStyleSel = strumStyle % (int) tbd::STRUM_COUNT;
     if (cv_strumStyle != -1) {
         strumStyleSel = ((int) (fabsf(data.cv[cv_strumStyle])
@@ -312,8 +328,6 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     int poly = 1 << polyphony;
     CONSTRAIN(poly, 1, 4)
     if (poly != part.polyphony()) part.set_polyphony(poly);
-    // the easter-egg chord engine has its own voice-group count — apply the
-    // same polyphony (it was never wired: 1/2/4 overlapping chord groups)
     if (poly != string_synth->polyphony()) string_synth->set_polyphony(poly);
 }
 
@@ -333,7 +347,6 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapPar.emplace("frequency", [&](const int val) { frequency = val; });
     pMapCv.emplace("frequency", [&](const int val) { cv_frequency = val; });
     pMapPar.emplace("polyphony", [&](const int val) { polyphony = val; });
-    pMapCv.emplace("polyphony", [&](const int val) { cv_polyphony = val; });
     pMapPar.emplace("structure", [&](const int val) { structure = val; });
     pMapCv.emplace("structure", [&](const int val) { cv_structure = val; });
     pMapPar.emplace("brightness", [&](const int val) { brightness = val; });
@@ -350,14 +363,8 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("strumStyle", [&](const int val) { cv_strumStyle = val; });
     pMapPar.emplace("strumSpread", [&](const int val) { strumSpread = val; });
     pMapCv.emplace("strumSpread", [&](const int val) { cv_strumSpread = val; });
-    pMapPar.emplace("easter", [&](const int val) { easter = val; });
-    pMapTrig.emplace("easter", [&](const int val) { trig_easter = val; });
-    pMapPar.emplace("ex_int", [&](const int val) { ex_int = val; });
-    pMapTrig.emplace("ex_int", [&](const int val) { trig_ex_int = val; });
     pMapPar.emplace("strum_int", [&](const int val) { strum_int = val; });
     pMapTrig.emplace("strum_int", [&](const int val) { trig_strum_int = val; });
-    pMapPar.emplace("note_int", [&](const int val) { note_int = val; });
-    pMapTrig.emplace("note_int", [&](const int val) { trig_note_int = val; });
     pMapPar.emplace("eg_trigger", [&](const int val) { eg_trigger = val; });
     pMapTrig.emplace("eg_trigger", [&](const int val) { trig_eg_trigger = val; });
     pMapPar.emplace("eg_loop", [&](const int val) { eg_loop = val; });
