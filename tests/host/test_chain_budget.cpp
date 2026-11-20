@@ -19,6 +19,7 @@ TEST(chain_budget_estimate_table) {
     CHECK_EQ(ChainBudget::EstimateCycles(""), 0u);
     CHECK_EQ(ChainBudget::EstimateCycles("TBDaits"), 45000u);
     CHECK_EQ(ChainBudget::EstimateCycles("TBDings"), 55000u);
+    CHECK_EQ(ChainBudget::EstimateCycles("TBStrings"), 55000u);
     CHECK_EQ(ChainBudget::EstimateCycles("Claude"), 62000u);
     CHECK_EQ(ChainBudget::EstimateCycles("Mbeads"), 100000u);
     CHECK_EQ(ChainBudget::EstimateCycles("Elements"), 120000u); // 52 modes

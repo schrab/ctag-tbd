@@ -10,14 +10,7 @@
    "type": "int",
    "min": 0,
    "max": 5,
-   "texts": [
-    "Modal",
-    "Sympathetic",
-    "Inharmonic",
-    "2-Op FM",
-    "Quantized",
-    "String+Verb"
-   ]
+   "texts": ["Modal", "Sympathetic", "Inharmonic", "2-Op FM", "Quantized", "String+Verb"]
   },
   {
    "id": "frequency",
@@ -66,35 +59,7 @@
    "name": "Chords",
    "type": "int",
    "min": 0,
-   "max": 17,
-   "texts": ["OCT", "5", "sus4", "m", "m7", "m9", "m11", "69", "M9", "M7", "M",
-             "5b5", "dim7", "m7b5", "aug", "add9", "m+b9", "1-5-1"]
-  },
-  {
-   "id": "vargChord",
-   "name": "VARG Chord",
-   "type": "int",
-   "min": 0,
-   "max": 1,
-   "def": 0,
-   "texts": ["Off", "On"]
-  },
-  {
-   "id": "strumStyle",
-   "name": "Strum Style",
-   "type": "int",
-   "min": 0,
-   "max": 5,
-   "def": 0,
-   "texts": ["Block", "Pendulum", "Down", "Converge", "Diverge", "Random"]
-  },
-  {
-   "id": "strumSpread",
-   "name": "Strum Spread",
-   "type": "int",
-   "min": 0,
-   "max": 4095,
-   "def": 0
+   "max": 10
   },
   {
    "id": "easter",
@@ -186,62 +151,6 @@
      "name": "Position mod",
      "min": -4095,
      "max": 4095
-    }
-   ]
-  },
-  {
-   "id": "gr_dist",
-   "type": "group",
-   "name": "Distortion",
-   "params": [
-    {
-     "id": "dist_type",
-     "name": "Type",
-     "type": "int",
-     "min": 0,
-     "max": 5,
-     "def": 0,
-     "texts": ["Off", "Tube", "Fold", "Fuzz", "Shape", "Chainsaw"]
-    },
-    {
-     "id": "dist_drive",
-     "name": "Drive",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 0
-    },
-    {
-     "id": "dist_bias",
-     "name": "Bias",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 0
-    },
-    {
-     "id": "dist_sustain",
-     "name": "Sustain",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 0
-    },
-    {
-     "id": "dist_tone",
-     "name": "Tone",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 4095
-    },
-    {
-     "id": "dist_mix",
-     "name": "Mix",
-     "type": "int",
-     "min": 0,
-     "max": 4095,
-     "def": 4095
     }
    ]
   }

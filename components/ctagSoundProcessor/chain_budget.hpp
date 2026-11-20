@@ -43,6 +43,7 @@ namespace CTAG {
                 if (eq(id, "Void") || eq(id, "")) return 0;
                 if (eq(id, "TBDaits")) return 45000;
                 if (eq(id, "TBDings")) return 55000;
+                if (eq(id, "TBStrings")) return 55000; // guitar-simulation fork of TBDings
                 if (eq(id, "Claude")) return 62000;
                 if (eq(id, "Mbeads")) return 100000; // provisional, unmeasured (SDD §6.3)
                 if (eq(id, "Elements")) return 120000; // 52 modes

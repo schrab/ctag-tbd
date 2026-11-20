@@ -23,7 +23,6 @@ respective component folders / files if different from this license.
 #include <iostream>
 #include <cmath>
 #include "stmlib/stmlib.h"
-#include "helpers/varg_chord.h"
 
 
 using namespace CTAG::SP;
@@ -67,12 +66,6 @@ void ctagSoundProcessorTBDings::Process(const ProcessData &data) {
     bool isEaster = easter;
     if (trig_easter != -1) {
         isEaster = data.trig[trig_easter] != 1;
-    }
-    // VARG Chord needs the 18-voicing string-synth engine: the classic Part
-    // only has 11 rows and would index past its table on the added doc voicings.
-    if (vargChord != 0 &&
-        (data.vargVoicing[0] >= 0 || data.vargVoicing[1] >= 0)) {
-        isEaster = true;
     }
 
     if (isEaster)
@@ -187,57 +180,10 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     }
     CONSTRAIN(patch.structure, 0.f, 1.f);
 
-    // Distortion stage (see rings/dsp/part.cc). Type 0 = OFF (true bypass);
-    // 1 Tube, 2 Fold, 3 Fuzz, 4 Shape, 5 VARG Chainsaw. The DSP guard checks
-    // dist_type > 0, so drive/mix have no effect at Type 0.
-    int dType = dist_type;
-    if (cv_dist_type != -1)
-        dType = (int)(floorf(data.cv[cv_dist_type] * 6.f)) % 6;
-    CONSTRAIN(dType, 0, 5);
-    patch.dist_type = static_cast<float>(dType);
-
-    patch.dist_drive = dist_drive / 4095.f;
-    if (cv_dist_drive != -1)
-        patch.dist_drive = fabsf(data.cv[cv_dist_drive]);
-    CONSTRAIN(patch.dist_drive, 0.f, 1.f);
-
-    patch.dist_bias = dist_bias / 4095.f;
-    if (cv_dist_bias != -1)
-        patch.dist_bias = fabsf(data.cv[cv_dist_bias]);
-    CONSTRAIN(patch.dist_bias, 0.f, 1.f);
-
-    patch.dist_sustain = dist_sustain / 4095.f;
-    if (cv_dist_sustain != -1)
-        patch.dist_sustain = fabsf(data.cv[cv_dist_sustain]);
-    CONSTRAIN(patch.dist_sustain, 0.f, 1.f);
-
-    patch.dist_tone = dist_tone / 4095.f;
-    if (cv_dist_tone != -1)
-        patch.dist_tone = fabsf(data.cv[cv_dist_tone]);
-    CONSTRAIN(patch.dist_tone, 0.f, 1.f);
-
-    patch.dist_mix = dist_mix / 4095.f;
-    if (cv_dist_mix != -1)
-        patch.dist_mix = fabsf(data.cv[cv_dist_mix]);
-    CONSTRAIN(patch.dist_mix, 0.f, 1.f);
-
-    // VARG Chord ON is an explicit auto-routing mode: pitch, gate and chord
-    // quality all come from whichever ARP is currently running VARG Chord,
-    // using that ARP's configured CV/trig slots. With the toggle OFF, FREQ and
-    // TRIG stay fully independent manual mappings (no source is ever stolen).
-    int vargArp = -1;
-    if (vargChord != 0) {
-        if (data.vargVoicing[0] >= 0) vargArp = 0;
-        else if (data.vargVoicing[1] >= 0) vargArp = 1;
-    }
-    const bool vargAuto = (vargArp >= 0);
-    const int pitchSlot = vargAuto ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
-    const int strumTrigSlot = vargAuto ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
-
     performance_state.note = frequency / 4032.f * 96.f;
-    performance_state.internal_note = vargAuto ? false : !note_int;
-    if (pitchSlot >= 0) {
-        performance_state.note += data.cv[pitchSlot] * 5.f * 12.f;
+    performance_state.internal_note = !note_int;
+    if (cv_frequency != -1) {
+        performance_state.note += data.cv[cv_frequency] * 5.f * 12.f;
     }
     CONSTRAIN(performance_state.note, 0.f, 96.f);
 
@@ -252,12 +198,10 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     CONSTRAIN(performance_state.tonic, 0.f, 60.f);
 
     performance_state.internal_exciter = ex_int;
-    // In VARG Chord mode the ARP gate must own plucking; the strummer's
-    // internal note-change/onset auto-strum would otherwise override it.
-    performance_state.internal_strum = vargAuto ? false : !strum_int;
+    performance_state.internal_strum = !strum_int;
 
-    if (strumTrigSlot >= 0) {
-        if (!strum) strum = data.trig[strumTrigSlot] != 1;
+    if (trig_strum_int != -1) {
+        if (!strum) strum = data.trig[trig_strum_int] != 1;
     } else {
         if (!strum) strum = 1;
     }
@@ -269,52 +213,11 @@ void ctagSoundProcessorTBDings::updateParams(const ProcessData &data) {
     if (cv_chords != -1) {
         performance_state.chord = (int) floorf(data.cv[cv_chords] * 11.f);
     }
-    if (vargAuto) {
-        // Exact progression quality from VARG's internal companion — the
-        // whole point of the mode. Manual chord/voicing sources are ignored.
-        performance_state.chord = data.vargVoicing[vargArp];
-    } else if (cv_vargChord != -1) {
-        // Optional manual voicing override (VARG Chord toggle OFF).
-        int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
-                                    * (float)(SEQ::kVargVoicingCount - 1));
-        if (voicing < 0) voicing = 0;
-        if (voicing >= SEQ::kVargVoicingCount) voicing = SEQ::kVargVoicingCount - 1;
-        performance_state.chord = voicing;
-    }
-    CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
-
-    // TBD strum engine: style/spread feed the chord engine; the stroke/
-    // accent companion rides the VARG Chord route (MIDI strums fall back
-    // to engine-side pendulum alternation via stroke 0). BLOCK style (0,
-    // the preset-compat default) ignores all of it.
-    int strumStyleSel = strumStyle % (int) tbd::STRUM_COUNT;
-    if (cv_strumStyle != -1) {
-        strumStyleSel = ((int) (fabsf(data.cv[cv_strumStyle])
-                                * (float) tbd::STRUM_COUNT))
-                        % (int) tbd::STRUM_COUNT;
-    }
-    if (strumStyleSel < 0) strumStyleSel = 0;
-    string_synth->set_strum_style((uint8_t) strumStyleSel);
-    float strumSpreadMs = strumSpread / 4095.f * 45.f;
-    if (cv_strumSpread != -1) {
-        strumSpreadMs = fabsf(data.cv[cv_strumSpread]) * 45.f;
-    }
-    CONSTRAIN(strumSpreadMs, 0.f, 45.f)
-    string_synth->set_strum_spread(
-        (uint16_t) (strumSpreadMs * 44.1f));   // samples @ rings kSampleRate
-    if (vargAuto) {
-        string_synth->set_strum_companion(data.vargStroke[vargArp],
-                                          (data.vargFlags[vargArp] & 1u) != 0);
-    } else {
-        string_synth->set_strum_companion(0, true);
-    }
+    CONSTRAIN(performance_state.chord, 0, 10);
 
     int poly = 1 << polyphony;
     CONSTRAIN(poly, 1, 4)
     if (poly != part.polyphony()) part.set_polyphony(poly);
-    // the easter-egg chord engine has its own voice-group count — apply the
-    // same polyphony (it was never wired: 1/2/4 overlapping chord groups)
-    if (poly != string_synth->polyphony()) string_synth->set_polyphony(poly);
 }
 
 ctagSoundProcessorTBDings::~ctagSoundProcessorTBDings() {
@@ -344,12 +247,6 @@ void ctagSoundProcessorTBDings::knowYourself() {
     pMapCv.emplace("position", [&](const int val) { cv_position = val; });
     pMapPar.emplace("chords", [&](const int val) { chords = val; });
     pMapCv.emplace("chords", [&](const int val) { cv_chords = val; });
-    pMapPar.emplace("vargChord", [&](const int val) { vargChord = val; });
-    pMapCv.emplace("vargChord", [&](const int val) { cv_vargChord = val; });
-    pMapPar.emplace("strumStyle", [&](const int val) { strumStyle = val; });
-    pMapCv.emplace("strumStyle", [&](const int val) { cv_strumStyle = val; });
-    pMapPar.emplace("strumSpread", [&](const int val) { strumSpread = val; });
-    pMapCv.emplace("strumSpread", [&](const int val) { cv_strumSpread = val; });
     pMapPar.emplace("easter", [&](const int val) { easter = val; });
     pMapTrig.emplace("easter", [&](const int val) { trig_easter = val; });
     pMapPar.emplace("ex_int", [&](const int val) { ex_int = val; });
@@ -376,18 +273,6 @@ void ctagSoundProcessorTBDings::knowYourself() {
     pMapCv.emplace("mod_structure", [&](const int val) { cv_mod_structure = val; });
     pMapPar.emplace("mod_position", [&](const int val) { mod_position = val; });
     pMapCv.emplace("mod_position", [&](const int val) { cv_mod_position = val; });
-    pMapPar.emplace("dist_type", [&](const int val) { dist_type = val; });
-    pMapCv.emplace("dist_type", [&](const int val) { cv_dist_type = val; });
-    pMapPar.emplace("dist_drive", [&](const int val) { dist_drive = val; });
-    pMapCv.emplace("dist_drive", [&](const int val) { cv_dist_drive = val; });
-    pMapPar.emplace("dist_bias", [&](const int val) { dist_bias = val; });
-    pMapCv.emplace("dist_bias", [&](const int val) { cv_dist_bias = val; });
-    pMapPar.emplace("dist_sustain", [&](const int val) { dist_sustain = val; });
-    pMapCv.emplace("dist_sustain", [&](const int val) { cv_dist_sustain = val; });
-    pMapPar.emplace("dist_tone", [&](const int val) { dist_tone = val; });
-    pMapCv.emplace("dist_tone", [&](const int val) { cv_dist_tone = val; });
-    pMapPar.emplace("dist_mix", [&](const int val) { dist_mix = val; });
-    pMapCv.emplace("dist_mix", [&](const int val) { cv_dist_mix = val; });
     isStereo = true;
     id = "TBDings";
     // sectionCpp0

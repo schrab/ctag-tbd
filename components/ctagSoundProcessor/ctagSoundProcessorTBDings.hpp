@@ -81,24 +81,6 @@ namespace CTAG {
             atomic<int32_t> mod_damping{0}, cv_mod_damping{-1};
             atomic<int32_t> mod_structure{0}, cv_mod_structure{-1};
             atomic<int32_t> mod_position{0}, cv_mod_position{-1};
-            // Distortion stage (same four characters as the Elements stage;
-            // renders on the audio core — TBDings has no helper). drive 0 =
-            // zero-cost bypass.
-            atomic<int32_t> dist_type{0}, cv_dist_type{-1};
-            atomic<int32_t> dist_drive{0}, cv_dist_drive{-1};
-            atomic<int32_t> dist_bias{0}, cv_dist_bias{-1};
-            atomic<int32_t> dist_sustain{0}, cv_dist_sustain{-1};
-            atomic<int32_t> dist_tone{4095}, cv_dist_tone{-1};
-            atomic<int32_t> dist_mix{4095}, cv_dist_mix{-1};
-            // VARG block chords: this param is a CV carrier. The ARP writes
-            // (root offset, quality) packed into its CV; decoding happens in
-            // updateParams. Default 0 = no effect until a CV is mapped.
-            atomic<int32_t> vargChord{0}, cv_vargChord{-1};
-            // TBD strum engine (chord/easter path): style 0 = BLOCK keeps the
-            // legacy group-envelope path bit-exact (preset-compat default);
-            // spread 0..4095 = 0..45 ms total stagger window.
-            atomic<int32_t> strumStyle{0}, cv_strumStyle{-1};
-            atomic<int32_t> strumSpread{0}, cv_strumSpread{-1};
             // sectionHpp
 
         };
