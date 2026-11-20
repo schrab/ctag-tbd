@@ -584,7 +584,7 @@ struct ArpSource {
     uint8_t root_mode;   // 0 fixed, 1 W7 drift, 2 Neo-Riemannian
     uint8_t root;        // pitch class 0..11 (base note = 48 + root)
     uint8_t scale_idx;   // 0..19 (+64 flag bit = extended chord tones)
-    uint8_t p[6];        // per-algo params, 0..100 (P5 strum style, P6 spread on VARG)
+    uint8_t p[7];        // per-algo params, 0..100 (VARG: P5 strum, P6 spread, P7 ghost)
     uint8_t step;        // 0..15
     uint8_t cur_note;    // last computed MIDI note
     uint8_t level;       // gate open on the current step
@@ -1074,7 +1074,8 @@ inline constexpr uint8_t kVargGenMarkov[9][9] = {
 // 16-19 are the strum cells from docs/guitar-strumming-voicing-research.md
 // §3 (campfire / backbeat push / d-beat / crust); parity direction for the
 // strum engine is derived per mask by tbd::StrumStepIsUp.
-inline constexpr uint16_t kVargMasks[20] = {
+inline constexpr int kVargMaskCount = 25;
+inline constexpr uint16_t kVargMasks[kVargMaskCount] = {
     0xFFFF, // 0  TRM16  straight 1/16 tremolo
     0xAAAA, // 1  TRM8   straight 1/8 tremolo
     0x8888, // 2  QRT    quarter-note vamp
@@ -1093,8 +1094,13 @@ inline constexpr uint16_t kVargMasks[20] = {
     0xF000, // 15 DBL    four-hit double stop
     0x8A2A, // 16 CAMP   campfire D . D U . U D U (8th grid)
     0x8AA8, // 17 BACK   backbeat push D . D U D U D .
-    0x9090, // 18 DBEA   d-beat 1 . . a . . 2 . . a
+    0x9292, // 18 DBEA   d-beat 1 . . a . . 2 . . a (fixed from 0x9090=quarters)
     0x8A28, // 19 CRST   crust D - D U - D U (pendulum-read)
+    0x9248, // 20 TRIP   triplet feel 3-3-3-3-4 over the 16-step grid
+    0x88D2, // 21 QTRIP  quarter + triplet motif
+    0x8421, // 22 P516   5/16 odd polymeter (5,10,15,4 boundary)
+    0x8420, // 23 WALTZ  3/4 waltz lilt (1 . . 2 . . 3 . .)
+    0xFFFF, // 24 TRM32  use with Div = 1/32 for 32nd tremolo
 };
 
 // BIAS re-voicing: 0..33 RAW (power chords), 34..66 TRIAD (own law),
@@ -1177,7 +1183,7 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     if (advance) VargNextChord(s, ext);
     else VargLoadChord(s, ext, (v.chordIdx == 0xFF) ? 0 : v.chordIdx);
     const VargToneSet &ts = kVargTones[v.curQual % VQ_COUNT];
-    uint16_t mask = kVargMasks[(s.p[1] * 20) / 101];
+    uint16_t mask = kVargMasks[(s.p[1] * 25) / 101];
 
     // MUTATE: flip the weak (low-Barlow) steps of the mask per bar
     if (s.p[3] > 0) {
@@ -1207,7 +1213,7 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
         // Guitar-string anchor for this note: successive gated steps pick
         // successive strings (0,1,2,3,0,...). Stored per step so the gate
         // edge can latch it into the VARG companion for the string bank.
-        ext.steps[st].str = (uint8_t)(k & 3u);
+        ext.steps[st].str = (uint8_t)(k % 3u);  // 3 fretted strings
         ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u)
                                         | (gate && (st & 3u) == 0u ? 2u : 0u)
                                         | (up ? 8u : 0u));

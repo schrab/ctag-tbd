@@ -73,6 +73,27 @@ TEST(string_bank_mute_kills_the_previous_note) {
   CHECK(energy < 1e-4f);
 }
 
+TEST(string_bank_fifth_string_is_a_pedal_and_velocity_scales_excitation) {
+  rings::GuitarStringBank loud, soft;
+  loud.Init(false);
+  soft.Init(false);
+  float out[32], aux[32], in[32] = {0.0f};
+  rings::GuitarStringBankConfig cfg;
+  // The dedicated pedal string (4) sustains its own pitch independently.
+  loud.SetNote(rings::kGuitarPedalString, 43.0f, true, 1.0f);  // G2 open pedal
+  soft.SetNote(rings::kGuitarPedalString, 43.0f, true, 0.3f);
+  float el = 0.0f, es = 0.0f;
+  for (int k = 0; k < 32; ++k) {
+    loud.Process(cfg, in, out, aux, 32);
+    el += Energy(out, 32) + Energy(aux, 32);
+    soft.Process(cfg, in, out, aux, 32);
+    es += Energy(out, 32) + Energy(aux, 32);
+  }
+  CHECK(el > 0.0f);
+  CHECK(es > 0.0f);
+  CHECK(es < el);   // velocity ladder must be audible
+}
+
 TEST(string_bank_new_note_on_same_string_is_finite_with_glide) {
   rings::GuitarStringBank bank;
   bank.Init(true);  // Inharmonic (dispersion), worst case

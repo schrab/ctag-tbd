@@ -58,12 +58,16 @@ struct StrumBurst {
     uint8_t countdown {0};
     uint8_t spacing {2};
     bool pulse {false};
-    int8_t slot[4] {-1, -1, -1, -1};
-    int8_t note[4] {0, 0, 0, 0};
+    uint8_t kind {0};   // 0 normal, 1 ghost hit, 2 pre-change transient
+    int8_t slot[6] {-1, -1, -1, -1, -1, -1};
+    int8_t note[6] {0, 0, 0, 0, 0, 0};
+    uint8_t vel[6] {100, 100, 100, 100, 100, 100};
     uint32_t rng {0x1a2b3c4du};
 };
 static StrumBurst s_strumBurst[2];
 static uint8_t s_vargBurst[2] = {0, 0};
+static uint8_t s_vargBurstVel[2] = {0, 0};
+static uint8_t s_vargGhost[2] = {0, 0};
 
 // outputs
 static float gateOut[2] = {0.0f, 0.0f};   // slewed gate level
@@ -93,7 +97,7 @@ void SeqEngine::InitDefaults() {
         gArp[i].algo = (i == 0) ? SEQ::kArpAlgoHyp1 : SEQ::kArpAlgoMotif;
         gArp[i].range = 2;
         gArp[i].p[0] = 62; gArp[i].p[1] = 40; gArp[i].p[2] = 50; gArp[i].p[3] = 0;
-        gArp[i].p[4] = 0; gArp[i].p[5] = 0;  // VARG strum style / spread (0 = legacy)
+        gArp[i].p[4] = 0; gArp[i].p[5] = 0; gArp[i].p[6] = 0;  // VARG strum/spread/ghost
         // Seed the current note at the root: cur_note 0 would slam the pitch
         // CV to -0.8 V from boot until the first gated step wraps.
         gArp[i].cur_note = (uint8_t)(48u + gArp[i].root);
@@ -268,26 +272,22 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 // direction (pendulum, stamped by ArpBuildVarg) and accent
                 s_vargStroke[i] = (cur.flags & 8u) ? -1 : +1;
                 s_vargFlags[i] = (cur.flags & 2u) ? 1u : 0u;
-                s_vargString[i] = (int8_t)(cur.str & 3u);
+                s_vargString[i] = (int8_t)(cur.str % 3u);
                 // VARG Chord strum: expand this chord gate into a burst of
                 // one-note events, ordered by the shared strum plan. 0 =
                 // Block = legacy whole-chord behaviour.
                 StrumBurst &burst = s_strumBurst[i];
                 burst.active = false;
                 if (s.algo == SEQ::kArpAlgoVargChord) {
-                    int style = (s.p[4] * 6) / 101;
-                    if (style > 5) style = 5;
+                    int style = (s.p[4] * 10) / 101;
+                    if (style > 9) style = 9;
                     if (style > 0) {
-                        const SEQ::VargToneSet &ts =
-                            SEQ::kVargTones[e.st.varg.curQual % SEQ::VQ_COUNT];
-                        uint8_t n = ts.n > 4 ? 4 : ts.n;
-                        uint8_t order[4];
-                        for (uint8_t k = 0; k < n; ++k) order[k] = k;
+                        const uint8_t order[3] = {0, 1, 2};
                         const uint32_t spreadMs = (uint32_t)s.p[5] * 45u / 100u;
                         const uint32_t spreadBlocks =
                             (uint32_t)(spreadMs * 0.001f / dt + 0.5f);
                         const tbd::StrumPlan plan = tbd::StrumBuildPlan(
-                            order, n, (uint8_t)style,
+                            order, 3, (uint8_t)style,
                             (cur.flags & 8u) ? -1 : +1, false,
                             (cur.flags & 2u) != 0,
                             (uint16_t)spreadBlocks, burst.rng);
@@ -297,20 +297,50 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                         burst.spacing = (uint8_t)ClampInt(
                             (int)(spreadBlocks / (plan.n > 1 ? plan.n - 1 : 1)),
                             2, 60);
+                        // Voice from the SAME 18-row voicing table the string
+                        // synth uses (not the raw interval set), so RAW power
+                        // chords really are 1-5-1 and Bryan shapes survive.
+                        const int voicing =
+                            SEQ::kVargToVoicing[e.st.varg.curQual % SEQ::VQ_COUNT];
+                        const int8_t *offs = SEQ::kVargVoicing3[voicing];
                         const int rootNote = 48 + s.root + e.st.varg.curOff;
-                        for (uint8_t k = 0; k < plan.n; ++k) {
-                            const uint8_t tone = plan.slot[k] % ts.n;
-                            burst.slot[k] = (int8_t)((cur.str + k) & 3u);
-                            burst.note[k] = (int8_t)(rootNote + ts.st[tone]);
+                        // Blast-beat coupling: even 16ths are slightly softer.
+                        const bool burst16 =
+                            tbd::StrumMaskIs16thGrid(SEQ::kVargMasks[
+                                (s.p[1] * SEQ::kVargMaskCount) / 101]);
+                        const float atten = (burst16 && (st & 1u)) ? 0.8f : 1.0f;
+                        for (uint8_t k = 0; k < plan.n && k < 6; ++k) {
+                            const int slot = plan.slot[k] % 3u;
+                            burst.slot[k] = (int8_t)((cur.str + k) % 3u);
+                            burst.note[k] = (int8_t)(rootNote + offs[slot]);
+                            burst.vel[k] = (uint8_t)ClampInt(
+                                (int)(plan.vel[k] * atten * 100.0f), 0, 100);
                         }
+                        burst.kind = 0;
                         burst.active = plan.n > 0;
-                        // Suppress the normal long gate window for this step:
-                        // the burst's own one-block pulses replace it.
+                        // Suppress the normal long gate window for this step.
                         if (burst.active) s.level = 0;
                     }
                 }
             } else {
                 s.level = 0u; s.retrig_edge = 0u; s.held = 0u;
+                // Research §2 rule 5: muted ghost thuds on silent steps and
+                // a fret/slide transient just before the bar's chord change.
+                StrumBurst &burst = s_strumBurst[i];
+                burst.active = false;
+                if (s.algo == SEQ::kArpAlgoVargChord && s.p[6] > 0) {
+                    uint8_t kind = 0;
+                    if (st == 15) kind = 2;
+                    else if ((SEQ::ArpU32Rand(s) % 100u) < s.p[6]) kind = 1;
+                    if (kind) {
+                        burst.count = 1; burst.idx = 0; burst.countdown = 0;
+                        burst.spacing = 2; burst.kind = kind;
+                        burst.slot[0] = (int8_t)(cur.str % 3u);
+                        burst.note[0] = (int8_t)s.cur_note;
+                        burst.vel[0] = (kind == 1) ? 25u : 12u;
+                        burst.active = true;
+                    }
+                }
             }
         }
 
@@ -382,6 +412,8 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 }
                 if (burst.idx < burst.count) {
                     s_vargString[i] = burst.slot[burst.idx];
+                    s_vargBurstVel[i] = burst.vel[burst.idx];
+                    s_vargGhost[i] = burst.kind;
                     burst.pulse = true;
                 }
                 ++burst.idx;
@@ -398,6 +430,8 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
             s_vargBurst[i] = 1;
         } else {
             s_vargBurst[i] = 0;
+            s_vargBurstVel[i] = 0;
+            s_vargGhost[i] = 0;
         }
 
         const float gWin = s.cur_hold ? 1.0f : 0.55f;
@@ -501,6 +535,14 @@ uint8_t SeqEngine::GetVargBurst(int i) {
     if (i < 0 || i > 1) return 0;
     return s_vargBurst[i];
 }
+uint8_t SeqEngine::GetVargBurstVel(int i) {
+    if (i < 0 || i > 1) return 0;
+    return s_vargBurstVel[i];
+}
+uint8_t SeqEngine::GetVargGhost(int i) {
+    if (i < 0 || i > 1) return 0;
+    return s_vargGhost[i];
+}
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {
     v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 7 algos x 3 ranges
@@ -513,9 +555,9 @@ void SeqEngine::SetArpAlgo(int i, int v) {
         gArpExt[i].st.varg.chordIdx = 0xFF;   // fresh switch: start on the tonic
     SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }
-int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 5) ? 0 : gArp[i].p[k]; }
+int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 6) ? 0 : gArp[i].p[k]; }
 void SeqEngine::SetArpP(int i, int k, int v) {
-    if (k < 0 || k > 5) return;
+    if (k < 0 || k > 6) return;
     gArp[i].p[k] = (uint8_t)ClampInt(v, 0, 100);
     // setter-side rebuild: re-voice the CURRENT chord, never step the
     // progression (a knob turn must not jump the chord sequence)
@@ -585,10 +627,10 @@ void SeqEngine::SerializeConfig(char *dst, int cap) {
     for (int i = 0; i < 2; ++i) {
         char buf[200];
         snprintf(buf, sizeof(buf),
-                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d,%d,%d],\"glide\":%d,\"oct\":%d,\"clk\":%d,"
+                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d,%d,%d,%d],\"glide\":%d,\"oct\":%d,\"clk\":%d,"
                  "\"div\":%d,\"pitchSlot\":%d,\"gateSlot\":%d,\"accSlot\":%d,\"slideSlot\":%d}",
                  gArp[i].algo, gArp[i].range, gArp[i].p[0], gArp[i].p[1], gArp[i].p[2],
-                 gArp[i].p[3], gArp[i].p[4], gArp[i].p[5], arpGlideMs[i], arpOct[i],
+                 gArp[i].p[3], gArp[i].p[4], gArp[i].p[5], gArp[i].p[6], arpGlideMs[i], arpOct[i],
                  arpClk[i], arpDiv[i],
                  arpPitchSlot[i], arpGateSlot[i], arpAccSlot[i], arpSlideSlot[i]);
         if (i) j += ",";
@@ -642,7 +684,7 @@ bool SeqEngine::DeserializeConfig(const char *json) {
             if (a.HasMember("range") && a["range"].IsInt()) gArp[i].range = (uint8_t)ClampInt(a["range"].GetInt(), 1, 3);
             if (a.HasMember("p") && a["p"].IsArray()) {
                 const Value &p = a["p"];
-                for (SizeType k = 0; k < p.Size() && k < 6; k++)
+                for (SizeType k = 0; k < p.Size() && k < 7; k++)
                     if (p[k].IsInt()) gArp[i].p[k] = (uint8_t)ClampInt(p[k].GetInt(), 0, 100);
             }
             if (a.HasMember("glide") && a["glide"].IsInt()) arpGlideMs[i] = ClampInt(a["glide"].GetInt(), 0, 100);

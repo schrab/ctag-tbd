@@ -35,6 +35,11 @@
      "cv": -1
     },
     {
+     "id": "pedal",
+     "current": 0,
+     "cv": -1
+    },
+    {
      "id": "strum_int",
      "current": 1,
      "trig": 0

@@ -274,3 +274,166 @@ TEST(strum_plan_delay_monotonic_and_bounded) {
         CHECK(p.delay[i] >= p.delay[i - 1]);
     CHECK(p.delay[7] == 1985);
 }
+
+// ---- integration: the real StringSynthPart strum path ----
+// (string_synth_part.cc is compiled into this binary by run_tests.sh)
+
+#include "rings/dsp/string_synth_part.h"
+
+namespace {
+
+struct StrumRig {
+    rings::StringSynthPart part;
+    rings::PerformanceState ps;
+    rings::Patch patch;
+    float in[32];
+    float out[32];
+    float aux[32];
+
+    StrumRig() {
+        // zero-initialized: the FX section reads this buffer and garbage
+        // heap bits turn into NaNs (the full harness reuses dirty heap,
+        // unlike a fresh probe process)
+        reverb = new uint16_t[32768]();
+        part.Init(reverb);
+        ps.note = 60.f;
+        ps.tonic = 12.f;
+        ps.internal_note = false;
+        ps.internal_exciter = true;
+        ps.internal_strum = false;
+        ps.strum = false;
+        patch.brightness = 0.7f;
+        patch.damping = 0.4f;
+        patch.position = 0.5f;
+        patch.structure = 0.5f;
+        patch.dist_mix = 0.f;
+        patch.dist_drive = 0.f;
+        for (int i = 0; i < 32; ++i) in[i] = 0.f;
+        part.set_polyphony(1);
+    }
+    ~StrumRig() { delete[] reverb; }
+
+    float block() {
+        part.Process(ps, patch, in, out, aux, 32);
+        float acc = 0.f;
+        for (int i = 0; i < 32; ++i) acc += out[i] * out[i] + aux[i] * aux[i];
+        return acc;
+    }
+    void strum() {
+        ps.strum = true;
+        block();
+        ps.strum = false;
+    }
+    uint16_t* reverb = nullptr;
+};
+
+float rms_block(StrumRig &rig, int blocks) {
+    float acc = 0.f;
+    for (int b = 0; b < blocks; ++b) acc += rig.block();
+    return acc;
+}
+
+}  // namespace
+
+TEST(strum_engine_spread0_block_is_loudest_on_first_block) {
+    // The trigger block itself is silent (the pluck envelope's linear
+    // attack starts at t=0 — legacy character for every pluck on this
+    // instrument). With spread 0 ALL notes ramp from the next block; with
+    // a wide spread only note 0 has fired within that window.
+    StrumRig fast;
+    fast.part.set_strum_style(tbd::STRUM_PENDULUM);
+    fast.part.set_strum_spread(0);
+    fast.strum();
+    const float fast_energy = rms_block(fast, 6);
+
+    StrumRig slow;
+    slow.part.set_strum_style(tbd::STRUM_PENDULUM);
+    slow.part.set_strum_spread(2000);   // notes arrive at blocks 9..63
+    slow.strum();
+    const float slow_energy = rms_block(slow, 6);
+
+    CHECK(fast_energy > slow_energy * 2.f);
+}
+
+TEST(strum_engine_staggered_notes_arrive_later) {
+    // The wide-spread chord completes: after enough blocks every planned
+    // note has fired and the energy overtakes the early single-note ramp.
+    StrumRig rig;
+    rig.part.set_strum_style(tbd::STRUM_PENDULUM);
+    rig.part.set_strum_spread(2000);
+    rig.strum();
+    const float early = rms_block(rig, 6);
+    const float late = rms_block(rig, 70);
+    CHECK(late > early * 4.f);
+}
+
+TEST(strum_engine_block_style_ignores_spread) {
+    // BLOCK (style 0, the preset-compat default) is the legacy path: the
+    // spread setting must not leak into it.
+    StrumRig a;
+    a.part.set_strum_style(tbd::STRUM_BLOCK);
+    a.part.set_strum_spread(0);
+    a.strum();
+    const float e0 = rms_block(a, 2);
+
+    StrumRig b;
+    b.part.set_strum_style(tbd::STRUM_BLOCK);
+    b.part.set_strum_spread(1985);
+    b.strum();
+    const float e1 = rms_block(b, 2);
+    CHECK(e0 == e1);
+    CHECK(e0 > 0.f);
+}
+
+TEST(strum_engine_chord_change_damps_tails) {
+    // Strum chord A, let it ring, then strum chord B: the fresh shape mutes
+    // the previous strings (envelopes drop) before the new chord stagger.
+    StrumRig rig;
+    rig.part.set_strum_style(tbd::STRUM_PENDULUM);
+    rig.part.set_strum_spread(0);
+    rig.ps.chord = 3;                    // m
+    rig.strum();
+    rms_block(rig, 8);                   // chord A rings
+    rig.ps.chord = 11;                   // 5b5 — a different voicing row
+    rig.strum();
+    const float after = rms_block(rig, 2);
+    CHECK(after > 0.f);                  // new chord strums in
+}
+
+TEST(strum_plan_new_modes_and_broken_cycles) {
+    uint8_t order[4] = { 0, 1, 2, 3 };   // B, L, M, H
+    uint32_t rng = 7;
+    // pure upstroke: full voicing, high -> low (arpeggiator "Down")
+    StrumPlan up = StrumBuildPlan(order, 4, STRUM_UP, +1, false, true, 300, rng);
+    CHECK(up.n == 4);
+    CHECK(up.slot[0] == 3 && up.slot[1] == 2 && up.slot[2] == 1 && up.slot[3] == 0);
+    CHECK(up.vel[0] == kStrumVelAccent);
+    // entry order
+    StrumPlan thru = StrumBuildPlan(order, 4, STRUM_THRU, +1, false, true, 300, rng);
+    CHECK(thru.n == 4);
+    for (uint8_t i = 0; i < 4; ++i) CHECK(thru.slot[i] == i);
+    // broken chord B-L-M-H-M-L (research §3)
+    StrumPlan b1 = StrumBuildPlan(order, 4, STRUM_BROKEN1, +1, false, true, 500, rng);
+    CHECK(b1.n == 6);
+    const uint8_t want1[6] = { 0, 1, 2, 3, 2, 1 };
+    for (uint8_t i = 0; i < 6; ++i) CHECK(b1.slot[i] == want1[i]);
+    CHECK(b1.delay[5] == 500);
+    // two-voice broken triad [M+H]-B-[M+H]-B
+    StrumPlan b2 = StrumBuildPlan(order, 4, STRUM_BROKEN2, +1, false, true, 500, rng);
+    CHECK(b2.n == 6);
+    const uint8_t want2[6] = { 2, 3, 0, 2, 3, 0 };
+    for (uint8_t i = 0; i < 6; ++i) CHECK(b2.slot[i] == want2[i]);
+    // broken styles are softer than a full downstroke
+    CHECK(b1.vel[0] < kStrumVelAccent);
+}
+
+TEST(strum_engine_drone_lift_survives_in_strum_mode) {
+    // shape >= 0.98 is the drone regime: notes sustain without strums.
+    StrumRig rig;
+    rig.part.set_strum_style(tbd::STRUM_PENDULUM);
+    rig.part.set_strum_spread(0);
+    rig.patch.damping = 0.99f;
+    rms_block(rig, 4);                   // no strum yet
+    const float e = rms_block(rig, 4);
+    CHECK(e > 0.f);
+}

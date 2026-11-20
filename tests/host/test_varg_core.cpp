@@ -9,6 +9,7 @@
 
 #include "helpers/ctagSlotBounds.hpp"
 #include "helpers/varg_chord.h"
+#include "rings/dsp/string_synth_part.h"
 
 TEST(varg_slot_space_unchanged) {
     // VARG adds NO slots: the SEQ extension frontier is unchanged
@@ -190,10 +191,15 @@ TEST(varg_strum_cells_present) {
     // pinned here so a stray nibble edit cannot drift (see test_strum_plan)
     CHECK(kVargMasks[16] == 0x8A2A);   // CAMP  D . D U . U D U
     CHECK(kVargMasks[17] == 0x8AA8);   // BACK  D . D U D U D .
-    CHECK(kVargMasks[18] == 0x9090);   // DBEA  1 . . a . . 2 . . a
+    CHECK(kVargMasks[18] == 0x9292);   // DBEA fixed from 0x9090 (quarter hits)
     CHECK(kVargMasks[19] == 0x8A28);   // CRST  D - D U - D U
-    CHECK((100 * 20) / 101 == 19);     // rhythm mapping reaches the last cell
-    CHECK((70 * 20) / 101 == 13);      // old presets remap within the family
+    CHECK(kVargMasks[20] == 0x9248);   // TRIP
+    CHECK(kVargMasks[21] == 0x88D2);   // QTRIP
+    CHECK(kVargMasks[22] == 0x8421);   // P516
+    CHECK(kVargMasks[23] == 0x8420);   // WALTZ
+    CHECK(kVargMaskCount == 25);
+    CHECK((100 * kVargMaskCount) / 101 == kVargMaskCount - 1);
+    CHECK((70 * kVargMaskCount) / 101 == 17);
 }
 
 TEST(varg_note_calc_semitone_exact) {
@@ -514,7 +520,7 @@ TEST(varg_chord_voicings_keep_quality_identity) {
 
 // ---- per-note guitar string index companion ----
 
-TEST(varg_string_index_uses_all_four_strings) {
+TEST(varg_string_index_uses_all_three_fretted_strings) {
     // ArpBuildVarg stamps the gated-step ordinal mod 4 into every step.
     ArpSource src{};
     ArpExt ext{};
@@ -525,17 +531,17 @@ TEST(varg_string_index_uses_all_four_strings) {
     src.p[2] = 50;  // TRIAD
     src.p[3] = 0;
     ArpBuildVarg(src, ext, true);
-    bool seen[4] = {false, false, false, false};
+    bool seen[3] = {false, false, false};
     uint8_t gated = 0;
     for (uint8_t st = 0; st < 16; ++st) {
-        CHECK(ext.steps[st].str < 4);
+        CHECK(ext.steps[st].str < 3);
         if (ext.steps[st].flags & 1u) {
             seen[ext.steps[st].str] = true;
             ++gated;
         }
     }
     CHECK(gated == 16);
-    for (int s = 0; s < 4; ++s) CHECK(seen[s]);
+    for (int s = 0; s < 3; ++s) CHECK(seen[s]);
     // determinism across rebuilds
     ArpExt ext2{};
     ArpBuildVarg(src, ext2, true);
@@ -558,15 +564,51 @@ TEST(varg_string_companion_for_both_algos) {
         CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, enc);
         CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);   // TRM16
         CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-        bool seen[4] = {false, false, false, false};
+        bool seen[3] = {false, false, false};
         for (int b = 0; b < 2600; ++b) {
             CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
             const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
-            CHECK(s >= 0 && s < 4);
-            if (s >= 0 && s < 4) seen[s] = true;
+            CHECK(s >= 0 && s < 3);
+            if (s >= 0 && s < 3) seen[s] = true;
         }
-        for (int s = 0; s < 4; ++s) CHECK(seen[s]);
+        for (int s = 0; s < 3; ++s) CHECK(seen[s]);
     }
+}
+
+TEST(varg_voicing4_matches_rings_chord_table) {
+    // The VARG burst must voice from the same table the string synth uses.
+    for (int row = 0; row < CTAG::SEQ::kVargVoicingCount; ++row) {
+        const float *r = rings::ChordVoicing(4, row);
+        CHECK(r != nullptr);
+        for (int i = 0; i < 3; ++i)
+            CHECK(CTAG::SEQ::kVargVoicing3[row][i] == (int8_t)lroundf(r[i]));
+    }
+}
+
+TEST(varg_ghost_transients_and_burst_velocity) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 5);   // choice 1 = TRM8 -> odd steps silent
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 20);  // Pendulum
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 50);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 6, 100); // ghosts on every silent step
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 6) == 100);
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
+    bool sawGhost = false, sawTransient = false;
+    int velocities = 0;
+    for (int b = 0; b < 2600; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        const uint8_t g = CTAG::DRIVERS::SeqEngine::GetVargGhost(0);
+        if (g == 1) sawGhost = true;
+        if (g == 2) sawTransient = true;
+        const uint8_t v = CTAG::DRIVERS::SeqEngine::GetVargBurstVel(0);
+        if (v > 0 && v < 100) ++velocities;
+    }
+    CHECK(sawGhost);
+    CHECK(sawTransient);
+    CHECK(velocities > 0);   // velocity ladder / attenuation is delivered
 }
 
 TEST(varg_chord_strum_burst_emits_one_note_per_string) {
@@ -595,8 +637,8 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
         if (low && !lastGateLow) {
             ++edges;
             const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
-            CHECK(s >= 0 && s < 4);
-            if (s >= 0 && s < 4) ++stringsSeen[s];
+            CHECK(s >= 0 && s < 3);
+            if (s >= 0 && s < 3) ++stringsSeen[s];
             prevString = s;
         }
         if (low) ++lowRun; else lowRun = 0;
@@ -605,7 +647,7 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
     }
     CHECK(edges > 16);          // more edges than 16 pattern steps -> burst
     CHECK(burstBlocks > 0);
-    for (int s = 0; s < 4; ++s) CHECK(stringsSeen[s] > 0);
+    for (int s = 0; s < 3; ++s) CHECK(stringsSeen[s] > 0);
 
     // P5 = 0 (Block) keeps the legacy single whole-chord gate per step.
     CTAG::DRIVERS::SeqEngine::Init();

@@ -48,45 +48,45 @@ namespace CTAG {
             "Phrygian Dominant", "Whole Tone", "Octatonic", "Hirajoshi",
             "In Sen", "Double Harmonic", "Acid Pool"
         };
-        // per-algo P1..P6 labels (the rack's per-algo mapping + VARG)
-        // P5/P6 are only used by VARG Chord (strum style / spread).
-        static const char* arpParamNames[7][6] = {
-            {"Density", "Slide", "Accent", "Mutate", "-", "-"},                    // Acid 303
-            {"Density", "Form", "Transform", "Mutate", "-", "-"},                  // Phrase Motif
-            {"Density", "Contour", "Pedal", "Gravity", "-", "-"},                  // Markov Walker
-            {"Probability", "Pulses", "Ratchet", "Accumulator", "-", "-"},         // Metopolix
-            {"Density", "Deja-Vu", "Steps", "Spread", "-", "-"},                   // Deja-Vu
-            {"Progression", "Rhythm", "Quality", "Mutate", "-", "-"},              // VARG
-            {"Progression", "Rhythm", "Quality", "Mutate", "Strum", "Spread"}      // VARG Chord
+        // per-algo P1..P7 labels (the rack's per-algo mapping + VARG)
+        // P5..P7 are only used by VARG Chord (strum style / spread / ghost).
+        static const char* arpParamNames[7][7] = {
+            {"Density", "Slide", "Accent", "Mutate", "-", "-", "-"},               // Acid 303
+            {"Density", "Form", "Transform", "Mutate", "-", "-", "-"},             // Phrase Motif
+            {"Density", "Contour", "Pedal", "Gravity", "-", "-", "-"},             // Markov Walker
+            {"Probability", "Pulses", "Ratchet", "Accumulator", "-", "-", "-"},
+            {"Density", "Deja-Vu", "Steps", "Spread", "-", "-", "-"},              // Deja-Vu
+            {"Progression", "Rhythm", "Quality", "Mutate", "-", "-", "-"},         // VARG
+            {"Progression", "Rhythm", "Quality", "Mutate", "Strum", "Spread", "Ghost"}
         };
         // enumerated P values where the row is a choice, nullptr = 0..100
-        static const char* const arpParamChoices[7][6] = {
-            {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},                 // Acid 303
-            {nullptr, "ABAC/AABC/ABBC/AABA", "Inversion/Retrograde/Transpose/Displace", nullptr, nullptr, nullptr},
-            {nullptr, nullptr, "Off/Root/Fifth/Bounce", nullptr, nullptr, nullptr}, // Markov Walker
-            {nullptr, nullptr, "Off/2x/3x/4x", "Pendulum/Wrap/Random/Hold", nullptr, nullptr},
-            {nullptr, nullptr, "All/Pentatonic/Triad/Root", nullptr, nullptr, nullptr},
+        static const char* const arpParamChoices[7][7] = {
+            {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},        // Acid 303
+            {nullptr, "ABAC/AABC/ABBC/AABA", "Inversion/Retrograde/Transpose/Displace", nullptr, nullptr, nullptr, nullptr},
+            {nullptr, nullptr, "Off/Root/Fifth/Bounce", nullptr, nullptr, nullptr, nullptr},
+            {nullptr, nullptr, "Off/2x/3x/4x", "Pendulum/Wrap/Random/Hold", nullptr, nullptr, nullptr},
+            {nullptr, nullptr, "All/Pentatonic/Triad/Root", nullptr, nullptr, nullptr, nullptr},
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
-             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST",
-             "Raw/Triad/Diss", nullptr, nullptr, nullptr},                          // VARG
+             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST/TRIP/QTRIP/P516/WALTZ/TRM32",
+             "Raw/Triad/Diss", nullptr, nullptr, nullptr, nullptr},                  // VARG
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
-             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST",
+             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST/TRIP/QTRIP/P516/WALTZ/TRM32",
              "Raw/Triad/Diss", nullptr,
-             "Block/Pendulum/Down/Converge/Diverge/Random", nullptr},               // VARG Chord
+             "Block/Pendulum/Down/Converge/Diverge/Random/Up/Thru/Broken1/Broken2",
+             nullptr, nullptr},                                                     // VARG Chord
         };
-        static const uint8_t arpParamMax[7][6] = {
-            {100, 100, 100, 100, 0, 0},
-            {100, 3, 3, 100, 0, 0},
-            {100, 15, 3, 100, 0, 0},
-            {100, 7, 3, 3, 0, 0},
-            {100, 100, 3, 100, 0, 0},
-            {10, 15, 2, 100, 0, 0},                                                 // VARG
-            {10, 15, 2, 100, 5, 100},                                               // VARG Chord
+        static const uint8_t arpParamMax[7][7] = {
+            {100, 100, 100, 100, 0, 0, 0},
+            {100, 3, 3, 100, 0, 0, 0},
+            {100, 15, 3, 100, 0, 0, 0},
+            {100, 7, 3, 3, 0, 0, 0},
+            {100, 100, 3, 100, 0, 0, 0},
+            {10, 25, 2, 100, 0, 0, 0},                                              // VARG
+            {10, 25, 2, 100, 9, 100, 100},                                          // VARG Chord
         };
-        static const uint8_t arpParamStep[7][6] = {
-            {1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1},
-            {1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1},
-            {1, 1, 1, 1, 1, 1},
+        static const uint8_t arpParamStep[7][7] = {
+            {1,1,1,1,1,1,1}, {1,1,1,1,1,1,1}, {1,1,1,1,1,1,1}, {1,1,1,1,1,1,1},
+            {1,1,1,1,1,1,1}, {1,1,1,1,1,1,1}, {1,1,1,1,1,1,1},
         };
 
         // render one choice row: index into "A/B/C" strings
@@ -209,7 +209,7 @@ namespace CTAG {
                 case SP_GATE1:
                 case SP_GATE2: return 9;   // Mode,Density,Sync,Len,Clock,Div,Trig,Level,Pattern
                 case SP_ARP1:
-                case SP_ARP2:  return 18;  // Algo,P1..P6,Root,NeoOp,Scale,Glide,Oct,Clock,Div,4 slots
+                case SP_ARP2:  return 19;  // Algo,P1..P7,Root,NeoOp,Scale,Glide,Oct,Clock,Div,4 slots
                 default:       return 1;
             }
         }
@@ -242,7 +242,8 @@ namespace CTAG {
                     case 3:
                     case 4:
                     case 5:
-                    case 6: {
+                    case 6:
+                    case 7: {
                         int k = row - 1;
                         if (arpParamChoices[algo][k] != nullptr) {
                             // enumerated choice: step through the engine's own
@@ -261,7 +262,7 @@ namespace CTAG {
                         }
                         break;
                     }
-                    case 7: {
+                    case 8: {
                         // combined Root row: 0-11 = fixed pitch class,
                         // 12 = W7 Drift, 13 = Neo-Plagial
                         int cur = DspProxy::GetSeqRootMode() == 0 ? DspProxy::GetSeqRoot()
@@ -277,16 +278,16 @@ namespace CTAG {
                         }
                         break;
                     }
-                    case 8: DspProxy::SetSeqNeoOp(DspProxy::GetSeqNeoOp() + delta); break;
-                    case 9: DspProxy::SetSeqScale(DspProxy::GetSeqScale() + delta); break;
-                    case 10: DspProxy::SetSeqArpGlide(i, DspProxy::GetSeqArpGlide(i) + delta); break;
-                    case 11: DspProxy::SetSeqArpOct(i, DspProxy::GetSeqArpOct(i) + delta); break;
-                    case 12: DspProxy::SetSeqArpClk(i, DspProxy::GetSeqArpClk(i) + delta); break;
-                    case 13: DspProxy::SetSeqArpDiv(i, DspProxy::GetSeqArpDiv(i) + delta); break;
-                    case 14: DspProxy::SetSeqArpPitchSlot(i, DspProxy::GetSeqArpPitchSlot(i) + delta); break;
-                    case 15: DspProxy::SetSeqArpGateSlot(i, DspProxy::GetSeqArpGateSlot(i) + delta); break;
-                    case 16: DspProxy::SetSeqArpAccSlot(i, DspProxy::GetSeqArpAccSlot(i) + delta); break;
-                    case 17: DspProxy::SetSeqArpSlideSlot(i, DspProxy::GetSeqArpSlideSlot(i) + delta); break;
+                    case 9: DspProxy::SetSeqNeoOp(DspProxy::GetSeqNeoOp() + delta); break;
+                    case 10: DspProxy::SetSeqScale(DspProxy::GetSeqScale() + delta); break;
+                    case 11: DspProxy::SetSeqArpGlide(i, DspProxy::GetSeqArpGlide(i) + delta); break;
+                    case 12: DspProxy::SetSeqArpOct(i, DspProxy::GetSeqArpOct(i) + delta); break;
+                    case 13: DspProxy::SetSeqArpClk(i, DspProxy::GetSeqArpClk(i) + delta); break;
+                    case 14: DspProxy::SetSeqArpDiv(i, DspProxy::GetSeqArpDiv(i) + delta); break;
+                    case 15: DspProxy::SetSeqArpPitchSlot(i, DspProxy::GetSeqArpPitchSlot(i) + delta); break;
+                    case 16: DspProxy::SetSeqArpGateSlot(i, DspProxy::GetSeqArpGateSlot(i) + delta); break;
+                    case 17: DspProxy::SetSeqArpAccSlot(i, DspProxy::GetSeqArpAccSlot(i) + delta); break;
+                    case 18: DspProxy::SetSeqArpSlideSlot(i, DspProxy::GetSeqArpSlideSlot(i) + delta); break;
                 }
             }
             dirty = true;
@@ -362,22 +363,22 @@ namespace CTAG {
                         }
                         break;
                     }
-                    case 7: {
+                    case 8: {
                         int cur = DspProxy::GetSeqRootMode() == 0 ? DspProxy::GetSeqRoot()
                                   : (DspProxy::GetSeqRootMode() == 1 ? 12 : 13);
                         snprintf(buf, buflen, " Root:%s", rootNames[cur]);
                         break;
                     }
-                    case 8:
+                    case 9:
                         // the op is engine state even while inactive — show
                         // it always (a permanently-dead "(n/a)" row is just
                         // redundant space)
                         snprintf(buf, buflen, " Neo-Op:%s", neoOpNames[DspProxy::GetSeqNeoOp()]);
                         break;
-                    case 9:
+                    case 10:
                         snprintf(buf, buflen, " Scale:%s", seqScaleNames[DspProxy::GetSeqScale()]);
                         break;
-                    case 10: {
+                    case 11: {
                         int g = DspProxy::GetSeqArpGlide(i);
                         if (g == 0)
                             snprintf(buf, buflen, " Glide:Instant");
@@ -385,18 +386,18 @@ namespace CTAG {
                             snprintf(buf, buflen, " Glide:%d ms", g);
                         break;
                     }
-                    case 11: {
+                    case 12: {
                         int oct = DspProxy::GetSeqArpOct(i);
                         snprintf(buf, buflen, " Octave:%+d", oct);
                         break;
                     }
-                    case 12:
+                    case 13:
                         snprintf(buf, buflen, " Clock:%s", seqClockNames[DspProxy::GetSeqArpClk(i)]);
                         break;
-                    case 13:
+                    case 14:
                         snprintf(buf, buflen, " Division:%s", seqDivNames[DspProxy::GetSeqArpDiv(i)]);
                         break;
-                    case 14: {
+                    case 15: {
                         int s = DspProxy::GetSeqArpPitchSlot(i);
                         if (s >= 0 && s < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0])))
                             snprintf(buf, buflen, " Pitch Slot:%s", cvSlotDisplayNames[s]);
@@ -404,13 +405,13 @@ namespace CTAG {
                             snprintf(buf, buflen, " Pitch Slot:%d", s);
                         break;
                     }
-                    case 15:
+                    case 16:
                         snprintf(buf, buflen, " Gate Slot:%s", TrigSlotName(DspProxy::GetSeqArpGateSlot(i)));
                         break;
-                    case 16:
+                    case 17:
                         snprintf(buf, buflen, " Accent Slot:%s", TrigSlotName(DspProxy::GetSeqArpAccSlot(i)));
                         break;
-                    case 17:
+                    case 18:
                         snprintf(buf, buflen, " Slide Slot:%s", TrigSlotName(DspProxy::GetSeqArpSlideSlot(i)));
                         break;
                 }

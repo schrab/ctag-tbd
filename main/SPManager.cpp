@@ -124,6 +124,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         pd.vargFlags[a] = 0;
         pd.vargString[a] = -1;
         pd.vargBurst[a] = 0;
+        pd.vargBurstVel[a] = 0;
+        pd.vargGhost[a] = 0;
     }
 #if defined(CONFIG_TBD_PLATFORM_BBA)
     // P4: MIDI CV/trig buffers, filled by the link task's Midi::Update();
@@ -203,6 +205,8 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
             // own gate (the voicing companion above is algo-6 only).
             pd.vargString[a] = DRIVERS::SeqEngine::GetVargString(a);
             pd.vargBurst[a] = DRIVERS::SeqEngine::GetVargBurst(a);
+            pd.vargBurstVel[a] = DRIVERS::SeqEngine::GetVargBurstVel(a);
+            pd.vargGhost[a] = DRIVERS::SeqEngine::GetVargGhost(a);
         }
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 

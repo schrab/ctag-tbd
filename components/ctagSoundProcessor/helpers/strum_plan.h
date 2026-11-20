@@ -28,10 +28,14 @@ namespace tbd {
 enum StrumStyle {
     STRUM_BLOCK = 0,
     STRUM_PENDULUM = 1,   // grid-locked D/U; subset+velocity on upstrokes
-    STRUM_DOWN = 2,       // every stroke low->high, full voicing
+    STRUM_DOWN = 2,       // guitar downstroke: every stroke low->high (arp "Up")
     STRUM_CONVERGE = 3,   // outer voices alternating inward (research §4)
     STRUM_DIVERGE = 4,    // middle voices expanding outward (research §4)
     STRUM_RANDOM = 5,     // seeded shuffle per stroke (research §4)
+    STRUM_UP = 6,         // guitar upstroke: every stroke high->low (arp "Down")
+    STRUM_THRU = 7,       // entry order (the chord row as stored, arp "Thru")
+    STRUM_BROKEN1 = 8,    // B-L-M-H-M-L sustained broken chord (research §3)
+    STRUM_BROKEN2 = 9,    // [M+H]-B-[M+H]-B two-voice broken triad (research §3)
     STRUM_COUNT
 };
 
@@ -151,14 +155,37 @@ inline StrumPlan StrumBuildPlan(const uint8_t *pitch_order, uint8_t n_slots,
         }
         for (uint8_t i = 0; i < n_slots; ++i) seq[k++] = pitch_order[idx[i]];
         fired = k;
-    } else {  // STRUM_DOWN and STRUM_PENDULUM downstroke: low->high, full
+    } else if (style == STRUM_UP) {
+        // Guitar upstroke / arpeggiator "Down": full voicing high -> low.
+        for (uint8_t i = n_slots; i > 0; --i) seq[k++] = pitch_order[i - 1];
+        fired = k;
+    } else if (style == STRUM_BROKEN1) {
+        // Sustained broken chord B - L - M - H - M - L (research §3).
+        const uint8_t idx[6] = {
+            0, (uint8_t)(n_slots > 1 ? 1 : 0),
+            (uint8_t)(n_slots > 2 ? 2 : n_slots - 1),
+            (uint8_t)(n_slots - 1),
+            (uint8_t)(n_slots > 2 ? 2 : n_slots - 1),
+            (uint8_t)(n_slots > 1 ? 1 : 0)
+        };
+        for (uint8_t i = 0; i < 6; ++i) seq[k++] = pitch_order[idx[i]];
+        fired = k;
+    } else if (style == STRUM_BROKEN2) {
+        // Two-voice broken triad [M+H] - B - [M+H] - B (research §3).
+        const uint8_t m = (uint8_t)(n_slots > 1 ? n_slots - 2 : 0);
+        const uint8_t h = (uint8_t)(n_slots - 1);
+        const uint8_t idx[6] = {m, h, 0, m, h, 0};
+        for (uint8_t i = 0; i < 6; ++i) seq[k++] = pitch_order[idx[i]];
+        fired = k;
+    } else {  // STRUM_DOWN, STRUM_THRU, STRUM_PENDULUM downstroke: low->high
         for (uint8_t i = 0; i < n_slots; ++i) seq[k++] = pitch_order[i];
         fired = k;
     }
 
     // Velocity + delays (denominator keeps a single note at delay 0).
-    const float vel = is_up ? (accent ? kStrumVelUp : kStrumVelUpSoft)
-                            : (accent ? kStrumVelAccent : kStrumVelDown);
+    float vel = is_up ? (accent ? kStrumVelUp : kStrumVelUpSoft)
+                      : (accent ? kStrumVelAccent : kStrumVelDown);
+    if (style == STRUM_BROKEN1 || style == STRUM_BROKEN2) vel *= 0.85f;
     const uint32_t denom = (fired > 1) ? (uint32_t)(fired - 1) : 1u;
     for (uint8_t i = 0; i < fired; ++i) {
         p.slot[p.n] = seq[i];

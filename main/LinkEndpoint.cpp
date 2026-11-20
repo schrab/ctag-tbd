@@ -487,7 +487,7 @@ namespace CTAG {
                 for (int i = 0; i < 2; i++) {
                     string p = to_string(i + 1);
                     s += key("a" + p + "algo") + to_string(SeqEngine::GetArpAlgo(i));
-                    for (int k = 0; k < 6; k++)
+                    for (int k = 0; k < 7; k++)
                         s += key("a" + p + "p" + to_string(k + 1)) + to_string(SeqEngine::GetArpP(i, k));
                     s += key("a" + p + "glide") + to_string(SeqEngine::GetArpGlide(i));
                     s += key("a" + p + "oct") + to_string(SeqEngine::GetArpOct(i));
@@ -591,7 +591,7 @@ namespace CTAG {
                     mix(SeqEngine::GetGateTrigSlot(i)); mix(SeqEngine::GetGateCvSlot(i));
                     mix(SeqEngine::GetGateMask(i));   // TMR mutates masks live
                     mix(SeqEngine::GetArpAlgo(i));
-                    for (int k = 0; k < 6; k++) mix(SeqEngine::GetArpP(i, k));
+                    for (int k = 0; k < 7; k++) mix(SeqEngine::GetArpP(i, k));
                     mix(SeqEngine::GetArpGlide(i)); mix(SeqEngine::GetArpClk(i));
                     mix(SeqEngine::GetArpDiv(i));
                     mix(SeqEngine::GetArpPitchSlot(i)); mix(SeqEngine::GetArpGateSlot(i));
@@ -844,7 +844,7 @@ namespace CTAG {
                     int i = k[1] - '1';
                     string f = k.substr(2);
                     if (f == "algo") SeqEngine::SetArpAlgo(i, iv);
-                    else if (f.size() == 2 && f[0] == 'p' && f[1] >= '1' && f[1] <= '6')
+                    else if (f.size() == 2 && f[0] == 'p' && f[1] >= '1' && f[1] <= '7')
                         SeqEngine::SetArpP(i, f[1] - '1', iv);
                     else if (f == "glide") SeqEngine::SetArpGlide(i, iv);
                     else if (f == "oct") SeqEngine::SetArpOct(i, iv);

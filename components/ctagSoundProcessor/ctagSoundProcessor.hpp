@@ -103,6 +103,11 @@ namespace CTAG {
             // (one note + string per gate pulse). Plugins must then map a
             // single note, not distribute a whole chord locally.
             uint8_t vargBurst[2];
+            // Velocity (0..100) of the current burst note, and a transient
+            // kind: 0 = normal, 1 = ghost hit (muted thud), 2 = pre-change
+            // fret/slide noise just before the next chord.
+            uint8_t vargBurstVel[2];
+            uint8_t vargGhost[2];
         };
 
 #if defined(CONFIG_TBD_PLATFORM_BBA2)

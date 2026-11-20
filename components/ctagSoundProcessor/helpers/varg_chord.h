@@ -55,5 +55,53 @@ inline constexpr uint8_t kVargToVoicing[VQ_COUNT] = {
 // wrapper reads the voicing row directly from the internal companion.
 inline constexpr int kVargVoicingCount = 18;
 
+// Four-string (fretted) voicing rows, mirroring rings::chords[2] (the
+// polyphony-3 variant) from string_synth_part.cc. Shared here so the global
+// VARG sequencer can voice a strum from the SAME table the string synth
+// uses — host tests pin the two together. One pedal string is added by the
+// plugin, separate from these four.
+// Three-fretted-string variant (rings::chords[3]) for the compact bank.
+inline constexpr int8_t kVargVoicing3[kVargVoicingCount][3] = {
+    {  0,  0, 12 },  // 0  OCT
+    {  0,  7, 12 },  // 1  5
+    {  5,  7, 12 },  // 2  sus4
+    {  0,  3, 12 },  // 3  m
+    {  0,  3, 10 },  // 4  m7
+    {  3, 10, 14 },  // 5  m9
+    {  3, 10, 17 },  // 6  m11
+    {  2,  9, 16 },  // 7  69
+    {  4, 11, 14 },  // 8  M9
+    {  4,  7, 11 },  // 9  M7
+    {  4,  7, 12 },  // 10 M
+    {  0,  6, 12 },  // 11 5b5
+    {  0,  3,  6 },  // 12 dim7
+    {  0,  3,  6 },  // 13 m7b5
+    {  0,  4,  8 },  // 14 aug
+    {  0,  3,  7 },  // 15 add9
+    {  0,  1,  7 },  // 16 m+b9
+    {  0,  7, 12 },  // 17 1-5-1 power
+};
+
+inline constexpr int8_t kVargVoicing4[kVargVoicingCount][4] = {
+    { -12,  0,  0, 12 },  // 0  OCT
+    { -12,  7,  7, 12 },  // 1  5
+    { -12,  5,  7, 12 },  // 2  sus4
+    { -12,  3, 12, 12 },  // 3  m
+    { -12,  3, 10, 10 },  // 4  m7
+    { -12,  3, 10, 14 },  // 5  m9
+    { -12,  3, 10, 17 },  // 6  m11
+    { -12,  2,  9, 16 },  // 7  69
+    { -12,  4, 11, 14 },  // 8  M9
+    { -12,  4,  7, 11 },  // 9  M7
+    { -12,  4,  7, 12 },  // 10 M
+    { -12,  0,  6, 12 },  // 11 5b5
+    { -12,  0,  3,  6 },  // 12 dim7
+    { -12,  0,  3,  6 },  // 13 m7b5
+    { -12,  0,  4,  8 },  // 14 aug
+    { -12,  0,  3,  7 },  // 15 add9
+    { -12,  0,  1,  7 },  // 16 m+b9
+    { -12,  0,  7, 12 },  // 17 1-5-1 power
+};
+
 } // namespace SEQ
 } // namespace CTAG
