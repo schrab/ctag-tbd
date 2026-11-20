@@ -55,9 +55,10 @@ void ctagSoundProcessorTBStrings::Process(const ProcessData &data) {
     cfg.dist_type = distType;
     cfg.dist_drive = distDrive;
     cfg.dist_bias = distBias;
+    cfg.dist_bass = distBass;
+    cfg.dist_mid = distMid;
     cfg.dist_tone = distTone;
     cfg.dist_mix = distMix;
-    cfg.dist_sustain = distSustain;
 
     float in[bufSz], out[bufSz], aux[bufSz];
     for (int i = 0; i < bufSz; ++i) in[i] = data.buf[i * 2];
@@ -131,9 +132,12 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     distBias = dist_bias / 4095.f;
     if (cv_dist_bias != -1) distBias = fabsf(data.cv[cv_dist_bias]);
     CONSTRAIN(distBias, 0.f, 1.f)
-    distSustain = dist_sustain / 4095.f;
-    if (cv_dist_sustain != -1) distSustain = fabsf(data.cv[cv_dist_sustain]);
-    CONSTRAIN(distSustain, 0.f, 1.f)
+    distBass = dist_bass / 4095.f;
+    if (cv_dist_bass != -1) distBass = fabsf(data.cv[cv_dist_bass]);
+    CONSTRAIN(distBass, 0.f, 1.f)
+    distMid = dist_mid / 4095.f;
+    if (cv_dist_mid != -1) distMid = fabsf(data.cv[cv_dist_mid]);
+    CONSTRAIN(distMid, 0.f, 1.f)
     distTone = dist_tone / 4095.f;
     if (cv_dist_tone != -1) distTone = fabsf(data.cv[cv_dist_tone]);
     CONSTRAIN(distTone, 0.f, 1.f)
@@ -240,8 +244,10 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("dist_drive", [&](const int val) { cv_dist_drive = val; });
     pMapPar.emplace("dist_bias", [&](const int val) { dist_bias = val; });
     pMapCv.emplace("dist_bias", [&](const int val) { cv_dist_bias = val; });
-    pMapPar.emplace("dist_sustain", [&](const int val) { dist_sustain = val; });
-    pMapCv.emplace("dist_sustain", [&](const int val) { cv_dist_sustain = val; });
+    pMapPar.emplace("dist_bass", [&](const int val) { dist_bass = val; });
+    pMapCv.emplace("dist_bass", [&](const int val) { cv_dist_bass = val; });
+    pMapPar.emplace("dist_mid", [&](const int val) { dist_mid = val; });
+    pMapCv.emplace("dist_mid", [&](const int val) { cv_dist_mid = val; });
     pMapPar.emplace("dist_tone", [&](const int val) { dist_tone = val; });
     pMapCv.emplace("dist_tone", [&](const int val) { cv_dist_tone = val; });
     pMapPar.emplace("dist_mix", [&](const int val) { dist_mix = val; });

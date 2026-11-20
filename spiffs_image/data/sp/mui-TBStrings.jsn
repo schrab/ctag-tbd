@@ -152,12 +152,20 @@
      "def": 0
     },
     {
-     "id": "dist_sustain",
-     "name": "Sustain",
+     "id": "dist_bass",
+     "name": "Bass",
      "type": "int",
      "min": 0,
      "max": 4095,
-     "def": 0
+     "def": 205
+    },
+    {
+     "id": "dist_mid",
+     "name": "Middle",
+     "type": "int",
+     "min": 0,
+     "max": 4095,
+     "def": 2048
     },
     {
      "id": "dist_tone",

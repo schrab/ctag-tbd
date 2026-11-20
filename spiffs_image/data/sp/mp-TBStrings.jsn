@@ -95,8 +95,13 @@
      "cv": -1
     },
     {
-     "id": "dist_sustain",
-     "current": 0,
+     "id": "dist_bass",
+     "current": 205,
+     "cv": -1
+    },
+    {
+     "id": "dist_mid",
+     "current": 2048,
      "cv": -1
     },
     {

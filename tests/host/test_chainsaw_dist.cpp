@@ -38,7 +38,7 @@ TEST(chainsaw_zero_drive_is_bypass) {
     float in[32], inAux[32];
     memcpy(in, out, sizeof(in));
     memcpy(inAux, aux, sizeof(aux));
-    d.Process(out, aux, 32, 0.0f, 0.0f, 0.5f);
+    d.Process(out, aux, 32, 0.0f, 0.0f, 0.05f, 0.5f, 0.5f);
     for (int i = 0; i < 32; ++i) {
         CHECK(fabsf(out[i] - in[i]) < 1e-6f);
         CHECK(fabsf(aux[i] - inAux[i]) < 1e-6f);
@@ -53,7 +53,7 @@ TEST(chainsaw_clips_and_shapes) {
         out[i] = 0.9f * sinf(2.0f * 3.14159265f * (float)i / 16.0f);
         aux[i] = -out[i];
     }
-    d.Process(out, aux, 64, 1.0f, 0.6f, 0.7f);
+    d.Process(out, aux, 64, 1.0f, 0.6f, 0.05f, 0.5f, 0.7f);
     float peak = 0.0f;
     for (int i = 0; i < 64; ++i) {
         if (fabsf(out[i]) > peak) peak = fabsf(out[i]);
@@ -80,4 +80,11 @@ TEST(chainsaw_fmv_coefficients_finite_and_tone_dependent) {
     CHECK(fabsf(lo.b[0] - hi.b[0]) > 1e-9f ||
           fabsf(lo.b[1] - hi.b[1]) > 1e-9f ||
           fabsf(lo.b[2] - hi.b[2]) > 1e-9f);
+    // Bass and middle (the newly exposed FMV knobs) must too.
+    const tbd::chainsaw::FmvCoeffs b_lo = tbd::chainsaw::DesignFmv(0.05f, 0.5f, 0.5f, 32000.0f);
+    const tbd::chainsaw::FmvCoeffs b_hi = tbd::chainsaw::DesignFmv(0.95f, 0.5f, 0.5f, 32000.0f);
+    CHECK(fabsf(b_lo.b[0] - b_hi.b[0]) > 1e-9f);
+    const tbd::chainsaw::FmvCoeffs m_lo = tbd::chainsaw::DesignFmv(0.05f, 0.1f, 0.5f, 32000.0f);
+    const tbd::chainsaw::FmvCoeffs m_hi = tbd::chainsaw::DesignFmv(0.05f, 0.9f, 0.5f, 32000.0f);
+    CHECK(fabsf(m_lo.b[0] - m_hi.b[0]) > 1e-9f);
 }

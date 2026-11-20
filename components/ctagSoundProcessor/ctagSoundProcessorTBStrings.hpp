@@ -50,8 +50,9 @@ namespace CTAG {
             float toneDamping = 0.5f;
             float tonePosition = 0.5f;
             int distType = 0;
-            float distDrive = 0.0f, distBias = 0.0f, distTone = 1.0f;
-            float distMix = 1.0f, distSustain = 0.0f;
+            float distDrive = 0.0f, distBias = 0.0f;
+            float distBass = 0.05f, distMid = 0.5f, distTone = 1.0f;
+            float distMix = 1.0f;
             uint8_t ghostKind = 0;   // 0 normal, 1 ghost thud, 2 pre-change transient
 
             bool lastGate = false;
@@ -80,7 +81,10 @@ namespace CTAG {
             atomic<int32_t> dist_type{0}, cv_dist_type{-1};
             atomic<int32_t> dist_drive{0}, cv_dist_drive{-1};
             atomic<int32_t> dist_bias{0}, cv_dist_bias{-1};
-            atomic<int32_t> dist_sustain{0}, cv_dist_sustain{-1};
+            // JCM800 FMV tonestack (chainsaw type): upstream defaults
+            // bass 0.05 / mid 0.5, treble = dist_tone.
+            atomic<int32_t> dist_bass{205}, cv_dist_bass{-1};
+            atomic<int32_t> dist_mid{2048}, cv_dist_mid{-1};
             atomic<int32_t> dist_tone{4095}, cv_dist_tone{-1};
             atomic<int32_t> dist_mix{4095}, cv_dist_mix{-1};
             // sectionHpp

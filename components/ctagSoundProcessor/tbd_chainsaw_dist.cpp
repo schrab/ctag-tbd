@@ -92,7 +92,7 @@ float ChainsawTanh(float x) {
 
 void ChainsawDist::Init(float sample_rate) {
     sr_ = sample_rate;
-    last_drive_ = last_bias_ = last_tone_ = -1.0f;
+    last_drive_ = last_bias_ = last_bass_ = last_mid_ = last_tone_ = -1.0f;
     const float w60 = 6.2831853f * 60.0f / sample_rate;
     hp_a_ = 1.0f / (1.0f + w60);
     const float w7k = 6.2831853f * 7000.0f / sample_rate;
@@ -109,19 +109,20 @@ void ChainsawDist::Init(float sample_rate) {
 }
 
 void ChainsawDist::Process(float *out, float *aux, size_t size,
-                           float drive, float bias_amt, float tone) {
+                           float drive, float bias, float bass, float mid,
+                           float tone) {
     if (drive <= 0.0f) return;   // zero cost, like the other dist types
     if (drive != last_drive_) {
         pedal_gain_ = powf(10.0f, (20.0f + 20.0f * drive) / 20.0f);
         last_drive_ = drive;
     }
-    if (bias_amt != last_bias_) {
-        amp_gain_ = powf(10.0f, (30.0f * bias_amt) / 20.0f);
-        last_bias_ = bias_amt;
+    if (bias != last_bias_) {
+        amp_gain_ = powf(10.0f, (30.0f * bias) / 20.0f);
+        last_bias_ = bias;
     }
-    if (tone != last_tone_) {
-        fmv_ = chainsaw::DesignFmv(0.05f, 0.5f, tone, sr_);
-        last_tone_ = tone;
+    if (bass != last_bass_ || mid != last_mid_ || tone != last_tone_) {
+        fmv_ = chainsaw::DesignFmv(bass, mid, tone, sr_);
+        last_bass_ = bass; last_mid_ = mid; last_tone_ = tone;
     }
     const float pedal_gain = pedal_gain_;
     const float amp_gain = amp_gain_;
@@ -163,39 +164,27 @@ void ChainsawDist::Process(float *out, float *aux, size_t size,
 
 void ChainsawStage(float *out, float *aux, size_t size,
                    ChainsawDist &dist, float drive, float bias,
-                   float tone, float mix, float sustain,
-                   float lp[2], float env[2]) {
+                   float bass, float mid, float tone, float mix,
+                   float lp[2]) {
     if (size > 64) size = 64;
     float dry_l[64], dry_r[64];
     for (size_t i = 0; i < size; ++i) {
         dry_l[i] = out[i];
         dry_r[i] = aux[i];
     }
-    dist.Process(out, aux, size, drive, bias, tone);
+    dist.Process(out, aux, size, drive, bias, bass, mid, tone);
 
-    const float sus_max = 1.0f + 15.0f * sustain * sustain;
-    const bool sustain_on = sus_max > 1.001f;
     const float lp_k = 0.04f + 0.96f * tone;
     float *chans[2] = { out, aux };
     float *drys[2] = { dry_l, dry_r };
     for (int c = 0; c < 2; ++c) {
         float f_lp = lp[c];
-        float f_env = env[c];
-        if (!sustain_on) f_env *= 0.995f;
         for (size_t i = 0; i < size; ++i) {
             float wet = chans[c][i];
-            if (sustain_on) {
-                const float x = fabsf(wet);
-                f_env += (x > f_env ? 0.5f : 0.000125f) * (x - f_env);
-                float g = 0.5f * distfast::FastRecip(f_env > 0.002f ? f_env : 0.002f);
-                if (g > sus_max) g = sus_max;
-                wet *= g;
-            }
             f_lp += lp_k * (wet - f_lp);
             chans[c][i] = drys[c][i] + (f_lp - drys[c][i]) * mix;
         }
         lp[c] = f_lp;
-        env[c] = f_env;
     }
 }
 

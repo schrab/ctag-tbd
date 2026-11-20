@@ -23,7 +23,7 @@ respective component folders / files if different from this license.
 
 // TBD guitar distortion stage, shared by the Rings engines.
 //
-// The four characters (and the sustainer AGC) are defined by the Elements /
+// The four characters are defined by the Elements /
 // TBDings Part stages — this header is the same math extracted so the
 // StringSynthPart CHORD engine (easter-egg string synth) can run it BEFORE
 // its FX section: chords -> drive -> reverb/chorus, the guitar order.
@@ -35,8 +35,7 @@ respective component folders / files if different from this license.
 //   1 fold: Fold_do(x, d) — Retroactor's Vult/Befaco wavefolder.
 //   2 fuzz: biased (SoftClip(k*x+b) - SoftClip(b)) / (1 + SoftClip(b)).
 //   3 shape: TBD03's seeded braids waveshaper, drive as pre-gain.
-// Then a 1-pole tone LP and a dry/wet blend, same curve on both channels,
-// plus an envelope-follower AGC (sustain) that holds decaying tails.
+// Then a 1-pole tone LP and a dry/wet blend, same curve on both channels.
 
 #include <cmath>
 #include <cstddef>
@@ -63,21 +62,21 @@ class GuitarDist {
  public:
   void Init(float sample_rate) {
     lp_[0] = lp_[1] = 0.0f;
-    env_[0] = env_[1] = 0.0f;
     chainsaw_.Init(sample_rate);
   }
 
   // type 0..3, all other amounts 0..1 (0 drive = zero-cost bypass).
+  // bass/mid are the JCM800 FMV tonestack knobs (chainsaw type only).
   void Process(float* out, float* aux, size_t size,
-               int type, float drive, float bias_amt, float tone,
-               float mix_amt, float sustain) {
+               int type, float drive, float bias_amt,
+               float bass, float mid, float tone, float mix_amt) {
     if (drive > 0.0f) {
       const float d = drive;
       const float mix = mix_amt;
       const int t = type % 5;
       if (t == 4) {
-        ChainsawStage(out, aux, size, chainsaw_, d, bias_amt, tone, mix,
-                      sustain, lp_, env_);
+        ChainsawStage(out, aux, size, chainsaw_, d, bias_amt, bass, mid,
+                      tone, mix, lp_);
         return;
       }
       const float lp_k = 0.04f + 0.96f * tone;
@@ -97,15 +96,9 @@ class GuitarDist {
         ws_gain = 1.0f + 7.0f * d;
       }
       const int32_t* ws = Table();
-      const float sus_max = 1.0f + 15.0f * sustain * sustain;
-      const bool sustain_on = sus_max > 1.001f;
       float* chans[2] = { out, aux };
       for (size_t c = 0; c < 2; ++c) {
         float lp = lp_[c];
-        float env = env_[c];
-        if (!sustain_on) {
-          env *= 0.995f;
-        }
         for (size_t i = 0; i < size; ++i) {
           const float dry = chans[c][i];
           float wet;
@@ -125,22 +118,11 @@ class GuitarDist {
           } else {
             wet = distfast::FastSoftClip(k * dry) * k_norm;
           }
-          if (sustain_on) {
-            const float x = fabsf(wet);
-            env += (x > env ? 0.5f : 0.000125f) * (x - env);
-            float g = 0.5f * distfast::FastRecip(env > 0.002f ? env : 0.002f);
-            if (g > sus_max) g = sus_max;
-            wet *= g;
-          }
           lp += lp_k * (wet - lp);
           chans[c][i] = dry + (lp - dry) * mix;
         }
         lp_[c] = lp;
-        env_[c] = env;
       }
-    } else {
-      env_[0] *= 0.995f;
-      env_[1] *= 0.995f;
     }
   }
 
@@ -183,7 +165,6 @@ class GuitarDist {
   }
 
   float lp_[2];
-  float env_[2];
   ChainsawDist chainsaw_;
 };
 
