@@ -198,18 +198,14 @@ TEST(varg_strum_cells_present) {
     CHECK(kVargMasks[22] == 0x8421);   // P516
     CHECK(kVargMasks[23] == 0x8420);   // WALTZ
     CHECK(kVargMaskCount == 25);
-    // P2 keeps the original 20-mask mapping: stored presets keep their rhythm.
+    // One Rhythm knob covers all 25 patterns.
     ArpSource src{};
     src.p[1] = 13;
-    CHECK(VargEffectiveMask(src) == kVargMasks[2]);   // QRT, not HALF
-    src.p[1] = 8;
-    CHECK(VargEffectiveMask(src) == kVargMasks[1]);   // TRM8
-    // P8 selects one of the five new patterns without touching P2.
-    src.p[1] = 13;
-    src.p[7] = 1;
-    CHECK(VargEffectiveMask(src) == kVargMasks[20]);  // TRIP
-    src.p[7] = 100;
-    CHECK(VargEffectiveMask(src) == kVargMasks[24]);  // TRM32
+    CHECK(VargEffectiveMask(src) == kVargMasks[(13 * kVargMaskCount) / 101]);
+    src.p[1] = 100;
+    CHECK(VargEffectiveMask(src) == kVargMasks[kVargMaskCount - 1]);  // TRM32
+    src.p[1] = 4;
+    CHECK(VargEffectiveMask(src) == kVargMasks[0]);   // TRM16
 }
 
 TEST(varg_note_calc_semitone_exact) {
@@ -598,12 +594,12 @@ TEST(varg_voicing4_matches_rings_chord_table) {
 TEST(varg_ghost_transients_and_burst_velocity) {
     CTAG::DRIVERS::SeqEngine::Init();
     CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 8);   // original mapping: p8 -> TRM8 -> odd steps silent
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 5);   // TRM8 -> odd steps silent
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 20);  // Pendulum
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 50);
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 6, 100); // ghosts on every silent step
-    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 6) == 100);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 20);  // P6 Pendulum
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 6, 50);  // P7 spread
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 7, 100); // P8 ghosts
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 7) == 100);
     uint8_t trig[51]; float cv[106];
     memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
     bool sawGhost = false, sawTransient = false;
@@ -628,9 +624,10 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 50);   // TRIAD
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 20);   // P5 style -> Pendulum
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 50);   // P6 spread -> ~22 ms
-    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 4) == 20);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 0);    // P5 chord bars = 1
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 20);   // P6 style -> Pendulum
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 6, 50);   // P7 spread -> ~22 ms
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 5) == 20);
     uint8_t trig[51]; float cv[106];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
@@ -678,4 +675,29 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
     // note edges than the legacy single-gate-per-step behaviour.
     CHECK(legacyEdges < edges);
     CHECK(edges >= legacyEdges * 2);
+}
+
+
+TEST(varg_chord_bars_and_glide_only_on_change) {
+    uint8_t trig[51]; float cv[106];
+    auto count_glides = [&](int bars) {
+        CTAG::DRIVERS::SeqEngine::Init();
+        CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, bars); // P5 chord bars
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 20);   // strum enabled
+        memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
+        int glides = 0;
+        for (int b = 0; b < 10400; ++b) {   // ~4 bars at 1 ms blocks
+            CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+            if (CTAG::DRIVERS::SeqEngine::GetVargGlide(0)) ++glides;
+        }
+        return glides;
+    };
+    const int every_bar = count_glides(0);
+    const int every_four = count_glides(43);  // 1 + 43*7/101 = 3 bars
+    CHECK(every_bar > 0);
+    CHECK(every_four > 0);
+    CHECK(every_four < every_bar);
 }

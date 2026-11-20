@@ -152,6 +152,8 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     if (data.vargString[0] >= 0 && data.vargString[0] < 4) vargArp = 0;
     else if (data.vargString[1] >= 0 && data.vargString[1] < 4) vargArp = 1;
 
+    // Pitch glides only on the first strum after VARG advances the chord.
+    bank->SetGlideEnabled(vargArp >= 0 && data.vargGlide[vargArp] != 0);
     const int pitchSlot = vargArp >= 0 ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
     const int gateSlot = vargArp >= 0 ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
 

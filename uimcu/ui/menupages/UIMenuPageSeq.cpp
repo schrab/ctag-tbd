@@ -48,17 +48,17 @@ namespace CTAG {
             "Phrygian Dominant", "Whole Tone", "Octatonic", "Hirajoshi",
             "In Sen", "Double Harmonic", "Acid Pool"
         };
-        // per-algo P1..P8 labels (the rack's per-algo mapping + VARG)
-        // P5..P8 are only used by VARG Chord. "RhythmX" selects the 5 new
-        // patterns added after the original 20, leaving P2's mapping intact.
+        // per-algo P1..P8 labels. VARG algos share Progression/Rhythm/
+        // Quality/Mutate and Chord Bars; only the chord algo uses the
+        // strum trio. Unused rows are hidden by rowCount() below.
         static const char* arpParamNames[7][8] = {
             {"Density", "Slide", "Accent", "Mutate", "-", "-", "-", "-"},
             {"Density", "Form", "Transform", "Mutate", "-", "-", "-", "-"},
             {"Density", "Contour", "Pedal", "Gravity", "-", "-", "-", "-"},
             {"Probability", "Pulses", "Ratchet", "Accumulator", "-", "-", "-", "-"},
             {"Density", "Deja-Vu", "Steps", "DV Spread", "-", "-", "-", "-"},
-            {"Progression", "Rhythm", "Quality", "Mutate", "-", "-", "-", "-"},
-            {"Progression", "Rhythm", "Quality", "Mutate", "Strum", "Strum Spread", "Ghost", "RhythmX"}
+            {"Progression", "Rhythm", "Quality", "Mutate", "Chord Bars", "-", "-", "-"},
+            {"Progression", "Rhythm", "Quality", "Mutate", "Chord Bars", "Strum", "Strum Spread", "Ghost"}
         };
         // enumerated P values where the row is a choice, nullptr = 0..100
         static const char* const arpParamChoices[7][8] = {
@@ -68,14 +68,13 @@ namespace CTAG {
             {nullptr, nullptr, "Off/2x/3x/4x", "Pendulum/Wrap/Random/Hold", nullptr, nullptr, nullptr, nullptr},
             {nullptr, nullptr, "All/Pentatonic/Triad/Root", nullptr, nullptr, nullptr, nullptr, nullptr},
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
-             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST",
+             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST/TRIP/QTRIP/P516/WALTZ/TRM32",
              "Raw/Triad/Diss", nullptr, nullptr, nullptr, nullptr, nullptr},          // VARG
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
-             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST",
+             "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST/TRIP/QTRIP/P516/WALTZ/TRM32",
              "Raw/Triad/Diss", nullptr,
              "Block/Pendulum/Down/Converge/Diverge/Random/Up/Thru/Broken1/Broken2",
-             nullptr, nullptr,
-             "TRIP/QTRIP/P516/WALTZ/TRM32"},                                         // VARG Chord
+             nullptr, nullptr, nullptr},                                             // VARG Chord
         };
         static const uint8_t arpParamMax[7][8] = {
             {100, 100, 100, 100, 0, 0, 0, 0},
@@ -83,8 +82,8 @@ namespace CTAG {
             {100, 15, 3, 100, 0, 0, 0, 0},
             {100, 7, 3, 3, 0, 0, 0, 0},
             {100, 100, 3, 100, 0, 0, 0, 0},
-            {10, 19, 2, 100, 0, 0, 0, 0},                                           // VARG
-            {10, 19, 2, 100, 9, 100, 100, 4},                                       // VARG Chord
+            {10, 24, 2, 100, 7, 0, 0, 0},                                           // VARG
+            {10, 24, 2, 100, 7, 9, 100, 100},                                       // VARG Chord
         };
         static const uint8_t arpParamStep[7][8] = {
             {1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1},
@@ -211,7 +210,14 @@ namespace CTAG {
                 case SP_GATE1:
                 case SP_GATE2: return 9;   // Mode,Density,Sync,Len,Clock,Div,Trig,Level,Pattern
                 case SP_ARP1:
-                case SP_ARP2:  return 20;  // Algo,P1..P8,Root,NeoOp,Scale,Glide,Oct,Clock,Div,4 slots
+                case SP_ARP2: {
+                    // Hide P rows that the current algo does not use, so no
+                    // dead "-" rows appear on non-VARG / note-ostinato algos.
+                    const int i = (subPage == SP_ARP2) ? 1 : 0;
+                    const int algo = DspProxy::GetSeqArpAlgo(i) / 3;
+                    const int nP = (algo == 6) ? 8 : (algo == 5) ? 5 : 4;
+                    return 12 + nP;  // Algo + P rows + 11 fixed rows
+                }
                 default:       return 1;
             }
         }

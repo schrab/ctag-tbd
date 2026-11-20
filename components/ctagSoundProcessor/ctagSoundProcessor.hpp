@@ -108,6 +108,9 @@ namespace CTAG {
             // fret/slide noise just before the next chord.
             uint8_t vargBurstVel[2];
             uint8_t vargGhost[2];
+            // 1 only for the first strum after a chord advances — the pitch
+            // glides to the new chord; notes within a chord are instant.
+            uint8_t vargGlide[2];
         };
 
 #if defined(CONFIG_TBD_PLATFORM_BBA2)

@@ -126,6 +126,7 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         pd.vargBurst[a] = 0;
         pd.vargBurstVel[a] = 0;
         pd.vargGhost[a] = 0;
+        pd.vargGlide[a] = 0;
     }
 #if defined(CONFIG_TBD_PLATFORM_BBA)
     // P4: MIDI CV/trig buffers, filled by the link task's Midi::Update();
@@ -185,12 +186,14 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         const float modDt = (float)BUF_SZ / (float)DRIVERS::Codec::GetSampleRate();
         DRIVERS::ModTransport::Process(modDt);
         DRIVERS::SeqEngine::Process(pd.cv, pd.trig, modDt);
-        // Internal companion: VARG Chord progression voicing per ARP plus the
-        // ARP's actual pitch/gate slots (they are user-configurable). Plugins
-        // that opt into VARG Chord auto-routing read all three.
+        // Internal companion: VARG progression voicing (algo 6 only) plus the
+        // ARP's actual pitch/gate slots. Both VARG algos publish a string
+        // index, so pitch/gate slots must be copied for either one — the
+        // note-ostinato algo (5) otherwise had no note source at all.
         for (int a = 0; a < 2; ++a) {
             pd.vargVoicing[a] = (int8_t)DRIVERS::SeqEngine::GetVargVoicing(a);
-            if (pd.vargVoicing[a] >= 0) {
+            pd.vargString[a] = DRIVERS::SeqEngine::GetVargString(a);
+            if (pd.vargVoicing[a] >= 0 || pd.vargString[a] >= 0) {
                 pd.vargPitchSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpPitchSlot(a);
                 pd.vargGateSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpGateSlot(a);
                 pd.vargStroke[a] = DRIVERS::SeqEngine::GetVargStroke(a);
@@ -201,12 +204,10 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
                 pd.vargStroke[a] = 0;
                 pd.vargFlags[a] = 0;
             }
-            // String index is published by BOTH VARG algos, so it needs its
-            // own gate (the voicing companion above is algo-6 only).
-            pd.vargString[a] = DRIVERS::SeqEngine::GetVargString(a);
             pd.vargBurst[a] = DRIVERS::SeqEngine::GetVargBurst(a);
             pd.vargBurstVel[a] = DRIVERS::SeqEngine::GetVargBurstVel(a);
             pd.vargGhost[a] = DRIVERS::SeqEngine::GetVargGhost(a);
+            pd.vargGlide[a] = DRIVERS::SeqEngine::GetVargGlide(a);
         }
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 

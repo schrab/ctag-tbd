@@ -565,6 +565,7 @@ struct ArpExt {
             uint8_t curOff;     // current chord root offset above the tonic
             uint8_t curQual;    // current chord's sounding quality (post-bias)
             uint8_t genIdx;     // generative mode: last pool index
+            uint8_t bars_held;  // bars since the last chord advance
         } varg;
     } st;
 
@@ -1103,16 +1104,9 @@ inline constexpr uint16_t kVargMasks[kVargMaskCount] = {
     0xFFFF, // 24 TRM32  use with Div = 1/32 for 32nd tremolo
 };
 
-// Effective 16-step riff mask for a VARG algo, with P2 compatibility and
-// the optional P8 extra-pattern override. Shared with the burst scheduler.
+// Effective 16-step riff mask for a VARG algo (all 25 patterns).
 inline uint16_t VargEffectiveMask(const ArpSource &s) {
-    uint16_t mask = kVargMasks[(s.p[1] * 20) / 101];
-    if (s.p[7] > 0) {
-        int extra = 20 + ((s.p[7] - 1) * 5) / 100;
-        if (extra >= kVargMaskCount) extra = kVargMaskCount - 1;
-        mask = kVargMasks[extra];
-    }
-    return mask;
+    return kVargMasks[(s.p[1] * kVargMaskCount) / 101];
 }
 
 // BIAS re-voicing: 0..33 RAW (power chords), 34..66 TRIAD (own law),
@@ -1195,9 +1189,8 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     if (advance) VargNextChord(s, ext);
     else VargLoadChord(s, ext, (v.chordIdx == 0xFF) ? 0 : v.chordIdx);
     const VargToneSet &ts = kVargTones[v.curQual % VQ_COUNT];
-    // PITCH MAPPING COMPAT: P2 keeps the ORIGINAL 20-mask mapping so stored
-    // presets keep their rhythm. The 5 new patterns live in P8 instead.
-    uint16_t mask = VargEffectiveMask(s);
+    // One Rhythm knob controls all 25 patterns.
+    uint16_t mask = kVargMasks[(s.p[1] * kVargMaskCount) / 101];
 
     // MUTATE: flip the weak (low-Barlow) steps of the mask per bar
     if (s.p[3] > 0) {

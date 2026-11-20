@@ -86,6 +86,7 @@ public:
     static uint8_t GetVargBurst(int i);
     static uint8_t GetVargBurstVel(int i);
     static uint8_t GetVargGhost(int i);
+    static uint8_t GetVargGlide(int i);
     static int GetArpAlgo(int i);      static void SetArpAlgo(int i, int v);
     static int GetArpP(int i, int k);  static void SetArpP(int i, int k, int v); // 0..100
     static int GetArpGlide(int i);     static void SetArpGlide(int i, int v);   // 0..100 ms

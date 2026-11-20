@@ -59,6 +59,7 @@ struct StrumBurst {
     uint8_t spacing {2};
     bool pulse {false};
     uint8_t kind {0};   // 0 normal, 1 ghost hit, 2 pre-change transient
+    bool glide {false}; // glide to the new chord only on a chord advance
     int8_t slot[6] {-1, -1, -1, -1, -1, -1};
     int8_t note[6] {0, 0, 0, 0, 0, 0};
     uint8_t vel[6] {100, 100, 100, 100, 100, 100};
@@ -68,6 +69,10 @@ static StrumBurst s_strumBurst[2];
 static uint8_t s_vargBurst[2] = {0, 0};
 static uint8_t s_vargBurstVel[2] = {0, 0};
 static uint8_t s_vargGhost[2] = {0, 0};
+// Set on the block a VARG progression advances; consumed by the first
+// burst so the strings glide to the new chord only at that moment.
+static uint8_t s_vargChordChange[2] = {0, 0};
+static uint8_t s_vargGlide[2] = {0, 0};
 
 // outputs
 static float gateOut[2] = {0.0f, 0.0f};   // slewed gate level
@@ -249,7 +254,20 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                     e.dd_fill = 1;
                     e.turn_type = (uint8_t)((s.ticks >> 4) & 3u);
                 }
-                if (s.algo == SEQ::kArpAlgoHyp1) {
+                if (s.algo == SEQ::kArpAlgoVarg ||
+                    s.algo == SEQ::kArpAlgoVargChord) {
+                    // P5 = how many bars one chord is held (1..8).
+                    const int chordBars = 1 + (s.p[4] * 7) / 101;
+                    bool advance = false;
+                    if (e.st.varg.bars_held + 1 >= chordBars) {
+                        e.st.varg.bars_held = 0;
+                        advance = true;
+                        s_vargChordChange[i] = 1;
+                    } else {
+                        ++e.st.varg.bars_held;
+                    }
+                    SEQ::ArpRebuildPattern(s, e, advance);
+                } else if (s.algo == SEQ::kArpAlgoHyp1) {
                     // HYP-1: in-place step mutation on loop wrap
                     const uint8_t mutProb = (uint8_t)((uint16_t)s.p[3] * 50 / 100);
                     for (int k = 0; k < 16; ++k)
@@ -279,11 +297,11 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 StrumBurst &burst = s_strumBurst[i];
                 burst.active = false;
                 if (s.algo == SEQ::kArpAlgoVargChord) {
-                    int style = (s.p[4] * 10) / 101;
+                    int style = (s.p[5] * 10) / 101;
                     if (style > 9) style = 9;
                     if (style > 0) {
                         const uint8_t order[3] = {0, 1, 2};
-                        const uint32_t spreadMs = (uint32_t)s.p[5] * 45u / 100u;
+                        const uint32_t spreadMs = (uint32_t)s.p[6] * 45u / 100u;
                         const uint32_t spreadBlocks =
                             (uint32_t)(spreadMs * 0.001f / dt + 0.5f);
                         const tbd::StrumPlan plan = tbd::StrumBuildPlan(
@@ -324,6 +342,8 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                         }
                         burst.count = plan.n + 1;
                         burst.kind = 0;
+                        burst.glide = (s_vargChordChange[i] != 0);
+                        s_vargChordChange[i] = 0;
                         burst.active = plan.n > 0;
                         // Suppress the normal long gate window for this step.
                         if (burst.active) s.level = 0;
@@ -335,16 +355,17 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 // a fret/slide transient just before the bar's chord change.
                 StrumBurst &burst = s_strumBurst[i];
                 burst.active = false;
-                if (s.algo == SEQ::kArpAlgoVargChord && s.p[6] > 0) {
+                if (s.algo == SEQ::kArpAlgoVargChord && s.p[7] > 0) {
                     uint8_t kind = 0;
                     if (st == 15) kind = 2;
-                    else if ((SEQ::ArpU32Rand(s) % 100u) < s.p[6]) kind = 1;
+                    else if ((SEQ::ArpU32Rand(s) % 100u) < s.p[7]) kind = 1;
                     if (kind) {
                         burst.count = 1; burst.idx = 0; burst.countdown = 0;
                         burst.spacing = 2; burst.kind = kind;
                         burst.slot[0] = (int8_t)(cur.str % 3u);
                         burst.note[0] = (int8_t)s.cur_note;
                         burst.vel[0] = (kind == 1) ? 25u : 12u;
+                        burst.glide = false;
                         burst.active = true;
                     }
                 }
@@ -435,10 +456,12 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 burst.pulse = false;
             }
             s_vargBurst[i] = 1;
+            s_vargGlide[i] = burst.glide ? 1 : 0;
         } else {
             s_vargBurst[i] = 0;
             s_vargBurstVel[i] = 0;
             s_vargGhost[i] = 0;
+            s_vargGlide[i] = 0;
         }
 
         const float gWin = s.cur_hold ? 1.0f : 0.55f;
@@ -549,6 +572,10 @@ uint8_t SeqEngine::GetVargBurstVel(int i) {
 uint8_t SeqEngine::GetVargGhost(int i) {
     if (i < 0 || i > 1) return 0;
     return s_vargGhost[i];
+}
+uint8_t SeqEngine::GetVargGlide(int i) {
+    if (i < 0 || i > 1) return 0;
+    return s_vargGlide[i];
 }
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {
