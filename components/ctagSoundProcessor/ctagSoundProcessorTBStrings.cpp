@@ -49,8 +49,6 @@ void ctagSoundProcessorTBStrings::Process(const ProcessData &data) {
     rings::GuitarStringBankConfig cfg;
     cfg.brightness = toneBrightness;
     cfg.damping = toneDamping;
-    if (ghostKind == 1) cfg.damping = 0.90f;   // short muted thud
-    else if (ghostKind == 2) cfg.damping = 0.97f;  // fret/slide noise
     cfg.position = tonePosition;
     cfg.dist_type = distType;
     cfg.dist_drive = distDrive;
@@ -169,6 +167,12 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     lastGate = gate;
 
     ghostKind = vargArp >= 0 ? data.vargGhost[vargArp] : 0;
+    if (ghostKind && vargArp >= 0) {
+        const int gs = data.vargString[vargArp];
+        if (gs >= 0 && gs < rings::kGuitarStringCount) {
+            bank->SetDampingOverride(gs, ghostKind == 1 ? 0.90f : 0.97f);
+        }
+    }
     float burstVel = vargArp >= 0 ? data.vargBurstVel[vargArp] / 100.0f : 1.0f;
     if (burstVel <= 0.0f) burstVel = 1.0f;
     if (ghostKind == 1) burstVel *= 0.25f;

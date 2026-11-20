@@ -230,7 +230,7 @@ namespace CTAG {
                 int gateMode[2]; int gateDens[2]; int gateSync[2]; float gateLen[2];
                 int gateClk[2]; int gateDiv[2]; int gateTrigSlot[2]; int gateCvSlot[2];
                 uint32_t gateMask[2];
-                int arpAlgo[2]; int arpP[2][9]; int arpGlide[2]; int arpOct[2]; int arpClk[2]; int arpDiv[2];
+                int arpAlgo[2]; int arpRange[2] = {1,1}; int arpP[2][9]; int arpGlide[2]; int arpOct[2]; int arpClk[2]; int arpDiv[2];
                 int arpPitchSlot[2]; int arpGateSlot[2]; int arpAccSlot[2]; int arpSlideSlot[2];
                 int root; int rootMode; int neoOp; int scale; float bpm; int globalExt;
                 uint32_t snapshot;
@@ -326,6 +326,7 @@ namespace CTAG {
                     int i = key[1] - '1';
                     const char *f = key + 2;
                     if (!strcmp(f, "algo")) seq.arpAlgo[i] = clampI(iv, 0, 20);
+                    else if (!strcmp(f, "range")) seq.arpRange[i] = clampI(iv, 1, 3);
                     else if (f[0] == 'p' && f[1] >= '1' && f[1] <= '9' && f[2] == 0)
                         seq.arpP[i][f[1] - '1'] = clampI(iv, 0, 100);
                     else if (!strcmp(f, "glide")) seq.arpGlide[i] = clampI(iv, 0, 100);
@@ -448,6 +449,8 @@ namespace CTAG {
                     char k[12];
                     snprintf(k, sizeof(k), "a%dalgo", i + 1);
                     seq.arpAlgo[i] = gi(k, seq.arpAlgo[i]);
+                    snprintf(k, sizeof(k), "a%drange", i + 1);
+                    seq.arpRange[i] = gi(k, seq.arpRange[i]);
                     for (int j = 0; j < 9; j++) {
                         snprintf(k, sizeof(k), "a%dp%d", i + 1, j + 1);
                         seq.arpP[i][j] = gi(k, seq.arpP[i][j]);
@@ -1384,6 +1387,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             seq.arpAlgo[i] = clampI(v, 0, 20);   // 7 algos x 3 ranges
             char k[32]; snprintf(k, sizeof(k), "a%dalgo", i + 1);
             sendSeqSet(k, seq.arpAlgo[i]);
+        }
+        int DspProxy::GetSeqArpRange(int i) { return seq.arpRange[i]; }
+        void DspProxy::SetSeqArpRange(int i, int v) {
+            seq.arpRange[i] = clampI(v, 1, 3);
+            char k[32]; snprintf(k, sizeof(k), "a%drange", i + 1);
+            sendSeqSet(k, seq.arpRange[i]);
         }
         int DspProxy::GetSeqArpP(int i, int j) { return seq.arpP[i][j]; }
         void DspProxy::SetSeqArpP(int i, int j, int v) {

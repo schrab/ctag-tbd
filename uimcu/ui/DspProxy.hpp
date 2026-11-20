@@ -291,6 +291,7 @@ namespace CTAG {
             static int GetSeqGateStep(int i);          // gate playhead (stream)
             // Arps: algo uses the panel encoding v = algo*3 + (range-1), 0..14.
             static int GetSeqArpAlgo(int i);      static void SetSeqArpAlgo(int i, int v);
+            static int GetSeqArpRange(int i);     static void SetSeqArpRange(int i, int r);
             static int GetSeqArpP(int i, int k);  static void SetSeqArpP(int i, int k, int v);
             static int GetSeqArpGlide(int i);     static void SetSeqArpGlide(int i, int v);
             static int GetSeqArpOct(int i);       static void SetSeqArpOct(int i, int v);
