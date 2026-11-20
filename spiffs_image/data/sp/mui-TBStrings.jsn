@@ -9,18 +9,13 @@
    "name": "Model",
    "type": "int",
    "min": 0,
-   "max": 8,
-   "def": 5,
+   "max": 3,
+   "def": 3,
    "texts": [
     "Sympathetic",
     "Inharmonic",
     "Quantized",
-    "Gtr Formant",
-    "Gtr Chorus",
-    "Gtr Reverb",
-    "Gtr Formant2",
-    "Gtr Ensemble",
-    "Gtr Reverb2"
+    "Guitar Chords"
    ]
   },
   {

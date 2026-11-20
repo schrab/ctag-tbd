@@ -29,11 +29,10 @@ respective component folders / files if different from this license.
 using namespace CTAG::SP;
 
 namespace {
-// Model selector 0..8. The three classic slots are the single-note string
-// resonators that make sense for a guitar; Modal, 2-Op FM and String+Reverb
-// are deliberately not exposed. The rest select the chord engine's FX.
+// Model selector 0..3: Sympathetic / Inharmonic / Quantized (classic
+// single-note string resonators) and the plucked-string guitar chord engine.
 constexpr int kClassicModelCount = 3;
-constexpr int kModelCount = 9;
+constexpr int kModelCount = 4;
 constexpr rings::ResonatorModel kClassicModels[kClassicModelCount] = {
     rings::RESONATOR_MODEL_SYMPATHETIC_STRING,
     rings::RESONATOR_MODEL_STRING,
@@ -62,9 +61,22 @@ void ctagSoundProcessorTBStrings::Init(std::size_t blockSize, void *blockPtr) {
     assert(ssMem != nullptr);
     string_synth = new (ssMem) rings::StringSynthPart();
 
+    // 12 Karplus-Strong delay lines for the guitar chord engine. Prefer
+    // internal DRAM; PSRAM fallback has sequential access only (cacheable)
+    // so it is much cheaper than the per-sample-random case that broke the
+    // Elements vocoder.
+    constexpr size_t kPluckBytes = rings::kStringSynthVoices
+                                   * rings::kPluckedStringLength * sizeof(int16_t);
+    pluck_buffer = (int16_t *) heap_caps_malloc(kPluckBytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (pluck_buffer == nullptr) {
+        pluck_buffer = (int16_t *) heap_caps_malloc(kPluckBytes, MALLOC_CAP_SPIRAM);
+    }
+    assert(pluck_buffer != nullptr);
+
     strummer.Init(0.01f, 44100.0f / bufSz);
     part.Init(reverb_buffer);
-    string_synth->Init(reverb_buffer);
+    string_synth->Init(reverb_buffer, pluck_buffer);
+    string_synth->set_plucked_strings(true);
 
     paramAD.SetSampleRate(44100.f / 32.f);
     paramAD.SetModeLin();
@@ -74,7 +86,7 @@ void ctagSoundProcessorTBStrings::Process(const ProcessData &data) {
     updateParams(data);
 
     // The engine follows the Model selector (0..2 = classic strings,
-    // 3..8 = guitar chord engine). VARG Chord forces the chord engine in
+    // 3 = plucked-string guitar chords). VARG Chord forces the chord engine in
     // updateParams because only that engine owns the 18-voicing table.
     if (useChordEngine)
         string_synth->set_fx((rings::FxType) fxSelection);
@@ -111,11 +123,15 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     modelSelection = modelSel;
     if (modelSel < kClassicModelCount) {
         classicModelSelection = kClassicModels[modelSel];
-        fxSelection = 0;
+        // If VARG Chord later forces the chord engine, use the same gentle
+        // reverb instead of a formant (the classic model is unaffected).
+        fxSelection = rings::FX_REVERB;
         useChordEngine = false;
     } else {
         classicModelSelection = rings::RESONATOR_MODEL_SYMPATHETIC_STRING;
-        fxSelection = modelSel - kClassicModelCount;
+        // One guitar model: plucked strings into a gentle reverb, with
+        // position controlling the reverb amount.
+        fxSelection = rings::FX_REVERB;
         useChordEngine = true;
     }
 
@@ -337,6 +353,8 @@ ctagSoundProcessorTBStrings::~ctagSoundProcessorTBStrings() {
         heap_caps_free(string_synth);
         string_synth = nullptr;
     }
+    heap_caps_free(pluck_buffer);
+    pluck_buffer = nullptr;
     heap_caps_free(reverb_buffer);
 }
 
