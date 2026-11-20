@@ -568,3 +568,62 @@ TEST(varg_string_companion_for_both_algos) {
         for (int s = 0; s < 4; ++s) CHECK(seen[s]);
     }
 }
+
+TEST(varg_chord_strum_burst_emits_one_note_per_string) {
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);   // VARG Chord, range 1
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 0, 1);    // i-bVII
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 50);   // TRIAD
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 20);   // P5 style -> Pendulum
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 50);   // P6 spread -> ~22 ms
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 4) == 20);
+    uint8_t trig[51]; float cv[106];
+    memset(trig, 1, sizeof(trig));
+    memset(cv, 0, sizeof(cv));
+
+    int edges = 0, burstBlocks = 0;
+    bool lastGateLow = false;
+    int stringsSeen[4] = {0, 0, 0, 0};
+    int prevString = -1;
+    int lowRun = 0;
+    for (int b = 0; b < 2600; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        const bool low = trig[45] == 0;
+        if (CTAG::DRIVERS::SeqEngine::GetVargBurst(0)) ++burstBlocks;
+        if (low && !lastGateLow) {
+            ++edges;
+            const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
+            CHECK(s >= 0 && s < 4);
+            if (s >= 0 && s < 4) ++stringsSeen[s];
+            prevString = s;
+        }
+        if (low) ++lowRun; else lowRun = 0;
+        if (lowRun > 1) CHECK(false);   // burst pulses are one block only
+        lastGateLow = low;
+    }
+    CHECK(edges > 16);          // more edges than 16 pattern steps -> burst
+    CHECK(burstBlocks > 0);
+    for (int s = 0; s < 4; ++s) CHECK(stringsSeen[s] > 0);
+
+    // P5 = 0 (Block) keeps the legacy single whole-chord gate per step.
+    CTAG::DRIVERS::SeqEngine::Init();
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 0);
+    int legacyEdges = 0;
+    lastGateLow = false;
+    for (int b = 0; b < 2600; ++b) {
+        CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
+        const bool low = trig[45] == 0;
+        if (low && !lastGateLow) ++legacyEdges;
+        CHECK(CTAG::DRIVERS::SeqEngine::GetVargBurst(0) == 0);
+        lastGateLow = low;
+    }
+    // Same window and tempo: the burst must produce substantially more
+    // note edges than the legacy single-gate-per-step behaviour.
+    CHECK(legacyEdges < edges);
+    CHECK(edges >= legacyEdges * 2);
+}

@@ -80,6 +80,10 @@ public:
     // Guitar string index (0..3) latched at the gate edge, for both VARG
     // algorithms; -1 when that ARP is not running a VARG algorithm.
     static int8_t GetVargString(int i);
+    // 1 while a VARG Chord strum burst is emitting its individual note
+    // events (one note per string), so plugins route single notes instead
+    // of distributing a whole chord.
+    static uint8_t GetVargBurst(int i);
     static int GetArpAlgo(int i);      static void SetArpAlgo(int i, int v);
     static int GetArpP(int i, int k);  static void SetArpP(int i, int k, int v); // 0..100
     static int GetArpGlide(int i);     static void SetArpGlide(int i, int v);   // 0..100 ms

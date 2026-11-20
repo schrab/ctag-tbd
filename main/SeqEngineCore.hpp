@@ -584,7 +584,7 @@ struct ArpSource {
     uint8_t root_mode;   // 0 fixed, 1 W7 drift, 2 Neo-Riemannian
     uint8_t root;        // pitch class 0..11 (base note = 48 + root)
     uint8_t scale_idx;   // 0..19 (+64 flag bit = extended chord tones)
-    uint8_t p[4];        // per-algo params, 0..100
+    uint8_t p[6];        // per-algo params, 0..100 (P5 strum style, P6 spread on VARG)
     uint8_t step;        // 0..15
     uint8_t cur_note;    // last computed MIDI note
     uint8_t level;       // gate open on the current step

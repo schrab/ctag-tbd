@@ -47,6 +47,24 @@ static uint8_t s_vargFlags[2] = {0, 0};
 // Guitar string index of the note whose gate just opened (either VARG algo).
 static int8_t s_vargString[2] = {-1, -1};
 
+// VARG Chord strum burst: when P5 (style) != 0, a chord gate is expanded
+// into a sequence of individual note events (one per string) with P6
+// (spread) controlling the gap. Each sub-note is a one-block active-low
+// pulse on the ARP's gate slot plus a pitch CV write and string companion.
+struct StrumBurst {
+    bool active {false};
+    uint8_t count {0};
+    uint8_t idx {0};
+    uint8_t countdown {0};
+    uint8_t spacing {2};
+    bool pulse {false};
+    int8_t slot[4] {-1, -1, -1, -1};
+    int8_t note[4] {0, 0, 0, 0};
+    uint32_t rng {0x1a2b3c4du};
+};
+static StrumBurst s_strumBurst[2];
+static uint8_t s_vargBurst[2] = {0, 0};
+
 // outputs
 static float gateOut[2] = {0.0f, 0.0f};   // slewed gate level
 static float arpOut[2] = {0.0f, 0.0f};    // leveled arp out (accent shaped)
@@ -75,6 +93,7 @@ void SeqEngine::InitDefaults() {
         gArp[i].algo = (i == 0) ? SEQ::kArpAlgoHyp1 : SEQ::kArpAlgoMotif;
         gArp[i].range = 2;
         gArp[i].p[0] = 62; gArp[i].p[1] = 40; gArp[i].p[2] = 50; gArp[i].p[3] = 0;
+        gArp[i].p[4] = 0; gArp[i].p[5] = 0;  // VARG strum style / spread (0 = legacy)
         // Seed the current note at the root: cur_note 0 would slam the pitch
         // CV to -0.8 V from boot until the first gated step wraps.
         gArp[i].cur_note = (uint8_t)(48u + gArp[i].root);
@@ -250,6 +269,46 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 s_vargStroke[i] = (cur.flags & 8u) ? -1 : +1;
                 s_vargFlags[i] = (cur.flags & 2u) ? 1u : 0u;
                 s_vargString[i] = (int8_t)(cur.str & 3u);
+                // VARG Chord strum: expand this chord gate into a burst of
+                // one-note events, ordered by the shared strum plan. 0 =
+                // Block = legacy whole-chord behaviour.
+                StrumBurst &burst = s_strumBurst[i];
+                burst.active = false;
+                if (s.algo == SEQ::kArpAlgoVargChord) {
+                    int style = (s.p[4] * 6) / 101;
+                    if (style > 5) style = 5;
+                    if (style > 0) {
+                        const SEQ::VargToneSet &ts =
+                            SEQ::kVargTones[e.st.varg.curQual % SEQ::VQ_COUNT];
+                        uint8_t n = ts.n > 4 ? 4 : ts.n;
+                        uint8_t order[4];
+                        for (uint8_t k = 0; k < n; ++k) order[k] = k;
+                        const uint32_t spreadMs = (uint32_t)s.p[5] * 45u / 100u;
+                        const uint32_t spreadBlocks =
+                            (uint32_t)(spreadMs * 0.001f / dt + 0.5f);
+                        const tbd::StrumPlan plan = tbd::StrumBuildPlan(
+                            order, n, (uint8_t)style,
+                            (cur.flags & 8u) ? -1 : +1, false,
+                            (cur.flags & 2u) != 0,
+                            (uint16_t)spreadBlocks, burst.rng);
+                        burst.count = plan.n;
+                        burst.idx = 0;
+                        burst.countdown = 0;
+                        burst.spacing = (uint8_t)ClampInt(
+                            (int)(spreadBlocks / (plan.n > 1 ? plan.n - 1 : 1)),
+                            2, 60);
+                        const int rootNote = 48 + s.root + e.st.varg.curOff;
+                        for (uint8_t k = 0; k < plan.n; ++k) {
+                            const uint8_t tone = plan.slot[k] % ts.n;
+                            burst.slot[k] = (int8_t)((cur.str + k) & 3u);
+                            burst.note[k] = (int8_t)(rootNote + ts.st[tone]);
+                        }
+                        burst.active = plan.n > 0;
+                        // Suppress the normal long gate window for this step:
+                        // the burst's own one-block pulses replace it.
+                        if (burst.active) s.level = 0;
+                    }
+                }
             } else {
                 s.level = 0u; s.retrig_edge = 0u; s.held = 0u;
             }
@@ -309,9 +368,46 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 cv[arpPitchSlot[i]] = pitchCv;
             }
         }
+        // Strum burst output: each sub-note gets its own pitch CV, string
+        // companion and a ONE-BLOCK low gate pulse (TBStrings edge-detects).
+        StrumBurst &burst = s_strumBurst[i];
+        bool burstEmit = false;
+        if (burst.active) {
+            if (burst.countdown == 0) {
+                burstEmit = true;
+                if (arpPitchSlot[i] >= 0 && burst.idx < burst.count) {
+                    cv[arpPitchSlot[i]] =
+                        ((float)(burst.note[burst.idx] - 48) / 12.0f
+                         + (float)arpOct[i]) * 0.2f;
+                }
+                if (burst.idx < burst.count) {
+                    s_vargString[i] = burst.slot[burst.idx];
+                    burst.pulse = true;
+                }
+                ++burst.idx;
+                if (burst.idx >= burst.count) {
+                    burst.active = false;
+                    burst.pulse = false;
+                } else {
+                    burst.countdown = burst.spacing;
+                }
+            } else {
+                --burst.countdown;
+                burst.pulse = false;
+            }
+            s_vargBurst[i] = 1;
+        } else {
+            s_vargBurst[i] = 0;
+        }
+
         const float gWin = s.cur_hold ? 1.0f : 0.55f;
         const bool gateOpen = (s.level != 0) && (aPhase[i] < gWin);
-        if (arpGateSlot[i] >= 0) trig[arpGateSlot[i]] = gateOpen ? 0 : 1;
+        if (arpGateSlot[i] >= 0) {
+            if (burst.active || burstEmit)
+                trig[arpGateSlot[i]] = (burstEmit || burst.pulse) ? 0 : 1;
+            else
+                trig[arpGateSlot[i]] = gateOpen ? 0 : 1;
+        }
         if (arpAccSlot[i] >= 0) trig[arpAccSlot[i]] = (s.cur_acc && s.level) ? 0 : 1;
         if (arpSlideSlot[i] >= 0) trig[arpSlideSlot[i]] = (s.cur_hold && s.level) ? 0 : 1;
         const float aTarget = gateOpen ? (s.cur_acc ? 1.0f : 0.72f) : 0.0f;
@@ -401,6 +497,10 @@ int8_t SeqEngine::GetVargString(int i) {
         gArp[i].algo != SEQ::kArpAlgoVargChord) return -1;
     return s_vargString[i];
 }
+uint8_t SeqEngine::GetVargBurst(int i) {
+    if (i < 0 || i > 1) return 0;
+    return s_vargBurst[i];
+}
 int SeqEngine::GetArpAlgo(int i) { return gArp[i].algo * 3 + (gArp[i].range - 1); }
 void SeqEngine::SetArpAlgo(int i, int v) {
     v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 7 algos x 3 ranges
@@ -413,9 +513,9 @@ void SeqEngine::SetArpAlgo(int i, int v) {
         gArpExt[i].st.varg.chordIdx = 0xFF;   // fresh switch: start on the tonic
     SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }
-int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 3) ? 0 : gArp[i].p[k]; }
+int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 5) ? 0 : gArp[i].p[k]; }
 void SeqEngine::SetArpP(int i, int k, int v) {
-    if (k < 0 || k > 3) return;
+    if (k < 0 || k > 5) return;
     gArp[i].p[k] = (uint8_t)ClampInt(v, 0, 100);
     // setter-side rebuild: re-voice the CURRENT chord, never step the
     // progression (a knob turn must not jump the chord sequence)
@@ -485,10 +585,11 @@ void SeqEngine::SerializeConfig(char *dst, int cap) {
     for (int i = 0; i < 2; ++i) {
         char buf[200];
         snprintf(buf, sizeof(buf),
-                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d],\"glide\":%d,\"oct\":%d,\"clk\":%d,"
+                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d,%d,%d],\"glide\":%d,\"oct\":%d,\"clk\":%d,"
                  "\"div\":%d,\"pitchSlot\":%d,\"gateSlot\":%d,\"accSlot\":%d,\"slideSlot\":%d}",
                  gArp[i].algo, gArp[i].range, gArp[i].p[0], gArp[i].p[1], gArp[i].p[2],
-                 gArp[i].p[3], arpGlideMs[i], arpOct[i], arpClk[i], arpDiv[i],
+                 gArp[i].p[3], gArp[i].p[4], gArp[i].p[5], arpGlideMs[i], arpOct[i],
+                 arpClk[i], arpDiv[i],
                  arpPitchSlot[i], arpGateSlot[i], arpAccSlot[i], arpSlideSlot[i]);
         if (i) j += ",";
         j += buf;
@@ -541,7 +642,7 @@ bool SeqEngine::DeserializeConfig(const char *json) {
             if (a.HasMember("range") && a["range"].IsInt()) gArp[i].range = (uint8_t)ClampInt(a["range"].GetInt(), 1, 3);
             if (a.HasMember("p") && a["p"].IsArray()) {
                 const Value &p = a["p"];
-                for (SizeType k = 0; k < p.Size() && k < 4; k++)
+                for (SizeType k = 0; k < p.Size() && k < 6; k++)
                     if (p[k].IsInt()) gArp[i].p[k] = (uint8_t)ClampInt(p[k].GetInt(), 0, 100);
             }
             if (a.HasMember("glide") && a["glide"].IsInt()) arpGlideMs[i] = ClampInt(a["glide"].GetInt(), 0, 100);

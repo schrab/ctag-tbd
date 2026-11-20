@@ -161,7 +161,8 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     lastGate = gate;
 
     if (gateEdge) {
-        if (vargArp >= 0 && data.vargVoicing[vargArp] >= 0) {
+        if (vargArp >= 0 && data.vargVoicing[vargArp] >= 0 &&
+            data.vargBurst[vargArp] == 0) {
             // VARG algo 6: a whole chord. Lay its tones across the four
             // physical strings, anchored at the ARP's string index.
             const int voicing = data.vargVoicing[vargArp];
@@ -178,7 +179,7 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
             int str = vargArp >= 0 ? data.vargString[vargArp] : fallbackString;
             if (str < 0 || str >= 4) str = fallbackString;
             bank->SetNote(str, note, true);
-            fallbackString = (fallbackString + 1) & 3;
+            if (vargArp < 0) fallbackString = (fallbackString + 1) & 3;
         }
     }
 }

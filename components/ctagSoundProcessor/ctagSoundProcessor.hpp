@@ -99,6 +99,10 @@ namespace CTAG {
             // 6 = whole chord, where it is the base string anchor). -1 =
             // that ARP is not running a VARG algorithm.
             int8_t vargString[2];
+            // 1 while VARG is emitting a strum as individual note events
+            // (one note + string per gate pulse). Plugins must then map a
+            // single note, not distribute a whole chord locally.
+            uint8_t vargBurst[2];
         };
 
 #if defined(CONFIG_TBD_PLATFORM_BBA2)
