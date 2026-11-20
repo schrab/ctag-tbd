@@ -585,7 +585,7 @@ struct ArpSource {
     uint8_t root_mode;   // 0 fixed, 1 W7 drift, 2 Neo-Riemannian
     uint8_t root;        // pitch class 0..11 (base note = 48 + root)
     uint8_t scale_idx;   // 0..19 (+64 flag bit = extended chord tones)
-    uint8_t p[8];        // per-algo params, 0..100 (VARG: P5 strum, P6 spread, P7 ghost, P8 extra pattern)
+    uint8_t p[9];        // per-algo params (VARG: P5 bars, P6 order, P7 spread, P8 ghost, P9 chord mode)
     uint8_t step;        // 0..15
     uint8_t cur_note;    // last computed MIDI note
     uint8_t level;       // gate open on the current step
@@ -1184,6 +1184,44 @@ inline void VargLoadChord(ArpSource &s, ArpExt &ext, uint8_t idx) {
 // one (setter-side, advance=false), then compile the riff mask into gate /
 // accent flags with the quality's chord tones spread over the gated steps
 // (octave climbs through the ARP's range on repeated tone cycles).
+// Map a gated-step ordinal to a chord-tone index using the arp order.
+// P6 selects the order; the Rhythm mask decides WHEN steps fire, so the
+// same order can be a fast tremolo arpeggio or a slow broken-chord cycle.
+inline uint8_t VargOrderIndex(uint8_t order, uint8_t k, uint8_t n, uint32_t &rng) {
+    if (n == 0) return 0;
+    switch (order) {
+        case 1: return (uint8_t)(n - 1 - (k % n));                    // Down
+        case 2: {                                                     // Pendulum
+            const uint8_t per = (uint8_t)(2 * n);
+            const uint8_t p = k % per;
+            return (uint8_t)(p < n ? p : (per - 1 - p));
+        }
+        case 3:                                                       // Converge
+            return (uint8_t)((k & 1u) ? (n - 1 - k / 2) : (k / 2)) % n;
+        case 4: {                                                     // Diverge
+            const int mid = (n - 1) / 2;
+            const int off = (int)((k + 1) / 2);
+            const bool up = (k & 1u) == 0u;
+            int v = mid + (up ? off : -off);
+            while (v < 0 || v >= (int)n) v += up ? -1 : 1;
+            return (uint8_t)v;
+        }
+        case 5:                                                       // Random
+            rng = rng * 1664525u + 1013904223u;
+            return (uint8_t)(rng % n);
+        case 7: {                                                     // Broken1 B-L-M-H-M-L
+            const uint8_t seq[6] = {0, 1, 2, (uint8_t)(n - 1), 2, 1};
+            return seq[k % 6] % n;
+        }
+        case 8: {                                                     // Broken2 [M+H]-B
+            const uint8_t seq[6] = {(uint8_t)(n - 2), (uint8_t)(n - 1), 0,
+                                    (uint8_t)(n - 2), (uint8_t)(n - 1), 0};
+            return seq[k % 6] % n;
+        }
+        default: return (uint8_t)(k % n);                             // Up / Thru / Sequential
+    }
+}
+
 inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     auto &v = ext.st.varg;
     if (advance) VargNextChord(s, ext);
@@ -1208,23 +1246,25 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     // strum engine via the vargStroke companion.
     const bool grid16 = tbd::StrumMaskIs16thGrid(mask);
 
-    uint8_t k = 0;   // gated-step counter drives the chord-tone walk
+    const uint8_t order = (uint8_t)((s.p[5] * 10) / 101);
+    uint8_t k = 0;         // gated-step ordinal
+    bool first_step = true; // first gated step after a chord advance
     for (uint8_t st = 0; st < 16; ++st) {
         const bool gate = ((mask >> (15 - st)) & 1u) != 0;
-        const uint8_t tone = (uint8_t)(k % ts.n);
+        const uint8_t tone = VargOrderIndex(order, k, ts.n, s.rng);
         const int8_t oct = (s.range > 1)
                                ? (int8_t)((k / ts.n) % s.range) : (int8_t)0;
         const bool up = gate && (grid16 ? ((st & 1u) != 0u) : ((st & 2u) != 0u));
         ext.steps[st].off = (int8_t)ts.st[tone];   // SEMITONES (see ArpCalcNote)
         ext.steps[st].oct = oct;
-        // Guitar-string anchor for this note: successive gated steps pick
-        // successive strings (0,1,2,3,0,...). Stored per step so the gate
-        // edge can latch it into the VARG companion for the string bank.
-        ext.steps[st].str = (uint8_t)(k % 3u);  // 3 fretted strings
+        // One chord tone per gated step, on the string that tone maps to.
+        // Bit 4 marks the first step of a chord: the open pedal is plucked.
+        ext.steps[st].str = (uint8_t)(tone % 3u);
         ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u)
                                         | (gate && (st & 3u) == 0u ? 2u : 0u)
-                                        | (up ? 8u : 0u));
-        if (gate) ++k;
+                                        | (up ? 8u : 0u)
+                                        | (gate && first_step ? 16u : 0u));
+        if (gate) { ++k; first_step = false; }
     }
 }
 

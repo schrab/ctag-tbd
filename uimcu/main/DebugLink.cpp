@@ -408,7 +408,8 @@ namespace CTAG {
                            + "," + to_string(DspProxy::GetSeqArpP(0, 4))
                            + "," + to_string(DspProxy::GetSeqArpP(0, 5))
                            + "," + to_string(DspProxy::GetSeqArpP(0, 6))
-                           + "," + to_string(DspProxy::GetSeqArpP(0, 7)) + "]"
+                           + "," + to_string(DspProxy::GetSeqArpP(0, 7))
+                           + "," + to_string(DspProxy::GetSeqArpP(0, 8)) + "]"
                            + ",\"a2p\":[" + to_string(DspProxy::GetSeqArpP(1, 0))
                            + "," + to_string(DspProxy::GetSeqArpP(1, 1))
                            + "," + to_string(DspProxy::GetSeqArpP(1, 2))
@@ -416,7 +417,8 @@ namespace CTAG {
                            + "," + to_string(DspProxy::GetSeqArpP(1, 4))
                            + "," + to_string(DspProxy::GetSeqArpP(1, 5))
                            + "," + to_string(DspProxy::GetSeqArpP(1, 6))
-                           + "," + to_string(DspProxy::GetSeqArpP(1, 7)) + "]"
+                           + "," + to_string(DspProxy::GetSeqArpP(1, 7))
+                           + "," + to_string(DspProxy::GetSeqArpP(1, 8)) + "]"
                            + ",\"root\":" + to_string(DspProxy::GetSeqRoot())
                            + ",\"scale\":" + to_string(DspProxy::GetSeqScale())
                            + "}"

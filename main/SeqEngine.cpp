@@ -73,6 +73,8 @@ static uint8_t s_vargGhost[2] = {0, 0};
 // burst so the strings glide to the new chord only at that moment.
 static uint8_t s_vargChordChange[2] = {0, 0};
 static uint8_t s_vargGlide[2] = {0, 0};
+// First gated step of a chord: that step carries the open pedal pitch.
+static uint8_t s_vargPedal[2] = {0, 0};
 
 // outputs
 static float gateOut[2] = {0.0f, 0.0f};   // slewed gate level
@@ -256,8 +258,10 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 }
                 if (s.algo == SEQ::kArpAlgoVarg ||
                     s.algo == SEQ::kArpAlgoVargChord) {
-                    // P5 = how many bars one chord is held (1..8).
-                    const int chordBars = 1 + (s.p[4] * 7) / 101;
+                    // P5 = chord duration as a 4-way choice: 1/2/4/8 bars.
+                    static constexpr uint8_t kBars[4] = {1, 2, 4, 8};
+                    const int chordBars =
+                        kBars[(s.p[4] * 4) / 101 < 4 ? (s.p[4] * 4) / 101 : 3];
                     bool advance = false;
                     if (e.st.varg.bars_held + 1 >= chordBars) {
                         e.st.varg.bars_held = 0;
@@ -291,12 +295,13 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 s_vargStroke[i] = (cur.flags & 8u) ? -1 : +1;
                 s_vargFlags[i] = (cur.flags & 2u) ? 1u : 0u;
                 s_vargString[i] = (int8_t)(cur.str % 3u);
+                s_vargPedal[i] = (cur.flags & 16u) ? 1u : 0u;
                 // VARG Chord strum: expand this chord gate into a burst of
                 // one-note events, ordered by the shared strum plan. 0 =
                 // Block = legacy whole-chord behaviour.
                 StrumBurst &burst = s_strumBurst[i];
                 burst.active = false;
-                if (s.algo == SEQ::kArpAlgoVargChord) {
+                if (s.algo == SEQ::kArpAlgoVargChord && s.p[8] == 0) {
                     int style = (s.p[5] * 10) / 101;
                     if (style > 9) style = 9;
                     if (style > 0) {
@@ -351,6 +356,7 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 }
             } else {
                 s.level = 0u; s.retrig_edge = 0u; s.held = 0u;
+                s_vargPedal[i] = 0;
                 // Research §2 rule 5: muted ghost thuds on silent steps and
                 // a fret/slide transient just before the bar's chord change.
                 StrumBurst &burst = s_strumBurst[i];
@@ -409,8 +415,15 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
             ((float)((int32_t)(e.current_pitch_q16 >> 16) - 48) / 12.0f
              + (float)arpOct[i]) * 0.2f;
         if (arpPitchSlot[i] >= 0) {
-            if (s.algo == SEQ::kArpAlgoVargChord) {
-                // VARG Chord sends the SAME way as notes: the chord root is
+            if (s_vargPedal[i]) {
+                // Open pedal: fixed drone at the ARP root, one octave down.
+                cv[arpPitchSlot[i]] =
+                    (float)(s.root - 12) / 12.0f * 0.2f
+                    + (float)arpOct[i] * 0.2f;
+            } else if (s.algo == SEQ::kArpAlgoVargChord && s.p[8] == 0) {
+                // Burst mode: VARG Chord sends the chord ROOT as a normal
+                // pitch CV; the plugin builds the chord locally. In
+                // Arpeggio mode the per-step note CV is used instead.
                 // a normal 0.2 V/oct pitch on the ARP's pitch CV (slot 104),
                 // consumed by TBDings' `frequency`. The chord QUALITY travels
                 // as an internal companion (GetVargVoicing -> pd.vargVoicing),
@@ -582,16 +595,20 @@ void SeqEngine::SetArpAlgo(int i, int v) {
     v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 7 algos x 3 ranges
     const uint8_t oldAlgo = gArp[i].algo;
     gArp[i].algo = (uint8_t)(v / 3);
-    gArp[i].range = (uint8_t)(1 + v % 3);
+    // VARG has no separate 1/2/3-OCT variants: range is always 1 and the
+    // Octave row handles transposition. Collapse all three encodings.
+    gArp[i].range = (gArp[i].algo == SEQ::kArpAlgoVarg ||
+                     gArp[i].algo == SEQ::kArpAlgoVargChord)
+                        ? 1u : (uint8_t)(1 + v % 3);
     const bool wasVarg = (oldAlgo == SEQ::kArpAlgoVarg || oldAlgo == SEQ::kArpAlgoVargChord);
     const bool isVarg = (gArp[i].algo == SEQ::kArpAlgoVarg || gArp[i].algo == SEQ::kArpAlgoVargChord);
     if (isVarg && !wasVarg)
         gArpExt[i].st.varg.chordIdx = 0xFF;   // fresh switch: start on the tonic
     SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }
-int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 7) ? 0 : gArp[i].p[k]; }
+int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 8) ? 0 : gArp[i].p[k]; }
 void SeqEngine::SetArpP(int i, int k, int v) {
-    if (k < 0 || k > 7) return;
+    if (k < 0 || k > 8) return;
     gArp[i].p[k] = (uint8_t)ClampInt(v, 0, 100);
     // setter-side rebuild: re-voice the CURRENT chord, never step the
     // progression (a knob turn must not jump the chord sequence)
@@ -661,11 +678,11 @@ void SeqEngine::SerializeConfig(char *dst, int cap) {
     for (int i = 0; i < 2; ++i) {
         char buf[200];
         snprintf(buf, sizeof(buf),
-                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d,%d,%d,%d,%d],\"glide\":%d,\"oct\":%d,\"clk\":%d,"
+                 "{\"algo\":%d,\"range\":%d,\"p\":[%d,%d,%d,%d,%d,%d,%d,%d,%d],\"glide\":%d,\"oct\":%d,\"clk\":%d,"
                  "\"div\":%d,\"pitchSlot\":%d,\"gateSlot\":%d,\"accSlot\":%d,\"slideSlot\":%d}",
                  gArp[i].algo, gArp[i].range, gArp[i].p[0], gArp[i].p[1], gArp[i].p[2],
                  gArp[i].p[3], gArp[i].p[4], gArp[i].p[5], gArp[i].p[6], gArp[i].p[7],
-                 arpGlideMs[i], arpOct[i],
+                 gArp[i].p[8], arpGlideMs[i], arpOct[i],
                  arpClk[i], arpDiv[i],
                  arpPitchSlot[i], arpGateSlot[i], arpAccSlot[i], arpSlideSlot[i]);
         if (i) j += ",";
@@ -717,9 +734,13 @@ bool SeqEngine::DeserializeConfig(const char *json) {
             if (!a.IsObject()) continue;
             if (a.HasMember("algo") && a["algo"].IsInt()) gArp[i].algo = (uint8_t)ClampInt(a["algo"].GetInt(), 0, SEQ::kArpAlgoCount - 1);
             if (a.HasMember("range") && a["range"].IsInt()) gArp[i].range = (uint8_t)ClampInt(a["range"].GetInt(), 1, 3);
+            // VARG has no range variants; the Octave row is the only
+            // transposition control (normalise stored 2/3-OCT configs).
+            if (gArp[i].algo == SEQ::kArpAlgoVarg ||
+                gArp[i].algo == SEQ::kArpAlgoVargChord) gArp[i].range = 1;
             if (a.HasMember("p") && a["p"].IsArray()) {
                 const Value &p = a["p"];
-                for (SizeType k = 0; k < p.Size() && k < 8; k++)
+                for (SizeType k = 0; k < p.Size() && k < 9; k++)
                     if (p[k].IsInt()) gArp[i].p[k] = (uint8_t)ClampInt(p[k].GetInt(), 0, 100);
             }
             if (a.HasMember("glide") && a["glide"].IsInt()) arpGlideMs[i] = ClampInt(a["glide"].GetInt(), 0, 100);

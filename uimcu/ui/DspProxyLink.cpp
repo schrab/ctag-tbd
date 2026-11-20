@@ -230,7 +230,7 @@ namespace CTAG {
                 int gateMode[2]; int gateDens[2]; int gateSync[2]; float gateLen[2];
                 int gateClk[2]; int gateDiv[2]; int gateTrigSlot[2]; int gateCvSlot[2];
                 uint32_t gateMask[2];
-                int arpAlgo[2]; int arpP[2][8]; int arpGlide[2]; int arpOct[2]; int arpClk[2]; int arpDiv[2];
+                int arpAlgo[2]; int arpP[2][9]; int arpGlide[2]; int arpOct[2]; int arpClk[2]; int arpDiv[2];
                 int arpPitchSlot[2]; int arpGateSlot[2]; int arpAccSlot[2]; int arpSlideSlot[2];
                 int root; int rootMode; int neoOp; int scale; float bpm; int globalExt;
                 uint32_t snapshot;
@@ -326,7 +326,7 @@ namespace CTAG {
                     int i = key[1] - '1';
                     const char *f = key + 2;
                     if (!strcmp(f, "algo")) seq.arpAlgo[i] = clampI(iv, 0, 20);
-                    else if (f[0] == 'p' && f[1] >= '1' && f[1] <= '8' && f[2] == 0)
+                    else if (f[0] == 'p' && f[1] >= '1' && f[1] <= '9' && f[2] == 0)
                         seq.arpP[i][f[1] - '1'] = clampI(iv, 0, 100);
                     else if (!strcmp(f, "glide")) seq.arpGlide[i] = clampI(iv, 0, 100);
                     else if (!strcmp(f, "oct")) seq.arpOct[i] = clampI(iv, -2, 2);
@@ -448,7 +448,7 @@ namespace CTAG {
                     char k[12];
                     snprintf(k, sizeof(k), "a%dalgo", i + 1);
                     seq.arpAlgo[i] = gi(k, seq.arpAlgo[i]);
-                    for (int j = 0; j < 8; j++) {
+                    for (int j = 0; j < 9; j++) {
                         snprintf(k, sizeof(k), "a%dp%d", i + 1, j + 1);
                         seq.arpP[i][j] = gi(k, seq.arpP[i][j]);
                     }
@@ -1387,7 +1387,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
         int DspProxy::GetSeqArpP(int i, int j) { return seq.arpP[i][j]; }
         void DspProxy::SetSeqArpP(int i, int j, int v) {
-            if (j < 0 || j > 7) return;
+            if (j < 0 || j > 8) return;
             seq.arpP[i][j] = clampI(v, 0, 100);
             char k[32]; snprintf(k, sizeof(k), "a%dp%d", i + 1, j + 1);
             sendSeqSet(k, seq.arpP[i][j]);
