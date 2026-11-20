@@ -23,7 +23,6 @@ respective component folders / files if different from this license.
 #include <iostream>
 #include <cmath>
 #include "stmlib/stmlib.h"
-#include "helpers/varg_chord.h"
 
 
 using namespace CTAG::SP;
@@ -244,23 +243,16 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
         patch.dist_mix = fabsf(data.cv[cv_dist_mix]);
     CONSTRAIN(patch.dist_mix, 0.f, 1.f);
 
-    // --- VARG Chord auto-route ---------------------------------------------
-    // Toggle ON: pitch, gate, voicing and stroke all come from whichever ARP
-    // is running VARG Chord, via that ARP's user-configured slots. With the
-    // toggle OFF, FREQ and TRIG stay fully independent manual mappings.
+    // --- VARG Chord auto-route (no toggle) ---------------------------------
+    // Whenever an ARP is actually running VARG Chord it publishes a voicing
+    // companion. Use that ARP's own configured slots for pitch and gate, and
+    // its voicing/stroke for the chord engine. The Model selector is NEVER
+    // overridden: VARG can drive a classic single-note model too. When no
+    // companion exists, FREQ/TRIG/chords stay fully manual.
     int vargArp = -1;
-    if (vargChord != 0) {
-        if (data.vargVoicing[0] >= 0) vargArp = 0;
-        else if (data.vargVoicing[1] >= 0) vargArp = 1;
-    }
+    if (data.vargVoicing[0] >= 0) vargArp = 0;
+    else if (data.vargVoicing[1] >= 0) vargArp = 1;
     const bool vargAuto = (vargArp >= 0);
-    vargAutoActive = vargAuto;
-    if (vargChord != 0) {
-        // The toggle itself selects the guitar chord engine (the panel's
-        // Model row follows it). A VARG companion additionally supplies
-        // pitch/gate/voicing/stroke; without one the manual mappings apply.
-        useChordEngine = true;
-    }
     const int pitchSlot = vargAuto ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
     const int strumTrigSlot = vargAuto ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
 
@@ -301,20 +293,23 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
 
     performance_state.chord = chords;
     if (cv_chords != -1) {
-        performance_state.chord = (int) floorf(data.cv[cv_chords] * 11.f);
+        // Full 18-row range — the removed toggle's manual voicing CV is no
+        // longer needed to reach the extended rows.
+        performance_state.chord = (int) floorf(fabsf(data.cv[cv_chords])
+                                        * (float) rings::kNumChords);
     }
     if (vargAuto) {
         // Exact progression quality from VARG's internal companion.
         performance_state.chord = data.vargVoicing[vargArp];
-    } else if (cv_vargChord != -1) {
-        // Manual voicing override (VARG Chord toggle OFF).
-        int voicing = (int) lroundf(fabsf(data.cv[cv_vargChord])
-                                    * (float)(SEQ::kVargVoicingCount - 1));
-        if (voicing < 0) voicing = 0;
-        if (voicing >= SEQ::kVargVoicingCount) voicing = SEQ::kVargVoicingCount - 1;
-        performance_state.chord = voicing;
     }
     CONSTRAIN(performance_state.chord, 0, rings::kNumChords - 1);
+    // The classic Part's quantized chord table has only 11 rows. A VARG
+    // companion can publish extended voicings 11..17 intended for the
+    // guitar engine; clamp on the classic path so a VARG ARP driving a
+    // single-note model cannot index past that table.
+    if (!useChordEngine && performance_state.chord > 10) {
+        performance_state.chord = 10;
+    }
 
     // --- Guitar strum engine -----------------------------------------------
     int strumStyleSel = strumStyle % (int) tbd::STRUM_COUNT;
@@ -373,8 +368,6 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("position", [&](const int val) { cv_position = val; });
     pMapPar.emplace("chords", [&](const int val) { chords = val; });
     pMapCv.emplace("chords", [&](const int val) { cv_chords = val; });
-    pMapPar.emplace("vargChord", [&](const int val) { vargChord = val; });
-    pMapCv.emplace("vargChord", [&](const int val) { cv_vargChord = val; });
     pMapPar.emplace("strumStyle", [&](const int val) { strumStyle = val; });
     pMapCv.emplace("strumStyle", [&](const int val) { cv_strumStyle = val; });
     pMapPar.emplace("strumSpread", [&](const int val) { strumSpread = val; });

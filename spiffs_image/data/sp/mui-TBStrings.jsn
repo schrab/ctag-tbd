@@ -70,15 +70,6 @@
              "5b5", "dim7", "m7b5", "aug", "add9", "m+b9", "1-5-1"]
   },
   {
-   "id": "vargChord",
-   "name": "VARG Chord",
-   "type": "int",
-   "min": 0,
-   "max": 1,
-   "def": 0,
-   "texts": ["Off", "On"]
-  },
-  {
    "id": "strumStyle",
    "name": "Strum Style",
    "type": "int",
