@@ -642,6 +642,20 @@ namespace CTAG {
                     // TBDaits engine names) — show the label when present.
                     const char *lbl =
                         DspProxy::GetParamEntryLabel(chan, pi.tblIdx, pi.current);
+                    // TBStrings: the VARG Chord toggle forces the guitar
+                    // chord engine on the DSP, so the Model row must show
+                    // that instead of the classic resonator it still holds
+                    // as its underlying value. Generic: only applies when a
+                    // vargChord param exists on this channel.
+                    if (strcmp(pi.id, "reson_model") == 0) {
+                        for (int k = 0; k < paramCount; ++k) {
+                            if (strcmp(params[k].id, "vargChord") == 0 &&
+                                params[k].current != 0) {
+                                lbl = "Guitar Chords";
+                                break;
+                            }
+                        }
+                    }
                     if (lbl)
                         snprintf(valBuf, sizeof(valBuf), "%s", lbl);
                     else

@@ -66,7 +66,7 @@ namespace CTAG {
             // These are derived once per block in updateParams.
             int modelSelection = 3;        // 0..3 UI selector
             int classicModelSelection = 1; // rings::ResonatorModel (0..5)
-            int fxSelection = rings::FX_REVERB;
+            int fxSelection = rings::FX_NONE;
             bool useChordEngine = false;
             bool vargAutoActive = false;
 

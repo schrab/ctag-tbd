@@ -123,15 +123,12 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     modelSelection = modelSel;
     if (modelSel < kClassicModelCount) {
         classicModelSelection = kClassicModels[modelSel];
-        // If VARG Chord later forces the chord engine, use the same gentle
-        // reverb instead of a formant (the classic model is unaffected).
-        fxSelection = rings::FX_REVERB;
+        fxSelection = rings::FX_NONE;
         useChordEngine = false;
     } else {
         classicModelSelection = rings::RESONATOR_MODEL_SYMPATHETIC_STRING;
-        // One guitar model: plucked strings into a gentle reverb, with
-        // position controlling the reverb amount.
-        fxSelection = rings::FX_REVERB;
+        // One guitar model: dry plucked strings, no FX of any kind.
+        fxSelection = rings::FX_NONE;
         useChordEngine = true;
     }
 
@@ -258,9 +255,10 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     }
     const bool vargAuto = (vargArp >= 0);
     vargAutoActive = vargAuto;
-    if (vargAuto) {
-        // The classic Part only has 11 chord rows; the VARG voicings need
-        // the 18-row table in the guitar engine.
+    if (vargChord != 0) {
+        // The toggle itself selects the guitar chord engine (the panel's
+        // Model row follows it). A VARG companion additionally supplies
+        // pitch/gate/voicing/stroke; without one the manual mappings apply.
         useChordEngine = true;
     }
     const int pitchSlot = vargAuto ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
