@@ -104,12 +104,70 @@ namespace CTAG {
             // readers scan it under the mux.
             struct PluginCacheEntry {
                 char id[24];
+                char name[24];
                 bool stereo;
             };
-            constexpr int kPluginCacheMax = 48;
+            // MAX_PLUGINS on the home page is 64 — cover the whole list (58
+            // shipped plugins + headroom) so the DOM-free browser shows all.
+            constexpr int kPluginCacheMax = 64;
             PluginCacheEntry pluginCache[kPluginCacheMax];
             int pluginCacheCount = 0;
             portMUX_TYPE pluginCacheMux = portMUX_INITIALIZER_UNLOCKED;
+
+            // Bounded field search inside one JSON object (no DOM, no heap).
+            static const char *findField(const char *begin, const char *end,
+                                         const char *key) {
+                const size_t klen = strlen(key);
+                for (const char *p = begin; p + klen <= end; ++p) {
+                    if (memcmp(p, key, klen) == 0) return p + klen;
+                }
+                return nullptr;
+            }
+
+            // Copy a bare JSON string value (ids/names contain no escapes).
+            static void copyJsonString(const char *src, const char *end,
+                                       char *dst, size_t dstSz) {
+                size_t n = 0;
+                while (src < end && *src != '"' && n + 1 < dstSz) {
+                    dst[n++] = *src++;
+                }
+                dst[n] = '\0';
+            }
+
+            // Rebuild the static snapshot with a FLAT scan. The previous
+            // Document::Parse of the whole ~5 KB list was the C3's
+            // bootstrap store-fault (big contiguous DOM pool chunk next to
+            // NimBLE). No allocation, no parse pool — just field scans over
+            // the already-received payload.
+            static void buildPluginCache(const char *json) {
+                taskENTER_CRITICAL(&pluginCacheMux);
+                pluginCacheCount = 0;
+                const char *p = json;
+                while (*p && pluginCacheCount < kPluginCacheMax) {
+                    while (*p && *p != '{') ++p;
+                    if (!*p) break;
+                    const char *obj = ++p;
+                    while (*p && *p != '}') ++p;
+                    const char *objEnd = p;
+                    if (*p) ++p;
+                    if (obj >= objEnd) continue;
+
+                    PluginCacheEntry &c = pluginCache[pluginCacheCount];
+                    c.id[0] = c.name[0] = '\0';
+                    c.stereo = false;
+                    const char *f = findField(obj, objEnd, "\"id\":");
+                    if (f && f < objEnd && *f == '"')
+                        copyJsonString(f + 1, objEnd, c.id, sizeof(c.id));
+                    f = findField(obj, objEnd, "\"name\":");
+                    if (f && f < objEnd && *f == '"')
+                        copyJsonString(f + 1, objEnd, c.name, sizeof(c.name));
+                    f = findField(obj, objEnd, "\"isStereo\":");
+                    if (f && f + 4 <= objEnd && memcmp(f, "true", 4) == 0)
+                        c.stereo = true;
+                    if (c.id[0]) ++pluginCacheCount;
+                }
+                taskEXIT_CRITICAL(&pluginCacheMux);
+            }
 
             // Plugin-load overlay state: set by SetSoundProcessorChannel,
             // cleared by the loaded plugin's params push (a completed
@@ -536,33 +594,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     while (end > lp && *end != ']') end--;
                     if (end > lp && *lp == '[' && *end == ']') {
                         cachePluginList.assign(lp, (size_t)(end - lp + 1));
-                        // Rebuild the parsed-once stereo snapshot HERE (link
-                        // task, once per push — the list is static after
-                        // boot). One DOM parse per push is fine; per CALL
-                        // was the crash.
-                        Document pl;
-                        pl.Parse(cachePluginList.c_str());
-                        if (pl.IsArray()) {
-                            taskENTER_CRITICAL(&pluginCacheMux);
-                            pluginCacheCount = 0;
-                            for (SizeType i = 0;
-                                 i < pl.Size() && pluginCacheCount < kPluginCacheMax;
-                                 i++) {
-                                const Value &e = pl[i];
-                                if (!e.IsObject() || !e.HasMember("id") ||
-                                    !e["id"].IsString())
-                                    continue;
-                                PluginCacheEntry &c =
-                                    pluginCache[pluginCacheCount];
-                                snprintf(c.id, sizeof(c.id), "%s",
-                                         e["id"].GetString());
-                                c.stereo = e.HasMember("isStereo") &&
-                                           e["isStereo"].IsBool() &&
-                                           e["isStereo"].GetBool();
-                                pluginCacheCount++;
-                            }
-                            taskEXIT_CRITICAL(&pluginCacheMux);
-                        }
+                        // FLAT scan, no RapidJSON: the DOM pool of a ~5 KB
+                        // plugin list is exactly what store-faulted the C3
+                        // on boot at 58 plugins. buildPluginCache allocates
+                        // nothing and is called once per push on the link
+                        // task.
+                        buildPluginCache(cachePluginList.c_str());
                     }
                 }
                 return;
@@ -824,6 +861,24 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         const char *DspProxy::GetCStrJSONSoundProcessors() { return cachePluginList.c_str(); }
+
+        int DspProxy::GetPluginListCount() { return pluginCacheCount; }
+
+        void DspProxy::GetPluginListEntry(int idx, char *id, size_t idSz,
+                                          char *name, size_t nameSz,
+                                          bool *stereo) {
+            taskENTER_CRITICAL(&pluginCacheMux);
+            if (idx >= 0 && idx < pluginCacheCount) {
+                snprintf(id, idSz, "%s", pluginCache[idx].id);
+                snprintf(name, nameSz, "%s", pluginCache[idx].name);
+                if (stereo) *stereo = pluginCache[idx].stereo;
+            } else {
+                if (id && idSz) id[0] = '\0';
+                if (name && nameSz) name[0] = '\0';
+                if (stereo) *stereo = false;
+            }
+            taskEXIT_CRITICAL(&pluginCacheMux);
+        }
 
         int DspProxy::GetParamEntryCount(int chan) {
             if (chan < 0 || chan > 1) return 0;

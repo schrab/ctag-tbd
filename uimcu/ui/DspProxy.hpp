@@ -65,6 +65,16 @@ namespace CTAG {
             // changes on pushes/acks, never mid-redraw.
             static const char *GetCStrJSONSoundProcessors();
 
+            // DOM-free plugin-list snapshot. The full plugin list push is now
+            // ~5 KB (58 plugins); RapidJSON's pool malloc next to NimBLE can
+            // return null and store-fault the C3 on boot (the pushPlugList
+            // crash class). The link task scans the flat JSON ONCE into this
+            // static table; the plugin browser reads it without any DOM.
+            static int GetPluginListCount();
+            static void GetPluginListEntry(int idx, char *id, size_t idSz,
+                                           char *name, size_t nameSz,
+                                           bool *stereo);
+
             // ---- live parameter table (chunked /push/params frames) ----
             // Static storage instead of a cached JSON string: whole-plugin
             // params DOMs do not fit the no-PSRAM C3's heap next to NimBLE

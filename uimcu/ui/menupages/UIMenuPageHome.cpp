@@ -63,21 +63,18 @@ namespace CTAG {
 
         void UIMenuPageHome::parsePlugins() {
             pluginCount = 0;
-            const char *json = DspProxy::GetCStrJSONSoundProcessors();
-            if (!json) return;
-
-            Document doc;
-            doc.Parse(json);
-            if (!doc.IsArray()) return;
-
-            for (SizeType i = 0; i < doc.Size() && pluginCount < MAX_PLUGINS; i++) {
-                const Value &p = doc[i];
-                if (!p.HasMember("id")) continue;
+            // DOM-free: the link task already scanned the flat plugin-list
+            // push into DspProxy's static snapshot. Parsing the ~5 KB list
+            // here on the UI task was the second RapidJSON pool-churn site
+            // in the C3 bootstrap store-fault class.
+            const int n = DspProxy::GetPluginListCount();
+            for (int i = 0; i < n && pluginCount < MAX_PLUGINS; i++) {
                 PluginEntry &e = plugins[pluginCount];
-                snprintf(e.id, sizeof(e.id), "%s", p["id"].GetString());
-                snprintf(e.name, sizeof(e.name), "%s",
-                         p.HasMember("name") ? p["name"].GetString() : p["id"].GetString());
-                e.isStereo = p.HasMember("isStereo") && p["isStereo"].GetBool();
+                bool stereo = false;
+                DspProxy::GetPluginListEntry(i, e.id, sizeof(e.id),
+                                             e.name, sizeof(e.name), &stereo);
+                if (!e.id[0]) continue;
+                e.isStereo = stereo;
                 pluginCount++;
             }
         }
