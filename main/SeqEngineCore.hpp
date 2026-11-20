@@ -584,7 +584,7 @@ struct ArpSource {
     uint8_t root_mode;   // 0 fixed, 1 W7 drift, 2 Neo-Riemannian
     uint8_t root;        // pitch class 0..11 (base note = 48 + root)
     uint8_t scale_idx;   // 0..19 (+64 flag bit = extended chord tones)
-    uint8_t p[7];        // per-algo params, 0..100 (VARG: P5 strum, P6 spread, P7 ghost)
+    uint8_t p[8];        // per-algo params, 0..100 (VARG: P5 strum, P6 spread, P7 ghost, P8 extra pattern)
     uint8_t step;        // 0..15
     uint8_t cur_note;    // last computed MIDI note
     uint8_t level;       // gate open on the current step
@@ -1103,6 +1103,18 @@ inline constexpr uint16_t kVargMasks[kVargMaskCount] = {
     0xFFFF, // 24 TRM32  use with Div = 1/32 for 32nd tremolo
 };
 
+// Effective 16-step riff mask for a VARG algo, with P2 compatibility and
+// the optional P8 extra-pattern override. Shared with the burst scheduler.
+inline uint16_t VargEffectiveMask(const ArpSource &s) {
+    uint16_t mask = kVargMasks[(s.p[1] * 20) / 101];
+    if (s.p[7] > 0) {
+        int extra = 20 + ((s.p[7] - 1) * 5) / 100;
+        if (extra >= kVargMaskCount) extra = kVargMaskCount - 1;
+        mask = kVargMasks[extra];
+    }
+    return mask;
+}
+
 // BIAS re-voicing: 0..33 RAW (power chords), 34..66 TRIAD (own law),
 // 67..100 DISS (probabilistic altered remap; intensity scales with bias)
 inline uint8_t VargBiasQuality(ArpSource &s, uint8_t base, uint8_t bias) {
@@ -1183,7 +1195,9 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     if (advance) VargNextChord(s, ext);
     else VargLoadChord(s, ext, (v.chordIdx == 0xFF) ? 0 : v.chordIdx);
     const VargToneSet &ts = kVargTones[v.curQual % VQ_COUNT];
-    uint16_t mask = kVargMasks[(s.p[1] * 25) / 101];
+    // PITCH MAPPING COMPAT: P2 keeps the ORIGINAL 20-mask mapping so stored
+    // presets keep their rhythm. The 5 new patterns live in P8 instead.
+    uint16_t mask = VargEffectiveMask(s);
 
     // MUTATE: flip the weak (low-Barlow) steps of the mask per bar
     if (s.p[3] > 0) {

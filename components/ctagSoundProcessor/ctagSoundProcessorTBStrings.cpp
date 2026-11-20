@@ -185,15 +185,10 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
             // One note (VARG arpeggio or manual): the sequencer's string
             // index when present, otherwise a simple round-robin fallback.
             int str = vargArp >= 0 ? data.vargString[vargArp] : fallbackString;
-            if (str < 0 || str >= rings::kGuitarFrettedStrings) str = fallbackString;
+            // VARG may send the open pedal string (index 3) as part of the
+            // chord burst; only out-of-range values fall back.
+            if (str < 0 || str >= rings::kGuitarStringCount) str = fallbackString;
             bank->SetNote(str, note, true, burstVel);
-            // The open pedal string is plucked with every VARG strum and
-            // keeps ringing while the fretted strings change above it.
-            if (vargArp >= 0 && data.vargBurst[vargArp] != 0 &&
-                ghostKind == 0 && pedal > 0) {
-                bank->SetNote(rings::kGuitarPedalString,
-                              pedal / 4032.f * 96.f, true, burstVel * 0.7f);
-            }
             if (vargArp < 0) fallbackString = (fallbackString + 1) % rings::kGuitarFrettedStrings;
         }
     }
@@ -221,8 +216,6 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("position", [&](const int val) { cv_position = val; });
     pMapPar.emplace("glide", [&](const int val) { glide = val; });
     pMapCv.emplace("glide", [&](const int val) { cv_glide = val; });
-    pMapPar.emplace("pedal", [&](const int val) { pedal = val; });
-    pMapCv.emplace("pedal", [&](const int val) { cv_pedal = val; });
     pMapPar.emplace("strum_int", [&](const int val) { strum_int = val; });
     pMapTrig.emplace("strum_int", [&](const int val) { trig_strum_int = val; });
     pMapPar.emplace("eg_trigger", [&](const int val) { eg_trigger = val; });

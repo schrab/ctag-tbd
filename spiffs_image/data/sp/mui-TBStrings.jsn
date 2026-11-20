@@ -51,14 +51,6 @@
    "def": 0
   },
   {
-   "id": "pedal",
-   "name": "Open Pedal",
-   "type": "int",
-   "min": 0,
-   "max": 4032,
-   "def": 0
-  },
-  {
    "id": "strum_int",
    "type": "bool",
    "name": "Note Gate"

@@ -66,8 +66,6 @@ namespace CTAG {
             atomic<int32_t> position{2048}, cv_position{-1};
             // 0 = instant, otherwise 0..50 ms exponential pitch glide.
             atomic<int32_t> glide{0}, cv_glide{-1};
-            // Open (unfretted) pedal string pitch: 0 = off, else 0..4032 -> 0..96.
-            atomic<int32_t> pedal{0}, cv_pedal{-1};
             // Note gate enable (the mapped trig fires a pluck).
             atomic<int32_t> strum_int{1}, trig_strum_int{-1};
             atomic<int32_t> eg_trigger{0}, trig_eg_trigger{-1};

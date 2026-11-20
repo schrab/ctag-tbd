@@ -198,8 +198,18 @@ TEST(varg_strum_cells_present) {
     CHECK(kVargMasks[22] == 0x8421);   // P516
     CHECK(kVargMasks[23] == 0x8420);   // WALTZ
     CHECK(kVargMaskCount == 25);
-    CHECK((100 * kVargMaskCount) / 101 == kVargMaskCount - 1);
-    CHECK((70 * kVargMaskCount) / 101 == 17);
+    // P2 keeps the original 20-mask mapping: stored presets keep their rhythm.
+    ArpSource src{};
+    src.p[1] = 13;
+    CHECK(VargEffectiveMask(src) == kVargMasks[2]);   // QRT, not HALF
+    src.p[1] = 8;
+    CHECK(VargEffectiveMask(src) == kVargMasks[1]);   // TRM8
+    // P8 selects one of the five new patterns without touching P2.
+    src.p[1] = 13;
+    src.p[7] = 1;
+    CHECK(VargEffectiveMask(src) == kVargMasks[20]);  // TRIP
+    src.p[7] = 100;
+    CHECK(VargEffectiveMask(src) == kVargMasks[24]);  // TRM32
 }
 
 TEST(varg_note_calc_semitone_exact) {
@@ -588,7 +598,7 @@ TEST(varg_voicing4_matches_rings_chord_table) {
 TEST(varg_ghost_transients_and_burst_velocity) {
     CTAG::DRIVERS::SeqEngine::Init();
     CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 5);   // choice 1 = TRM8 -> odd steps silent
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 8);   // original mapping: p8 -> TRM8 -> odd steps silent
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 20);  // Pendulum
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 50);
@@ -637,8 +647,8 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
         if (low && !lastGateLow) {
             ++edges;
             const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
-            CHECK(s >= 0 && s < 3);
-            if (s >= 0 && s < 3) ++stringsSeen[s];
+            CHECK(s >= 0 && s < 4);   // 3 fretted + VARG's open pedal string
+            if (s >= 0 && s < 4) ++stringsSeen[s];
             prevString = s;
         }
         if (low) ++lowRun; else lowRun = 0;
@@ -647,7 +657,7 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
     }
     CHECK(edges > 16);          // more edges than 16 pattern steps -> burst
     CHECK(burstBlocks > 0);
-    for (int s = 0; s < 3; ++s) CHECK(stringsSeen[s] > 0);
+    for (int s = 0; s < 4; ++s) CHECK(stringsSeen[s] > 0);
 
     // P5 = 0 (Block) keeps the legacy single whole-chord gate per step.
     CTAG::DRIVERS::SeqEngine::Init();
