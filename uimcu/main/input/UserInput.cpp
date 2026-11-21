@@ -38,7 +38,6 @@ respective component folders / files if different from this license.
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/queue.h"
 
 #define DEBOUNCE_MS 20
 #define LONG_PRESS_MS 500
@@ -50,14 +49,28 @@ namespace CTAG {
     namespace CTRL {
 
         namespace {
-            QueueHandle_t evQueue = nullptr;
+            InputEventBuffer evQueue;
+            portMUX_TYPE queueMux = portMUX_INITIALIZER_UNLOCKED;
+
+            bool postEvent(InputEvent event) {
+                taskENTER_CRITICAL(&queueMux);
+                bool posted = evQueue.Push(event);
+                taskEXIT_CRITICAL(&queueMux);
+                return posted;
+            }
+
+            void postButton(InputEvent event) {
+                // Encoder traffic can never consume the last button slot.
+                // If the queue contains 64 buttons, preserve this release
+                // until the UI resumes instead of silently losing it.
+                while (!postEvent(event)) vTaskDelay(1);
+            }
             adc_oneshot_unit_handle_t adc1_handle = nullptr;
 
             int readAdcRaw() {
-                int val = 0;
-                if (adc1_handle) {
-                    adc_oneshot_read(adc1_handle, ADC_CHANNEL_1, &val);
-                }
+                int val = -1;
+                if (!adc1_handle ||
+                    adc_oneshot_read(adc1_handle, ADC_CHANNEL_1, &val) != ESP_OK) return -1;
                 return val;
             }
 
@@ -166,7 +179,7 @@ namespace CTAG {
             }
 
             void inputTask(void *) {
-                uint32_t lastDebounceTs = 0;
+                ButtonDebouncer debouncer;
                 uint32_t sw1PressTs = 0;
                 uint32_t sw2PressTs = 0;
                 int32_t enc1Carry = 0;
@@ -194,24 +207,29 @@ namespace CTAG {
                         InputEvent ev;
                         ev.type = InputEvent::ENC_DELTA;
                         ev.delta = (int16_t)d1;
-                        xQueueSend(evQueue, &ev, 0);
+                        postEvent(ev);
                     }
                     if (d2 != 0) {
                         InputEvent ev;
                         ev.type = InputEvent::ENC2_DELTA;
                         ev.delta = (int16_t)d2;
-                        xQueueSend(evQueue, &ev, 0);
+                        postEvent(ev);
                     }
 
                     // read ADC buttons with 4-sample averaging
                     int sum = 0;
+                    bool valid = true;
                     for (int i = 0; i < 4; i++) {
-                        sum += readAdcRaw();
+                        int sample = readAdcRaw();
+                        if (sample < 0) valid = false;
+                        else sum += sample;
                     }
                     int adc = sum / 4;
                     BtnADCState newState = readADCState(currentADCState, adc);
 
-                    if (newState != currentADCState && (now - lastDebounceTs) >= pdMS_TO_TICKS(DEBOUNCE_MS)) {
+                    if (debouncer.Update(valid ? (int)newState : -1, now,
+                                         pdMS_TO_TICKS(DEBOUNCE_MS))) {
+                        newState = (BtnADCState)debouncer.State();
                         BtnADCState old = currentADCState;
                         InputEvent ev;
                         ev.delta = 0;
@@ -243,7 +261,7 @@ namespace CTAG {
                         else if (old == BTN_SW1 && newState == BTN_NONE) {
                             ev.type = (now - sw1PressTs >= pdMS_TO_TICKS(LONG_PRESS_MS))
                                 ? InputEvent::BTN2_LONG : InputEvent::BTN2_SHORT;
-                            xQueueSend(evQueue, &ev, 0);
+                            postButton(ev);
                         }
                         // SW1 pressed (physical OK / BTN_A)
                         else if (old == BTN_NONE && newState == BTN_SW1) {
@@ -253,7 +271,7 @@ namespace CTAG {
                         else if (old == BTN_SW1 && newState == BTN_SW2) {
                             ev.type = (now - sw1PressTs >= pdMS_TO_TICKS(LONG_PRESS_MS))
                                 ? InputEvent::BTN2_LONG : InputEvent::BTN2_SHORT;
-                            xQueueSend(evQueue, &ev, 0);
+                            postButton(ev);
                             sw2PressTs = now;
                         }
                         // SW2 released (physical BACK / BTN_B)
@@ -262,7 +280,7 @@ namespace CTAG {
                                 ? InputEvent::BTN1_LONG : InputEvent::BTN1_SHORT;
                             ESP_LOGI(TAG, "BTN_B release %s adc=%d",
                                      ev.type == InputEvent::BTN1_LONG ? "LONG" : "SHORT", adc);
-                            xQueueSend(evQueue, &ev, 0);
+                            postButton(ev);
                         }
                         // SW2 pressed (physical BACK / BTN_B)
                         else if (old == BTN_NONE && newState == BTN_SW2) {
@@ -272,12 +290,11 @@ namespace CTAG {
                         else if (old == BTN_SW2 && newState == BTN_SW1) {
                             ev.type = (now - sw2PressTs >= pdMS_TO_TICKS(LONG_PRESS_MS))
                                 ? InputEvent::BTN1_LONG : InputEvent::BTN1_SHORT;
-                            xQueueSend(evQueue, &ev, 0);
+                            postButton(ev);
                             sw1PressTs = now;
                         }
 
                         currentADCState = newState;
-                        lastDebounceTs = now;
                     }
 
                     vTaskDelay(pdMS_TO_TICKS(POLL_MS));
@@ -294,8 +311,6 @@ namespace CTAG {
         }
 
         void UserInput::Init() {
-            evQueue = xQueueCreate(64, sizeof(InputEvent));
-
             // GPIO ISR service for the two quadrature encoders
             ESP_ERROR_CHECK(gpio_install_isr_service(0));
             encoderInit(enc1);
@@ -330,19 +345,29 @@ namespace CTAG {
         void UserInput::EnableISR() {}
 
         bool UserInput::GetEvent(InputEvent& ev, uint32_t timeoutMs) {
-            return xQueueReceive(evQueue, &ev, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+            TickType_t start = xTaskGetTickCount();
+            do {
+                taskENTER_CRITICAL(&queueMux);
+                bool found = evQueue.Pop(ev);
+                taskEXIT_CRITICAL(&queueMux);
+                if (found) return true;
+                if (xTaskGetTickCount() - start >= pdMS_TO_TICKS(timeoutMs)) return false;
+                vTaskDelay(1);
+            } while (true);
         }
 
         bool UserInput::PeekEvent(InputEvent& ev) {
-            return xQueuePeek(evQueue, &ev, 0) == pdTRUE;
+            taskENTER_CRITICAL(&queueMux);
+            bool found = evQueue.Peek(ev);
+            taskEXIT_CRITICAL(&queueMux);
+            return found;
         }
 
         bool UserInput::InjectEvent(InputEvent::Type type, int16_t delta) {
-            if (evQueue == nullptr) return false;
             InputEvent ev;
             ev.type = type;
             ev.delta = delta;
-            return xQueueSend(evQueue, &ev, 0) == pdTRUE;
+            return postEvent(ev);
         }
     }
 }

@@ -39,6 +39,12 @@ namespace CTAG {
             SubPage subPage = SP_MAIN;
             int cursor = 0;
             int scrollOffset = 0;
+            int lastCount = -1;
+            bool lastScanning = false;
+            bool lastConnected = false;
+            bool lastUart = false;
+            bool lastBle = false;
+            SubPage lastPage = SP_MAIN;
             void redrawMain();
             void redrawScan();
         };

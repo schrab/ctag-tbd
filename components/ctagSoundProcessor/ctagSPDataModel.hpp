@@ -53,7 +53,9 @@ namespace CTAG {
             // plugin's C++ defaults survive (servando b69cb179).
             bool HasParam(const string &id);
 
-            void SavePreset(const string &name, const int number);
+            // Returns the actual stored index (append indices are clamped),
+            // or -1 when the preset model cannot be saved.
+            int SavePreset(const string &name, const int number);
 
             const char *GetCStrJSONPresets(); // all presets
             const char *GetCStrJSONAllPresetData(); // current preset
@@ -91,4 +93,3 @@ namespace CTAG {
         };
     }
 }
-

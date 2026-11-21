@@ -42,6 +42,7 @@ respective component folders / files if different from this license.
 #include "freertos/task.h"
 #include <dirent.h>
 #include <cstring>
+#include <climits>
 #include <string>
 
 using namespace std;
@@ -280,19 +281,28 @@ namespace CTAG {
                     w.StartArray();
                 };
 
-                auto emitValue = [&](const Value &v) {
+                int entryIndex = 0;
+                auto emitValue = [&](const Value &v, int group) {
                     StringBuffer elem;
                     Writer<StringBuffer> ew(elem);
-                    v.Accept(ew);
+                    ew.StartObject();
+                    for (auto &m : v.GetObject()) {
+                        ew.Key(m.name.GetString());
+                        m.value.Accept(ew);
+                    }
+                    ew.Key("group"); ew.Int(group);
+                    ew.EndObject();
                     if (acc > 0 && acc + elem.GetSize() > kChunkBudget)
                         flushChunk(false);
                     w.RawValue(elem.GetString(), elem.GetSize(), kNullType);
                     acc += elem.GetSize();
+                    entryIndex++;
                 };
 
                 w.StartArray();
                 for (auto &v : arr.GetArray()) {
                     if (v.IsObject() && v.HasMember("params") && v["params"].IsArray()) {
+                        const int groupIndex = entryIndex++;
                         // Group marker (everything except the nested array),
                         // then its leaves as flat entries.
                         StringBuffer marker;
@@ -309,10 +319,10 @@ namespace CTAG {
                         w.RawValue(marker.GetString(), marker.GetSize(), kNullType);
                         acc += marker.GetSize();
                         for (auto &g : v["params"].GetArray()) {
-                            emitValue(g);
+                            emitValue(g, groupIndex);
                         }
                     } else {
-                        emitValue(v);
+                        if (v.IsObject()) emitValue(v, -1);
                     }
                 }
                 flushChunk(true);
@@ -745,6 +755,7 @@ namespace CTAG {
                 s += ",\"r\":" + to_string(AUDIO::SDAudio::IsRecording() ? 1 : 0);
                 s += ",\"pos\":" + to_string(AUDIO::SDAudio::GetPositionFrames());
                 s += ",\"tot\":" + to_string(AUDIO::SDAudio::GetTotalFrames());
+                s += ",\"rate\":" + to_string(AUDIO::SDAudio::GetSampleRate());
                 // Tape-health bench counters: playback ring underruns ("u")
                 // and recording dropouts ("d"). A few "u" at playback start
                 // are normal; growth mid-playback = tape gaps = clicks.
@@ -1011,11 +1022,16 @@ namespace CTAG {
                 }
                 if (cmdName == kMsgCmdPresetSave) {
                     int ch;
+                    const bool append = d.HasMember("append") && d["append"].IsBool() &&
+                                        d["append"].GetBool();
                     if (!getCh(d, ch) || !d.HasMember("name") || !d["name"].IsString() ||
-                        !d.HasMember("number") || !d["number"].IsInt()) {
+                        (!append && (!d.HasMember("number") || !d["number"].IsInt()))) {
                         response = "{\"error\":\"bad presetSave\"}";
                     } else {
-                        SoundProcessorManager::ChannelSavePreset(ch, d["name"].GetString(), d["number"].GetInt());
+                        // The model clamps indices past the end to append.
+                        // Resolve it here, never from a capped panel listing.
+                        SoundProcessorManager::ChannelSavePreset(ch, d["name"].GetString(),
+                                                                append ? INT_MAX : d["number"].GetInt());
                         response = "{\"ok\":1}";
                     }
                     return true;
@@ -1299,8 +1315,18 @@ namespace CTAG {
                                         // Empty response = one-way command
                                         // (e.g. midiIn): no reply frame.
                                         if (handleLinkCommand(cmd, response) &&
-                                            !response.empty())
+                                            !response.empty()) {
+                                            // Private correlation token for concurrent
+                                            // panel/bench debug callers. Do not reuse
+                                            // "seq": some diagnostics own that field.
+                                            const char *rid = strstr(cmd.c_str(), "\"_rid\":");
+                                            size_t close = response.rfind('}');
+                                            if (rid && close != string::npos) {
+                                                response.insert(close, ",\"_rid\":" +
+                                                    to_string(strtoul(rid + 7, nullptr, 10)));
+                                            }
                                             sendStr(response);
+                                        }
                                     }
                                 }
                                 receiving = false;

@@ -233,13 +233,10 @@
                             // replace preset in patch data structure
                             // check if patch data can be placed at correct storage position
                             // if not add dummy presets
-                            if (data.fav.pre_0 > res.patches.length) {
-                                while (data.fav.pre_0 > res.patches.length) {
-                                    res.patches.push(data.preset_0);
-                                }
-                            } else {
-                                res.patches[data.fav.pre_0] = data.preset_0;
+                            while (data.fav.pre_0 > res.patches.length) {
+                                res.patches.push(data.preset_0);
                             }
+                            res.patches[data.fav.pre_0] = data.preset_0;
                             // overwrite existing preset storage with preset data from patch
                             $.postq('myq',
                                 '/api/v1/setPresetData/' + data.fav.plug_0,
@@ -285,13 +282,10 @@
                                 // replace preset in patch data structure
                                 // check if patch data can be placed at correct storage position
                                 // if not add dummy presets
-                                if (data.fav.pre_1 > res.patches.length) {
-                                    while (data.fav.pre_1 > res.patches.length) {
-                                        res.patches.push(data.preset_1);
-                                    }
-                                } else {
-                                    res.patches[data.fav.pre_1] = data.preset_1;
+                                while (data.fav.pre_1 > res.patches.length) {
+                                    res.patches.push(data.preset_1);
                                 }
+                                res.patches[data.fav.pre_1] = data.preset_1;
                                 // overwrite existing preset storage with preset data from patch
                                 $.postq('myq',
                                     '/api/v1/setPresetData/' + data.fav.plug_1,

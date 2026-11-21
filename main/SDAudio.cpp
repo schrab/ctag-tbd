@@ -20,6 +20,7 @@ respective component folders / files if different from this license.
 ***************/
 
 #include "SDAudio.hpp"
+#include "RecordingFile.hpp"
 #include "codec.hpp"
 #include "fs.hpp"
 #include "esp_log.h"
@@ -194,6 +195,9 @@ int SDAudio::RecordSamples(float *buf, int nFrames) {
 const char* SDAudio::GetFileName() { return filePath; }
 uint32_t SDAudio::GetPositionFrames() { return bytePos / (numChannels * 2); }
 uint32_t SDAudio::GetTotalFrames() { return totalFrames; }
+uint32_t SDAudio::GetSampleRate() {
+    return recording ? s_recordSampleRate : DRIVERS::Codec::GetSampleRate();
+}
 
 void SDAudio::SetRoute(Route r) {
     route.store((uint32_t)r, std::memory_order_relaxed);
@@ -290,7 +294,7 @@ void SDAudio::workerTask(void *param) {
     static int16_t tmp[CHUNK_MAX * 2];
 
     if (isRecordingMode) {
-        file = fopen(filePath, "wb");
+        file = OpenNewRecording(filePath);
         if (!file) {
             ESP_LOGE(TAG, "Can't create %s", filePath);
             recording = false;

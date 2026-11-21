@@ -22,6 +22,7 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include "UIMenuPage.hpp"
+#include "DspProxy.hpp"
 #include <cstdint>
 
 namespace CTAG {
@@ -44,7 +45,7 @@ namespace CTAG {
 
         private:
             struct ParamInfo {
-                char id[24];
+                char id[32];
                 char name[24];
                 char type[24];
                 int min;
@@ -73,7 +74,7 @@ namespace CTAG {
             int scrollOffset;
             Mode mode;
             int paramCount;
-            static const int MAX_PARAMS = 256;
+            static const int MAX_PARAMS = DspProxy::DSP_MAX_PARAMS;
             ParamInfo *params;
 
             int groupCount;
@@ -116,8 +117,11 @@ namespace CTAG {
             int encoderAccel = 0;
             int lastEncDir = 0;
             uint32_t lastEncTick = 0;
+            char pendingEditId[32] = "";
+            int pendingEditValue = 0;
+            uint32_t pendingEditTick = 0;
 
-            void parseParams();
+            bool parseParams();
             void parsePresets(int chan);
             void showToast(const char *msg);
             int presetRowCount() const; // presets + gap + store row

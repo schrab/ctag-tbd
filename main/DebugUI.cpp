@@ -32,6 +32,7 @@ respective component folders / files if different from this license.
 #include "esp_system.h" // esp_reset_reason — crash classification over the bench
 #include "codec.hpp"
 #include "SDAudio.hpp"
+#include "RecordingFile.hpp"
 #include "perf_monitor.hpp"
 
 #include "freertos/FreeRTOS.h"
@@ -879,6 +880,21 @@ namespace CTAG {
                 cur.Accept(writer);
                 AUDIO::SoundProcessorManager::SetConfigurationFromJSON(buf.GetString());
                 response = cmdEcho + ",\"ok\":1}";
+                return true;
+            }
+
+            if (s == "/debug/sdNextRecordingName") {
+                if (AUDIO::SDAudio::IsPlaying() || AUDIO::SDAudio::IsRecording()) {
+                    response = cmdEcho + ",\"error\":\"transport busy\"}";
+                    return true;
+                }
+                char name[16];
+                if (!AUDIO::SDAudio::IsSDMounted() ||
+                    !AUDIO::NextRecordingName("/sd", name, sizeof(name))) {
+                    response = cmdEcho + ",\"error\":\"no free recording name\"}";
+                } else {
+                    response = cmdEcho + ",\"name\":\"" + name + "\"}";
+                }
                 return true;
             }
 

@@ -39,6 +39,7 @@ echo "==> Building host tests"
     "$HERE/main.cpp" \
     "$HERE/test_marbles_core.cpp" \
     "$HERE/test_input_source.cpp" \
+    "$HERE/test_ui_input_recording.cpp" \
     "$HERE/test_link_protocol.cpp" \
     "$HERE/test_chain_budget.cpp" \
     "$HERE/test_render_ladder.cpp" \

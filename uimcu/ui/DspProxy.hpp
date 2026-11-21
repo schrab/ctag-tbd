@@ -61,9 +61,8 @@ namespace CTAG {
             static void OnLinkFrame(const char *payload, size_t len);
 
             // ---- SPManager surface (plugin list, params, config) ----
-            // All Get* return pointers into the local cache; the cache only
-            // changes on pushes/acks, never mid-redraw.
-            static const char *GetCStrJSONSoundProcessors();
+            // Owned snapshots: link pushes may replace caches on another task.
+            static std::string GetJSONSoundProcessors();
 
             // DOM-free plugin-list snapshot. The full plugin list push is now
             // ~5 KB (58 plugins); RapidJSON's pool malloc next to NimBLE can
@@ -82,7 +81,7 @@ namespace CTAG {
             // marker (isGroup, no leaves) followed by its leaves; leaves
             // between one marker and the next belong to that group.
             struct DspParamEntry {
-                char id[24];
+                char id[32];
                 char name[24];
                 char type[12];
                 // int32, NOT int16: plugin param specs exceed the 16-bit
@@ -94,16 +93,27 @@ namespace CTAG {
                 // int16 (slot indices, small).
                 int32_t min, max, current;
                 int16_t cv, trig;   // patched slot, -1 = none
+                int16_t group;     // table index of owning group, -1 = standalone
                 bool hasCv, hasTrig; // capability: the member was present
                 bool isGroup;
             };
             static constexpr int DSP_MAX_PARAMS = 160;
+            // Hold across multi-entry reads. A chunked update is unavailable
+            // until its last part arrives; no second table is needed on C3.
+            class ParamTableGuard {
+            public:
+                ParamTableGuard();
+                ~ParamTableGuard();
+                ParamTableGuard(const ParamTableGuard &) = delete;
+                ParamTableGuard &operator=(const ParamTableGuard &) = delete;
+            };
+            static bool IsParamTableReady(int chan);
             static int GetParamEntryCount(int chan);
-            static const DspParamEntry *GetParamEntry(int chan, int idx);
-            // Display label for entry idx at value (from the spec's
-            // "texts" array), or nullptr when the param has no labels or
-            // value is out of range — caller falls back to the number.
-            static const char *GetParamEntryLabel(int chan, int idx, int value);
+            static bool GetParamEntry(int chan, int idx, DspParamEntry &out);
+            // Copy a display label from the spec's "texts" array. False
+            // means no label or out-of-range; caller falls back to a number.
+            static bool GetParamEntryLabel(int chan, int idx, int value,
+                                           char *out, size_t size);
             // Increments each time a chunked /push/params sequence completes
             // a channel's table. Pushes land asynchronously after plugin and
             // preset loads, so the Params page watches it to refresh in place
@@ -131,10 +141,10 @@ namespace CTAG {
             static int TakePendingOledContrast();
             // NetRest convenience: serializes the table as the classic
             // {"params":[...]} document (rare path, built on demand).
-            static const char *GetCStrJSONActivePluginParams(int chan);
+            static std::string GetJSONActivePluginParams(int chan);
 
-            static const char *GetCStrJSONGetPresets(int chan);
-            static const char *GetCStrJSONConfiguration();
+            static std::string GetJSONPresets(int chan);
+            static std::string GetJSONConfiguration();
             static void SetConfigurationFromJSON(const std::string &json);
             static std::string GetStringID(int chan);
             static bool IsPluginStereo(const std::string &id);
@@ -142,6 +152,7 @@ namespace CTAG {
             // key is "current", "cv" or "trig" (SDD §6).
             static void SetChannelParamValue(int chan, const std::string &id,
                                              const std::string &key, int value);
+            // number < 0 explicitly appends on the DSP, independent of UI caps.
             static void ChannelSavePreset(int chan, const std::string &name, int number);
             static void ChannelLoadPreset(int chan, int number);
             static void SetMeteringEnabled(bool on);
@@ -168,11 +179,13 @@ namespace CTAG {
             // ---- SDAudio surface ----
             static void SdStartPlayback(const char *path);
             static void SdStartRecording(const char *path);
+            static bool SdGetNextRecordingName(char *name, size_t size);
             static void SdStop();
             static bool SdIsPlaying();
             static bool SdIsRecording();
             static uint32_t SdGetTotalFrames();
             static uint32_t SdGetPositionFrames();
+            static uint32_t SdGetSampleRate();
 
             // Tape signal routing: 0 = main output, 1 = plugin input. Live
             // and volatile (resets to 0 at DSP boot).

@@ -66,11 +66,10 @@ namespace CTAG {
         void UIMenuPageSystem::parseConfig() {
             itemCount = 0;
             memset(items, 0, sizeof(items));
-            const char *json = DspProxy::GetCStrJSONConfiguration();
-            if (!json) return;
+            const std::string json = DspProxy::GetJSONConfiguration();
 
             Document doc;
-            doc.Parse(json);
+            doc.Parse(json.c_str());
             if (!doc.IsObject()) return;
 
             // ng_config
@@ -226,19 +225,22 @@ namespace CTAG {
                 itemCount++;
             }
 
-            // input_gain
+            // Native input gain, shared with MIX and advertised by io-caps.
             if (itemCount < MAX_ITEMS) {
                 ConfigItem &it = items[itemCount];
-                snprintf(it.id, sizeof(it.id), "input_gain");
+                snprintf(it.id, sizeof(it.id), "input_gain_lvl");
                 snprintf(it.name, sizeof(it.name), "Input Gain");
                 snprintf(it.type, sizeof(it.type), "int");
                 it.options[0] = '\0';
-                it.min = 0; it.max = 8; it.valInt = 0; it.deferred = true;
-                snprintf(it.value, sizeof(it.value), "0");
-                if (doc.HasMember("input_gain") && doc["input_gain"].IsString()) {
-                    it.valInt = clampInt(atoi(doc["input_gain"].GetString()), it.min, it.max);
-                    snprintf(it.value, sizeof(it.value), "%d", it.valInt);
+                it.min = 0; it.max = DspProxy::GetMaxInputGain();
+                it.valInt = DspProxy::GetDefaultInputGain(); it.deferred = true;
+                if (doc.HasMember("input_gain_lvl") && doc["input_gain_lvl"].IsString()) {
+                    it.valInt = clampInt(atoi(doc["input_gain_lvl"].GetString()), it.min, it.max);
+                } else if (doc.HasMember("input_gain") && doc["input_gain"].IsString()) {
+                    int legacy = clampInt(atoi(doc["input_gain"].GetString()), 0, 8);
+                    it.valInt = it.max == 8 ? legacy : clampInt(16 + 4 * legacy, 0, it.max);
                 }
+                snprintf(it.value, sizeof(it.value), "%d", it.valInt);
                 itemCount++;
             }
 
@@ -317,10 +319,9 @@ namespace CTAG {
 
         void UIMenuPageSystem::applyCurrent() {
             // Read the full existing config, overlay only our managed keys
-            const char *fullJson = DspProxy::GetCStrJSONConfiguration();
-            if (!fullJson) return;
+            const std::string fullJson = DspProxy::GetJSONConfiguration();
             Document doc;
-            doc.Parse(fullJson);
+            doc.Parse(fullJson.c_str());
             if (!doc.IsObject()) return;
 
             for (int i = 0; i < itemCount; i++) {

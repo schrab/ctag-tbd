@@ -73,6 +73,7 @@ public:
     static const char* GetFileName();
     static uint32_t GetPositionFrames(); // current play/record position
     static uint32_t GetTotalFrames();
+    static uint32_t GetSampleRate();
 
     // Tape signal peak (0..1000) of the last mixed block; read-and-clear,
     // consumed by the 25 Hz link stream for the MIX-page meter.

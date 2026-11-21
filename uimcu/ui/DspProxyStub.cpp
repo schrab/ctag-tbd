@@ -168,16 +168,20 @@ namespace CTAG {
 
         bool DspProxy::IsOnline() { return true; }
 
-        const char *DspProxy::GetCStrJSONSoundProcessors() { return kPluginListJson; }
+        std::string DspProxy::GetJSONSoundProcessors() { return kPluginListJson; }
 
         // The stub serves params as JSON text; the table accessors return
         // an empty table (host tests that need table-driven params extend
         // here).
         int DspProxy::GetParamEntryCount(int) { return 0; }
 
-        const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int, int) { return nullptr; }
+        DspProxy::ParamTableGuard::ParamTableGuard() {}
+        DspProxy::ParamTableGuard::~ParamTableGuard() {}
+        bool DspProxy::IsParamTableReady(int chan) { return chan >= 0 && chan < 2; }
+        bool DspProxy::GetParamEntry(int, int, DspParamEntry &) { return false; }
 
-        const char *DspProxy::GetParamEntryLabel(int, int, int) { return nullptr; }
+        bool DspProxy::GetParamEntryLabel(int, int, int, char *, size_t) { return false; }
+        uint32_t DspProxy::GetPresetsVersion() { return 0; }
 
         // The stub's table never changes under the page, so the version
         // stays constant and the Params page never live-refreshes. Loads
@@ -188,16 +192,16 @@ namespace CTAG {
         uint32_t DspProxy::LoadPendingStartMs() { return 0; }
         int DspProxy::TakePendingOledContrast() { return -1; }
 
-        const char *DspProxy::GetCStrJSONActivePluginParams(int chan) {
+        std::string DspProxy::GetJSONActivePluginParams(int chan) {
             if (chan < 0 || chan > 1) return kParamsDefaultJson;
             if (activeId[chan][0] == '\0') return kParamsDefaultJson;
             if (strcmp(activeId[chan], "ctagSoundProcessorElements") == 0) return kParamsElementsJson;
             return kParamsMonoJson;
         }
 
-        const char *DspProxy::GetCStrJSONGetPresets(int) { return kPresetsJson; }
+        std::string DspProxy::GetJSONPresets(int) { return kPresetsJson; }
 
-        const char *DspProxy::GetCStrJSONConfiguration() { return configBuf; }
+        std::string DspProxy::GetJSONConfiguration() { return configBuf; }
 
         void DspProxy::SetConfigurationFromJSON(const std::string &json) {
             // Stub: overlay the keys the pages manage so a re-read shows the
@@ -258,6 +262,11 @@ namespace CTAG {
             sdPlaying = false;
             sdPosFrames = 0;
         }
+        bool DspProxy::SdGetNextRecordingName(char *name, size_t size) {
+            snprintf(name, size, "tape_001.wav");
+            return true;
+        }
+        uint32_t DspProxy::SdGetSampleRate() { return 44100; }
 
         void DspProxy::SdStop() {
             sdPlaying = false;

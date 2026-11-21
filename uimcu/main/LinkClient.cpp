@@ -30,6 +30,7 @@ respective component folders / files if different from this license.
 #include "freertos/semphr.h"
 #include <cstring>
 #include <string>
+#include <mutex>
 
 using namespace std;
 using namespace CTAG::LINK;
@@ -70,19 +71,21 @@ namespace CTAG {
             uint32_t fsWaitingSeq = 0;
             string fsResult;
 
-            // Pending /debug round trip (only one at a time; the debug task
-            // is the only caller and it is host-paced). No seq correlation:
-            // the DSP's reply echoes the cmd, not the seq — one-shot slot,
-            // and a reply with nothing pending is dropped silently.
+            // Serialized /debug round trips for the UI and bench. _rid and
+            // command correlation reject unsolicited and late replies.
             SemaphoreHandle_t dbgDone = nullptr;
             volatile bool dbgWaiting = false;
             string dbgResult;
+            std::mutex dbgRequestMutex;
+            std::mutex dbgStateMutex;
+            uint32_t dbgRequestId = 0;
+            string dbgExpectedCommand;
 
             uint32_t nowMs() {
                 return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
             }
 
-            void sendFrame(const char *p, size_t len) {
+            bool sendFrame(const char *p, size_t len) {
                 // One uart_write_bytes per frame: the previous three-part
                 // write could interleave between the UI, midi and link tasks
                 // and silently corrupt frames (a lost marblesSet learn=1 made
@@ -100,14 +103,15 @@ namespace CTAG {
                     ESP_LOGE("LinkCli", "sendFrame: %u B exceeds %u B frame "
                              "buffer — DROPPED", (unsigned)len,
                              (unsigned)(sizeof(frame) - 2));
-                    return;
+                    return false;
                 }
-                if (xSemaphoreTake(txMux, pdMS_TO_TICKS(50)) != pdTRUE) return;
+                if (xSemaphoreTake(txMux, pdMS_TO_TICKS(50)) != pdTRUE) return false;
                 frame[0] = 0x02;
                 memcpy(frame + 1, p, len);
                 frame[len + 1] = 0x03;
-                uart_write_bytes(kUart, frame, len + 2);
+                int written = uart_write_bytes(kUart, frame, len + 2);
                 xSemaphoreGive(txMux);
+                return written == (int)len + 2;
             }
 
             void linkTask(void *) {
@@ -118,7 +122,7 @@ namespace CTAG {
                 // a bootloop with the plugin persisted). The DSP keeps its
                 // pushes lean (params without hints); oversized frames are
                 // dropped defensively until the next STX.
-                static char frameBuf[16 * 1024];
+                static char frameBuf[16 * 1024 + 1];
                 size_t frameLen = 0;
                 bool receiving = false;
                 bool overflow = false;
@@ -141,6 +145,7 @@ namespace CTAG {
                                 overflow = false;
                             } else if (c == (char)kEtx) {
                                 if (receiving && !overflow) {
+                                    frameBuf[frameLen] = '\0';
                                     // Activity = complete frames only: raw
                                     // bytes at a corrupted baud (or EMI) are
                                     // traffic for the byte counters but prove
@@ -169,7 +174,7 @@ namespace CTAG {
                                 }
                                 receiving = false;
                             } else if (receiving) {
-                                if (frameLen < sizeof(frameBuf)) {
+                                if (frameLen < sizeof(frameBuf) - 1) {
                                     frameBuf[frameLen++] = c;
                                 } else {
                                     overflow = true;
@@ -253,8 +258,7 @@ namespace CTAG {
         }
 
         bool LinkClient::SendCommand(const string &payload) {
-            sendFrame(payload.data(), payload.size());
-            return true;
+            return sendFrame(payload.data(), payload.size());
         }
 
         bool LinkClient::RequestFsList(const char *path, string &entries,
@@ -296,13 +300,30 @@ namespace CTAG {
         // RequestFsList.
         bool LinkClient::RequestDebug(const string &payload, string &reply,
                                       int timeoutMs) {
+            // UI SD operations and the bench share one relay. Keep complete
+            // transactions ordered, but never hold the state lock while waiting.
+            std::lock_guard<std::mutex> requestLock(dbgRequestMutex);
             if (!s_online) return false;
-            dbgResult.clear();
-            dbgWaiting = true;
+            string command;
+            if (!ScanStringValue(payload.data(), payload.size(), "cmd", command)) return false;
+            const size_t close = payload.find_last_not_of(" \r\n\t");
+            if (close == string::npos || payload[close] != '}') return false;
+            uint32_t requestId;
+            {
+                std::lock_guard<std::mutex> stateLock(dbgStateMutex);
+                requestId = ++dbgRequestId;
+                dbgExpectedCommand = command;
+                dbgResult.clear();
+                dbgWaiting = true;
+            }
+            string request = payload;
+            request.insert(close, ",\"_rid\":" + to_string(requestId));
             xSemaphoreTake(dbgDone, 0); // drain a stale token
-            sendFrame(payload.data(), payload.size());
-
-            if (xSemaphoreTake(dbgDone, pdMS_TO_TICKS(timeoutMs)) != pdTRUE) {
+            const bool sent = sendFrame(request.data(), request.size());
+            const bool completed = sent &&
+                xSemaphoreTake(dbgDone, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+            std::lock_guard<std::mutex> stateLock(dbgStateMutex);
+            if (!completed) {
                 dbgWaiting = false;
                 return false;
             }
@@ -311,8 +332,10 @@ namespace CTAG {
         }
 
         // Called by DspProxy::OnLinkFrame when a /debug reply arrives.
-        void LinkClient_NotifyDebug(const char *payload, size_t len) {
-            if (dbgWaiting) {
+        void LinkClient_NotifyDebug(const char *payload, size_t len,
+                                    const char *command, uint32_t requestId) {
+            std::lock_guard<std::mutex> lock(dbgStateMutex);
+            if (dbgWaiting && requestId == dbgRequestId && dbgExpectedCommand == command) {
                 if (payload) dbgResult.assign(payload, len);
                 dbgWaiting = false;
                 xSemaphoreGive(dbgDone);

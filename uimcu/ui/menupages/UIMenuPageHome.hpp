@@ -92,6 +92,7 @@ namespace CTAG {
             // shown in place of the label until this tick deadline.
             uint32_t sdMsgUntilMs = 0;
             const char *sdMsg = nullptr;
+            bool lastDrawnMounted = false;
 
             void parsePlugins();
             void parseFavorites();

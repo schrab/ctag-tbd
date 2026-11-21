@@ -193,15 +193,19 @@ namespace CTAG {
         // onTick() every 20 ms; redraw only when something changed (found
         // count or scanning state) so the SPI bus isn't hammered.
         void UIMenuPageMidi::onTick() {
-            static int lastCount = -1;
-            static bool lastScanning = false;
-            static SubPage lastPage = SP_MAIN;
             int count = BtMidiReceiver::GetDeviceCount();
             bool scanning = BtMidiReceiver::IsScanning();
-            if (count != lastCount || scanning != lastScanning || subPage != lastPage) {
+            bool connected = BtMidiReceiver::IsConnected();
+            bool uart = DspProxy::IsMidiUartEnabled();
+            bool ble = DspProxy::IsMidiBleEnabled();
+            if (count != lastCount || scanning != lastScanning || subPage != lastPage ||
+                connected != lastConnected || uart != lastUart || ble != lastBle) {
                 lastCount = count;
                 lastScanning = scanning;
                 lastPage = subPage;
+                lastConnected = connected;
+                lastUart = uart;
+                lastBle = ble;
                 doRedraw();
             }
         }
@@ -209,8 +213,7 @@ namespace CTAG {
         bool UIMenuPageMidi::wantsTick() const {
             // Pump while the scan screen is up (or BLE is connecting) so
             // found devices and status appear immediately.
-            return subPage == SP_SCAN || BtMidiReceiver::IsConnected() ||
-                   BtMidiReceiver::IsScanning();
+            return true; // connection and enable changes also matter while idle
         }
 
         void UIMenuPageMidi::DebugStateJson(std::string &out) {

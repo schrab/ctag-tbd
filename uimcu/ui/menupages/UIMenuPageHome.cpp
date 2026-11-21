@@ -203,11 +203,6 @@ namespace CTAG {
                                 sdMsgUntilMs = nowMs + 1500;
                             } else {
                                 DspProxy::SdUnmount();
-                                // Wait briefly for the io-caps push to flip
-                                // the cached state; the label follows it.
-                                for (int i = 0; i < 15 && DspProxy::IsSDMounted(); i++) {
-                                    vTaskDelay(pdMS_TO_TICKS(100));
-                                }
                             }
                         } else if (!DspProxy::IsSDPresent()) {
                             // CD pin says the slot is empty — nothing to
@@ -216,10 +211,9 @@ namespace CTAG {
                             sdMsgUntilMs = nowMs + 1500;
                         } else {
                             DspProxy::SdMount();
-                            for (int i = 0; i < 20 && !DspProxy::IsSDMounted(); i++) {
-                                vTaskDelay(pdMS_TO_TICKS(100));
-                            }
                         }
+                    } else if (cursor == 6) {
+                        UIMenu::RequestSleep();
                     }
                 }
             } else if (subPage == SP_SELECT) {
@@ -392,12 +386,13 @@ namespace CTAG {
 
         void UIMenuPageHome::redrawMain() {
             Display::Clear();
+            lastDrawnMounted = DspProxy::IsSDMounted();
             const char *items[] = {"SELECT", "SYSTEM", "MIDI", "FAVORITES", "SD CARD",
                                    DspProxy::IsSDMounted() ? "UNMOUNT" : "MOUNT", "SLEEP"};
             // Transient mount feedback replaces the item label for ~1.5 s.
             const uint32_t nowMs =
                 (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-            if (!DspProxy::IsSDMounted() && sdMsg && nowMs < sdMsgUntilMs) {
+            if (sdMsg && (int32_t)(sdMsgUntilMs - nowMs) > 0) {
                 items[5] = sdMsg;
             }
             for (int i = 0; i < 7; i++)
@@ -429,6 +424,8 @@ namespace CTAG {
                     doRedraw();
                 }
             }
+            if (subPage == SP_MAIN && lastDrawnMounted != DspProxy::IsSDMounted())
+                doRedraw();
         }
 
         void UIMenuPageHome::redrawFavorites() {

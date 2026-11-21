@@ -125,11 +125,10 @@ namespace CTAG {
             }
             source = 0;
 
-            const char *json = DspProxy::GetCStrJSONConfiguration();
-            if (!json) return;
+            const std::string json = DspProxy::GetJSONConfiguration();
 
             Document doc;
-            doc.Parse(json);
+            doc.Parse(json.c_str());
             if (!doc.IsObject()) return;
 
             for (int i = 0; i < STRIPS; i++) {
@@ -193,10 +192,9 @@ namespace CTAG {
         }
 
         void UIMenuPageMix::applyCurrent(bool includeDeferred) {
-            const char *fullJson = DspProxy::GetCStrJSONConfiguration();
-            if (!fullJson) return;
+            const std::string fullJson = DspProxy::GetJSONConfiguration();
             Document doc;
-            doc.Parse(fullJson);
+            doc.Parse(fullJson.c_str());
             if (!doc.IsObject()) return;
 
             for (int i = 0; i < STRIPS; i++) {

@@ -118,6 +118,7 @@ namespace CTAG {
             presetCount = 0;
             presetChan = 0;
             chan = 0;
+            pendingEditId[0] = '\0';
             string id0 = DspProxy::GetStringID(0);
             string id1 = DspProxy::GetStringID(1);
             bool stereoCh0 = DspProxy::IsPluginStereo(id0);
@@ -143,7 +144,9 @@ namespace CTAG {
             enterParamList(false);
         }
 
-        void UIMenuPageParams::parseParams() {
+        bool UIMenuPageParams::parseParams() {
+            DspProxy::ParamTableGuard lock;
+            if (!DspProxy::IsParamTableReady(chan)) return false;
             paramCount = 0;
             groupCount = 0;
             currentGroup = -1;
@@ -156,8 +159,9 @@ namespace CTAG {
             // ordering convention as the previous JSON parser).
             int standaloneStart = paramCount;
             for (int i = 0; i < n; i++) {
-                const DspProxy::DspParamEntry &e = *DspProxy::GetParamEntry(chan, i);
-                if (e.isGroup) continue;
+                DspProxy::DspParamEntry e;
+                if (!DspProxy::GetParamEntry(chan, i, e)) continue;
+                if (e.isGroup || e.group >= 0) continue;
                 if (onlyMapped && !e.hasCv && !e.hasTrig) continue;
                 if (paramCount >= MAX_PARAMS) break;
                 ParamInfo &pi = params[paramCount];
@@ -185,7 +189,8 @@ namespace CTAG {
             // Pass 2: groups in push order; a group's leaves are the table
             // entries between its marker and the next marker.
             for (int i = 0; i < n; i++) {
-                const DspProxy::DspParamEntry &e = *DspProxy::GetParamEntry(chan, i);
+                DspProxy::DspParamEntry e;
+                if (!DspProxy::GetParamEntry(chan, i, e)) continue;
                 if (!e.isGroup) continue;
                 if (groupCount >= MAX_GROUPS) break;
                 GroupInfo &g = groups[groupCount];
@@ -193,8 +198,10 @@ namespace CTAG {
                 g.firstParamIdx = paramCount;
                 int count = 0;
                 for (int j = i + 1; j < n; j++) {
-                    const DspProxy::DspParamEntry &l = *DspProxy::GetParamEntry(chan, j);
+                    DspProxy::DspParamEntry l;
+                    if (!DspProxy::GetParamEntry(chan, j, l)) continue;
                     if (l.isGroup) break;
+                    if (l.group != i) continue;
                     if (onlyMapped && !l.hasCv && !l.hasTrig) continue;
                     if (paramCount >= MAX_PARAMS) break;
                     ParamInfo &pi = params[paramCount];
@@ -222,17 +229,17 @@ namespace CTAG {
             // Every parse stamps the proxy table version it was built from;
             // onTick refreshes when the proxy completes a newer push.
             tableVersion = DspProxy::GetParamTableVersion();
+            return true;
         }
 
         void UIMenuPageParams::parsePresets(int chan) {
             presetCount = 0;
             presetChan = chan;
             presetsVersion = DspProxy::GetPresetsVersion();
-            const char *json = DspProxy::GetCStrJSONGetPresets(chan);
-            if (!json) return;
+            const std::string json = DspProxy::GetJSONPresets(chan);
 
             Document doc;
-            doc.Parse(json);
+            doc.Parse(json.c_str());
             if (!doc.HasMember("presets") || !doc["presets"].IsArray()) return;
 
             const Value &arr = doc["presets"];
@@ -360,6 +367,9 @@ namespace CTAG {
             if (val > pi.max) val = pi.max;
             if (val == pi.current) return;
             pi.current = val;
+            snprintf(pendingEditId, sizeof(pendingEditId), "%s", pi.id);
+            pendingEditValue = val;
+            pendingEditTick = now;
             DspProxy::SetChannelParamValue(chan, pi.id, "current", val);
             doRedraw();
         }
@@ -461,6 +471,11 @@ namespace CTAG {
                         // slot >= 0 selects that source; slot == -1 ("None")
                         // unmaps the param. Both confirm with OK and return
                         // to the param list.
+                        if (mapLearning) {
+                            DspProxy::StopLearn();
+                            mapLearning = false;
+                        }
+                        if (mapParamIdx < 0 || mapParamIdx >= paramCount) return;
                         ParamInfo &pi = params[mapParamIdx];
                         if (mapIsCv) {
                             pi.cv = slot;
@@ -482,10 +497,7 @@ namespace CTAG {
                         // onTick refreshes the list from it.
                         char name[24];
                         GeneratePresetName(name, sizeof(name));
-                        int nextNum = (presetCount > 0)
-                                          ? presets[presetCount - 1].number + 1
-                                          : 0;
-                        DspProxy::ChannelSavePreset(presetChan, name, nextNum);
+                        DspProxy::ChannelSavePreset(presetChan, name, -1);
                         char msg[sizeof(toastMsg)];
                         snprintf(msg, sizeof(msg), "Stored %s", name);
                         showToast(msg);
@@ -640,11 +652,8 @@ namespace CTAG {
                 } else {
                     // Enum specs carry a "texts" label array (e.g. the 24
                     // TBDaits engine names) — show the label when present.
-                    const char *lbl =
-                        DspProxy::GetParamEntryLabel(chan, pi.tblIdx, pi.current);
-                    if (lbl)
-                        snprintf(valBuf, sizeof(valBuf), "%s", lbl);
-                    else
+                    if (!DspProxy::GetParamEntryLabel(chan, pi.tblIdx, pi.current,
+                                                      valBuf, sizeof(valBuf)))
                         snprintf(valBuf, sizeof(valBuf), "%d", pi.current);
                 }
                 // Values stop 3 px short of the screen edge: the scrollbar
@@ -691,7 +700,9 @@ namespace CTAG {
         // re-entered.
         void UIMenuPageParams::onTick() {
             bool changed = false;
-            if (DspProxy::GetParamTableVersion() != tableVersion) {
+            const bool editExpired = pendingEditId[0] &&
+                xTaskGetTickCount() - pendingEditTick >= pdMS_TO_TICKS(250);
+            if (DspProxy::GetParamTableVersion() != tableVersion || editExpired) {
                 // Dual-channel layout follows the loaded plugins.
                 string id0 = DspProxy::GetStringID(0);
                 string id1 = DspProxy::GetStringID(1);
@@ -703,26 +714,18 @@ namespace CTAG {
                 bool inGroup = currentGroup >= 0 && currentGroup < groupCount;
                 if (inGroup)
                     snprintf(groupName, sizeof(groupName), "%s", groups[currentGroup].name);
-                // Keep the value the user is actively turning: a completed
-                // push can lag the last detents (the DSP regen runs on its
-                // own tick), and parseParams() would snap the row under the
-                // cursor back mid-edit. Display-only and self-correcting —
-                // once the cursor moves away the next push takes over.
-                char editingId[sizeof(ParamInfo::id)] = "";
-                int editingVal = 0;
-                if (mode == MODE_EDIT && paramCount > 0 &&
-                    cursor >= 0 && cursor < paramCount) {
-                    snprintf(editingId, sizeof(editingId), "%s", params[cursor].id);
-                    editingVal = params[cursor].current;
-                }
-                parseParams();
-                if (editingId[0] != '\0') {
+                if (!parseParams()) return;
+                if (pendingEditId[0] != '\0') {
                     for (int i = 0; i < paramCount; i++) {
-                        if (strcmp(params[i].id, editingId) == 0) {
-                            params[i].current = editingVal;
+                        if (strcmp(params[i].id, pendingEditId) == 0) {
+                            if (params[i].current == pendingEditValue || editExpired)
+                                pendingEditId[0] = '\0';
+                            else
+                                params[i].current = pendingEditValue;
                             break;
                         }
                     }
+                    if (editExpired) pendingEditId[0] = '\0';
                 }
                 if (inGroup && groupCount > 0) {
                     for (int i = 0; i < groupCount; i++) {
@@ -794,7 +797,7 @@ namespace CTAG {
         }
 
         bool UIMenuPageParams::wantsTick() const {
-            return (mode == MODE_MAP && mapLearning) || mapHintUntil != 0 ||
+            return pendingEditId[0] || (mode == MODE_MAP && mapLearning) || mapHintUntil != 0 ||
                    DspProxy::GetParamTableVersion() != tableVersion ||
                    toastUntil != 0 ||
                    (mode == MODE_PRESETS &&

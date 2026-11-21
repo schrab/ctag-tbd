@@ -64,6 +64,7 @@ namespace CTAG {
             // (e.g. which channel's params to show). Applied asynchronously
             // in the task loop — never inside a page event handler.
             static void RequestPanelEdit(int panel, int deepHint);
+            static void RequestSleep();
 
             // Bring-up control: the screensaver blanks the panel 15 s after
             // the last input, which looks exactly like a dead display.
@@ -95,6 +96,7 @@ namespace CTAG {
             // Page-requested panel switch (see RequestPanelEdit); -1 = none.
             static volatile int pendingPanelRequest;
             static int pendingDeepHint;
+            static bool sleepRequested;
             static int screensaverTimer;
             // Periodic page refresh divider: task runs at ~50 Hz, a tick every
             // 2nd iteration gives 25 Hz — matches the link stream rate for

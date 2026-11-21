@@ -196,17 +196,18 @@ namespace CTAG {
                     response = "{\"error\":\"bad channel\"}";
                     return true;
                 }
+                DspProxy::ParamTableGuard lock;
                 int n = DspProxy::GetParamEntryCount(ch);
                 response = string("{\"ch\":") + to_string(ch) + ",\"params\":[";
                 bool first = true;
                 for (int i = 0; i < n; i++) {
-                    const DspProxy::DspParamEntry *e = DspProxy::GetParamEntry(ch, i);
-                    if (e == nullptr || e->isGroup) continue;
+                    DspProxy::DspParamEntry e;
+                    if (!DspProxy::GetParamEntry(ch, i, e) || e.isGroup) continue;
                     if (!first) response += ",";
-                    response += "{\"id\":\"" + string(e->id) + "\""
-                                + ",\"current\":" + to_string(e->current)
-                                + ",\"cv\":" + to_string(e->cv)
-                                + ",\"trig\":" + to_string(e->trig) + "}";
+                    response += "{\"id\":\"" + string(e.id) + "\""
+                                + ",\"current\":" + to_string(e.current)
+                                + ",\"cv\":" + to_string(e.cv)
+                                + ",\"trig\":" + to_string(e.trig) + "}";
                     first = false;
                 }
                 response += "]}";
@@ -227,7 +228,7 @@ namespace CTAG {
                     return true;
                 }
                 response = string("{\"ch\":") + to_string(ch)
-                           + ",\"presets\":" + DspProxy::GetCStrJSONGetPresets(ch)
+                           + ",\"presets\":" + DspProxy::GetJSONPresets(ch)
                            + "}";
                 return true;
             }

@@ -57,9 +57,8 @@ namespace CTAG {
             // with recording traffic.
             static bool RequestFsList(const char *path, std::string &entries,
                                       int timeoutMs = 1200);
-            // Synchronous /debug round trip for the bench channel: sends
-            // `payload` verbatim and completes when DspProxy::OnLinkFrame
-            // sees the DSP's /debug reply (LinkClient_NotifyDebug). On
+            // Synchronous /debug round trip for UI and bench: adds a private
+            // _rid token and completes on the matching command/reply. On
             // success `reply` holds the raw reply text. Returns false on
             // timeout / offline.
             static bool RequestDebug(const std::string &payload,

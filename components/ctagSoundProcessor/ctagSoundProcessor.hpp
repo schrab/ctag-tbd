@@ -161,7 +161,7 @@ namespace CTAG {
 
             bool GetIsStereo() const { return isStereo; }
 
-            void SavePreset(const string &name, const int number) { model->SavePreset(name, number); }
+            int SavePreset(const string &name, const int number) { return model->SavePreset(name, number); }
 
             void LoadPreset(const int number) {
                 model->LoadPreset(number); // first get the data into the model

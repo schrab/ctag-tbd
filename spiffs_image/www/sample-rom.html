@@ -322,8 +322,8 @@
         let fr = new FileReader();
         fr.onloadend = (e) => {
             console.log(e.target.result);
-            let wordData = new Uint16Array(e.target.result);
-            if(wordData[0] != 0xface && wordData[1] != 0xdead){
+            let rawData = e.target.result;
+            if(rawData.byteLength < 12 || new DataView(rawData).getUint32(0, true) !== 0xdeadface){
                 showMessage('Invalid file, magic number not present!');
                 return;
             }

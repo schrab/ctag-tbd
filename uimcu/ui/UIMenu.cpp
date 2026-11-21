@@ -58,6 +58,8 @@ namespace CTAG {
                                                 // any input wakes (TaskFunction)
         volatile int UIMenu::pendingPanelRequest = -1;
         int UIMenu::pendingDeepHint = 0;
+        bool UIMenu::sleepRequested = false;
+        void UIMenu::RequestSleep() { sleepRequested = true; }
 
         void UIMenu::RequestPanelEdit(int panel, int deepHint) {
             if (panel < 0 || panel >= PANEL_COUNT) return;
@@ -276,78 +278,80 @@ namespace CTAG {
                     continue;
                 }
 
-                InputEvent ev;
-                bool gotEv = UserInput::GetEvent(ev, 20);
-                uint32_t now = xTaskGetTickCount();
-
-                if (gotEv) {
-                    if (displayState == ASLEEP) {
-                        Display::Wake();
-                        displayState = AWAKE;
-                        screensaverTimer = 0;
-                        redrawNeeded = true;
-                    } else {
-                        screensaverTimer = 0;
-                        if (navState == ROOT) {
-                            // Panel switching: E2 (ENC2_DELTA) per the C3 input
-                            // split (SDD §5.1). E1 (ENC_DELTA) is also accepted
-                            // here so host scripts written for the A1S single-
-                            // encoder bench keep working.
-                            if (ev.type == InputEvent::ENC_DELTA || ev.type == InputEvent::ENC2_DELTA) {
-                                int steps = ev.delta;
-                                if (steps > 1) steps /= 2;
-                                if (steps < -1) steps /= 2;
-                                if (steps == 0) steps = (ev.delta > 0) ? 1 : -1;
-                                // Finite scroll: clamp at the ends instead of
-                                // wrapping — scrolling left on MIX stays on
-                                // MIX, right on the last panel stays there.
-                                int prev = currentPanel;
-                                int target = (int)currentPanel + steps;
-                                if (target < 0) target = 0;
-                                if (target > PANEL_COUNT - 1) target = PANEL_COUNT - 1;
-                                currentPanel = (Panel)target;
-                                if (currentPanel != prev) {
-                                    pages[prev]->deinit();
-                                    pages[currentPanel]->init();
-                                }
-                                redrawNeeded = true;
-                            } else if (ev.type == InputEvent::BTN2_SHORT) {
-                                navState = PANEL_IN;
-                                redrawNeeded = true;
-                            }
+                // Bound each batch so sustained input cannot starve periodic
+                // page updates, while consuming faster than the input poller.
+                for (int batch = 0; batch < 8; ++batch) {
+                    InputEvent ev;
+                    bool gotEv = UserInput::GetEvent(ev, batch == 0 ? 20 : 0);
+                    if (gotEv) {
+                        if (displayState == ASLEEP) {
+                            Display::Wake();
+                            displayState = AWAKE;
+                            screensaverTimer = 0;
+                            redrawNeeded = true;
                         } else {
-                            // Two-encoder split (physical row under the OLED:
-                            // BACK, OK, then encoders left→right). Hardware
-                            // naming: E1 "(value)" is the RIGHT encoder,
-                            // E2 "(panel)" the LEFT one:
-                            // ENC2_DELTA = LEFT encoder  (E2) = list scroll
-                            // ENC_DELTA  = RIGHT encoder (E1) = live value edit
-                            if (ev.type == InputEvent::ENC2_DELTA) {
-                                pages[currentPanel]->onEncoder(ev.delta);
-                            } else if (ev.type == InputEvent::ENC_DELTA) {
-                                pages[currentPanel]->onValueEncoder(ev.delta);
-                            } else if (ev.type == InputEvent::BTN1_SHORT || ev.type == InputEvent::BTN1_LONG) {
-                                if (!pages[currentPanel]->onBack()) {
-                                    navState = ROOT;
+                            screensaverTimer = 0;
+                            if (navState == ROOT) {
+                                // Panel switching: E2 (ENC2_DELTA) per the C3 input
+                                // split (SDD §5.1). E1 (ENC_DELTA) is also accepted
+                                // here so host scripts written for the A1S single-
+                                // encoder bench keep working.
+                                if (ev.type == InputEvent::ENC_DELTA || ev.type == InputEvent::ENC2_DELTA) {
+                                    int steps = ev.delta;
+                                    if (steps > 1) steps /= 2;
+                                    if (steps < -1) steps /= 2;
+                                    if (steps == 0) steps = (ev.delta > 0) ? 1 : -1;
+                                    // Finite scroll: clamp at the ends instead of
+                                    // wrapping — scrolling left on MIX stays on
+                                    // MIX, right on the last panel stays there.
+                                    int prev = currentPanel;
+                                    int target = (int)currentPanel + steps;
+                                    if (target < 0) target = 0;
+                                    if (target > PANEL_COUNT - 1) target = PANEL_COUNT - 1;
+                                    currentPanel = (Panel)target;
+                                    if (currentPanel != prev) {
+                                        pages[prev]->deinit();
+                                        pages[currentPanel]->init();
+                                    }
+                                    redrawNeeded = true;
+                                } else if (ev.type == InputEvent::BTN2_SHORT) {
+                                    navState = PANEL_IN;
                                     redrawNeeded = true;
                                 }
-                            } else if (ev.type == InputEvent::BTN2_SHORT) {
-                                pages[currentPanel]->onButton(2, false);
-                            } else if (ev.type == InputEvent::BTN2_LONG) {
-                                pages[currentPanel]->onButton(2, true);
+                            } else {
+                                // Two-encoder split (physical row under the OLED:
+                                // BACK, OK, then encoders left→right). Hardware
+                                // naming: E1 "(value)" is the RIGHT encoder,
+                                // E2 "(panel)" the LEFT one:
+                                // ENC2_DELTA = LEFT encoder  (E2) = list scroll
+                                // ENC_DELTA  = RIGHT encoder (E1) = live value edit
+                                if (ev.type == InputEvent::ENC2_DELTA) {
+                                    pages[currentPanel]->onEncoder(ev.delta);
+                                } else if (ev.type == InputEvent::ENC_DELTA) {
+                                    pages[currentPanel]->onValueEncoder(ev.delta);
+                                } else if (ev.type == InputEvent::BTN1_SHORT || ev.type == InputEvent::BTN1_LONG) {
+                                    if (!pages[currentPanel]->onBack()) {
+                                        navState = ROOT;
+                                        redrawNeeded = true;
+                                    }
+                                } else if (ev.type == InputEvent::BTN2_SHORT) {
+                                    pages[currentPanel]->onButton(2, false);
+                                } else if (ev.type == InputEvent::BTN2_LONG) {
+                                    pages[currentPanel]->onButton(2, true);
+                                }
                             }
                         }
+                    } else {
+                        screensaverTimer++;
+                        if (screensaverEnabled && displayState == AWAKE &&
+                            screensaverTimer >= SCREENSAVER_TIMEOUT) {
+                            Display::Sleep();
+                            displayState = ASLEEP;
+                        }
                     }
-                } else {
-                    screensaverTimer++;
-                    // Bring-up: the screensaver is disabled by default — it
-                    // kept masquerading as a dead panel. Re-enable via the
-                    // bench once the hardware is proven.
-                    if (screensaverEnabled && displayState == AWAKE &&
-                        screensaverTimer >= SCREENSAVER_TIMEOUT) {
-                        Display::Sleep();
-                        displayState = ASLEEP;
-                    }
+
+                    if (!gotEv || pendingPanelRequest >= 0 || sleepRequested ||
+                        DspProxy::IsLoadPending()) break;
                 }
 
                 // Apply a page-requested panel switch (HOME jumps to PARAMS
@@ -366,6 +370,13 @@ namespace CTAG {
                     navState = PANEL_IN;
                     pages[currentPanel]->onDeepEnter(pendingDeepHint);
                     redrawNeeded = true;
+                }
+
+                if (sleepRequested) {
+                    sleepRequested = false;
+                    Display::Sleep();
+                    displayState = ASLEEP;
+                    screensaverTimer = 0;
                 }
 
                 // Redraw if needed
@@ -412,7 +423,10 @@ namespace CTAG {
                     pageTickCounter = 0;
                 }
 
-                vTaskDelay(pdMS_TO_TICKS(20));
+                InputEvent next;
+                // Drain queued work without a mandatory 20 ms per event.
+                // Yield one tick under load so link/BLE tasks still run.
+                vTaskDelay(UserInput::PeekEvent(next) ? 1 : pdMS_TO_TICKS(20));
             }
         }
     }

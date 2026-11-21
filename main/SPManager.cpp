@@ -715,8 +715,8 @@ void SoundProcessorManager::SetChannelParamValue(const int chan, const string &i
 void SoundProcessorManager::ChannelSavePreset(const int chan, const string &name, const int number) {
     if (sp[chan] == nullptr) return;
     xSemaphoreTake(processMutex, portMAX_DELAY);
-    sp[chan]->SavePreset(name, number);
-    model->SetActivePatchNum(number, chan);
+    const int storedNumber = sp[chan]->SavePreset(name, number);
+    if (storedNumber >= 0) model->SetActivePatchNum(storedNumber, chan);
     xSemaphoreGive(processMutex);
 }
 

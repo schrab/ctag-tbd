@@ -91,7 +91,7 @@ namespace CTAG {
 
             // --- GET handlers: serve straight from the DspProxy cache ---
             esp_err_t hGetPlugins(httpd_req_t *req) {
-                replyJson(req, DspProxy::GetCStrJSONSoundProcessors());
+                replyJson(req, DspProxy::GetJSONSoundProcessors().c_str());
                 return ESP_OK;
             }
 
@@ -113,7 +113,7 @@ namespace CTAG {
                 int ch = 0;
                 queryInt(req, "ch", ch);
                 if (ch < 0 || ch > 1) ch = 0;
-                replyJson(req, DspProxy::GetCStrJSONActivePluginParams(ch));
+                replyJson(req, DspProxy::GetJSONActivePluginParams(ch).c_str());
                 return ESP_OK;
             }
 
@@ -121,12 +121,12 @@ namespace CTAG {
                 int ch = 0;
                 queryInt(req, "ch", ch);
                 if (ch < 0 || ch > 1) ch = 0;
-                replyJson(req, DspProxy::GetCStrJSONGetPresets(ch));
+                replyJson(req, DspProxy::GetJSONPresets(ch).c_str());
                 return ESP_OK;
             }
 
             esp_err_t hGetConfiguration(httpd_req_t *req) {
-                replyJson(req, DspProxy::GetCStrJSONConfiguration());
+                replyJson(req, DspProxy::GetJSONConfiguration().c_str());
                 return ESP_OK;
             }
 
@@ -207,11 +207,7 @@ namespace CTAG {
                     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "empty body");
                     return ESP_OK;
                 }
-                // configSet takes the config JSON as an escaped string.
-                char framed[2304];
-                snprintf(framed, sizeof(framed),
-                         "{\"cmd\":\"/link/configSet\",\"config\":\"%s\"}", body);
-                LinkClient::SendCommand(framed);
+                DspProxy::SetConfigurationFromJSON(body);
                 replyJson(req, "{\"ok\":1}");
                 return ESP_OK;
             }

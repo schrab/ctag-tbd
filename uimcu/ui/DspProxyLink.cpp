@@ -40,6 +40,7 @@ respective component folders / files if different from this license.
 #include <cstdlib>
 #include <cstring>
 #include <atomic>
+#include <mutex>
 #include <cstring>
 #include <string>
 
@@ -72,13 +73,17 @@ namespace CTAG {
             // next belong to that group.
             DspProxy::DspParamEntry paramTable[2][DspProxy::DSP_MAX_PARAMS];
             int paramTableCount[2] = {0, 0};
+            std::recursive_mutex paramMutex;
+            bool paramTableUpdating[2] = {false, false};
+            int paramNextPart[2] = {0, 0};
+            int paramGroup[2] = {-1, -1};
+            std::recursive_mutex cacheMutex;
             // Bumped when a chunked push completes a channel's table; the
             // Params page watches it to refresh in place.
             uint32_t paramTableVersion = 0;
             // Per-value text labels ("texts" arrays in the plugin spec,
             // e.g. the 24 TBDaits / 98 TBPalette engine names). Kept out of
-            // DspParamEntry (the 80 B stride x 320-entry table stays untouched):
-            // a shared NUL-terminated pool per channel plus per-entry offset/count
+            // DspParamEntry: a shared NUL-terminated pool per channel plus per-entry offset/count
             // parallel arrays; count 0 = numeric display fallback.
             char labelPool[2][2560];
             uint16_t labelUsed[2] = {0, 0};
@@ -173,7 +178,7 @@ namespace CTAG {
             // cleared by the loaded plugin's params push (a completed
             // paramTableVersion bump), by a refusal (pushActivePlugin
             // naming a different plugin) or by the 5 s timeout.
-            uint32_t loadPendingStartMs = 0;
+            std::atomic<uint32_t> loadPendingStartMs{0};
             int loadPendingCh = 0;
             char loadPendingId[24] = "";
 
@@ -186,6 +191,7 @@ namespace CTAG {
             bool cpuOverload = false;
             bool sdPlaying = false, sdRecording = false;
             uint32_t sdPos = 0, sdTot = 0;
+            std::atomic<uint32_t> sdSampleRate{44100};
             uint32_t sdLevel = 0;
             bool sdMounted = false;
             bool sdCardPresent = false;
@@ -541,11 +547,10 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             }
 
             if (strcmp(cmd, kMsgPushParamValue) == 0) {
+                std::lock_guard<std::recursive_mutex> lock(paramMutex);
                 // Incremental sync: one parameter value changed on the DSP.
-                // Update the cached table entry in place; refresh the page
-                // view at most ~5x/s (fast turns would otherwise re-parse
-                // the whole table per detent). Values for the row the user
-                // is editing are preserved by the page's edit-row guard.
+                // Update the cache; the menu coalesces notifications on its
+                // periodic tick. Only unacknowledged local edits are guarded.
                 // "k" carries the edited key — "current" (default for frames
                 // from older DSP builds), "cv" or "trig" (mapping edits).
                 // Applying a cv/trig mapping to e.current would clobber a
@@ -572,16 +577,14 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     for (int i = 0; i < paramTableCount[ch]; i++) {
                         DspProxy::DspParamEntry &e = paramTable[ch][i];
                         if (e.isGroup) continue;
-                        if (strncmp(e.id, id, idlen) == 0 && e.id[idlen] == '\0') {
+                        if (idlen < sizeof(e.id) && strncmp(e.id, id, idlen) == 0 && e.id[idlen] == '\0') {
                             if (key == 1) e.cv = val;
                             else if (key == 2) e.trig = val;
                             else e.current = val;
-                            uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-                            static uint32_t lastBumpMs = 0;
-                            if (nowMs - lastBumpMs >= 200 || lastBumpMs == 0) {
-                                lastBumpMs = nowMs;
-                                paramTableVersion++;
-                            }
+                            // The page already refreshes on a bounded tick.
+                            // Every accepted change must remain observable,
+                            // including the final edit inside a short burst.
+                            paramTableVersion++;
                             break;
                         }
                     }
@@ -590,6 +593,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             }
 
             if (strcmp(cmd, kMsgPushPluginList) == 0) {
+                std::lock_guard<std::recursive_mutex> lock(cacheMutex);
                 const char *lp = strstr(payload, "\"list\":");
                 if (lp) {
                     lp += 7;
@@ -607,6 +611,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 }
                 return;
             } else if (strcmp(cmd, kMsgPushParams) == 0) {
+                std::lock_guard<std::recursive_mutex> lock(paramMutex);
                 // NO DOM for the frame: whole-plugin params once faulted
                 // the DOM pool (malloc returned null next to NimBLE) and
                 // the assert-less memcpy store-faulted the panel into a
@@ -663,9 +668,13 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 sliceBuf[out] = '\0';
 
                 if (part == 0) {
+                    paramTableUpdating[ch] = true;
+                    paramNextPart[ch] = 0;
+                    paramGroup[ch] = -1;
                     paramTableCount[ch] = 0;
                     labelUsed[ch] = 0;
                 }
+                if (!paramTableUpdating[ch] || part != paramNextPart[ch]) return;
                 Document sd;
                 if (sd.ParseInsitu(sliceBuf).HasParseError() || !sd.IsArray()) return;
                 for (auto &v : sd.GetArray()) {
@@ -678,6 +687,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     e.current = 0;
                     e.cv = -1;
                     e.trig = -1;
+                    e.group = paramGroup[ch];
                     if (v.HasMember("id") && v["id"].IsString())
                         snprintf(e.id, sizeof(e.id), "%s", v["id"].GetString());
                     if (v.HasMember("name") && v["name"].IsString())
@@ -713,9 +723,17 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                         }
                     }
                     e.isGroup = (v.HasMember("type") && strcmp(v["type"].GetString(), "group") == 0);
+                    if (e.isGroup) {
+                        e.group = -1;
+                        paramGroup[ch] = paramTableCount[ch];
+                    } else if (v.HasMember("group") && v["group"].IsInt()) {
+                        e.group = v["group"].GetInt();
+                    }
                     paramTableCount[ch]++;
                 }
+                paramNextPart[ch]++;
                 if (last) {
+                    paramTableUpdating[ch] = false;
                     paramTableVersion++;
                     // A completed params table ends a pending plugin load:
                     // the new plugin's values are on the panel, the loading
@@ -723,6 +741,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     loadPendingStartMs = 0;
                 }
             } else if (strcmp(cmd, kMsgPushConfig) == 0) {
+                std::lock_guard<std::recursive_mutex> lock(cacheMutex);
                 if (d.HasMember("config") && d["config"].IsString()) {
                     cacheConfig = d["config"].GetString();
                     // Hand the configured OLED brightness to the menu task
@@ -737,16 +756,19 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     }
                 }
             } else if (strcmp(cmd, kMsgPushPresets) == 0) {
+                std::lock_guard<std::recursive_mutex> lock(cacheMutex);
                 int ch = d.HasMember("ch") && d["ch"].IsInt() ? d["ch"].GetInt() : 0;
                 if (ch >= 0 && ch <= 1 && d.HasMember("presets") && d["presets"].IsString()) {
                     cachePresets[ch] = d["presets"].GetString();
                     presetsVersion++;
                 }
             } else if (strcmp(cmd, kMsgPushFavorites) == 0) {
+                std::lock_guard<std::recursive_mutex> lock(cacheMutex);
                 if (d.HasMember("favs") && d["favs"].IsString()) {
                     cacheFavorites = d["favs"].GetString();
                 }
             } else if (strcmp(cmd, kMsgPushActivePlugin) == 0) {
+                std::lock_guard<std::recursive_mutex> lock(cacheMutex);
                 if (d.HasMember("id0") && d["id0"].IsString()) activeId[0] = d["id0"].GetString();
                 if (d.HasMember("id1") && d["id1"].IsString()) activeId[1] = d["id1"].GetString();
                 if (d.HasMember("st0") && d["st0"].IsInt()) activeStereo[0] = d["st0"].GetInt() != 0;
@@ -838,6 +860,11 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                     if (p && p < sEnd) sdPos = (uint32_t)strtoul(p + 6, nullptr, 10);
                     p = strstr(s, "\"tot\":");
                     if (p && p < sEnd) sdTot = (uint32_t)strtoul(p + 6, nullptr, 10);
+                    p = strstr(s, "\"rate\":");
+                    if (p && p < sEnd) {
+                        uint32_t rate = (uint32_t)strtoul(p + 7, nullptr, 10);
+                        if (rate > 0) sdSampleRate = rate;
+                    }
                 }
             } else if (strcmp(cmd, kMsgFsList) == 0) {
                 // Complete a pending RequestFsList; hand over the unescaped
@@ -858,12 +885,18 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 // arrive unsolicited).
                 ESP_LOGI("DBG", "relay /debug reply %u B cmd=%.28s",
                          (unsigned)len, cmd);
-                extern void LinkClient_NotifyDebug(const char *payload, size_t len);
-                LinkClient_NotifyDebug(payload, len);
+                extern void LinkClient_NotifyDebug(const char *payload, size_t len,
+                                                  const char *command, uint32_t requestId);
+                uint32_t requestId = d.HasMember("_rid") && d["_rid"].IsUint()
+                                         ? d["_rid"].GetUint() : 0;
+                LinkClient_NotifyDebug(payload, len, cmd, requestId);
             }
         }
 
-        const char *DspProxy::GetCStrJSONSoundProcessors() { return cachePluginList.c_str(); }
+        std::string DspProxy::GetJSONSoundProcessors() {
+            std::lock_guard<std::recursive_mutex> lock(cacheMutex);
+            return cachePluginList;
+        }
 
         int DspProxy::GetPluginListCount() { return pluginCacheCount; }
 
@@ -884,13 +917,26 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         int DspProxy::GetParamEntryCount(int chan) {
+            std::lock_guard<std::recursive_mutex> lock(paramMutex);
             if (chan < 0 || chan > 1) return 0;
-            return paramTableCount[chan];
+            return paramTableUpdating[chan] ? 0 : paramTableCount[chan];
         }
 
-        uint32_t DspProxy::GetParamTableVersion() { return paramTableVersion; }
+        DspProxy::ParamTableGuard::ParamTableGuard() { paramMutex.lock(); }
+        DspProxy::ParamTableGuard::~ParamTableGuard() { paramMutex.unlock(); }
+        bool DspProxy::IsParamTableReady(int chan) {
+            std::lock_guard<std::recursive_mutex> lock(paramMutex);
+            return chan >= 0 && chan < 2 && !paramTableUpdating[chan];
+        }
+        uint32_t DspProxy::GetParamTableVersion() {
+            std::lock_guard<std::recursive_mutex> lock(paramMutex);
+            return paramTableVersion;
+        }
 
-        uint32_t DspProxy::GetPresetsVersion() { return presetsVersion; }
+        uint32_t DspProxy::GetPresetsVersion() {
+            std::lock_guard<std::recursive_mutex> lock(cacheMutex);
+            return presetsVersion;
+        }
 
         // Loading overlay: auto-expires after 5 s so a wedged load (no
         // push of either kind) can never hold the panel hostage.
@@ -910,32 +956,37 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             return pendingOledContrast.exchange(-1, std::memory_order_relaxed);
         }
 
-        const DspProxy::DspParamEntry *DspProxy::GetParamEntry(int chan, int idx) {
-            if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])
-                return nullptr;
-            return &paramTable[chan][idx];
+        bool DspProxy::GetParamEntry(int chan, int idx, DspParamEntry &out) {
+            std::lock_guard<std::recursive_mutex> lock(paramMutex);
+            if (!IsParamTableReady(chan) || idx < 0 || idx >= paramTableCount[chan])
+                return false;
+            out = paramTable[chan][idx];
+            return true;
         }
 
-        const char *DspProxy::GetParamEntryLabel(int chan, int idx, int value) {
-            if (chan < 0 || chan > 1 || idx < 0 || idx >= paramTableCount[chan])
-                return nullptr;
+        bool DspProxy::GetParamEntryLabel(int chan, int idx, int value,
+                                          char *out, size_t size) {
+            std::lock_guard<std::recursive_mutex> lock(paramMutex);
+            if (!out || size == 0 || !IsParamTableReady(chan) ||
+                idx < 0 || idx >= paramTableCount[chan]) return false;
             uint8_t n = labelCount[chan][idx];
-            if (n == 0) return nullptr;
+            if (n == 0) return false;
             int rel = value - paramTable[chan][idx].min;
-            if (rel < 0 || rel >= n) return nullptr;
+            if (rel < 0 || rel >= n) return false;
             uint16_t off = labelOff[chan][idx];
             for (int i = 0; i < rel; i++)
                 off += strlen(&labelPool[chan][off]) + 1;
-            return &labelPool[chan][off];
+            snprintf(out, size, "%s", &labelPool[chan][off]);
+            return true;
         }
 
         // NetRest convenience: serialize the table as the classic
         // {"params":[...]} document. Rare path (HTTP only) — the transient
         // StringBuffer lives in PSRAM-backed rapidjson heap.
-        const char *DspProxy::GetCStrJSONActivePluginParams(int chan) {
-            static string out;
-            if (chan < 0 || chan > 1) return "{\"params\":[]}";
-            out = "{\"params\":[";
+        std::string DspProxy::GetJSONActivePluginParams(int chan) {
+            ParamTableGuard lock;
+            if (!IsParamTableReady(chan)) return "{\"params\":[]}";
+            string out = "{\"params\":[";
             for (int i = 0; i < paramTableCount[chan]; i++) {
                 const DspParamEntry &e = paramTable[chan][i];
                 if (i) out += ",";
@@ -953,20 +1004,27 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 out += "}";
             }
             out += "]}";
-            return out.c_str();
+            return out;
         }
 
-        const char *DspProxy::GetCStrJSONGetPresets(int chan) {
+        std::string DspProxy::GetJSONPresets(int chan) {
+            std::lock_guard<std::recursive_mutex> lock(cacheMutex);
             if (chan < 0 || chan > 1) return "{\"presets\":[]}";
-            return cachePresets[chan].c_str();
+            return cachePresets[chan];
         }
 
-        const char *DspProxy::GetCStrJSONConfiguration() { return cacheConfig.c_str(); }
+        std::string DspProxy::GetJSONConfiguration() {
+            std::lock_guard<std::recursive_mutex> lock(cacheMutex);
+            return cacheConfig;
+        }
 
         void DspProxy::SetConfigurationFromJSON(const std::string &json) {
             // Cache optimistically; the DSP's config-commit hash diff will
             // confirm (or correct) with a push.
-            cacheConfig = json;
+            {
+                std::lock_guard<std::recursive_mutex> lock(cacheMutex);
+                cacheConfig = json;
+            }
             StringBuffer sb;
             Writer<StringBuffer> w(sb);
             w.StartObject();
@@ -979,6 +1037,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         std::string DspProxy::GetStringID(int chan) {
+            std::lock_guard<std::recursive_mutex> lock(cacheMutex);
             if (chan < 0 || chan > 1) return "";
             return activeId[chan];
         }
@@ -997,6 +1056,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
                 }
             }
             taskEXIT_CRITICAL(&pluginCacheMux);
+            std::lock_guard<std::recursive_mutex> lock(cacheMutex);
             return id == activeId[0] ? activeStereo[0] : activeStereo[1];
         }
 
@@ -1008,9 +1068,12 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             // Arm the loading overlay: the menu task shows the splash bar
             // until the new plugin's params table lands (or the load is
             // refused / times out).
-            loadPendingCh = chan;
-            snprintf(loadPendingId, sizeof(loadPendingId), "%s", id.c_str());
-            loadPendingStartMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+            {
+                std::lock_guard<std::recursive_mutex> lock(cacheMutex);
+                loadPendingCh = chan;
+                snprintf(loadPendingId, sizeof(loadPendingId), "%s", id.c_str());
+                loadPendingStartMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+            }
             char buf[192];
             snprintf(buf, sizeof(buf),
                      "{\"cmd\":\"/debug/setActivePlugin\",\"ch\":%d,\"id\":\"%s\"}",
@@ -1028,11 +1091,16 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         }
 
         void DspProxy::ChannelSavePreset(int chan, const std::string &name, int number) {
-            char buf[160];
-            snprintf(buf, sizeof(buf),
-                     "{\"cmd\":\"/link/presetSave\",\"ch\":%d,\"name\":\"%s\",\"number\":%d}",
-                     chan, name.c_str(), number);
-            sendCmd(buf);
+            StringBuffer buf;
+            Writer<StringBuffer> w(buf);
+            w.StartObject();
+            w.Key("cmd"); w.String("/link/presetSave");
+            w.Key("ch"); w.Int(chan);
+            w.Key("name"); w.String(name.c_str());
+            if (number < 0) { w.Key("append"); w.Bool(true); }
+            else { w.Key("number"); w.Int(number); }
+            w.EndObject();
+            sendCmd(buf.GetString());
         }
 
         void DspProxy::ChannelLoadPreset(int chan, int number) {
@@ -1101,6 +1169,19 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             sendCmd(buf);
         }
 
+        bool DspProxy::SdGetNextRecordingName(char *name, size_t size) {
+            if (!name || size == 0) return false;
+            name[0] = '\0';
+            string reply;
+            if (!LinkClient::RequestDebug("{\"cmd\":\"/debug/sdNextRecordingName\"}", reply))
+                return false;
+            string candidate;
+            if (!ScanStringValue(reply.data(), reply.size(), "name", candidate) ||
+                candidate.size() >= size) return false;
+            snprintf(name, size, "%s", candidate.c_str());
+            return true;
+        }
+
         void DspProxy::SdStop() { sendCmd("{\"cmd\":\"/link/sdStop\"}"); }
 
         bool DspProxy::SdIsPlaying() { return sdPlaying; }
@@ -1110,6 +1191,7 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
         uint32_t DspProxy::SdGetTotalFrames() { return sdTot; }
 
         uint32_t DspProxy::SdGetPositionFrames() { return sdPos; }
+        uint32_t DspProxy::SdGetSampleRate() { return sdSampleRate.load(); }
 
         void DspProxy::SetSdRoute(int r) {
             if (r != 0 && r != 1) return;
@@ -1169,7 +1251,10 @@ bool DspProxy::IsOnline() { return LinkClient::IsOnline(); }
             return !d.HasParseError() && d.IsObject() && !d.HasMember("error");
         }
 
-        std::string DspProxy::GetAllFavorites() { return cacheFavorites; }
+        std::string DspProxy::GetAllFavorites() {
+            std::lock_guard<std::recursive_mutex> lock(cacheMutex);
+            return cacheFavorites;
+        }
 
         int32_t DspProxy::GetActiveFav() { return activeFav; }
 

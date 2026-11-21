@@ -82,34 +82,11 @@ namespace CTAG {
             scrollOffset = 0;
         }
 
-        // Find the first free tape_NNN.wav name on /sd (case-insensitive
-        // match against existing entries). Single UI-task caller, so the
-        // occupancy bitmap can be static.
+        // The DSP scans the full directory and exclusively creates on START.
         void UIMenuPageTape::computeRecName() {
-            recNameOk = false;
             recName[0] = '\0';
-            if (!DspProxy::IsSDMounted()) return;
-            static bool taken[1000];
-            memset(taken, 0, sizeof(taken));
-            char names[MAX_FILES][32];
-            bool dirs[MAX_FILES];
-            int n = DspProxy::ListSdDir("/sd", names, dirs, MAX_FILES);
-            for (int i = 0; i < n; i++) {
-                if (dirs[i]) continue;
-                int a = 0, b = 0, c = 0;
-                char ext[8] = "";
-                if (sscanf(names[i], "tape_%1d%1d%1d.%3s", &a, &b, &c, ext) == 4 &&
-                    strcasecmp(ext, "wav") == 0) {
-                    taken[a * 100 + b * 10 + c] = true;
-                }
-            }
-            for (int i = 1; i <= 999; i++) {
-                if (!taken[i]) {
-                    snprintf(recName, sizeof(recName), "tape_%03d.wav", i);
-                    recNameOk = true;
-                    return;
-                }
-            }
+            recNameOk = DspProxy::IsSDMounted() &&
+                        DspProxy::SdGetNextRecordingName(recName, sizeof(recName));
         }
 
         void UIMenuPageTape::onEncoder(int delta) {
@@ -227,15 +204,16 @@ namespace CTAG {
             Display::Clear();
             lastDrawnPlaying = DspProxy::SdIsPlaying();
             lastDrawnRecording = DspProxy::SdIsRecording();
-            lastDrawnSecond = DspProxy::SdGetPositionFrames() / 44100;
+            const uint32_t rate = DspProxy::SdGetSampleRate();
+            lastDrawnSecond = DspProxy::SdGetPositionFrames() / rate;
             int y = ITEM_Y0;
             if (lastDrawnPlaying) {
                 // One status line + STOP keeps the cursor map uniform
                 // (row = cursor) across all MAIN states.
                 if (DspProxy::SdGetTotalFrames() > 0) {
-                    char buf[24];
-                    uint32_t sec = DspProxy::SdGetPositionFrames() / 44100;
-                    uint32_t total = DspProxy::SdGetTotalFrames() / 44100;
+                    char buf[32];
+                    uint32_t sec = DspProxy::SdGetPositionFrames() / rate;
+                    uint32_t total = DspProxy::SdGetTotalFrames() / rate;
                     snprintf(buf, sizeof(buf), "PLAY %02u:%02u/%02u:%02u",
                              (unsigned)(sec / 60), (unsigned)(sec % 60),
                              (unsigned)(total / 60), (unsigned)(total % 60));
@@ -247,7 +225,7 @@ namespace CTAG {
                 Display::DrawString(0, y, "STOP", FONT_UI);
             } else if (lastDrawnRecording) {
                 char buf[24];
-                uint32_t sec = DspProxy::SdGetPositionFrames() / 44100;
+                uint32_t sec = DspProxy::SdGetPositionFrames() / rate;
                 snprintf(buf, sizeof(buf), "REC %02u:%02u",
                          (unsigned)(sec / 60), (unsigned)(sec % 60));
                 Display::DrawString(0, y, buf, FONT_UI);
@@ -270,7 +248,7 @@ namespace CTAG {
             if (subPage != SP_MAIN) return;
             bool playing = DspProxy::SdIsPlaying();
             bool recording = DspProxy::SdIsRecording();
-            uint32_t sec = DspProxy::SdGetPositionFrames() / 44100;
+            uint32_t sec = DspProxy::SdGetPositionFrames() / DspProxy::SdGetSampleRate();
             if (playing != lastDrawnPlaying || recording != lastDrawnRecording ||
                 sec != lastDrawnSecond) {
                 doRedraw();

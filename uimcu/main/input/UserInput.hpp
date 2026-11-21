@@ -29,25 +29,12 @@ respective component folders / files if different from this license.
 
 #pragma once
 #include <cstdint>
+#include "InputEventBuffer.hpp"
 
 int UserInputDebugBtnAdc();
 
 namespace CTAG {
     namespace CTRL {
-        struct InputEvent {
-            enum Type : uint8_t {
-                ENC_DELTA = 0,
-                BTN1_SHORT = 1,
-                BTN1_LONG = 2,
-                BTN2_SHORT = 3,
-                BTN2_LONG = 4,
-                BTN1_DOUBLE = 5,
-                ENC2_DELTA = 6,
-            };
-            Type type;
-            int16_t delta; // only meaningful for ENC*_DELTA
-        };
-
         class UserInput {
         public:
             static void Init();
