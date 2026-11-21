@@ -73,7 +73,7 @@ namespace CTAG {
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
              "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST/TRIP/QTRIP/P516/WALTZ/TRM32",
              "Raw/Triad/Diss", nullptr, "1/2/4/8",
-             "Up/Down/Pendulum/Converge/Diverge/Random/Thru",
+             "Up/Down/Pendulum/Converge/Diverge/Random/Thru/Broken1/Broken2",
              nullptr, nullptr, "Burst/Arpeggio"},                                                     // VARG Chord
         };
         static const uint8_t arpParamMax[7][9] = {
@@ -82,8 +82,8 @@ namespace CTAG {
             {100, 15, 3, 100, 0, 0, 0, 0, 0},
             {100, 7, 3, 3, 0, 0, 0, 0, 0},
             {100, 100, 3, 100, 0, 0, 0, 0, 0},
-            {10, 24, 2, 100, 3, 6, 0, 0, 0},                                       // VARG
-            {10, 24, 2, 100, 3, 6, 100, 100, 1},                                   // VARG Chord
+            {10, 24, 2, 100, 3, 8, 0, 0, 0},                                       // VARG
+            {10, 24, 2, 100, 3, 8, 100, 100, 1},                                   // VARG Chord
         };
         static const uint8_t arpParamStep[7][9] = {
             {1,1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1,1},
