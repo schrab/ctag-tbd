@@ -1259,7 +1259,7 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
         ext.steps[st].oct = oct;
         // One chord tone per gated step, on the string that tone maps to.
         // Bit 4 marks the first step of a chord: the open pedal is plucked.
-        ext.steps[st].str = (uint8_t)(tone % 3u);
+        ext.steps[st].str = (uint8_t)((gate && first_step) ? 3u : tone % 3u);
         ext.steps[st].flags = (uint8_t)((gate ? 1u : 0u)
                                         | (gate && (st & 3u) == 0u ? 2u : 0u)
                                         | (up ? 8u : 0u)

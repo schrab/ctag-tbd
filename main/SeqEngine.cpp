@@ -294,7 +294,7 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 // direction (pendulum, stamped by ArpBuildVarg) and accent
                 s_vargStroke[i] = (cur.flags & 8u) ? -1 : +1;
                 s_vargFlags[i] = (cur.flags & 2u) ? 1u : 0u;
-                s_vargString[i] = (int8_t)(cur.str % 3u);
+                s_vargString[i] = (int8_t)(cur.str & 3u);
                 s_vargPedal[i] = (cur.flags & 16u) ? 1u : 0u;
                 // VARG Chord strum: expand this chord gate into a burst of
                 // one-note events, ordered by the shared strum plan. 0 =

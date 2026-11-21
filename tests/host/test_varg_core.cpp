@@ -539,17 +539,17 @@ TEST(varg_string_index_uses_all_three_fretted_strings) {
     src.p[2] = 50;  // TRIAD
     src.p[3] = 0;
     ArpBuildVarg(src, ext, true);
-    bool seen[3] = {false, false, false};
+    bool seen[4] = {false, false, false, false};
     uint8_t gated = 0;
     for (uint8_t st = 0; st < 16; ++st) {
-        CHECK(ext.steps[st].str < 3);
+        CHECK(ext.steps[st].str < 4);
         if (ext.steps[st].flags & 1u) {
             seen[ext.steps[st].str] = true;
             ++gated;
         }
     }
     CHECK(gated == 16);
-    for (int s = 0; s < 3; ++s) CHECK(seen[s]);
+    for (int s = 0; s < 4; ++s) CHECK(seen[s]);
     // determinism across rebuilds
     ArpExt ext2{};
     ArpBuildVarg(src, ext2, true);
@@ -572,14 +572,14 @@ TEST(varg_string_companion_for_both_algos) {
         CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, enc);
         CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);   // TRM16
         CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-        bool seen[3] = {false, false, false};
+        bool seen[4] = {false, false, false, false};
         for (int b = 0; b < 2600; ++b) {
             CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
             const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
-            CHECK(s >= 0 && s < 3);
-            if (s >= 0 && s < 3) seen[s] = true;
+            CHECK(s >= 0 && s < 4);
+            if (s >= 0 && s < 4) seen[s] = true;
         }
-        for (int s = 0; s < 3; ++s) CHECK(seen[s]);
+        for (int s = 0; s < 4; ++s) CHECK(seen[s]);
     }
 }
 

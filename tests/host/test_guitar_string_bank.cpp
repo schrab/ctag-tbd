@@ -110,3 +110,33 @@ TEST(string_bank_new_note_on_same_string_is_finite_with_glide) {
     }
   }
 }
+
+
+TEST(string_bank_notes_overlap_across_strings) {
+  rings::GuitarStringBank all, last;
+  all.Init(false); last.Init(false);
+  float in[32] = {0.f}, o1[32], o2[32], a1[32], a2[32];
+  rings::GuitarStringBankConfig cfg;
+  auto energy = [](float* l, float* r) {
+    float e = 0.f;
+    for (int i = 0; i < 32; ++i) e += l[i] * l[i] + r[i] * r[i];
+    return e;
+  };
+  // Three notes staggered across three different fretted strings.
+  all.SetNote(0, 45.f, true);
+  for (int k = 0; k < 12; ++k) all.Process(cfg, in, o1, a1, 32);
+  all.SetNote(1, 52.f, true);
+  for (int k = 0; k < 12; ++k) all.Process(cfg, in, o1, a1, 32);
+  all.SetNote(2, 57.f, true);
+  // A reference with only the last note plucked.
+  last.SetNote(2, 57.f, true);
+  float e_all = 0.f, e_last = 0.f;
+  for (int k = 0; k < 24; ++k) {
+    all.Process(cfg, in, o1, a1, 32);
+    last.Process(cfg, in, o2, a2, 32);
+    e_all += energy(o1, a1);
+    e_last += energy(o2, a2);
+  }
+  // The two earlier strings must still be ringing under the third note.
+  CHECK(e_all > e_last * 1.15f);
+}
