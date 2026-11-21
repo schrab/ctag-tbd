@@ -112,6 +112,28 @@ TEST(string_bank_new_note_on_same_string_is_finite_with_glide) {
 }
 
 
+TEST(string_bank_max_damping_stays_bounded) {
+  rings::GuitarStringBank bank;
+  bank.Init(true);
+  float in[32] = {0.f}, out[32], aux[32];
+  rings::GuitarStringBankConfig cfg;
+  cfg.damping = 1.0f;
+  cfg.brightness = 1.0f;
+  bank.SetNote(0, 45.f, true);
+  float peak = 0.f;
+  for (int k = 0; k < 3000; ++k) {   // ~20 s at 32-frame blocks
+    if (k == 500) bank.SetNote(1, 52.f, true);
+    bank.Process(cfg, in, out, aux, 32);
+    for (int i = 0; i < 32; ++i) {
+      CHECK(std::isfinite(out[i]));
+      if (fabsf(out[i]) > peak) peak = fabsf(out[i]);
+      if (fabsf(aux[i]) > peak) peak = fabsf(aux[i]);
+    }
+  }
+  // Rings string loop must remain stable at maximum damping.
+  CHECK(peak < 12.0f);
+}
+
 TEST(string_bank_notes_overlap_across_strings) {
   rings::GuitarStringBank all, last;
   all.Init(false); last.Init(false);

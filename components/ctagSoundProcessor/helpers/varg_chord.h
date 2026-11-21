@@ -33,7 +33,7 @@ enum VargQuality {
 struct VargToneSet { uint8_t n; uint8_t st[5]; };
 
 inline constexpr VargToneSet kVargTones[VQ_COUNT] = {
-    { 2, { 0, 7 } },          // P5
+    { 3, { 0, 7, 12 } },      // P5 = 1-5-1 power chord (root, fifth, octave)
     { 3, { 0, 4, 7 } },       // MAJ
     { 3, { 0, 3, 7 } },       // MIN
     { 2, { 0, 6 } },          // 5b5

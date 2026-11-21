@@ -254,63 +254,58 @@ namespace CTAG {
                     default: break;   // row 8 = pattern preview, read-only
                 }
             } else if (subPage == SP_ARP1 || subPage == SP_ARP2) {
-                int algo = DspProxy::GetSeqArpAlgo(i) / 3;
-                switch (row) {
-                    case 0: DspProxy::SetSeqArpAlgo(i, nextAlgoIndex(DspProxy::GetSeqArpAlgo(i), delta)); break;
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
-                    case 6:
-                    case 7:
-                    case 8:
-                    case 9: {
-                        int k = row - 1;
-                        if (arpParamChoices[algo][k] != nullptr) {
-                            // enumerated choice: step through the engine's own
-                            // idx mapping (idx = p*K/101) so display and engine
-                            // always agree; 0 stays 0.
-                            const int K = arpParamMax[algo][k] + 1;
-                            int idx = (DspProxy::GetSeqArpP(i, k) * K) / 101;
-                            idx += delta;
-                            if (idx < 0) idx = 0;
-                            if (idx > arpParamMax[algo][k]) idx = arpParamMax[algo][k];
-                            int p = (idx == 0) ? 0 : (idx * 101) / K + 1;
-                            DspProxy::SetSeqArpP(i, k, p);
-                        } else {
-                            DspProxy::SetSeqArpP(i, k,
-                                DspProxy::GetSeqArpP(i, k) + delta * arpParamStep[algo][k]);
-                        }
-                        break;
+                const int algo = DspProxy::GetSeqArpAlgo(i) / 3;
+                const int nP = (algo == 6) ? 9 : (algo == 5) ? 6 : 4;
+                if (row == 0) {
+                    DspProxy::SetSeqArpAlgo(i, nextAlgoIndex(DspProxy::GetSeqArpAlgo(i), delta));
+                } else if (row <= nP) {
+                    const int k = row - 1;
+                    if (arpParamChoices[algo][k] != nullptr) {
+                        const int K = arpParamMax[algo][k] + 1;
+                        int idx = (DspProxy::GetSeqArpP(i, k) * K) / 101;
+                        idx += delta;
+                        if (idx < 0) idx = 0;
+                        if (idx > arpParamMax[algo][k]) idx = arpParamMax[algo][k];
+                        DspProxy::SetSeqArpP(i, k, idx == 0 ? 0 : (idx * 101) / K + 1);
+                    } else {
+                        DspProxy::SetSeqArpP(i, k,
+                            DspProxy::GetSeqArpP(i, k) + delta * arpParamStep[algo][k]);
                     }
-                    case 10: DspProxy::SetSeqArpRange(i, DspProxy::GetSeqArpRange(i) + delta); break;
-                    case 11: {
-                        // combined Root row: 0-11 = fixed pitch class,
-                        // 12 = W7 Drift, 13 = Neo-Plagial
-                        int cur = DspProxy::GetSeqRootMode() == 0 ? DspProxy::GetSeqRoot()
-                                  : (DspProxy::GetSeqRootMode() == 1 ? 12 : 13);
-                        int next = cur + delta;
-                        if (next < 0) next = 0;
-                        if (next > 13) next = 13;
-                        if (next <= 11) {
-                            DspProxy::SetSeqRootMode(0);
-                            DspProxy::SetSeqRoot(next);
-                        } else {
-                            DspProxy::SetSeqRootMode(next == 12 ? 1 : 2);
+                } else if (row == nP + 1) {
+                    DspProxy::SetSeqArpRange(i, DspProxy::GetSeqArpRange(i) + delta);
+                } else {
+                    switch (row - (nP + 2)) {
+                        case 0: {
+                            int cur = DspProxy::GetSeqRootMode() == 0 ? DspProxy::GetSeqRoot()
+                                      : (DspProxy::GetSeqRootMode() == 1 ? 12 : 13);
+                            int next = cur + delta;
+                            if (next < 0) next = 0;
+                            if (next > 13) next = 13;
+                            if (next <= 11) {
+                                DspProxy::SetSeqRootMode(0);
+                                DspProxy::SetSeqRoot(next);
+                            } else {
+                                DspProxy::SetSeqRootMode(next == 12 ? 1 : 2);
+                            }
+                            break;
                         }
-                        break;
+                        case 1: DspProxy::SetSeqNeoOp(DspProxy::GetSeqNeoOp() + delta); break;
+                        case 2: DspProxy::SetSeqScale(DspProxy::GetSeqScale() + delta); break;
+                        case 3: {
+                            // VARG uses chord-change glide, not this row.
+                            if (algo < 5)
+                                DspProxy::SetSeqArpGlide(i, DspProxy::GetSeqArpGlide(i) + delta);
+                            break;
+                        }
+                        case 4: DspProxy::SetSeqArpOct(i, DspProxy::GetSeqArpOct(i) + delta); break;
+                        case 5: DspProxy::SetSeqArpClk(i, DspProxy::GetSeqArpClk(i) + delta); break;
+                        case 6: DspProxy::SetSeqArpDiv(i, DspProxy::GetSeqArpDiv(i) + delta); break;
+                        case 7: DspProxy::SetSeqArpPitchSlot(i, DspProxy::GetSeqArpPitchSlot(i) + delta); break;
+                        case 8: DspProxy::SetSeqArpGateSlot(i, DspProxy::GetSeqArpGateSlot(i) + delta); break;
+                        case 9: DspProxy::SetSeqArpAccSlot(i, DspProxy::GetSeqArpAccSlot(i) + delta); break;
+                        case 10: DspProxy::SetSeqArpSlideSlot(i, DspProxy::GetSeqArpSlideSlot(i) + delta); break;
+                        default: break;
                     }
-                    case 12: DspProxy::SetSeqNeoOp(DspProxy::GetSeqNeoOp() + delta); break;
-                    case 13: DspProxy::SetSeqScale(DspProxy::GetSeqScale() + delta); break;
-                    case 14: DspProxy::SetSeqArpGlide(i, DspProxy::GetSeqArpGlide(i) + delta); break;
-                    case 15: DspProxy::SetSeqArpOct(i, DspProxy::GetSeqArpOct(i) + delta); break;
-                    case 16: DspProxy::SetSeqArpClk(i, DspProxy::GetSeqArpClk(i) + delta); break;
-                    case 17: DspProxy::SetSeqArpDiv(i, DspProxy::GetSeqArpDiv(i) + delta); break;
-                    case 18: DspProxy::SetSeqArpPitchSlot(i, DspProxy::GetSeqArpPitchSlot(i) + delta); break;
-                    case 19: DspProxy::SetSeqArpGateSlot(i, DspProxy::GetSeqArpGateSlot(i) + delta); break;
-                    case 20: DspProxy::SetSeqArpAccSlot(i, DspProxy::GetSeqArpAccSlot(i) + delta); break;
-                    case 21: DspProxy::SetSeqArpSlideSlot(i, DspProxy::GetSeqArpSlideSlot(i) + delta); break;
                 }
             }
             dirty = true;
@@ -361,93 +356,63 @@ namespace CTAG {
                     }
                 }
             } else if (subPage == SP_ARP1 || subPage == SP_ARP2) {
-                int algo = DspProxy::GetSeqArpAlgo(i) / 3;
-                switch (row) {
-                    case 0:
-                        snprintf(buf, buflen, " Algorithm:%s", arpAlgoNames[DspProxy::GetSeqArpAlgo(i)]);
-                        break;
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
-                    case 6:
-                    case 7:
-                    case 8:
-                    case 9: {
-                        int k = row - 1;
-                        const char *choices = arpParamChoices[algo][k];
-                        if (choices != nullptr) {
-                            // display the ENGINE's idx (p*K/101), not the raw p
-                            const int K = arpParamMax[algo][k] + 1;
-                            FormatChoice(buf, buflen, choices,
-                                         (DspProxy::GetSeqArpP(i, k) * K) / 101,
-                                         arpParamNames[algo][k]);
-                        } else {
-                            snprintf(buf, buflen, " %s:%d", arpParamNames[algo][k],
-                                     DspProxy::GetSeqArpP(i, k));
+                const int algo = DspProxy::GetSeqArpAlgo(i) / 3;
+                const int nP = (algo == 6) ? 9 : (algo == 5) ? 6 : 4;
+                if (row == 0) {
+                    snprintf(buf, buflen, " Algorithm:%s", arpAlgoNames[DspProxy::GetSeqArpAlgo(i)]);
+                } else if (row <= nP) {
+                    const int k = row - 1;
+                    const char *choices = arpParamChoices[algo][k];
+                    if (choices != nullptr) {
+                        const int K = arpParamMax[algo][k] + 1;
+                        FormatChoice(buf, buflen, choices,
+                                     (DspProxy::GetSeqArpP(i, k) * K) / 101,
+                                     arpParamNames[algo][k]);
+                    } else {
+                        snprintf(buf, buflen, " %s:%d", arpParamNames[algo][k],
+                                 DspProxy::GetSeqArpP(i, k));
+                    }
+                } else if (row == nP + 1) {
+                    static const char* rngNames[3] = {"1-OCT", "2-OCT", "3-OCT"};
+                    int r = DspProxy::GetSeqArpRange(i) - 1;
+                    if (r < 0) r = 0;
+                    if (r > 2) r = 2;
+                    snprintf(buf, buflen, " Chord Range:%s", rngNames[r]);
+                } else {
+                    switch (row - (nP + 2)) {
+                        case 0: {
+                            int cur = DspProxy::GetSeqRootMode() == 0 ? DspProxy::GetSeqRoot()
+                                      : (DspProxy::GetSeqRootMode() == 1 ? 12 : 13);
+                            snprintf(buf, buflen, " Root:%s", rootNames[cur]);
+                            break;
                         }
-                        break;
+                        case 1: snprintf(buf, buflen, " Neo-Op:%s", neoOpNames[DspProxy::GetSeqNeoOp()]); break;
+                        case 2: snprintf(buf, buflen, " Scale:%s", seqScaleNames[DspProxy::GetSeqScale()]); break;
+                        case 3: {
+                            if (algo >= 5) {
+                                snprintf(buf, buflen, " Glide:n/a (VARG)");
+                            } else {
+                                int g = DspProxy::GetSeqArpGlide(i);
+                                if (g == 0) snprintf(buf, buflen, " Glide:Instant");
+                                else snprintf(buf, buflen, " Glide:%d ms", g);
+                            }
+                            break;
+                        }
+                        case 4: snprintf(buf, buflen, " Octave:%+d", DspProxy::GetSeqArpOct(i)); break;
+                        case 5: snprintf(buf, buflen, " Clock:%s", seqClockNames[DspProxy::GetSeqArpClk(i)]); break;
+                        case 6: snprintf(buf, buflen, " Division:%s", seqDivNames[DspProxy::GetSeqArpDiv(i)]); break;
+                        case 7: {
+                            int s = DspProxy::GetSeqArpPitchSlot(i);
+                            if (s >= 0 && s < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0])))
+                                snprintf(buf, buflen, " Pitch Slot:%s", cvSlotDisplayNames[s]);
+                            else snprintf(buf, buflen, " Pitch Slot:%d", s);
+                            break;
+                        }
+                        case 8: snprintf(buf, buflen, " Gate Slot:%s", TrigSlotName(DspProxy::GetSeqArpGateSlot(i))); break;
+                        case 9: snprintf(buf, buflen, " Accent Slot:%s", TrigSlotName(DspProxy::GetSeqArpAccSlot(i))); break;
+                        case 10: snprintf(buf, buflen, " Slide Slot:%s", TrigSlotName(DspProxy::GetSeqArpSlideSlot(i))); break;
+                        default: buf[0] = 0; break;
                     }
-                    case 10: {
-                        static const char* rngNames[3] = {"1-OCT", "2-OCT", "3-OCT"};
-                        int r = DspProxy::GetSeqArpRange(i) - 1;
-                        if (r < 0) r = 0;
-                        if (r > 2) r = 2;
-                        snprintf(buf, buflen, " Chord Range:%s", rngNames[r]);
-                        break;
-                    }
-                    case 11: {
-                        int cur = DspProxy::GetSeqRootMode() == 0 ? DspProxy::GetSeqRoot()
-                                  : (DspProxy::GetSeqRootMode() == 1 ? 12 : 13);
-                        snprintf(buf, buflen, " Root:%s", rootNames[cur]);
-                        break;
-                    }
-                    case 12:
-                        // the op is engine state even while inactive — show
-                        // it always (a permanently-dead "(n/a)" row is just
-                        // redundant space)
-                        snprintf(buf, buflen, " Neo-Op:%s", neoOpNames[DspProxy::GetSeqNeoOp()]);
-                        break;
-                    case 13:
-                        snprintf(buf, buflen, " Scale:%s", seqScaleNames[DspProxy::GetSeqScale()]);
-                        break;
-                    case 14: {
-                        int g = DspProxy::GetSeqArpGlide(i);
-                        if (g == 0)
-                            snprintf(buf, buflen, " Glide:Instant");
-                        else
-                            snprintf(buf, buflen, " Glide:%d ms", g);
-                        break;
-                    }
-                    case 15: {
-                        int oct = DspProxy::GetSeqArpOct(i);
-                        snprintf(buf, buflen, " Octave:%+d", oct);
-                        break;
-                    }
-                    case 16:
-                        snprintf(buf, buflen, " Clock:%s", seqClockNames[DspProxy::GetSeqArpClk(i)]);
-                        break;
-                    case 17:
-                        snprintf(buf, buflen, " Division:%s", seqDivNames[DspProxy::GetSeqArpDiv(i)]);
-                        break;
-                    case 18: {
-                        int s = DspProxy::GetSeqArpPitchSlot(i);
-                        if (s >= 0 && s < (int)(sizeof(cvSlotDisplayNames) / sizeof(cvSlotDisplayNames[0])))
-                            snprintf(buf, buflen, " Pitch Slot:%s", cvSlotDisplayNames[s]);
-                        else
-                            snprintf(buf, buflen, " Pitch Slot:%d", s);
-                        break;
-                    }
-                    case 19:
-                        snprintf(buf, buflen, " Gate Slot:%s", TrigSlotName(DspProxy::GetSeqArpGateSlot(i)));
-                        break;
-                    case 20:
-                        snprintf(buf, buflen, " Accent Slot:%s", TrigSlotName(DspProxy::GetSeqArpAccSlot(i)));
-                        break;
-                    case 21:
-                        snprintf(buf, buflen, " Slide Slot:%s", TrigSlotName(DspProxy::GetSeqArpSlideSlot(i)));
-                        break;
                 }
             }
         }
