@@ -196,6 +196,14 @@
      "min": 0,
      "max": 4095,
      "def": 4095
+    },
+    {
+     "id": "cab_mix",
+     "name": "Cabinet IR",
+     "type": "int",
+     "min": 0,
+     "max": 4095,
+     "def": 0
     }
    ]
   }

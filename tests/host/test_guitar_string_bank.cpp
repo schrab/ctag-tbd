@@ -134,6 +134,26 @@ TEST(string_bank_max_damping_stays_bounded) {
   CHECK(peak < 12.0f);
 }
 
+TEST(string_bank_cab_output_bounded) {
+  rings::GuitarStringBank bank;
+  bank.Init(false);
+  bank.SetCabMix(1.0f);
+  float in[32] = {0.f}, out[32], aux[32];
+  rings::GuitarStringBankConfig cfg;
+  bank.SetNote(0, 45.f, true);
+  bank.SetNote(1, 52.f, true);
+  float peak = 0.f;
+  for (int k = 0; k < 1000; ++k) {
+    bank.Process(cfg, in, out, aux, 32);
+    for (int i = 0; i < 32; ++i) {
+      if (fabsf(out[i]) > peak) peak = fabsf(out[i]);
+      if (fabsf(aux[i]) > peak) peak = fabsf(aux[i]);
+    }
+  }
+  printf("CAB peak=%f\n", peak);
+  CHECK(peak < 1.5f);
+}
+
 TEST(string_bank_notes_overlap_across_strings) {
   rings::GuitarStringBank all, last;
   all.Init(false); last.Init(false);

@@ -123,6 +123,11 @@
      "id": "dist_mix",
      "current": 4095,
      "cv": -1
+    },
+    {
+     "id": "cab_mix",
+     "current": 0,
+     "cv": -1
     }
    ]
   }

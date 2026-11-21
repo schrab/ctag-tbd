@@ -41,6 +41,8 @@ namespace CTAG {
             // resonator), ~54 KB allocated in internal DRAM. Internal
             // excitation only; no external audio path, no reverb.
             rings::GuitarStringBank *bank = nullptr;
+            float *cab_ir_mem = nullptr;
+            float *cab_hist_mem = nullptr;
 
             HELPERS::ctagADEnv paramAD;
             bool eg_pre_trigger = false;
@@ -90,6 +92,8 @@ namespace CTAG {
             atomic<int32_t> dist_mid{2048}, cv_dist_mid{-1};
             atomic<int32_t> dist_tone{4095}, cv_dist_tone{-1};
             atomic<int32_t> dist_mix{4095}, cv_dist_mix{-1};
+            // Speaker cabinet IR wet/dry (0 = bypass).
+            atomic<int32_t> cab_mix{0}, cv_cab_mix{-1};
             // sectionHpp
 
         };

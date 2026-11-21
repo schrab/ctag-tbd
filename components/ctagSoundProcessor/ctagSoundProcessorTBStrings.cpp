@@ -37,6 +37,12 @@ void ctagSoundProcessorTBStrings::Init(std::size_t blockSize, void *blockPtr) {
     }
     assert(mem != nullptr);
     bank = new (mem) rings::GuitarStringBank();
+    // FIR state must be in internal DRAM: a 512-tap loop touching PSRAM
+    // costs ~17 cycles per tap on this core.
+    const size_t cabBytes = tbd::kSpeakerIrTaps * sizeof(float);
+    cab_ir_mem = (float *) heap_caps_malloc(cabBytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    cab_hist_mem = (float *) heap_caps_malloc(cabBytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    bank->SetCabBuffers(cab_ir_mem, cab_hist_mem);
     bank->Init(false);  // default: Sympathetic
 
     paramAD.SetSampleRate(44100.f / 32.f);
@@ -149,6 +155,10 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     distMix = dist_mix / 4095.f;
     if (cv_dist_mix != -1) distMix = fabsf(data.cv[cv_dist_mix]);
     CONSTRAIN(distMix, 0.f, 1.f)
+    float cabMix = cab_mix / 4095.f;
+    if (cv_cab_mix != -1) cabMix = fabsf(data.cv[cv_cab_mix]);
+    CONSTRAIN(cabMix, 0.f, 1.f)
+    bank->SetCabMix(cabMix);
 
     // --- Note source: VARG companion, or manual CV/trig --------------------
     // vargString is published by BOTH VARG algorithms; vargVoicing only by
@@ -212,6 +222,9 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
 }
 
 ctagSoundProcessorTBStrings::~ctagSoundProcessorTBStrings() {
+    heap_caps_free(cab_ir_mem);
+    heap_caps_free(cab_hist_mem);
+    cab_ir_mem = cab_hist_mem = nullptr;
     if (bank != nullptr) {
         bank->~GuitarStringBank();
         heap_caps_free(bank);
@@ -269,6 +282,8 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("dist_tone", [&](const int val) { cv_dist_tone = val; });
     pMapPar.emplace("dist_mix", [&](const int val) { dist_mix = val; });
     pMapCv.emplace("dist_mix", [&](const int val) { cv_dist_mix = val; });
+    pMapPar.emplace("cab_mix", [&](const int val) { cab_mix = val; });
+    pMapCv.emplace("cab_mix", [&](const int val) { cv_cab_mix = val; });
     isStereo = true;
     id = "TBStrings";
     // sectionCpp0
