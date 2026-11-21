@@ -154,6 +154,34 @@ TEST(string_bank_cab_output_bounded) {
   CHECK(peak < 1.5f);
 }
 
+TEST(speaker_cab_fir_wraps_without_artifacts) {
+  // Regression for the background-noise bug: the old single 8-tap-unrolled
+  // loop checked the ring wrap AFTER reading 8 taps, so when the write
+  // pointer was near the end it read past the 512-sample history buffer.
+  // An impulse must produce exactly h[(512 - k) & 511] * 0.25 (SoftLimit),
+  // including across the wrap at k=511/512.
+  rings::GuitarStringBank bank;
+  bank.Init(false);
+  const int16_t *packed = reinterpret_cast<const int16_t *>(tbd::kSpeakerIrQ15);
+  float h[tbd::kSpeakerIrTaps];
+  for (int i = 0; i < tbd::kSpeakerIrTaps; ++i)
+    h[i] = (float)packed[i] * (1.0f / 32768.0f);
+  float worst = 0.f;
+  for (int k = 0; k < tbd::kSpeakerIrTaps + 16; ++k) {
+    const float in = (k == 0) ? 1.f : 0.f;
+    float out;
+    bank.ProcessCab(&in, &out, 1);
+    float expected = 0.f;
+    if (k < tbd::kSpeakerIrTaps)
+      expected = stmlib::SoftLimit(
+          h[(tbd::kSpeakerIrTaps - k) & (tbd::kSpeakerIrTaps - 1)] * 0.25f);
+    const float err = fabsf(out - expected);
+    if (err > worst) worst = err;
+    CHECK(err < 1e-4f);
+  }
+  printf("CABWRAP worst=%e\n", worst);
+}
+
 TEST(tbstrings_full_chain_stays_bounded) {
   // Strings -> sustainer/chainsaw -> Rings limiter -> cab FIR, with the
   // harshest realistic settings (max damping, drive, full cab wet).
@@ -173,7 +201,10 @@ TEST(tbstrings_full_chain_stays_bounded) {
   const int notes[4] = {45, 52, 57, 33};
   float peak = 0.f;
   for (int k = 0; k < 2000; ++k) {
-    if (k % 120 == 0) bank.SetNote(notes[(k / 120) & 3], notes[(k / 120) & 3], true);
+    if (k % 120 == 0) {
+      const int slot = (k / 120) & 3;
+      bank.SetNote(slot, notes[slot], true);
+    }
     bank.Process(cfg, in, out, aux, 32);
     for (int i = 0; i < 32; ++i) {
       CHECK(std::isfinite(out[i]));
