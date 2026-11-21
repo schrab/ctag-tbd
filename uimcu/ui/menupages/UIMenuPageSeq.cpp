@@ -48,9 +48,8 @@ namespace CTAG {
             "Phrygian Dominant", "Whole Tone", "Octatonic", "Hirajoshi",
             "In Sen", "Double Harmonic", "Acid Pool"
         };
-        // per-algo P1..P8 labels. VARG algos share Progression/Rhythm/
-        // Quality/Mutate and Chord Bars; only the chord algo uses the
-        // strum trio. Unused rows are hidden by rowCount() below.
+        // VARG shares P1..P6. VARG Chord adds Spread, Ghost and Chord Mode.
+        // Unused rows are hidden by rowCount() below.
         static const char* arpParamNames[7][9] = {
             {"Density", "Slide", "Accent", "Mutate", "-", "-", "-", "-"},
             {"Density", "Form", "Transform", "Mutate", "-", "-", "-", "-"},
@@ -60,6 +59,9 @@ namespace CTAG {
             {"Progression", "Rhythm", "Quality", "Mutate", "Chord Bars", "Arp Order", "-", "-", "-"},
             {"Progression", "Rhythm", "Quality", "Mutate", "Chord Bars", "Arp Order", "Spread", "Ghost", "Chord Mode"}
         };
+        static constexpr const char *vargChordBarsChoices = "1/2/4/8";
+        static constexpr const char *vargOrderChoices =
+            "Up/Down/Pendulum/Converge/Diverge/Random/Thru/Broken1/Broken2";
         // enumerated P values where the row is a choice, nullptr = 0..100
         static const char* const arpParamChoices[7][9] = {
             {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
@@ -69,11 +71,11 @@ namespace CTAG {
             {nullptr, nullptr, "All/Pentatonic/Triad/Root", nullptr, nullptr, nullptr, nullptr, nullptr},
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
              "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST/TRIP/QTRIP/P516/WALTZ/TRM32",
-             "Raw/Triad/Diss", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},  // VARG
+             "Raw/Triad/Diss", nullptr, vargChordBarsChoices, vargOrderChoices,
+             nullptr, nullptr, nullptr},                                                              // VARG
             {"Generative/i-bVII/i-bVI-bVII/i-bIII-bVI/Weitzmann/add9-dim7/Mediant/i-bII-v/Pool 5/Planing/i-I+",
              "TRM16/TRM8/QRT/HALF/BURST/GAL/RGAL/68L/STAB/SKIP/CHAR/RESP/TURN/DIRGE/CHOP/DBL/CAMP/BACK/DBEA/CRST/TRIP/QTRIP/P516/WALTZ/TRM32",
-             "Raw/Triad/Diss", nullptr, "1/2/4/8",
-             "Up/Down/Pendulum/Converge/Diverge/Random/Thru/Broken1/Broken2",
+             "Raw/Triad/Diss", nullptr, vargChordBarsChoices, vargOrderChoices,
              nullptr, nullptr, "Burst/Arpeggio"},                                                     // VARG Chord
         };
         static const uint8_t arpParamMax[7][9] = {

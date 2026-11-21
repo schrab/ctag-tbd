@@ -161,14 +161,15 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     bank->SetCabMix(cabMix);
 
     // --- Note source: VARG companion, or manual CV/trig --------------------
-    // vargString is published by BOTH VARG algorithms; vargVoicing only by
-    // algo 6 (whole chord).
+    // vargString is published by BOTH VARG algorithms; vargVoicing is present
+    // only when the consumer must expand a whole chord (not Arpeggio mode).
     int vargArp = -1;
     if (data.vargString[0] >= 0 && data.vargString[0] < 4) vargArp = 0;
     else if (data.vargString[1] >= 0 && data.vargString[1] < 4) vargArp = 1;
 
-    // Pitch glides only on the first strum after VARG advances the chord.
-    bank->SetGlideEnabled(vargArp >= 0 && data.vargGlide[vargArp] != 0);
+    // VARG requests glide only on chord changes. Manual notes use the Glide
+    // knob (zero by default); each plucked string owns its glide thereafter.
+    bank->SetGlideEnabled(vargArp < 0 || data.vargGlide[vargArp] != 0);
     const int pitchSlot = vargArp >= 0 ? (int)data.vargPitchSlot[vargArp] : (int)cv_frequency;
     const int gateSlot = vargArp >= 0 ? (int)data.vargGateSlot[vargArp] : (int)trig_strum_int;
 
@@ -183,39 +184,25 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     const bool gateEdge = gate && !lastGate;
     lastGate = gate;
 
-    ghostKind = vargArp >= 0 ? data.vargGhost[vargArp] : 0;
-    if (ghostKind && vargArp >= 0) {
-        const int gs = data.vargString[vargArp];
-        if (gs >= 0 && gs < rings::kGuitarStringCount) {
-            bank->SetDampingOverride(gs, ghostKind == 1 ? 0.90f : 0.97f);
-        }
-    }
-    float burstVel = vargArp >= 0 ? data.vargBurstVel[vargArp] / 100.0f : 1.0f;
-    if (burstVel <= 0.0f) burstVel = 1.0f;
-    if (ghostKind == 1) burstVel *= 0.25f;
-    else if (ghostKind == 2) burstVel *= 0.12f;
-
     if (gateEdge) {
-        if (vargArp >= 0 && data.vargVoicing[vargArp] >= 0 &&
-            data.vargBurst[vargArp] == 0) {
-            // VARG algo 6: a whole chord. Lay its tones across the four
-            // physical strings, anchored at the ARP's string index.
-            const int voicing = data.vargVoicing[vargArp];
+        const int sourceString = vargArp >= 0 ? data.vargString[vargArp] : -1;
+        const int voicing = vargArp >= 0 ? data.vargVoicing[vargArp] : -1;
+        const auto event = rings::RouteGuitarNote(
+            sourceString, voicing, vargArp >= 0 && data.vargBurst[vargArp] != 0,
+            fallbackString, vargArp >= 0 ? data.vargBurstVel[vargArp] / 100.f : 1.f,
+            vargArp >= 0 ? data.vargGhost[vargArp] : 0);
+        if (event.count > 1) {
+            // Only block-chord companions fan out. Arpeggio publishes no
+            // voicing, so it follows the same single-string path as a burst.
             const float *offsets = rings::ChordVoicing(1, voicing);
             const int n = rings::ChordSize(1);
-            const int base = data.vargString[vargArp];
-            for (int s = 0; s < rings::kGuitarStringCount; ++s) {
+            for (int s = 0; s < event.count; ++s) {
                 const int idx = n > 0 ? (s % n) : 0;
-                bank->SetNote((base + s) & 3, note + offsets[idx], true);
+                bank->SetNote((event.string + s) % rings::kGuitarStringCount,
+                              note + offsets[idx], true, event.velocity, event.damping);
             }
         } else {
-            // One note (VARG arpeggio or manual): the sequencer's string
-            // index when present, otherwise a simple round-robin fallback.
-            int str = vargArp >= 0 ? data.vargString[vargArp] : fallbackString;
-            // VARG may send the open pedal string (index 3) as part of the
-            // chord burst; only out-of-range values fall back.
-            if (str < 0 || str >= rings::kGuitarStringCount) str = fallbackString;
-            bank->SetNote(str, note, true, burstVel);
+            bank->SetNote(event.string, note, true, event.velocity, event.damping);
             if (vargArp < 0) fallbackString = (fallbackString + 1) % rings::kGuitarFrettedStrings;
         }
     }

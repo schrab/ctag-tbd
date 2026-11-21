@@ -45,6 +45,10 @@ echo "==> Building host tests"
     "$HERE/test_seq_mod.cpp" \
     "$HERE/test_strum_plan.cpp" \
     "$HERE/test_varg_core.cpp" \
+    "$HERE/test_varg_generator_regressions.cpp" \
+    "$HERE/test_varg_shell_regressions.cpp" \
+    "$HERE/test_transport_concurrency.cpp" \
+    "$HERE/test_tbstrings_regressions.cpp" \
     "$HERE/test_chainsaw_dist.cpp" \
     "$HERE/test_dist_fast.cpp" \
     "$HERE/test_plucked_string.cpp" \

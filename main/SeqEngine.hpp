@@ -48,6 +48,11 @@ namespace CTAG::DRIVERS {
 // ticks from ModTransport::TicksThisBlock and freezes while stopped.
 class SeqEngine {
 public:
+    struct VargState {
+        int8_t voicing, string, pitchSlot, gateSlot, stroke;
+        uint8_t flags, burst, velocity, ghost, glide;
+    };
+    static VargState GetVargState(int i);
     static void Init();   // InitDefaults + LoadConfig
     static void InitDefaults();
     // Audio task, once per block. dt in seconds.

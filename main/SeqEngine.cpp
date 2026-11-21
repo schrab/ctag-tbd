@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <mutex>
 #include "ModTransport.hpp"
 #include "rapidjson/document.h"
 
@@ -14,9 +15,11 @@ using CTAG::SP::HELPERS::ClampTrigSlot;
 
 
 // ---- engine state (static DRAM, ~1.5 KB) ----
-// Setters run on the UIMenu/link task, Process on the audio task; shared
-// scalars are the same benign-race class as MarblesEngine's (a torn value
-// applies one block late, nothing dereferences).
+// Control-side rebuilds and audio-side advancement share one bounded lock.
+// File parsing and persistence run outside it. Companions are published once
+// per block so a control edit cannot split a note from its routing metadata.
+static std::recursive_mutex stateMutex;
+using StateLock = std::lock_guard<std::recursive_mutex>;
 static SEQ::GateSource gGate[2];
 static SEQ::ArpSource gArp[2];
 static SEQ::ArpExt gArpExt[2];
@@ -47,22 +50,21 @@ static uint8_t s_vargFlags[2] = {0, 0};
 // Guitar string index of the note whose gate just opened (either VARG algo).
 static int8_t s_vargString[2] = {-1, -1};
 
-// VARG Chord strum burst: when P5 (style) != 0, a chord gate is expanded
-// into a sequence of individual note events (one per string) with P6
-// (spread) controlling the gap. Each sub-note is a one-block active-low
-// pulse on the ARP's gate slot plus a pitch CV write and string companion.
+// VARG Chord expands each gate into individual note events. Seven entries
+// cover the pedal plus all six notes of either broken-chord order.
 struct StrumBurst {
     bool active {false};
     uint8_t count {0};
     uint8_t idx {0};
     uint8_t countdown {0};
     uint8_t spacing {2};
-    bool pulse {false};
-    uint8_t kind {0};   // 0 normal, 1 ghost hit, 2 pre-change transient
-    bool glide {false}; // glide to the new chord only on a chord advance
-    int8_t slot[6] {-1, -1, -1, -1, -1, -1};
-    int8_t note[6] {0, 0, 0, 0, 0, 0};
-    uint8_t vel[6] {100, 100, 100, 100, 100, 100};
+    uint16_t totalSpread {0};
+    bool glide {false};
+    bool accent {false};
+    uint8_t kind {0};
+    int8_t slot[7] {};
+    int8_t note[7] {};
+    uint8_t vel[7] {};
     uint32_t rng {0x1a2b3c4du};
 };
 static StrumBurst s_strumBurst[2];
@@ -80,13 +82,43 @@ static uint8_t s_vargPedal[2] = {0, 0};
 static float gateOut[2] = {0.0f, 0.0f};   // slewed gate level
 static float arpOut[2] = {0.0f, 0.0f};    // leveled arp out (accent shaped)
 static std::atomic<uint32_t> outSnapshot{0};
+static float arpPitchOut[2] {};
+static uint8_t arpGateOut[2] {1, 1};
+static uint8_t arpAccentOut[2] {1, 1};
+static uint8_t arpSlideOut[2] {1, 1};
+static int previousTrigSlot[8] {43, 44, 45, 46, 47, 48, 49, 50};
+static int previousCvSlot[4] {102, 103, 104, 105};
+struct VargCompanion {
+    int voicing {-1};
+    int string {-1};
+    int pitchSlot {-1};
+    int gateSlot {-1};
+    int8_t stroke {0};
+    uint8_t flags {0}, burst {0}, velocity {0}, ghost {0}, glide {0};
+};
+static VargCompanion companion[2];
 
 static int ClampInt(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
 void SeqEngine::InitDefaults() {
+    StateLock lock(stateMutex);
     for (int i = 0; i < 2; ++i) {
+        s_strumBurst[i] = StrumBurst{};
+        companion[i] = VargCompanion{};
+        s_vargString[i] = -1;
+        s_vargStroke[i] = 0;
+        s_vargFlags[i] = s_vargBurst[i] = s_vargBurstVel[i] = 0;
+        s_vargGhost[i] = s_vargChordChange[i] = s_vargGlide[i] = s_vargPedal[i] = 0;
+        arpPitchOut[i] = 0.f;
+        arpGateOut[i] = arpAccentOut[i] = arpSlideOut[i] = 1;
         // gates: spec §4.4 — gate1 preset 01 "Classic Alternating", gate2
         // preset 03 "4-on-the-Floor Ducking Pump"
+        previousTrigSlot[i] = 43 + i;
+        previousTrigSlot[2 + i] = 45 + i;
+        previousTrigSlot[4 + i] = 47 + i;
+        previousTrigSlot[6 + i] = 49 + i;
+        previousCvSlot[i] = 102 + i;
+        previousCvSlot[2 + i] = 104 + i;
         gGate[i] = SEQ::GateSource{};
         gGate[i].mode = (i == 0) ? 1 : 3;
         gGate[i].dens = 8;
@@ -145,6 +177,25 @@ void SeqEngine::Init() {
 }
 
 void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
+    StateLock lock(stateMutex);
+    // Release destinations abandoned since the previous block, unless another
+    // SEQ output still owns that destination. Then write all current outputs.
+    const int trigSlots[8] = {gateTrigSlot[0], gateTrigSlot[1],
+        arpGateSlot[0], arpGateSlot[1], arpAccSlot[0], arpAccSlot[1],
+        arpSlideSlot[0], arpSlideSlot[1]};
+    const int cvSlots[4] = {gateCvSlot[0], gateCvSlot[1], arpPitchSlot[0], arpPitchSlot[1]};
+    for (int &old : previousTrigSlot) {
+        bool owned = false;
+        for (int slot : trigSlots) if (slot == old) owned = true;
+        if (old >= 0 && !owned) trig[old] = 1;
+    }
+    for (int &old : previousCvSlot) {
+        bool owned = false;
+        for (int slot : cvSlots) if (slot == old) owned = true;
+        if (old >= 0 && !owned) cv[old] = 0.f;
+    }
+    memcpy(previousTrigSlot, trigSlots, sizeof(trigSlots));
+    memcpy(previousCvSlot, cvSlots, sizeof(cvSlots));
     // 1) clock bus (rack §2): one fractional PPQ accumulator at the global
     //    BPM; MIDI sources advance by integer ticks. The increment IS the
     //    delta — intPhase only wraps cosmetically so the float never loses
@@ -214,6 +265,11 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
             s.retrig_edge = 0u;
             aPhase[i] = 0.0f;
         }
+        if (!aActive || (startReset && aUseMidi)) {
+            s_strumBurst[i].active = false;
+            s.level = s.held = s.cur_acc = s.cur_hold = 0;
+            s_vargBurst[i] = s_vargGhost[i] = s_vargGlide[i] = 0;
+        }
         const float aDivPpq = (float)SEQ::kDivisions[arpDiv[i]].ppq;
         const float aAdv = aActive
             ? (aUseMidi ? (float)midiTicks / aDivPpq : intDelta / aDivPpq)
@@ -227,6 +283,16 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
             s.step = (uint8_t)((s.step + aWraps) & 0x0Fu);
             s.ticks += aWraps;
             const uint8_t st = s.step;
+            const bool hadBurst = s_strumBurst[i].active;
+            if (hadBurst) {
+                StrumBurst &burst = s_strumBurst[i];
+                if (aWraps >= (uint32_t)burst.count - burst.idx) {
+                    burst.active = false;
+                    burst.idx = burst.count;
+                    burst.countdown = 0;
+                    burst.rng = 0x1a2b3c4du + s.rng;
+                }
+            }
             if (st < prevSt || (s.ticks & 0x0Fu) == 0u) {
                 // bar boundary: chord drift cadence + fill bar + rebuild.
                 // VARG advances its own progression inside ArpBuildVarg (one
@@ -270,7 +336,7 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                     } else {
                         ++e.st.varg.bars_held;
                     }
-                    SEQ::ArpRebuildPattern(s, e, advance);
+                    SEQ::ArpRebuildPattern(s, e, advance, false);
                 } else if (s.algo == SEQ::kArpAlgoHyp1) {
                     // HYP-1: in-place step mutation on loop wrap
                     const uint8_t mutProb = (uint8_t)((uint16_t)s.p[3] * 50 / 100);
@@ -280,9 +346,13 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                     SEQ::ArpRebuildPattern(s, e);
                 }
             }
+            const bool continuingBurst = hadBurst && s_strumBurst[i].active;
             SEQ::ArpStep cur = e.steps[st];
-            if (e.dd_fill) SEQ::ArpApplyTurnaround(s, e, st, cur);
-            if (cur.flags & 1u) {
+            const bool isVarg = s.algo == SEQ::kArpAlgoVarg || s.algo == SEQ::kArpAlgoVargChord;
+            if (e.dd_fill && !isVarg) SEQ::ArpApplyTurnaround(s, e, st, cur);
+            if (continuingBurst) {
+                s.level = 0;
+            } else if (cur.flags & 1u) {
                 const SEQ::ArpStep &prev = e.steps[prevSt];
                 const bool prevSlid = ((prev.flags & 5u) == 5u) && s.held;
                 s.cur_note = SEQ::ArpCalcNote(s, e, cur);
@@ -296,63 +366,54 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
                 s_vargFlags[i] = (cur.flags & 2u) ? 1u : 0u;
                 s_vargString[i] = (int8_t)(cur.str & 3u);
                 s_vargPedal[i] = (cur.flags & 16u) ? 1u : 0u;
-                // VARG Chord strum: expand this chord gate into a burst of
-                // one-note events, ordered by the shared strum plan. 0 =
-                // Block = legacy whole-chord behaviour.
+                // Burst mode always expands the selected nine-way order.
                 StrumBurst &burst = s_strumBurst[i];
                 burst.active = false;
-                if (s.algo == SEQ::kArpAlgoVargChord && s.p[8] == 0) {
-                    int style = (s.p[5] * 10) / 101;
-                    if (style > 9) style = 9;
-                    if (style > 0) {
-                        const uint8_t order[3] = {0, 1, 2};
-                        const uint32_t spreadMs = (uint32_t)s.p[6] * 45u / 100u;
-                        const uint32_t spreadBlocks =
-                            (uint32_t)(spreadMs * 0.001f / dt + 0.5f);
-                        const tbd::StrumPlan plan = tbd::StrumBuildPlan(
-                            order, 3, (uint8_t)style,
-                            (cur.flags & 8u) ? -1 : +1, false,
-                            (cur.flags & 2u) != 0,
-                            (uint16_t)spreadBlocks, burst.rng);
-                        burst.count = plan.n;
-                        burst.idx = 0;
-                        burst.countdown = 0;
-                        burst.spacing = (uint8_t)ClampInt(
-                            (int)(spreadBlocks / (plan.n > 1 ? plan.n - 1 : 1)),
-                            2, 60);
-                        // Voice from the SAME 18-row voicing table the string
-                        // synth uses (not the raw interval set), so RAW power
-                        // chords really are 1-5-1 and Bryan shapes survive.
-                        const int voicing =
-                            SEQ::kVargToVoicing[e.st.varg.curQual % SEQ::VQ_COUNT];
-                        const int8_t *offs = SEQ::kVargVoicing3[voicing];
-                        const int rootNote = 48 + s.root + e.st.varg.curOff;
-                        // Blast-beat coupling: even 16ths are slightly softer.
-                        const bool burst16 =
-                            tbd::StrumMaskIs16thGrid(SEQ::VargEffectiveMask(s));
-                        const float atten = (burst16 && (st & 1u)) ? 0.8f : 1.0f;
-                        // The open pedal is part of the VARG chord: a fixed
-                        // drone one octave below the ARP root, on string 3.
-                        // It stays put while the fretted shape moves above.
-                        burst.slot[0] = 3;
-                        burst.note[0] = (int8_t)(48 + s.root - 12);
-                        burst.vel[0] = (uint8_t)ClampInt(
-                            (int)(0.85f * atten * 70.0f), 0, 100);
-                        for (uint8_t k = 0; k < plan.n && k + 1 < 6; ++k) {
-                            const int slot = plan.slot[k] % 3u;
-                            burst.slot[k + 1] = (int8_t)((cur.str + k) % 3u);
-                            burst.note[k + 1] = (int8_t)(rootNote + offs[slot]);
-                            burst.vel[k + 1] = (uint8_t)ClampInt(
-                                (int)(plan.vel[k] * atten * 100.0f), 0, 100);
-                        }
-                        burst.count = plan.n + 1;
-                        burst.kind = 0;
-                        burst.glide = (s_vargChordChange[i] != 0);
-                        s_vargChordChange[i] = 0;
-                        burst.active = plan.n > 0;
-                        // Suppress the normal long gate window for this step.
-                        if (burst.active) s.level = 0;
+                const bool vargChord = s.algo == SEQ::kArpAlgoVargChord;
+                if (vargChord && s.p[8] < 51) {
+                    static constexpr uint8_t styles[9] = {
+                        tbd::STRUM_DOWN, tbd::STRUM_UP, tbd::STRUM_PENDULUM,
+                        tbd::STRUM_CONVERGE, tbd::STRUM_DIVERGE, tbd::STRUM_RANDOM,
+                        tbd::STRUM_THRU, tbd::STRUM_BROKEN1, tbd::STRUM_BROKEN2};
+                        const int style = styles[SEQ::VargOrderFromParam(s.p[5])];
+                    const uint8_t order[3] = {0, 1, 2};
+                    const tbd::StrumPlan plan = tbd::StrumBuildPlan(
+                        order, 3, (uint8_t)style,
+                        (cur.flags & 8u) ? -1 : +1, false,
+                        (cur.flags & 2u) != 0, 0, burst.rng);
+                    burst.count = (uint8_t)ClampInt(plan.n + 1, 1, 7);
+                    burst.idx = 0;
+                    burst.countdown = 0;
+                    const int gaps = burst.count - 1;
+                    const uint32_t requestedBlocks = (uint32_t)(s.p[6] * .00045f / dt);
+                    const float stepSeconds = aDivPpq / (24.f * bpm / 60.f);
+                    const uint32_t availableBlocks = (uint32_t)(stepSeconds * .7f / dt);
+                    const uint32_t totalBlocks = requestedBlocks < availableBlocks ? requestedBlocks : availableBlocks;
+                    burst.totalSpread = (uint16_t)ClampInt((int)totalBlocks, 0, 65535);
+                    burst.spacing = (uint8_t)ClampInt(gaps ? (int)(totalBlocks / gaps) : 2, 2, 60);
+                    const int voicing = SEQ::kVargToVoicing[e.st.varg.curQual % SEQ::VQ_COUNT];
+                    const int8_t *offs = SEQ::kVargVoicing3[voicing];
+                    const int rootNote = 48 + s.root + e.st.varg.curOff;
+                    const bool burst16 = tbd::StrumMaskIs16thGrid(SEQ::VargEffectiveMask(s));
+                    const float atten = (burst16 && (st & 1u)) ? .8f : 1.f;
+                    burst.accent = (cur.flags & 2u) != 0;
+                    burst.slot[0] = 3;
+                    burst.note[0] = (int8_t)(48 + s.root - 12);
+                    burst.vel[0] = (uint8_t)(.85f * atten * 70.f);
+                    if (burst.accent) burst.vel[0] = (uint8_t)ClampInt(burst.vel[0] + 10, 1, 100);
+                    for (uint8_t k = 0; k < plan.n; ++k) {
+                        const int slot = plan.slot[k] % 3u;
+                        burst.slot[k + 1] = (int8_t)slot;
+                        burst.note[k + 1] = (int8_t)(rootNote + offs[slot]);
+                        int velocity = (int)(plan.vel[k] * atten * 100.f);
+                        if (burst.accent) velocity += 10;
+                        burst.vel[k + 1] = (uint8_t)ClampInt(velocity, 1, 100);
                     }
+                    burst.kind = 0;
+                    burst.glide = s_vargChordChange[i] != 0;
+                    s_vargChordChange[i] = 0;
+                    burst.active = plan.n > 0;
+                    s.level = 0;
                 }
             } else {
                 s.level = 0u; s.retrig_edge = 0u; s.held = 0u;
@@ -414,85 +475,81 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
         const float pitchCv =
             ((float)((int32_t)(e.current_pitch_q16 >> 16) - 48) / 12.0f
              + (float)arpOct[i]) * 0.2f;
-        if (arpPitchSlot[i] >= 0) {
+        const bool isVargNote = s.algo == SEQ::kArpAlgoVarg || s.algo == SEQ::kArpAlgoVargChord;
+        if (!isVargNote) {
+            arpPitchOut[i] = pitchCv;
+        } else if (aWraps && s.level) {
             if (s_vargPedal[i]) {
-                // Open pedal: fixed drone at the ARP root, one octave down.
-                // Consume the flag here — with a dense mask there are no
-                // silent steps, so it must not survive to the next gate or
-                // the string would be cleared on every arpeggio note.
-                cv[arpPitchSlot[i]] =
-                    (float)(s.root - 12) / 12.0f * 0.2f
-                    + (float)arpOct[i] * 0.2f;
+                arpPitchOut[i] = (float)(s.root - 12) / 12.f * .2f + arpOct[i] * .2f;
                 s_vargPedal[i] = 0;
-            } else if (s.algo == SEQ::kArpAlgoVargChord && s.p[8] == 0) {
-                // Burst mode: VARG Chord sends the chord ROOT as a normal
-                // pitch CV; the plugin builds the chord locally. In
-                // Arpeggio mode the per-step note CV is used instead.
-                // a normal 0.2 V/oct pitch on the ARP's pitch CV (slot 104),
-                // consumed by TBDings' `frequency`. The chord QUALITY travels
-                // as an internal companion (GetVargVoicing -> pd.vargVoicing),
-                // not as a user CV slot. Root = shared root + chord offset.
-                const float rootCv =
-                    (float)(s.root + e.st.varg.curOff) / 12.0f * 0.2f
-                    + (float)arpOct[i] * 0.2f;
-                cv[arpPitchSlot[i]] = rootCv;
-                // The chord quality is NOT written to a CV slot — it travels
-                // as an internal companion in ProcessData (GetVargVoicing),
-                // so no user modulation source is consumed.
             } else {
-                cv[arpPitchSlot[i]] = pitchCv;
+                arpPitchOut[i] = pitchCv;
             }
+            s_vargGlide[i] = s_vargChordChange[i];
+            s_vargChordChange[i] = 0;
         }
-        // Strum burst output: each sub-note gets its own pitch CV, string
-        // companion and a ONE-BLOCK low gate pulse (TBStrings edge-detects).
+        // Burst notes and companions are latched on the same block as their
+        // one-block pulse. Pitch holds through idle blocks and after the burst.
         StrumBurst &burst = s_strumBurst[i];
         bool burstEmit = false;
-        if (burst.active) {
-            if (burst.countdown == 0) {
-                burstEmit = true;
-                if (arpPitchSlot[i] >= 0 && burst.idx < burst.count) {
-                    cv[arpPitchSlot[i]] =
-                        ((float)(burst.note[burst.idx] - 48) / 12.0f
-                         + (float)arpOct[i]) * 0.2f;
-                }
-                if (burst.idx < burst.count) {
-                    s_vargString[i] = burst.slot[burst.idx];
-                    s_vargBurstVel[i] = burst.vel[burst.idx];
-                    s_vargGhost[i] = burst.kind;
-                    burst.pulse = true;
-                }
-                ++burst.idx;
-                if (burst.idx >= burst.count) {
-                    burst.active = false;
-                    burst.pulse = false;
-                } else {
-                    burst.countdown = burst.spacing;
-                }
-            } else {
-                --burst.countdown;
-                burst.pulse = false;
-            }
-            s_vargBurst[i] = 1;
-            s_vargGlide[i] = burst.glide ? 1 : 0;
+        s_vargBurst[i] = 0;
+        s_vargBurstVel[i] = 0;
+        s_vargGhost[i] = 0;
+        if (!aWraps || !s.level) s_vargGlide[i] = 0;
+    if (burst.active && aActive && burst.idx < burst.count) {
+        if (burst.countdown) {
+            --burst.countdown;
         } else {
-            s_vargBurst[i] = 0;
-            s_vargBurstVel[i] = 0;
-            s_vargGhost[i] = 0;
-            s_vargGlide[i] = 0;
+            burstEmit = true;
+            arpPitchOut[i] = ((float)(burst.note[burst.idx] - 48) / 12.f + arpOct[i]) * .2f;
+            s_vargString[i] = burst.slot[burst.idx];
+            s_vargBurstVel[i] = burst.vel[burst.idx];
+            s_vargGhost[i] = burst.kind;
+            s_vargGlide[i] = burst.glide ? 1 : 0;
+            ++burst.idx;
+            if (burst.idx == burst.count) {
+                burst.active = false;
+                burst.countdown = 0;
+            } else {
+                const uint32_t elapsed = (uint32_t)(burst.idx - 1) * burst.spacing;
+                const uint32_t remaining = burst.totalSpread > elapsed ? burst.totalSpread - elapsed : 0;
+                const uint8_t gaps = burst.count - burst.idx;
+                burst.countdown = gaps ? (uint8_t)ClampInt((int)(remaining / gaps), 2, 60) - 1 : 0;
+            }
         }
+        s_vargBurst[i] = 1;
+    }
+        if (arpPitchSlot[i] >= 0) cv[arpPitchSlot[i]] = arpPitchOut[i];
 
-        const float gWin = s.cur_hold ? 1.0f : 0.55f;
-        const bool gateOpen = (s.level != 0) && (aPhase[i] < gWin);
-        if (arpGateSlot[i] >= 0) {
-            if (burst.active || burstEmit)
-                trig[arpGateSlot[i]] = (burstEmit || burst.pulse) ? 0 : 1;
-            else
-                trig[arpGateSlot[i]] = gateOpen ? 0 : 1;
+        const float gWin = s.cur_hold ? 1.f : .55f;
+        const bool gateOpen = aActive && s.level && aPhase[i] < gWin;
+        const bool burstMode = s.algo == SEQ::kArpAlgoVargChord && s.p[8] < 51;
+        const bool gateHigh = aActive && (burstMode ? burstEmit : gateOpen);
+        const bool accentHigh = aActive && (burstMode ? (burstEmit && burst.accent)
+                                                    : (s.cur_acc && gateOpen));
+        const bool slideHigh = aActive && s.cur_hold && gateOpen;
+        arpGateOut[i] = gateHigh ? 0 : 1;
+        arpAccentOut[i] = accentHigh ? 0 : 1;
+        arpSlideOut[i] = slideHigh ? 0 : 1;
+        if (arpGateSlot[i] >= 0) trig[arpGateSlot[i]] = arpGateOut[i];
+        if (arpAccSlot[i] >= 0) trig[arpAccSlot[i]] = arpAccentOut[i];
+        if (arpSlideSlot[i] >= 0) trig[arpSlideSlot[i]] = arpSlideOut[i];
+        const float aTarget = gateHigh ? (s.cur_acc ? 1.f : .72f) : 0.f;
+        arpOut[i] += (aTarget - arpOut[i]) * .5f;
+    companion[i] = VargCompanion{};
+    if (isVargNote) {
+            companion[i].voicing = (s.algo == SEQ::kArpAlgoVargChord && s.p[8] < 51)
+                ? (int)SEQ::kVargToVoicing[e.st.varg.curQual % SEQ::VQ_COUNT] : -1;
+            companion[i].string = s_vargString[i];
+            companion[i].pitchSlot = arpPitchSlot[i];
+            companion[i].gateSlot = arpGateSlot[i];
+            companion[i].stroke = s_vargStroke[i];
+            companion[i].flags = s_vargFlags[i];
+            companion[i].burst = s_vargBurst[i];
+            companion[i].velocity = s_vargBurstVel[i];
+            companion[i].ghost = s_vargGhost[i];
+            companion[i].glide = s_vargGlide[i];
         }
-        if (arpAccSlot[i] >= 0) trig[arpAccSlot[i]] = (s.cur_acc && s.level) ? 0 : 1;
-        if (arpSlideSlot[i] >= 0) trig[arpSlideSlot[i]] = (s.cur_hold && s.level) ? 0 : 1;
-        const float aTarget = gateOpen ? (s.cur_acc ? 1.0f : 0.72f) : 0.0f;
-        arpOut[i] += (aTarget - arpOut[i]) * 0.5f;
     }
     // snapshot: [g1 g2 a1g a2g a1a a2a a1s a2s | a1step a2step | a1note a2note]
     uint32_t snap = (uint32_t)gGate[0].level | ((uint32_t)gGate[1].level << 1)
@@ -508,26 +565,36 @@ void SeqEngine::Process(float *cv, uint8_t *trig, float dt) {
 
 uint32_t SeqEngine::GetOutputSnapshot() { return outSnapshot.load(std::memory_order_relaxed); }
 
+SeqEngine::VargState SeqEngine::GetVargState(int i) {
+    if (i < 0 || i > 1) return VargState{-1, -1, -1, -1, 0, 0, 0, 0, 0, 0};
+    StateLock lock(stateMutex);
+    const VargCompanion &v = companion[i];
+    return VargState{(int8_t)v.voicing, (int8_t)v.string, (int8_t)v.pitchSlot,
+                     (int8_t)v.gateSlot, v.stroke, v.flags, v.burst,
+                     v.velocity, v.ghost, v.glide};
+}
+
 // ---- gate setters (mask recomputed setter-side, rack discipline) ----
-int SeqEngine::GetGateMode(int i) { return gGate[i].mode; }
-void SeqEngine::SetGateMode(int i, int v) { gGate[i].mode = (uint8_t)ClampInt(v, 0, 18); SEQ::GateRecompute(gGate[i]); }
-int SeqEngine::GetGateDens(int i) { return gGate[i].dens; }
-void SeqEngine::SetGateDens(int i, int v) { gGate[i].dens = (uint8_t)ClampInt(v, 1, 16); SEQ::GateRecompute(gGate[i]); }
-int SeqEngine::GetGateSync(int i) { return gGate[i].sync; }
-void SeqEngine::SetGateSync(int i, int v) { gGate[i].sync = (uint8_t)ClampInt(v, 0, 100); SEQ::GateRecompute(gGate[i]); }
-float SeqEngine::GetGateLen(int i) { return gGate[i].glen; }
-void SeqEngine::SetGateLen(int i, float v) { gGate[i].glen = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
-int SeqEngine::GetGateClk(int i) { return gateClk[i]; }
-void SeqEngine::SetGateClk(int i, int v) { gateClk[i] = ClampInt(v, 0, 2); }
-int SeqEngine::GetGateDiv(int i) { return gateDiv[i]; }
-void SeqEngine::SetGateDiv(int i, int v) { gateDiv[i] = ClampInt(v, 0, SEQ::kDivCount - 1); }
-int SeqEngine::GetGateTrigSlot(int i) { return gateTrigSlot[i]; }
-void SeqEngine::SetGateTrigSlot(int i, int s) { gateTrigSlot[i] = ClampTrigSlot(s); }
-int SeqEngine::GetGateCvSlot(int i) { return gateCvSlot[i]; }
-void SeqEngine::SetGateCvSlot(int i, int s) { gateCvSlot[i] = ClampCVSlot(s); }
-uint32_t SeqEngine::GetGateMask(int i) { return gGate[i].mask; }
+int SeqEngine::GetGateMode(int i) { StateLock lock(stateMutex); return gGate[i].mode; }
+void SeqEngine::SetGateMode(int i, int v) { StateLock lock(stateMutex); gGate[i].mode = (uint8_t)ClampInt(v, 0, 18); SEQ::GateRecompute(gGate[i]); }
+int SeqEngine::GetGateDens(int i) { StateLock lock(stateMutex); return gGate[i].dens; }
+void SeqEngine::SetGateDens(int i, int v) { StateLock lock(stateMutex); gGate[i].dens = (uint8_t)ClampInt(v, 1, 16); SEQ::GateRecompute(gGate[i]); }
+int SeqEngine::GetGateSync(int i) { StateLock lock(stateMutex); return gGate[i].sync; }
+void SeqEngine::SetGateSync(int i, int v) { StateLock lock(stateMutex); gGate[i].sync = (uint8_t)ClampInt(v, 0, 100); SEQ::GateRecompute(gGate[i]); }
+float SeqEngine::GetGateLen(int i) { StateLock lock(stateMutex); return gGate[i].glen; }
+void SeqEngine::SetGateLen(int i, float v) { StateLock lock(stateMutex); gGate[i].glen = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
+int SeqEngine::GetGateClk(int i) { StateLock lock(stateMutex); return gateClk[i]; }
+void SeqEngine::SetGateClk(int i, int v) { StateLock lock(stateMutex); gateClk[i] = ClampInt(v, 0, 2); }
+int SeqEngine::GetGateDiv(int i) { StateLock lock(stateMutex); return gateDiv[i]; }
+void SeqEngine::SetGateDiv(int i, int v) { StateLock lock(stateMutex); gateDiv[i] = ClampInt(v, 0, SEQ::kDivCount - 1); }
+int SeqEngine::GetGateTrigSlot(int i) { StateLock lock(stateMutex); return gateTrigSlot[i]; }
+void SeqEngine::SetGateTrigSlot(int i, int s) { StateLock lock(stateMutex); gateTrigSlot[i] = ClampTrigSlot(s); }
+int SeqEngine::GetGateCvSlot(int i) { StateLock lock(stateMutex); return gateCvSlot[i]; }
+void SeqEngine::SetGateCvSlot(int i, int s) { StateLock lock(stateMutex); gateCvSlot[i] = ClampCVSlot(s); }
+uint32_t SeqEngine::GetGateMask(int i) { StateLock lock(stateMutex); return gGate[i].mask; }
 
 uint32_t SeqEngine::GetArpGateMask(int i) {
+    StateLock lock(stateMutex);
     uint32_t m = 0;
     for (int st = 0; st < 16; ++st)
         if (gArpExt[i].steps[st].flags & 1u) m |= (1u << (15 - st));
@@ -535,6 +602,7 @@ uint32_t SeqEngine::GetArpGateMask(int i) {
 }
 
 uint32_t SeqEngine::GetArpAccMask(int i) {
+    StateLock lock(stateMutex);
     uint32_t m = 0;
     for (int st = 0; st < 16; ++st)
         if (gArpExt[i].steps[st].flags & 2u) m |= (1u << (15 - st));
@@ -542,34 +610,39 @@ uint32_t SeqEngine::GetArpAccMask(int i) {
 }
 
 uint32_t SeqEngine::GetArpSlideMask(int i) {
+    StateLock lock(stateMutex);
     uint32_t m = 0;
     for (int st = 0; st < 16; ++st)
         if (gArpExt[i].steps[st].flags & 4u) m |= (1u << (15 - st));
     return m;
 }
 
-int SeqEngine::GetGateStep(int i) { return gGate[i].step; }
+int SeqEngine::GetGateStep(int i) { StateLock lock(stateMutex); return gGate[i].step; }
 
 // ---- arp setters ----
 int SeqEngine::GetVargVoicing(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return -1;
-    if (gArp[i].algo != SEQ::kArpAlgoVargChord) return -1;
+    if (gArp[i].algo != SEQ::kArpAlgoVargChord || gArp[i].p[8] >= 51) return -1;
     // curQual is the VARG chord QUALITY (0..8); TBDings' performance_state.chord
     // is a Rings VOICING ROW (0..16). Map through the shared table so the
     // exact progression quality reaches the string synth (e.g. minor -> row 3).
     return (int)SEQ::kVargToVoicing[gArpExt[i].st.varg.curQual % SEQ::VQ_COUNT];
 }
 int8_t SeqEngine::GetVargStroke(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return 0;
     if (gArp[i].algo != SEQ::kArpAlgoVargChord) return 0;
     return s_vargStroke[i];
 }
 uint8_t SeqEngine::GetVargFlags(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return 0;
     if (gArp[i].algo != SEQ::kArpAlgoVargChord) return 0;
     return s_vargFlags[i];
 }
 int8_t SeqEngine::GetVargString(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return -1;
     // Both VARG algorithms emit per-note string indices: the note ostinato
     // (algo 5) and the whole-chord engine (algo 6, where it is the base
@@ -579,76 +652,89 @@ int8_t SeqEngine::GetVargString(int i) {
     return s_vargString[i];
 }
 uint8_t SeqEngine::GetVargBurst(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return 0;
     return s_vargBurst[i];
 }
 uint8_t SeqEngine::GetVargBurstVel(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return 0;
     return s_vargBurstVel[i];
 }
 uint8_t SeqEngine::GetVargGhost(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return 0;
     return s_vargGhost[i];
 }
 uint8_t SeqEngine::GetVargGlide(int i) {
+    StateLock lock(stateMutex);
     if (i < 0 || i > 1) return 0;
     return s_vargGlide[i];
 }
 int SeqEngine::GetArpAlgo(int i) {
+    StateLock lock(stateMutex);
     // VARG has one algo; its range is a separate Chord Range control.
     if (gArp[i].algo == SEQ::kArpAlgoVarg ||
         gArp[i].algo == SEQ::kArpAlgoVargChord) return gArp[i].algo * 3;
     return gArp[i].algo * 3 + (gArp[i].range - 1);
 }
-int SeqEngine::GetArpRange(int i) { return gArp[i].range; }
+int SeqEngine::GetArpRange(int i) { StateLock lock(stateMutex); return gArp[i].range; }
 void SeqEngine::SetArpRange(int i, int r) {
+    StateLock lock(stateMutex);
     gArp[i].range = (uint8_t)ClampInt(r, 1, 3);
     SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }
 void SeqEngine::SetArpAlgo(int i, int v) {
+    StateLock lock(stateMutex);
     v = ClampInt(v, 0, SEQ::kArpAlgoCount * 3 - 1);   // 7 algos x 3 ranges
     const uint8_t oldAlgo = gArp[i].algo;
     gArp[i].algo = (uint8_t)(v / 3);
     gArp[i].range = (uint8_t)(1 + v % 3);
     const bool wasVarg = (oldAlgo == SEQ::kArpAlgoVarg || oldAlgo == SEQ::kArpAlgoVargChord);
     const bool isVarg = (gArp[i].algo == SEQ::kArpAlgoVarg || gArp[i].algo == SEQ::kArpAlgoVargChord);
+    s_strumBurst[i].active = false;
     if (isVarg && !wasVarg)
         gArpExt[i].st.varg.chordIdx = 0xFF;   // fresh switch: start on the tonic
     SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
 }
-int SeqEngine::GetArpP(int i, int k) { return (k < 0 || k > 8) ? 0 : gArp[i].p[k]; }
+int SeqEngine::GetArpP(int i, int k) { StateLock lock(stateMutex); return (k < 0 || k > 8) ? 0 : gArp[i].p[k]; }
 void SeqEngine::SetArpP(int i, int k, int v) {
+    StateLock lock(stateMutex);
     if (k < 0 || k > 8) return;
+    const int previous = gArp[i].p[k];
     gArp[i].p[k] = (uint8_t)ClampInt(v, 0, 100);
-    // setter-side rebuild: re-voice the CURRENT chord, never step the
-    // progression (a knob turn must not jump the chord sequence)
-    SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
+    // Progression and quality changes explicitly resolve a new voicing; other
+    // edits rebuild around the existing chord without rerolling DISS quality.
+    const bool revoice = k == 0 || k == 2;
+    SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false, revoice && previous != gArp[i].p[k]);
 }
-int SeqEngine::GetArpGlide(int i) { return arpGlideMs[i]; }
-void SeqEngine::SetArpGlide(int i, int v) { arpGlideMs[i] = ClampInt(v, 0, 100); }
-int SeqEngine::GetArpOct(int i) { return arpOct[i]; }
-void SeqEngine::SetArpOct(int i, int v) { arpOct[i] = ClampInt(v, -2, 2); }
-int SeqEngine::GetArpClk(int i) { return arpClk[i]; }
-void SeqEngine::SetArpClk(int i, int v) { arpClk[i] = ClampInt(v, 0, 2); }
-int SeqEngine::GetArpDiv(int i) { return arpDiv[i]; }
-void SeqEngine::SetArpDiv(int i, int v) { arpDiv[i] = ClampInt(v, 0, SEQ::kDivCount - 1); }
-int SeqEngine::GetArpPitchSlot(int i) { return arpPitchSlot[i]; }
-void SeqEngine::SetArpPitchSlot(int i, int s) { arpPitchSlot[i] = ClampCVSlot(s); }
-int SeqEngine::GetArpGateSlot(int i) { return arpGateSlot[i]; }
-void SeqEngine::SetArpGateSlot(int i, int s) { arpGateSlot[i] = ClampTrigSlot(s); }
-int SeqEngine::GetArpAccSlot(int i) { return arpAccSlot[i]; }
-void SeqEngine::SetArpAccSlot(int i, int s) { arpAccSlot[i] = ClampTrigSlot(s); }
-int SeqEngine::GetArpSlideSlot(int i) { return arpSlideSlot[i]; }
-void SeqEngine::SetArpSlideSlot(int i, int s) { arpSlideSlot[i] = ClampTrigSlot(s); }
+int SeqEngine::GetArpGlide(int i) { StateLock lock(stateMutex); return arpGlideMs[i]; }
+void SeqEngine::SetArpGlide(int i, int v) { StateLock lock(stateMutex); arpGlideMs[i] = ClampInt(v, 0, 100); }
+int SeqEngine::GetArpOct(int i) { StateLock lock(stateMutex); return arpOct[i]; }
+void SeqEngine::SetArpOct(int i, int v) { StateLock lock(stateMutex); arpOct[i] = ClampInt(v, -2, 2); }
+int SeqEngine::GetArpClk(int i) { StateLock lock(stateMutex); return arpClk[i]; }
+void SeqEngine::SetArpClk(int i, int v) { StateLock lock(stateMutex); arpClk[i] = ClampInt(v, 0, 2); }
+int SeqEngine::GetArpDiv(int i) { StateLock lock(stateMutex); return arpDiv[i]; }
+void SeqEngine::SetArpDiv(int i, int v) { StateLock lock(stateMutex); arpDiv[i] = ClampInt(v, 0, SEQ::kDivCount - 1); }
+int SeqEngine::GetArpPitchSlot(int i) { StateLock lock(stateMutex); return arpPitchSlot[i]; }
+void SeqEngine::SetArpPitchSlot(int i, int s) { StateLock lock(stateMutex); arpPitchSlot[i] = ClampCVSlot(s); }
+int SeqEngine::GetArpGateSlot(int i) { StateLock lock(stateMutex); return arpGateSlot[i]; }
+void SeqEngine::SetArpGateSlot(int i, int s) { StateLock lock(stateMutex); arpGateSlot[i] = ClampTrigSlot(s); }
+int SeqEngine::GetArpAccSlot(int i) { StateLock lock(stateMutex); return arpAccSlot[i]; }
+void SeqEngine::SetArpAccSlot(int i, int s) { StateLock lock(stateMutex); arpAccSlot[i] = ClampTrigSlot(s); }
+int SeqEngine::GetArpSlideSlot(int i) { StateLock lock(stateMutex); return arpSlideSlot[i]; }
+void SeqEngine::SetArpSlideSlot(int i, int s) { StateLock lock(stateMutex); arpSlideSlot[i] = ClampTrigSlot(s); }
 
 // ---- shared root/scale/neo-op (rack shared-root behavior) ----
-int SeqEngine::GetRoot() { return gArp[0].root; }
+int SeqEngine::GetRoot() { StateLock lock(stateMutex); return gArp[0].root; }
 void SeqEngine::SetRoot(int v) {
+    StateLock lock(stateMutex);
     const uint8_t pc = (uint8_t)ClampInt(v, 0, 11);
     gArp[0].root = gArp[1].root = pc;   // base note only; the pattern keeps rolling
 }
-int SeqEngine::GetRootMode() { return gArp[0].root_mode; }
+int SeqEngine::GetRootMode() { StateLock lock(stateMutex); return gArp[0].root_mode; }
 void SeqEngine::SetRootMode(int v) {
+    StateLock lock(stateMutex);
     const uint8_t m = (uint8_t)ClampInt(v, 0, 2);
     gArp[0].root_mode = gArp[1].root_mode = m;
     for (int i = 0; i < 2; ++i) {
@@ -656,10 +742,11 @@ void SeqEngine::SetRootMode(int v) {
         SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
     }
 }
-int SeqEngine::GetNeoOp() { return gNeoOp; }
-void SeqEngine::SetNeoOp(int v) { gNeoOp = (uint8_t)ClampInt(v, 0, 7); }
-int SeqEngine::GetScale() { return gArp[0].scale_idx & 0x3Fu; }
+int SeqEngine::GetNeoOp() { StateLock lock(stateMutex); return gNeoOp; }
+void SeqEngine::SetNeoOp(int v) { StateLock lock(stateMutex); gNeoOp = (uint8_t)ClampInt(v, 0, 7); }
+int SeqEngine::GetScale() { StateLock lock(stateMutex); return gArp[0].scale_idx & 0x3Fu; }
 void SeqEngine::SetScale(int v) {
+    StateLock lock(stateMutex);
     const uint8_t sc = (uint8_t)ClampInt(v, 0, SEQ::SCALE_COUNT - 1);
     gArp[0].scale_idx = gArp[1].scale_idx = sc;
     for (int i = 0; i < 2; ++i) {
@@ -673,6 +760,7 @@ void SeqEngine::SetScale(int v) {
 // clamped on load; unknown members are ignored.
 
 void SeqEngine::SerializeConfig(char *dst, int cap) {
+    StateLock lock(stateMutex);
     std::string j = "{\"gates\":[";
     for (int i = 0; i < 2; ++i) {
         char buf[160];
@@ -712,9 +800,11 @@ void SeqEngine::SerializeConfig(char *dst, int cap) {
 }
 
 bool SeqEngine::DeserializeConfig(const char *json) {
+    StateLock lock(stateMutex);
     using namespace rapidjson;
     Document d;
     if (d.Parse(json).HasParseError() || !d.IsObject()) return false;
+    bool revoiceVarg[2] = {false, false};
 
     if (d.HasMember("gates") && d["gates"].IsArray()) {
         const Value &arr = d["gates"];
@@ -742,17 +832,22 @@ bool SeqEngine::DeserializeConfig(const char *json) {
         for (SizeType i = 0; i < arr.Size() && i < 2; i++) {
             const Value &a = arr[i];
             if (!a.IsObject()) continue;
+            const uint8_t oldAlgo = gArp[i].algo;
+            const uint8_t oldProg = gArp[i].p[0];
+            const uint8_t oldQuality = gArp[i].p[2];
             if (a.HasMember("algo") && a["algo"].IsInt()) gArp[i].algo = (uint8_t)ClampInt(a["algo"].GetInt(), 0, SEQ::kArpAlgoCount - 1);
             if (a.HasMember("range") && a["range"].IsInt()) gArp[i].range = (uint8_t)ClampInt(a["range"].GetInt(), 1, 3);
-            // VARG has no range variants; the Octave row is the only
-            // transposition control (normalise stored 2/3-OCT configs).
-            if (gArp[i].algo == SEQ::kArpAlgoVarg ||
-                gArp[i].algo == SEQ::kArpAlgoVargChord) gArp[i].range = 1;
+            const bool oldVarg = oldAlgo == SEQ::kArpAlgoVarg || oldAlgo == SEQ::kArpAlgoVargChord;
+            const bool newVarg = gArp[i].algo == SEQ::kArpAlgoVarg || gArp[i].algo == SEQ::kArpAlgoVargChord;
+            if (newVarg && !oldVarg) gArpExt[i].st.varg.chordIdx = 0xFF;
             if (a.HasMember("p") && a["p"].IsArray()) {
                 const Value &p = a["p"];
                 for (SizeType k = 0; k < p.Size() && k < 9; k++)
                     if (p[k].IsInt()) gArp[i].p[k] = (uint8_t)ClampInt(p[k].GetInt(), 0, 100);
             }
+            const bool revoice = oldVarg && newVarg &&
+                (oldProg != gArp[i].p[0] || oldQuality != gArp[i].p[2]);
+            revoiceVarg[i] = revoice || (newVarg && !oldVarg);
             if (a.HasMember("glide") && a["glide"].IsInt()) arpGlideMs[i] = ClampInt(a["glide"].GetInt(), 0, 100);
             if (a.HasMember("oct") && a["oct"].IsInt()) arpOct[i] = ClampInt(a["oct"].GetInt(), -2, 2);
             if (a.HasMember("clk") && a["clk"].IsInt()) arpClk[i] = ClampInt(a["clk"].GetInt(), 0, 2);
@@ -783,7 +878,7 @@ bool SeqEngine::DeserializeConfig(const char *json) {
     // derived state: gate masks from (mode, dens, sync), arp scale tables +
     // patterns from (algo, range, p, shared)
     for (int i = 0; i < 2; ++i) SEQ::GateRecompute(gGate[i]);
-    for (int i = 0; i < 2; ++i) SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false);
+    for (int i = 0; i < 2; ++i) SEQ::ArpRebuildPattern(gArp[i], gArpExt[i], false, revoiceVarg[i]);
     return true;
 }
 

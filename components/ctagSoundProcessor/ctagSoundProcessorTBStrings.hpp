@@ -56,7 +56,6 @@ namespace CTAG {
             float distDrive = 0.0f, distBias = 0.0f;
             float distBass = 0.05f, distMid = 0.5f, distTone = 1.0f;
             float distMix = 1.0f;
-            uint8_t ghostKind = 0;   // 0 normal, 1 ghost thud, 2 pre-change transient
 
             bool lastGate = false;
             int fallbackString = 0;

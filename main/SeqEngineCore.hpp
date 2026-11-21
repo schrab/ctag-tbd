@@ -1035,7 +1035,7 @@ inline constexpr VargProgression kVargProgressions[11] = {
     /* 1  */ { "i-bVII", 2, { { 0, VQ_MIN }, { 10, VQ_MAJ } } },
     /* 2  */ { "i-bVI-bVII", 3, { { 0, VQ_MIN }, { 8, VQ_MAJ }, { 10, VQ_MAJ } } },
     /* 3  */ { "i-bIII-bVI-bVII", 4, { { 0, VQ_MIN }, { 3, VQ_MAJ }, { 8, VQ_MAJ }, { 10, VQ_MAJ } } },
-    /* 4  */ { "Weitzmann", 4, { { 0, VQ_MIN }, { 8, VQ_MIN }, { 3, VQ_MIN }, { 7, VQ_MAJ } } },
+    /* 4  */ { "Weitzmann", 4, { { 0, VQ_MIN }, { 8, VQ_MIN }, { 4, VQ_MIN }, { 7, VQ_MAJ } } },
     /* 5  */ { "add9-dim7", 4, { { 0, VQ_ADD9 }, { 6, VQ_DIM7 }, { 11, VQ_MIN }, { 0, VQ_MAJ } } },
     /* 6  */ { "Mediant", 2, { { 0, VQ_MIN }, { 8, VQ_MIN } } },
     /* 7  */ { "i-bII-v", 3, { { 0, VQ_MIN }, { 1, VQ_MIN }, { 7, VQ_MIN } } },
@@ -1159,9 +1159,7 @@ inline void VargNextChord(ArpSource &s, ArpExt &ext) {
     v.curQual = VargBiasQuality(s, pr.chords[v.chordIdx].qual, s.p[2]);
 }
 
-// Load the chord at idx of the active progression WITHOUT advancing (used
-// by setter-side rebuilds: knob turns re-voice the current chord, they must
-// not step the progression).
+// Load or revoice the chord at idx without advancing the progression.
 inline void VargLoadChord(ArpSource &s, ArpExt &ext, uint8_t idx) {
     auto &v = ext.st.varg;
     const uint8_t prog = (uint8_t)((s.p[0] * 11) / 101);
@@ -1180,10 +1178,11 @@ inline void VargLoadChord(ArpSource &s, ArpExt &ext, uint8_t idx) {
     v.curQual = VargBiasQuality(s, pr.chords[idx].qual, s.p[2]);
 }
 
-// Build one bar: advance the chord (bar boundary) or re-voice the current
-// one (setter-side, advance=false), then compile the riff mask into gate /
-// accent flags with the quality's chord tones spread over the gated steps
-// (octave climbs through the ARP's range on repeated tone cycles).
+// Map raw P6 (0..100) to the nine Arp Order choices used by both VARG modes.
+inline constexpr uint8_t VargOrderFromParam(uint8_t raw) {
+    return (uint8_t)((raw * 9) / 101);
+}
+
 // Map a gated-step ordinal to a chord-tone index using the arp order.
 // P6 selects the order; the Rhythm mask decides WHEN steps fire, so the
 // same order can be a fast tremolo arpeggio or a slow broken-chord cycle.
@@ -1196,19 +1195,19 @@ inline uint8_t VargOrderIndex(uint8_t order, uint8_t k, uint8_t n, uint32_t &rng
             const uint8_t p = k % per;
             return (uint8_t)(p < n ? p : (per - 1 - p));
         }
-        case 3:                                                       // Converge
-            return (uint8_t)((k & 1u) ? (n - 1 - k / 2) : (k / 2)) % n;
+        case 3: {                                                     // Converge
+            const uint8_t step = k % n;
+            return (uint8_t)((step & 1u) ? n - 1 - step / 2 : step / 2);
+        }
         case 4: {                                                     // Diverge
-            const int mid = (n - 1) / 2;
-            const int off = (int)((k + 1) / 2);
-            const bool up = (k & 1u) == 0u;
-            int v = mid + (up ? off : -off);
-            while (v < 0 || v >= (int)n) v += up ? -1 : 1;
-            return (uint8_t)v;
+            const uint8_t step = k % n;
+            const int middle = (n - 1) / 2;
+            return (uint8_t)((step & 1u) ? middle + (step + 1) / 2
+                                         : middle - step / 2);
         }
         case 5:                                                       // Random
             rng = rng * 1664525u + 1013904223u;
-            return (uint8_t)(rng % n);
+            return (uint8_t)(((rng >> 16) * n) >> 16);
         case 7: {                                                     // Broken1 B-L-M-H-M-L
             const uint8_t seq[6] = {0, 1, 2, (uint8_t)(n - 1), 2, 1};
             return seq[k % 6] % n;
@@ -1222,10 +1221,13 @@ inline uint8_t VargOrderIndex(uint8_t order, uint8_t k, uint8_t n, uint32_t &rng
     }
 }
 
-inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
+// Build the riff around the resolved chord. Only an advance, an unloaded
+// progression, or an explicit progression/quality edit resolves a new chord.
+inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true, bool revoice = false) {
     auto &v = ext.st.varg;
     if (advance) VargNextChord(s, ext);
-    else VargLoadChord(s, ext, (v.chordIdx == 0xFF) ? 0 : v.chordIdx);
+    else if (v.chordIdx == 0xFF) VargLoadChord(s, ext, 0);
+    else if (revoice) VargLoadChord(s, ext, v.chordIdx);
     const VargToneSet &ts = kVargTones[v.curQual % VQ_COUNT];
     // One Rhythm knob controls all 25 patterns.
     uint16_t mask = kVargMasks[(s.p[1] * kVargMaskCount) / 101];
@@ -1246,12 +1248,14 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     // strum engine via the vargStroke companion.
     const bool grid16 = tbd::StrumMaskIs16thGrid(mask);
 
-    const uint8_t order = (uint8_t)((s.p[5] * 10) / 101);
+    const uint8_t order = VargOrderFromParam(s.p[5]);
     uint8_t k = 0;         // gated-step ordinal
+    uint8_t tone = 0;
     bool first_step = true; // first gated step after a chord advance
     for (uint8_t st = 0; st < 16; ++st) {
         const bool gate = ((mask >> (15 - st)) & 1u) != 0;
-        const uint8_t tone = VargOrderIndex(order, k, ts.n, s.rng);
+        // Random rests keep the previous tone for the ghost-string hint.
+        if (gate || order != 5) tone = VargOrderIndex(order, k, ts.n, s.rng);
         const int8_t oct = (s.range > 1)
                                ? (int8_t)((k / ts.n) % s.range) : (int8_t)0;
         const bool up = gate && (grid16 ? ((st & 1u) != 0u) : ((st & 2u) != 0u));
@@ -1268,10 +1272,9 @@ inline void ArpBuildVarg(ArpSource &s, ArpExt &ext, bool advance = true) {
     }
 }
 
-// Rebuild all 16 steps for the currently selected algorithm. advanceChord
-// only matters for VARG: the bar-boundary call in SeqEngine::Process passes
-// true (one chord per bar), every setter passes false (re-voice in place).
-inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext, bool advanceChord = true) {
+// Only VARG uses advanceChord and revoice. Non-advancing rebuilds keep the
+// resolved chord unless a progression or quality edit requests revoicing.
+inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext, bool advanceChord = true, bool revoice = false) {
     ArpRebuildScale(s, ext);
 
     switch (s.algo) {
@@ -1295,7 +1298,7 @@ inline void ArpRebuildPattern(ArpSource &s, ArpExt &ext, bool advanceChord = tru
         default:
             // Same progression/quality/mask/mutation state machine; only the
             // CV consumer differs (single note vs packed block chord).
-            ArpBuildVarg(s, ext, advanceChord);
+            ArpBuildVarg(s, ext, advanceChord, revoice);
             break;
     }
 }

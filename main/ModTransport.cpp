@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <string>
 #include "stmlib/utils/gate_flags.h"
 #include "rapidjson/document.h"
@@ -23,17 +24,17 @@
 namespace CTAG::DRIVERS {
 
 namespace {
-    float     bpm = 120.0f;
-    float     midiBpmEma = -1.0f;
+    std::atomic<float> bpm{120.0f};
+    std::atomic<float> midiBpmEma{-1.0f};
     int64_t   lastMidiTickUs = 0;
+    std::mutex midiTempoMutex;
     std::atomic<uint32_t> pendingClockEdges{0};  // MIDI task -> audio task
-    bool      midiRunning = false;
-    bool      startResetPending = false;   // MIDI task -> audio task latch
-    bool      startResetThisBlock = false; // per-block FA broadcast (both engines)
-    bool      globalClockMidi = false;     // SEQ "Global" sources follow MIDI clock
-    bool      extGateLevel = false;
-    uint8_t   extGateFlags = stmlib::GATE_FLAG_LOW;
-    int       ticksThisBlock = 0;
+    std::atomic<bool> midiRunning{false};
+    std::atomic<bool> startResetPending{false};   // MIDI task -> audio task mailbox
+    std::atomic<bool> startResetThisBlock{false}; // per-block FA broadcast (both engines)
+    std::atomic<bool> globalClockMidi{false};     // SEQ "Global" sources follow MIDI clock
+    std::atomic<int> ticksThisBlock{0};
+    std::atomic<uint8_t> extGateFlags{stmlib::GATE_FLAG_LOW};
 
     float ClampBPM(float v) { return v < 20.0f ? 20.0f : (v > 480.0f ? 480.0f : v); }
 
@@ -109,11 +110,19 @@ namespace {
 }
 
 void ModTransport::Init() {
-    bpm = 120.0f; midiBpmEma = -1.0f; lastMidiTickUs = 0;
+    bpm.store(120.0f, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> lock(midiTempoMutex);
+        midiBpmEma.store(-1.0f, std::memory_order_relaxed);
+        lastMidiTickUs = 0;
+    }
     pendingClockEdges.store(0, std::memory_order_relaxed);
-    midiRunning = false; startResetPending = false;
-    globalClockMidi = false;
-    extGateLevel = false; extGateFlags = stmlib::GATE_FLAG_LOW; ticksThisBlock = 0;
+    midiRunning.store(false, std::memory_order_relaxed);
+    startResetPending.store(false, std::memory_order_relaxed);
+    startResetThisBlock.store(false, std::memory_order_relaxed);
+    globalClockMidi.store(false, std::memory_order_relaxed);
+    extGateFlags.store(stmlib::GATE_FLAG_LOW, std::memory_order_relaxed);
+    ticksThisBlock.store(0, std::memory_order_relaxed);
     LoadConfig();
 }
 
@@ -125,27 +134,36 @@ void ModTransport::OnMidiClock() {
 
 void ModTransport::OnMidiClockAt(int64_t now_us) {
     pendingClockEdges.fetch_add(1, std::memory_order_relaxed);
-    // Measured-tempo EMA (2.5..1000 ms/tick => 15..6000 BPM window)
+    // Measured-tempo EMA (2.5..1000 ms/tick => 15..6000 BPM window).
+    // Keep the timestamp and EMA as one short MIDI-side critical section;
+    // publish scalar results atomically for the UI/audio readers.
+    std::lock_guard<std::mutex> lock(midiTempoMutex);
     if (lastMidiTickUs != 0) {
         float ms = (float)(now_us - lastMidiTickUs) / 1000.0f;
         if (ms >= 2.5f && ms <= 1000.0f) {
+            float priorEma = midiBpmEma.load(std::memory_order_relaxed);
             float inst = 60000.0f / (ms * 24.0f);
-            midiBpmEma = (midiBpmEma < 0.0f) ? inst : (0.9f * midiBpmEma + 0.1f * inst);
-            bpm = ClampBPM(midiBpmEma);
+            float nextEma = priorEma < 0.0f ? inst : (0.9f * priorEma + 0.1f * inst);
+            midiBpmEma.store(nextEma, std::memory_order_relaxed);
+            bpm.store(ClampBPM(nextEma), std::memory_order_relaxed);
         }
     }
     lastMidiTickUs = now_us;
 }
 
 void ModTransport::OnMidiStart() {
-    midiRunning = true;
-    startResetPending = true;
-    midiBpmEma = -1.0f;   // re-measure per run (fresh tempo per start)
-    lastMidiTickUs = 0;
+    midiRunning.store(true, std::memory_order_relaxed);
+    startResetPending.store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lock(midiTempoMutex);
+        midiBpmEma.store(-1.0f, std::memory_order_relaxed);
+        lastMidiTickUs = 0;
+    }
 }
 
 void ModTransport::OnMidiStop() {
-    midiRunning = false;
+    midiRunning.store(false, std::memory_order_relaxed);
+    std::lock_guard<std::mutex> lock(midiTempoMutex);
     lastMidiTickUs = 0;
 }
 
@@ -157,36 +175,34 @@ void ModTransport::Process(float dt) {
     // sources apply their own freeze while stopped. Practical rate is
     // <= 192 Hz against a >= 1000 Hz block rate, so 0 or 1 per block;
     // higher is still correct (edges coalesce into one block count).
-    uint32_t e = pendingClockEdges.exchange(0, std::memory_order_relaxed);
-    ticksThisBlock = (int)e;
+    uint32_t e = pendingClockEdges.exchange(0, std::memory_order_acq_rel);
+    ticksThisBlock.store((int)e, std::memory_order_relaxed);
     // FA start-reset is a per-block BROADCAST, not a consumable latch: both
     // engines must see the same pulse (double-consume is the documented bug
-    // class). Cleared at the next Process.
-    if (startResetPending) {
-        startResetThisBlock = true;
-        startResetPending = false;
-    } else {
-        startResetThisBlock = false;
-    }
+    // class). exchange consumes the mailbox atomically so a concurrent new
+    // start remains pending for the next block instead of being overwritten.
+    startResetThisBlock.store(startResetPending.exchange(false, std::memory_order_acq_rel),
+                              std::memory_order_release);
     // Marbles gate-flag chain: ONE block-high pulse per drained tick max
     // (same collapse rule as the pre-hoist single-edge drain; keeps the
     // RampExtractor feed identical).
     SetExternalGateLevel(e > 0);
 }
 
-int ModTransport::TicksThisBlock() { return ticksThisBlock; }
-bool ModTransport::IsRunning() { return midiRunning; }
-bool ModTransport::TakeStartReset() { return startResetThisBlock; }
-uint8_t ModTransport::ExternalGateFlags() { return extGateFlags; }
+int ModTransport::TicksThisBlock() { return ticksThisBlock.load(std::memory_order_relaxed); }
+bool ModTransport::IsRunning() { return midiRunning.load(std::memory_order_relaxed); }
+bool ModTransport::TakeStartReset() { return startResetThisBlock.load(std::memory_order_acquire); }
+uint8_t ModTransport::ExternalGateFlags() { return extGateFlags.load(std::memory_order_relaxed); }
 void ModTransport::SetExternalGateLevel(bool high) {
-    extGateLevel = high;
-    extGateFlags = stmlib::ExtractGateFlags((stmlib::GateFlags)extGateFlags, extGateLevel);
+    const uint8_t previous = extGateFlags.load(std::memory_order_relaxed);
+    const uint8_t next = stmlib::ExtractGateFlags((stmlib::GateFlags)previous, high);
+    extGateFlags.store(next, std::memory_order_relaxed);
 }
-float ModTransport::GetBPM() { return bpm; }
-void ModTransport::SetBPM(float v) { bpm = ClampBPM(v); }
-float ModTransport::GetMeasuredBPM() { return midiBpmEma; }
-bool ModTransport::GetGlobalClockMidi() { return globalClockMidi; }
-void ModTransport::SetGlobalClockMidi(bool v) { globalClockMidi = v; }
+float ModTransport::GetBPM() { return bpm.load(std::memory_order_relaxed); }
+void ModTransport::SetBPM(float v) { bpm.store(ClampBPM(v), std::memory_order_relaxed); }
+float ModTransport::GetMeasuredBPM() { return midiBpmEma.load(std::memory_order_relaxed); }
+bool ModTransport::GetGlobalClockMidi() { return globalClockMidi.load(std::memory_order_relaxed); }
+void ModTransport::SetGlobalClockMidi(bool v) { globalClockMidi.store(v, std::memory_order_relaxed); }
 
 // --- mod-config.jsn section IO: read file -> parse -> attach member ->
 // write back atomically. Host tests point MODTRANSPORT_CFG_PATH at a
@@ -245,20 +261,23 @@ void ModTransport::LoadConfig() {
     if (ReadSectionDoc("transport", sec)) {
         v = ReadBpmFromDoc(sec);
         if (sec.IsObject() && sec.HasMember("ext") && sec["ext"].IsInt())
-            globalClockMidi = sec["ext"].GetInt() != 0;
+            globalClockMidi.store(sec["ext"].GetInt() != 0, std::memory_order_relaxed);
     }
     if (v < 0.0f && ReadSectionDoc("marbles", sec)) {
         v = ReadBpmFromDoc(sec);
     }
     if (v >= 0.0f) {
-        bpm = v;
-        MT_LOGI("LoadConfig: bpm=%.1f", bpm);
+        bpm.store(v, std::memory_order_relaxed);
+        MT_LOGI("LoadConfig: bpm=%.1f", bpm.load(std::memory_order_relaxed));
     }
 }
 
 void ModTransport::SaveConfig() {
+    const float savedBpm = bpm.load(std::memory_order_relaxed);
+    const bool savedGlobalClockMidi = globalClockMidi.load(std::memory_order_relaxed);
     char buf[64];
-    snprintf(buf, sizeof(buf), "{\"bpm\":%.1f,\"ext\":%d}", bpm, globalClockMidi ? 1 : 0);
+    snprintf(buf, sizeof(buf), "{\"bpm\":%.1f,\"ext\":%d}",
+             static_cast<double>(savedBpm), savedGlobalClockMidi ? 1 : 0);
     WriteSectionJSON("transport", buf);
 }
 

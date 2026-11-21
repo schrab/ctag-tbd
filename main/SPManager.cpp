@@ -186,28 +186,20 @@ void IRAM_ATTR SoundProcessorManager::audio_task(void *pvParams) {
         const float modDt = (float)BUF_SZ / (float)DRIVERS::Codec::GetSampleRate();
         DRIVERS::ModTransport::Process(modDt);
         DRIVERS::SeqEngine::Process(pd.cv, pd.trig, modDt);
-        // Internal companion: VARG progression voicing (algo 6 only) plus the
-        // ARP's actual pitch/gate slots. Both VARG algos publish a string
-        // index, so pitch/gate slots must be copied for either one — the
-        // note-ostinato algo (5) otherwise had no note source at all.
+        // Publish one atomic companion snapshot per ARP. Separate getter calls
+        // could mix routing metadata from adjacent blocks during live edits.
         for (int a = 0; a < 2; ++a) {
-            pd.vargVoicing[a] = (int8_t)DRIVERS::SeqEngine::GetVargVoicing(a);
-            pd.vargString[a] = DRIVERS::SeqEngine::GetVargString(a);
-            if (pd.vargVoicing[a] >= 0 || pd.vargString[a] >= 0) {
-                pd.vargPitchSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpPitchSlot(a);
-                pd.vargGateSlot[a] = (int8_t)DRIVERS::SeqEngine::GetArpGateSlot(a);
-                pd.vargStroke[a] = DRIVERS::SeqEngine::GetVargStroke(a);
-                pd.vargFlags[a] = DRIVERS::SeqEngine::GetVargFlags(a);
-            } else {
-                pd.vargPitchSlot[a] = -1;
-                pd.vargGateSlot[a] = -1;
-                pd.vargStroke[a] = 0;
-                pd.vargFlags[a] = 0;
-            }
-            pd.vargBurst[a] = DRIVERS::SeqEngine::GetVargBurst(a);
-            pd.vargBurstVel[a] = DRIVERS::SeqEngine::GetVargBurstVel(a);
-            pd.vargGhost[a] = DRIVERS::SeqEngine::GetVargGhost(a);
-            pd.vargGlide[a] = DRIVERS::SeqEngine::GetVargGlide(a);
+            const DRIVERS::SeqEngine::VargState v = DRIVERS::SeqEngine::GetVargState(a);
+            pd.vargVoicing[a] = v.voicing;
+            pd.vargString[a] = v.string;
+            pd.vargPitchSlot[a] = v.pitchSlot;
+            pd.vargGateSlot[a] = v.gateSlot;
+            pd.vargStroke[a] = v.stroke;
+            pd.vargFlags[a] = v.flags;
+            pd.vargBurst[a] = v.burst;
+            pd.vargBurstVel[a] = v.velocity;
+            pd.vargGhost[a] = v.ghost;
+            pd.vargGlide[a] = v.glide;
         }
         DRIVERS::MarblesEngine::Process(pd.cv, pd.trig);
 

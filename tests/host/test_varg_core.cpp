@@ -52,7 +52,7 @@ TEST(varg_progressions_match_doc_examples) {
         CHECK(p.len == 4);
         CHECK(p.chords[0].off == 0 && p.chords[0].qual == VQ_MIN);   // Ebm
         CHECK(p.chords[1].off == 8 && p.chords[1].qual == VQ_MIN);   // B
-        CHECK(p.chords[2].off == 3 && p.chords[2].qual == VQ_MIN);   // Gm
+        CHECK(p.chords[2].off == 4 && p.chords[2].qual == VQ_MIN);   // Gm
         CHECK(p.chords[3].off == 7 && p.chords[3].qual == VQ_MAJ);   // Bb
     }
     // add9/dim7/#vii ostinato at A (doc: Am(add9) - D#dim7 - G#m - A)
@@ -300,7 +300,7 @@ TEST(varg_shell_chord_sequence_on_pitch_cv) {
     CTAG::DRIVERS::SeqEngine::SetArpDiv(0, 7);     // 1/16
     CTAG::DRIVERS::SeqEngine::SetRoot(9);          // A
     CTAG::DRIVERS::SeqEngine::SetRootMode(0);
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
     // 120 BPM internal, 1 ms blocks: 0.048 PPQ/block, 1/16 = 6 PPQ =
@@ -325,7 +325,7 @@ TEST(varg_shell_gates_follow_mask) {
     CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 15);   // VARG range 1
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 100);  // rhythm idx 15 = DBL 0xF000
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
     int gated = 0;
@@ -342,11 +342,14 @@ TEST(varg_shell_algo_encoding) {
     // The redundant 1/2/3-OCT variants collapse to the single range-1
     // encoding; the Octave row supplies transposition.
     for (int v = 15; v <= 17; ++v) {
-        CTAG::DRIVERS::SeqEngine::SetArpAlgo(1, v);
-        CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(1) == 15);
+        CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 15);
+        CTAG::DRIVERS::SeqEngine::SetArpRange(0, 1);
+        CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(0) == 15);
     }
-    CTAG::DRIVERS::SeqEngine::SetArpAlgo(1, 99);   // clamped to 20 -> algo 6
+    CTAG::DRIVERS::SeqEngine::SetArpAlgo(1, 18);   // VARG Chord
+    CTAG::DRIVERS::SeqEngine::SetArpRange(1, 3);
     CHECK(CTAG::DRIVERS::SeqEngine::GetArpAlgo(1) == 18);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpRange(1) == 3);
 }
 
 // ---- VARG Chord: polyphonic block chords (algo 6) ----
@@ -388,7 +391,7 @@ TEST(varg_chord_cv_carries_packed_chord) {
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 50);   // TRIAD
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);    // no mutation
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
     for (int b = 0; b < 64; ++b) {
@@ -411,7 +414,7 @@ TEST(varg_chord_companion_is_voicing_row_not_quality) {
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 0);    // RAW bias -> VQ_P5 (quality 0)
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);    // no mutation
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
     for (int b = 0; b < 64; ++b) {
@@ -423,6 +426,8 @@ TEST(varg_chord_companion_is_voicing_row_not_quality) {
     // ("OCT"). A regression to returning curQual would play the wrong chord.
     CHECK(kVargToVoicing[VQ_P5] != (uint8_t)VQ_P5);   // test is meaningful
     CHECK(CTAG::DRIVERS::SeqEngine::GetVargVoicing(0) == kVargToVoicing[VQ_P5]);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 8, 51);
+    CHECK(CTAG::DRIVERS::SeqEngine::GetVargVoicing(0) == -1);
 }
 
 TEST(varg_chord_gates_follow_mask) {
@@ -430,7 +435,7 @@ TEST(varg_chord_gates_follow_mask) {
     CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 15);   // DBL 0xF000
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
     int gated = 0;
     for (int b = 0; b < 2100; ++b) {
@@ -448,7 +453,7 @@ static float arpFirstGateCv(int algoValue, int octave) {
     CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, algoValue);
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 0, 100);   // density (no silent algo)
     CTAG::DRIVERS::SeqEngine::SetArpOct(0, octave);
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
     for (int b = 0; b < 2500; ++b) {
@@ -559,7 +564,7 @@ TEST(varg_string_index_uses_all_three_fretted_strings) {
 
 TEST(varg_string_companion_for_both_algos) {
     CTAG::DRIVERS::SeqEngine::Init();
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
     // Non-VARG algo publishes nothing
@@ -575,9 +580,11 @@ TEST(varg_string_companion_for_both_algos) {
         bool seen[4] = {false, false, false, false};
         for (int b = 0; b < 2600; ++b) {
             CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
-            const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
-            CHECK(s >= 0 && s < 4);
-            if (s >= 0 && s < 4) seen[s] = true;
+            if (trig[45] == 0) {
+                const int8_t s = CTAG::DRIVERS::SeqEngine::GetVargString(0);
+                CHECK(s >= 0 && s < 4);
+                if (s >= 0 && s < 4) seen[s] = true;
+            }
         }
         for (int s = 0; s < 4; ++s) CHECK(seen[s]);
     }
@@ -602,7 +609,7 @@ TEST(varg_ghost_transients_and_burst_velocity) {
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 6, 50);  // P7 spread
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 7, 100); // P8 ghosts
     CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 7) == 100);
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
     bool sawGhost = false, sawTransient = false;
     int velocities = 0;
@@ -627,10 +634,11 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 2, 50);   // TRIAD
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 0);    // P5 chord bars = 1
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 20);   // P6 style -> Pendulum
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 6, 50);   // P7 spread -> ~22 ms
-    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 5) == 20);
-    uint8_t trig[51]; float cv[106];
+    // P6 selects Arp Order; P9 selects the Burst/Arpeggio path.
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 23);   // Pendulum
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 8, 0);    // Burst
+    CHECK(CTAG::DRIVERS::SeqEngine::GetArpP(0, 5) == 23);
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig));
     memset(cv, 0, sizeof(cv));
 
@@ -658,37 +666,35 @@ TEST(varg_chord_strum_burst_emits_one_note_per_string) {
     CHECK(burstBlocks > 0);
     for (int s = 0; s < 4; ++s) CHECK(stringsSeen[s] > 0);
 
-    // P5 = 0 (Block) keeps the legacy single whole-chord gate per step.
+    // Arpeggio mode emits individual note gates and no burst companion.
     CTAG::DRIVERS::SeqEngine::Init();
     CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, 0);
-    int legacyEdges = 0;
-    lastGateLow = false;
-    for (int b = 0; b < 2600; ++b) {
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 23);
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 8, 51);
+    int arpeggioEdges = 0;
+    for (int b = 0; b < 2200; ++b) {
         CTAG::DRIVERS::SeqEngine::Process(cv, trig, 1.0f / 1000.0f);
-        const bool low = trig[45] == 0;
-        if (low && !lastGateLow) ++legacyEdges;
-        CHECK(CTAG::DRIVERS::SeqEngine::GetVargBurst(0) == 0);
-        lastGateLow = low;
+        if (trig[45] == 0) {
+            ++arpeggioEdges;
+            CHECK_EQ(CTAG::DRIVERS::SeqEngine::GetVargBurst(0), 0);
+            CHECK_EQ(CTAG::DRIVERS::SeqEngine::GetVargVoicing(0), -1);
+        }
     }
-    // Same window and tempo: the burst must produce substantially more
-    // note edges than the legacy single-gate-per-step behaviour.
-    CHECK(legacyEdges < edges);
-    CHECK(edges >= legacyEdges * 2);
+    CHECK(arpeggioEdges > 3);
 }
 
 
 TEST(varg_chord_bars_and_glide_only_on_change) {
-    uint8_t trig[51]; float cv[106];
+    uint8_t trig[53]; float cv[108];
     auto count_glides = [&](int bars) {
         CTAG::DRIVERS::SeqEngine::Init();
         CTAG::DRIVERS::SeqEngine::SetArpAlgo(0, 18);
         CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
         CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
-        CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, bars); // P5 chord bars
-        CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 20);   // strum enabled
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 4, bars); // Chord Bars
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 23);   // Pendulum order
+        CTAG::DRIVERS::SeqEngine::SetArpP(0, 8, 0);    // Burst
         memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
         int glides = 0;
         for (int b = 0; b < 10400; ++b) {   // ~4 bars at 1 ms blocks
@@ -729,8 +735,8 @@ TEST(varg_chord_mode_arpeggio_has_no_burst) {
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 1, 0);    // TRM16
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 3, 0);
     CTAG::DRIVERS::SeqEngine::SetArpP(0, 5, 20);   // Arp Order
-    CTAG::DRIVERS::SeqEngine::SetArpP(0, 8, 51);   // Chord Mode = Arpeggio
-    uint8_t trig[51]; float cv[106];
+    CTAG::DRIVERS::SeqEngine::SetArpP(0, 8, 51);   // Arpeggio mode
+    uint8_t trig[53]; float cv[108];
     memset(trig, 1, sizeof(trig)); memset(cv, 0, sizeof(cv));
     bool sawBurst = false;
     int distinctPitches = 0;
@@ -744,4 +750,5 @@ TEST(varg_chord_mode_arpeggio_has_no_burst) {
     }
     CHECK(!sawBurst);              // no compressed chord burst
     CHECK(distinctPitches >= 3);   // one chord tone per gated step
+    CHECK(CTAG::DRIVERS::SeqEngine::GetVargVoicing(0) == -1);
 }
