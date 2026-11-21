@@ -47,6 +47,7 @@ void ctagSoundProcessorTBStrings::Process(const ProcessData &data) {
     updateParams(data);
 
     rings::GuitarStringBankConfig cfg;
+    cfg.structure = toneStructure;
     cfg.brightness = toneBrightness;
     cfg.damping = toneDamping;
     cfg.position = tonePosition;
@@ -102,6 +103,12 @@ void ctagSoundProcessorTBStrings::updateParams(const ProcessData &data) {
     float fAD = paramAD.Process();
 
     // --- String tone controls ----------------------------------------------
+    toneStructure = structure / 4095.f;
+    if (cv_structure != -1) toneStructure = fabsf(data.cv[cv_structure]);
+    if (cv_mod_structure != -1) toneStructure += data.cv[cv_mod_structure] * mod_structure / 4095.f;
+    else toneStructure += fAD * mod_structure / 4095.f;
+    CONSTRAIN(toneStructure, 0.f, 1.f)
+
     toneBrightness = brightness / 4095.f;
     if (cv_brightness != -1) toneBrightness = fabsf(data.cv[cv_brightness]);
     if (cv_mod_brightness != -1) toneBrightness += data.cv[cv_mod_brightness] * mod_brightness / 4095.f;
@@ -218,6 +225,8 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("reson_model", [&](const int val) { cv_reson_model = val; });
     pMapPar.emplace("frequency", [&](const int val) { frequency = val; });
     pMapCv.emplace("frequency", [&](const int val) { cv_frequency = val; });
+    pMapPar.emplace("structure", [&](const int val) { structure = val; });
+    pMapCv.emplace("structure", [&](const int val) { cv_structure = val; });
     pMapPar.emplace("brightness", [&](const int val) { brightness = val; });
     pMapCv.emplace("brightness", [&](const int val) { cv_brightness = val; });
     pMapPar.emplace("damping", [&](const int val) { damping = val; });
@@ -236,6 +245,8 @@ void ctagSoundProcessorTBStrings::knowYourself() {
     pMapCv.emplace("eg_attack", [&](const int val) { cv_eg_attack = val; });
     pMapPar.emplace("eg_decay", [&](const int val) { eg_decay = val; });
     pMapCv.emplace("eg_decay", [&](const int val) { cv_eg_decay = val; });
+    pMapPar.emplace("mod_structure", [&](const int val) { mod_structure = val; });
+    pMapCv.emplace("mod_structure", [&](const int val) { cv_mod_structure = val; });
     pMapPar.emplace("mod_brightness", [&](const int val) { mod_brightness = val; });
     pMapCv.emplace("mod_brightness", [&](const int val) { cv_mod_brightness = val; });
     pMapPar.emplace("mod_frequency", [&](const int val) { mod_frequency = val; });

@@ -22,6 +22,13 @@
    "def": 2016
   },
   {
+   "id": "structure",
+   "name": "Structure",
+   "type": "int",
+   "min": 0,
+   "max": 4095
+  },
+  {
    "id": "brightness",
    "name": "Brightness",
    "type": "int",
@@ -91,6 +98,13 @@
    "type": "group",
    "name": "Modulation",
    "params": [
+    {
+     "id": "mod_structure",
+     "type": "int",
+     "name": "Structure mod",
+     "min": -4095,
+     "max": 4095
+    },
     {
      "id": "mod_brightness",
      "type": "int",

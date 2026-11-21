@@ -46,6 +46,7 @@ namespace CTAG {
             bool eg_pre_trigger = false;
 
             // Derived per block.
+            float toneStructure = 0.5f;
             float toneBrightness = 0.5f;
             float toneDamping = 0.5f;
             float tonePosition = 0.5f;
@@ -62,6 +63,7 @@ namespace CTAG {
 // sectionHpp
             atomic<int32_t> reson_model{0}, cv_reson_model{-1};
             atomic<int32_t> frequency{2016}, cv_frequency{-1};
+            atomic<int32_t> structure{2048}, cv_structure{-1};
             atomic<int32_t> brightness{2048}, cv_brightness{-1};
             atomic<int32_t> damping{2048}, cv_damping{-1};
             atomic<int32_t> position{2048}, cv_position{-1};
@@ -73,6 +75,7 @@ namespace CTAG {
             atomic<int32_t> eg_loop{0}, trig_eg_loop{-1};
             atomic<int32_t> eg_attack{2048}, cv_eg_attack{-1};
             atomic<int32_t> eg_decay{2048}, cv_eg_decay{-1};
+            atomic<int32_t> mod_structure{0}, cv_mod_structure{-1};
             atomic<int32_t> mod_brightness{0}, cv_mod_brightness{-1};
             atomic<int32_t> mod_frequency{0}, cv_mod_frequency{-1};
             atomic<int32_t> mod_damping{0}, cv_mod_damping{-1};

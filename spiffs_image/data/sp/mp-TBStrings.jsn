@@ -15,6 +15,11 @@
      "cv": -1
     },
     {
+     "id": "structure",
+     "current": 2048,
+     "cv": -1
+    },
+    {
      "id": "brightness",
      "current": 2048,
      "cv": -1
@@ -57,6 +62,11 @@
     {
      "id": "eg_decay",
      "current": 2048,
+     "cv": -1
+    },
+    {
+     "id": "mod_structure",
+     "current": 0,
      "cv": -1
     },
     {
