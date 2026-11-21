@@ -154,6 +154,39 @@ TEST(string_bank_cab_output_bounded) {
   CHECK(peak < 1.5f);
 }
 
+TEST(tbstrings_full_chain_stays_bounded) {
+  // Strings -> sustainer/chainsaw -> Rings limiter -> cab FIR, with the
+  // harshest realistic settings (max damping, drive, full cab wet).
+  rings::GuitarStringBank bank;
+  bank.Init(false);
+  bank.SetCabMix(1.0f);
+  float in[32] = {0.f}, out[32], aux[32];
+  rings::GuitarStringBankConfig cfg;
+  cfg.brightness = 0.88f;
+  cfg.damping = 1.0f;
+  cfg.position = 0.7f;
+  cfg.structure = 0.6f;
+  cfg.dist_type = 5;          // Chainsaw
+  cfg.dist_drive = 0.8f;
+  cfg.dist_bias = 0.1f;
+  cfg.dist_mix = 1.0f;
+  const int notes[4] = {45, 52, 57, 33};
+  float peak = 0.f;
+  for (int k = 0; k < 2000; ++k) {
+    if (k % 120 == 0) bank.SetNote(notes[(k / 120) & 3], notes[(k / 120) & 3], true);
+    bank.Process(cfg, in, out, aux, 32);
+    for (int i = 0; i < 32; ++i) {
+      CHECK(std::isfinite(out[i]));
+      CHECK(std::isfinite(aux[i]));
+      if (fabsf(out[i]) > peak) peak = fabsf(out[i]);
+      if (fabsf(aux[i]) > peak) peak = fabsf(aux[i]);
+    }
+  }
+  printf("FULLCHAIN peak=%f\n", peak);
+  CHECK(peak < 1.0f);
+  CHECK(peak > 0.01f);
+}
+
 TEST(string_bank_notes_overlap_across_strings) {
   rings::GuitarStringBank all, last;
   all.Init(false); last.Init(false);
