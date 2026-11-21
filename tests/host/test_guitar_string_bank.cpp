@@ -158,8 +158,10 @@ TEST(speaker_cab_fir_wraps_without_artifacts) {
   // Regression for the background-noise bug: the old single 8-tap-unrolled
   // loop checked the ring wrap AFTER reading 8 taps, so when the write
   // pointer was near the end it read past the 512-sample history buffer.
-  // An impulse must produce exactly h[(512 - k) & 511] * 0.25 (SoftLimit),
-  // including across the wrap at k=511/512.
+  // An impulse must produce exactly h[k] * 0.25 (SoftLimit) — h[0] pairs
+  // with the newest sample, h[1] with one sample ago (same causal order as
+  // the rack's `h[k] * w[-k]`). The old circular delay line accidentally
+  // reversed the IR: h[1] hit the OLDEST sample, h[511] the previous one.
   rings::GuitarStringBank bank;
   bank.Init(false);
   const int16_t *packed = reinterpret_cast<const int16_t *>(tbd::kSpeakerIrQ15);
@@ -173,13 +175,35 @@ TEST(speaker_cab_fir_wraps_without_artifacts) {
     bank.ProcessCab(&in, &out, 1);
     float expected = 0.f;
     if (k < tbd::kSpeakerIrTaps)
-      expected = stmlib::SoftLimit(
-          h[(tbd::kSpeakerIrTaps - k) & (tbd::kSpeakerIrTaps - 1)] * 0.25f);
+      expected = stmlib::SoftLimit(h[k] * 0.25f);
     const float err = fabsf(out - expected);
     if (err > worst) worst = err;
     CHECK(err < 1e-4f);
   }
   printf("CABWRAP worst=%e\n", worst);
+}
+
+TEST(speaker_cab_group_matches_scalar) {
+  // The device processes 32 samples/block through the 8-samples-per-tap
+  // fast path. Verify it is numerically identical to feeding the same
+  // signal one sample at a time (the scalar path).
+  rings::GuitarStringBank fast, slow;
+  fast.Init(false); slow.Init(false);
+  float sig[128], outFast[128], outSlow[128];
+  unsigned rng = 12345;
+  for (int i = 0; i < 128; ++i) {
+    rng = rng * 1664525u + 1013904223u;
+    sig[i] = ((float)(rng >> 8) / 8388608.f - 1.f) * 0.5f;
+  }
+  for (int b = 0; b < 128; b += 32) fast.ProcessCab(sig + b, outFast + b, 32);
+  for (int i = 0; i < 128; ++i) slow.ProcessCab(sig + i, outSlow + i, 1);
+  float worst = 0.f;
+  for (int i = 0; i < 128; ++i) {
+    const float err = fabsf(outFast[i] - outSlow[i]);
+    if (err > worst) worst = err;
+    CHECK(err < 1e-5f);
+  }
+  printf("CABGROUP worst=%e\n", worst);
 }
 
 TEST(tbstrings_full_chain_stays_bounded) {
